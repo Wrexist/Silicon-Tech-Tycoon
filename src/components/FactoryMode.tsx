@@ -233,6 +233,16 @@ export function FloorMinimap({ floor, lineOk, running, floorW = FLOOR.w, lockedB
 
 /* ----------------------------- fullscreen mode ----------------------------- */
 
+/** The "you can't build right now" nudge. `use3d` goes false for two unrelated reasons and they need
+ *  different words: a device with no WebGL2 will never run the builder, whereas a lost GPU context is
+ *  temporary and recoverable — telling that player their device can't run 3D is simply false, and
+ *  sends them off to replace hardware that works. Shared so the three call sites can't drift. */
+function needs3dMessage(glLost: boolean): string {
+  return glLost
+    ? "Building the line needs the 3D view — the graphics context was lost. Reopen the factory to retry."
+    : "Building the line needs the 3D view, which this device can't run.";
+}
+
 export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNavigate?: (t: Tab) => void }) {
   const d = useFactoryData();
   const { state } = d;
@@ -246,7 +256,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   // tile would arm a tool that can never drop, so route the same "needs 3D" nudge the Build button
   // shows instead of silently arming it. (Reachable when the GL context is lost mid-build.)
   const armTool = (t: MachineKind | PropKind | "belt" | "erase" | "upgrade") => {
-    if (!use3d) { showToast("Building the line needs the 3D view, which this device can't run.", { tone: "neutral" }); return; }
+    if (!use3d) { showToast(needs3dMessage(glLost), { tone: "neutral" }); return; }
     setBuildTool(t);
   };
   const [buildCat, setBuildCat] = useState<"machine" | "decor">("machine");
@@ -523,7 +533,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           <div className="fmode__panel fmode__stopped">
             <span className="fmode__stopped-title"><Wrench size={14} aria-hidden /> Line offline</span>
             <p className="fmode__empty">Connect the Intake to the Packer — build the line yourself, or tap Auto to lay a long conveyor track across the whole floor and line your machines up along it. A wired line builds every run faster.</p>
-            <button className="fmode__stopped-fix" onClick={() => { haptic.light(); if (!use3d) { showToast("Building the line needs the 3D view, which this device can't run.", { tone: "neutral" }); return; } setBuildCat("machine"); setBuildTool("belt"); }}>Fix in Build</button>
+            <button className="fmode__stopped-fix" onClick={() => { haptic.light(); if (!use3d) { showToast(needs3dMessage(glLost), { tone: "neutral" }); return; } setBuildCat("machine"); setBuildTool("belt"); }}>Fix in Build</button>
           </div>
         )}
         <div className="fmode__panel">
@@ -626,7 +636,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             haptic.light();
             // Placement is wired to the 3D pad; the 2D fallback can't drop machines, so tell the
             // player instead of arming a tool that silently does nothing.
-            if (!use3d) { showToast("Building the line needs the 3D view, which this device can't run.", { tone: "neutral" }); return; }
+            if (!use3d) { showToast(needs3dMessage(glLost), { tone: "neutral" }); return; }
             if (buildTool != null) { setBuildTool(null); } else { setBuildCat("machine"); setBuildTool("belt"); }
           }}
         >

@@ -306,7 +306,7 @@ export function strategicInsights(state: GameState): Insight[] {
   }
   // 10c. Still home-only with room to expand — open the first overseas market.
   if (insights.length < INSIGHT_POOL && state.unlockedRegions.length === 1 && state.launched.length >= 2) {
-    const firstRegion = REGIONS.find((r) => !state.unlockedRegions.includes(r.id) && state.cash >= (r.unlockCost as number));
+    const firstRegion = REGIONS.find((r) => !state.unlockedRegions.includes(r.id) && state.cash >= r.unlockCost);
     if (firstRegion) {
       insights.push({
         id: "expand",
@@ -330,8 +330,10 @@ export function strategicInsights(state: GameState): Insight[] {
 }
 
 /** The hints to show alongside an objective: the ranked list minus anything that objective already
- *  says, capped at `INSIGHT_SHOWN`. `objectiveId` is null when the ladder is complete — then nothing
- *  is subsumed and the caller promotes the first hint into the primary slot. Pure. */
+ *  says. The result is deliberately NOT capped — the caller slices it, because how many it can show
+ *  depends on whether it also promoted the first hint into the primary slot (which the Next-move card
+ *  does once the objective ladder is complete). `objectiveId` is null in exactly that case, and then
+ *  nothing is subsumed. Pure. */
 export function guidanceHints(state: GameState, objectiveId: string | null): Insight[] {
   const subsumed = new Set(objectiveId ? OBJECTIVE_SUBSUMES[objectiveId] ?? [] : []);
   return strategicInsights(state).filter((h) => !subsumed.has(h.id));

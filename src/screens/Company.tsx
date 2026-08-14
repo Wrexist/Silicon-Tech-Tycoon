@@ -1321,6 +1321,10 @@ function Member({
             <Button
               size="sm"
               variant="destructive"
+              // Button fires haptic.light() of its own accord before onClick; without this the one
+              // dismissal buzzed twice, and the warning cue it is meant to carry got a light tap
+              // stacked on top of it.
+              haptics="none"
               onClick={() => { onFire(s.id); haptic.warning(); }}
             >
               Let go
