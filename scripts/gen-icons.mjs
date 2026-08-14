@@ -24,25 +24,31 @@ const targets = [
 
 const BG = "#0f1115";
 
+// Encoder settings shared with scripts/optimize-images.mjs. `palette: false` is deliberate and
+// load-bearing: sharp turns palette quantization ON as soon as you pass `effort` or `quality`, which
+// bands the icon's gradients. These three flags are lossless and cut the output by ~a third — without
+// them a regenerate silently re-inflates the icons that pass just shrank.
+const PNG_OPTS = { palette: false, compressionLevel: 9, adaptiveFiltering: true };
+
 async function withSharp(src, isRaster) {
   const sharp = (await import("sharp")).default;
   for (const t of targets) {
     if (t.maskable) {
       // Render the art at 80% and center it on a solid bg so the safe zone is respected.
       const inner = Math.round(t.size * 0.8);
-      const art = await sharp(src).resize(inner, inner).png().toBuffer();
+      const art = await sharp(src).resize(inner, inner).png(PNG_OPTS).toBuffer();
       const pad = Math.round((t.size - inner) / 2);
       await sharp({
         create: { width: t.size, height: t.size, channels: 4, background: BG },
       })
         .composite([{ input: art, top: pad, left: pad }])
-        .png()
+        .png(PNG_OPTS)
         .toFile(pub(t.name));
     } else {
       // From a raster source, flatten onto the dark bg so PWA/touch icons are opaque (iOS shows
       // black through transparency on home-screen icons). The SVG path keeps its transparent corners.
       const base = sharp(src).resize(t.size, t.size);
-      await (isRaster ? base.flatten({ background: BG }) : base).png().toFile(pub(t.name));
+      await (isRaster ? base.flatten({ background: BG }) : base).png(PNG_OPTS).toFile(pub(t.name));
     }
     console.log("wrote", t.name);
   }
@@ -54,7 +60,7 @@ async function withSharp(src, isRaster) {
   await sharp(src)
     .resize(1024, 1024)
     .flatten({ background: BG })
-    .png()
+    .png(PNG_OPTS)
     .toFile(resolve(root, "resources/icon.png"));
   console.log("wrote resources/icon.png (1024, opaque master)");
 
@@ -63,13 +69,13 @@ async function withSharp(src, isRaster) {
   // is the SAME dark art for light + dark (matches capacitor.config backgroundColor #0f1115);
   // splash-dark.png must exist or the assets generator falls back to its Capacitor-logo default.
   const SPLASH = 2732;
-  const mark = await sharp(src).resize(820, 820).png().toBuffer();
+  const mark = await sharp(src).resize(820, 820).png(PNG_OPTS).toBuffer();
   const splashPng = await sharp({
     create: { width: SPLASH, height: SPLASH, channels: 4, background: BG },
   })
     .composite([{ input: mark, top: Math.round((SPLASH - 820) / 2), left: Math.round((SPLASH - 820) / 2) }])
     .flatten({ background: BG })
-    .png()
+    .png(PNG_OPTS)
     .toBuffer();
   await writeFile(resolve(root, "resources/splash.png"), splashPng);
   await writeFile(resolve(root, "resources/splash-dark.png"), splashPng);
@@ -87,7 +93,7 @@ async function withSharp(src, isRaster) {
     await sharp(src)
       .resize(1024, 1024)
       .flatten({ background: BG })
-      .png()
+      .png(PNG_OPTS)
       .toFile(resolve(xcassets, "AppIcon.appiconset/AppIcon-512@2x.png"));
     console.log("wrote ios AppIcon-512@2x.png (1024, opaque)");
     // Splash: the same dark branded art at every scale slot the imageset declares.

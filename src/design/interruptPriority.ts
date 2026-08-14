@@ -52,6 +52,15 @@ const IS_PENDING: Record<InterruptKey, (s: GameState) => boolean> = {
   secretReveal: (s) => s.pendingSecretReveal != null,
 };
 
+/** Does this stream currently have a card on the state? The single source of truth for "is X up",
+ *  shared by the priority check below and by `components/Interrupts.tsx`, which uses it to decide
+ *  whether to MOUNT an overlay's lazily-loaded chunk at all. Those two must never disagree: a gate
+ *  that says "not pending" while the overlay would have rendered is an interrupt that silently never
+ *  appears again, so there is exactly one predicate per stream and both callers read it. */
+export function isPending(state: GameState, key: InterruptKey): boolean {
+  return IS_PENDING[key](state);
+}
+
 /** The player's own launch payoff — the reveal animation running, or a finished build waiting to be
  *  claimed. It always outranks every opportunistic interrupt, so they all yield to it. */
 export function launchMomentActive(state: GameState): boolean {

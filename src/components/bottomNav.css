@@ -50,15 +50,30 @@
   font-size: 19px;
   line-height: 1;
 }
+/* Attention dots come in two weights so the badge means something again. Every dot used to be the
+   same urgent red, and the Office tab alone lit it for ~8 unrelated reasons — mid-game it was simply
+   always on, which is the same as always off. */
 .bnav__badge {
   position: absolute;
   top: -2px;
   right: -6px;
+  border-radius: 50%;
+  border: 1.5px solid var(--surface);
+}
+/* Someone is waiting on an answer, and it expires. Full size, alert colour. */
+.bnav__badge--act {
   width: 7px;
   height: 7px;
-  border-radius: 50%;
   background: var(--negative);
-  border: 1.5px solid var(--surface);
+}
+/* Something nice is available whenever you like. Smaller and calmer — present, not shouting. */
+.bnav__badge--opportunity {
+  top: -1px;
+  right: -5px;
+  width: 5px;
+  height: 5px;
+  background: var(--accent);
+  opacity: 0.75;
 }
 .bnav__label {
   font-size: var(--fs-nano);

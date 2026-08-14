@@ -3,7 +3,7 @@ import {
   HelpCircle, Layers, ShoppingBag, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
   Repeat, RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp, Trophy,
   Undo2, UserPlus, Users, Wand2, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, Crown, Swords, Target, Landmark,
-  Activity, Scissors, HandCoins, Package, type LucideIcon,
+  Activity, Scissors, HandCoins, Package, Info, type LucideIcon,
 } from "lucide-react";
 import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/primitives.tsx";
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
@@ -23,7 +23,6 @@ import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
 import { ascensionName } from "../engine/ascension.ts";
-import { REGIONS } from "../engine/regions.ts";
 import { lineComplete } from "../engine/factoryFloor.ts";
 import { currentObjective, type ObjectiveIconName } from "../engine/objectives.ts";
 import { cents, dollars, format, formatCount, formatShortDollars, sub, toDollars, type Money } from "../engine/money.ts";
@@ -62,9 +61,8 @@ const OFFICE_ADDITION: Record<UpgradeId, string> = {
   amenities: "a coffee station + greenery",
   assembly: "a faster production line",
 };
-import { RESEARCH_PROJECTS, forkLockedBy, projectById, type ProjectId } from "../engine/research.ts";
-import { STAT_INFO } from "../engine/glossary.ts";
-import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
+import { projectById } from "../engine/research.ts";
+import { guidanceHints, INSIGHT_SHOWN, type InsightIconName } from "../state/insights.ts";
 import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, mandateFacts, nextRankRival, nemesisDuelSnapshot, marketingPushQuote, restockQuote, reorderLeadWeeks, type FeedItem, type GameState } from "../state/gameState.ts";
 import { CategoryIcon } from "../design/icons.tsx";
 import { priceFit } from "../engine/market.ts";
@@ -76,15 +74,15 @@ import { LEGACY_TREE, legacyPerkAvailable } from "../engine/legacyTree.ts";
 import { frontierCost, frontierBonuses, frontierBandName, FRONTIER_LANES, nextFrontierBandUnlock, type FrontierLaneId } from "../engine/frontier.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { runwayWeeks } from "../engine/economy.ts";
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useGame } from "../state/useGame.tsx";
-import { useSettings, getSettings, setSettings } from "../state/settings.ts";
+import { getSettings, setSettings } from "../state/settings.ts";
 import { IsoScene } from "../components/IsoScene.tsx";
 import { DecorateTutorial } from "../components/DecorateTutorial.tsx";
 import { BuildProgress } from "../components/BuildProgress.tsx";
 import { KeynoteControl } from "../components/KeynoteControl.tsx";
 import { FurnitureThumb } from "../components/FurnitureThumb.tsx";
-import { isDarkTheme, prefersReducedMotion, webglSupported } from "../garage3d/support.ts";
+import { isDarkTheme, useReducedMotionLive, webglSupported } from "../garage3d/support.ts";
 import type { BuildProps } from "../garage3d/Garage3D.tsx";
 import { ErrorBoundary } from "../components/ErrorBoundary.tsx";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
@@ -93,17 +91,6 @@ import "./hq.css";
 
 /** prefers-reduced-motion, kept LIVE: enabling it mid-session downgrades the always-animating 3D
  *  office to the static IsoScene without a reload (the one-shot read only covered mount time). */
-function useReducedMotionLive(): boolean {
-  const [reduced, setReduced] = useState(() => prefersReducedMotion());
-  useEffect(() => {
-    const mq = window.matchMedia?.("(prefers-reduced-motion: reduce)");
-    if (!mq?.addEventListener) return;
-    const onChange = (e: MediaQueryListEvent) => setReduced(e.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-  return reduced;
-}
 
 const UPGRADE_ICONS: Record<string, LucideIcon> = { Cpu, PencilRuler, FlaskConical, Megaphone, Coffee, Factory };
 // Each upgrade line is colour-coded by the company function it powers.
@@ -124,14 +111,23 @@ const FINE_POINTER = typeof window !== "undefined" && !!window.matchMedia?.("(po
 
 export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, active = true, world = "office" }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; onOpenChallenges?: () => void; onViewFactory?: () => void; active?: boolean; world?: "office" | "factory" }) {
   const { state, advanceEra, goPublic, resolveChoice, resolvePoach, claimContract, fundMegaproject, buyLegacyPerk, buyFrontierTier } = useGame();
-  const settings = useSettings();
   // The launch payoff (reveal, haptics, streak, review prompt) lives in a shared hook so the Office
   // card here and the global ready-to-launch popup release a product identically.
   const launchProduct = useLaunchProduct();
   const onLaunch = (id: string) => { launchProduct(id); };
   const reducedMotion = useReducedMotionLive();
   const pro = useIsPro();
-  const use3d = settings.garage3d && webglSupported() && !reducedMotion;
+  // The 3D office is THE office — there is no 2D alternative view any more, and no preference that
+  // turns it off. `webglSupported()` is the only gate left, and it is a capability check, not a
+  // choice: on a device with no WebGL2 there is no 3D to render, so the SVG scene stays as the
+  // fallback for that (and for a lost GPU context, and for a crash inside the 3D scene) purely so
+  // those players get an office instead of a black rectangle.
+  //
+  // Reduce Motion no longer routes anyone here. It used to, which silently hid every piece of
+  // furniture the player had bought — the SVG scene draws an authored garage and knows nothing about
+  // the layout. It is honoured inside the 3D scene instead, by stilling the idle camera drift (the
+  // viewport-level motion the setting actually exists for); see Garage3D's `still` prop.
+  const use3d = webglSupported();
   const ipoReady = canIPO(state);
   const hasProduction =
     state.building.length > 0 || state.launched.some((l) => l.weeksElapsed < l.weeklyUnits.length);
@@ -158,7 +154,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           context survives the swap — the same rule that keeps it alive across bottom tabs.
           Its render loop pauses via active while hidden. */}
       <div className="hq__world" hidden={world === "factory"}>
-        <OfficeScene use3d={use3d} hasProduction={hasProduction} active={active && world === "office"} onNavigate={onNavigate} onOpenBank={onOpenBank} />
+        <OfficeScene use3d={use3d} reducedMotion={reducedMotion} hasProduction={hasProduction} active={active && world === "office"} onNavigate={onNavigate} onOpenBank={onOpenBank} />
       </div>
       {world === "factory" && <FactoryCard onNavigate={onNavigate} active={active} />}
 
@@ -182,7 +178,11 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         </Card>
       )}
 
-      {/* Player-choice event card — a decision that gates the event flow, so it's in the priority zone. */}
+      {/* ONE answer at a time. An event choice and a poach attempt could both sit open, and with the
+          IPO / era cards below that put up to five separate calls-to-action in the band that is
+          supposed to mean "this needs you now" — which is the same as none of them meaning it. Both
+          persist until resolved and neither expires, so showing the event first and revealing the
+          poach the moment it's answered loses nothing and keeps the top of the screen singular. */}
       {state.pendingChoice && (
         <Card className="hq__choice">
           <div className="hq__choice-head">
@@ -205,8 +205,9 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         </Card>
       )}
 
-      {/* Rival poaching — keep your employee with a counter-offer, or let them walk (Track C) */}
-      {state.pendingPoach && (
+      {/* Rival poaching — keep your employee with a counter-offer, or let them walk (Track C).
+          Yields to an open event choice per the one-answer-at-a-time rule above. */}
+      {!state.pendingChoice && state.pendingPoach && (
         <Card className="hq__choice">
           <div className="hq__choice-head">
             <Crosshair size={14} className="hq__choice-icon" aria-hidden />
@@ -249,6 +250,10 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           (the tracker above owns this slot then). Deep-links into the Challenges sheet. */}
       {onOpenChallenges && <DailyChallengeCard onOpen={onOpenChallenges} />}
 
+      {/* The earned-milestone slot — ONE card, never two. Today the balance makes that automatic
+          (IPO needs era 4, and the era-4→5 step needs `wentPublic`, so the two can't both be ready),
+          but the band's whole job is to hold a single call-to-action, so the invariant is stated in
+          code rather than left resting on a balance constant two modules away. */}
       {ipoReady && (
         <Card className="hq__era hq__ipo">
           <div className="hq__era-body">
@@ -273,7 +278,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         </Card>
       )}
 
-      {advanceReady && (
+      {!ipoReady && advanceReady && (
         <Card className="hq__era">
           <div className="hq__era-body">
             <span className="hq__era-title">
@@ -306,14 +311,17 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         </Card>
       )}
 
-      <div className="hq__stats">
-        <StatPill label="Products" value={state.launched.length} />
-        <StatPill label="Team" value={state.staff.length} />
-        <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
-        {state.era < maxEra()
-          ? <StatPill label="Era" value={`${state.era}/${maxEra()}`} tone="accent" />
-          : <StatPill label="Fans" value={formatCount(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />}
-      </div>
+      {/* ── Your company ─────────────────────────────────────────────────────────────────────────
+          Everything above this line is something that wants an answer NOW (a finished build, a
+          decision, a milestone you've earned). From here down the screen is grouped into three
+          labelled zones instead of one undifferentiated column of ~20 cards, so the scroll is
+          navigable: where you STAND, how the business RUNS, and the RECORD of what happened. */}
+      <HqGroup label="Your company">
+      {/* The vital signs — ONE row, cut to four. It used to be two rows of six, with the second
+          negative-margined up to look like the first, and it led with trivia: "Products" duplicates
+          the Performance card's own Shipped count, and "Team" is both the Company tab's whole subject
+          and literally visible as desks in the office above. What's left is what you actually steer
+          by, money first, because this is a game about not running out of it. */}
       {(() => {
         const wkRev = nextWeekRevenue(state);
         const runway = runwayWeeks(state.cash, weeklyOutflow(state), wkRev);
@@ -321,9 +329,13 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         const runwayLabel = runway === Infinity ? "Profitable" : runway > 520 ? "10y+" : runway > 52 ? `${Math.round(runway / 52)}y` : `${runway} wk`;
         const runwayTone = runway === Infinity ? "positive" : runway < 8 ? "negative" : runway < 20 ? "neutral" : "positive";
         return (
-          <div className="hq__fin-pills">
+          <div className="hq__stats">
             <StatPill label="Cash" value={format(state.cash)} tone={state.cash >= 0 ? "neutral" : "negative"} />
             <StatPill label="Runway" value={runwayLabel} tone={runwayTone as "positive" | "negative" | "neutral"} />
+            <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
+            {state.era < maxEra()
+              ? <StatPill label="Era" value={`${state.era}/${maxEra()}`} tone="accent" />
+              : <StatPill label="Fans" value={formatCount(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />}
           </div>
         );
       })()}
@@ -360,6 +372,11 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       {/* Rolling contract board — live, regenerating goals that give the endgame a directed chase
           (engine/contracts.ts). Appears once you've shipped; each pays a claimable reward. */}
       {state.tutorialDone && <ContractsCard state={state} onClaim={claimContract} />}
+      </HqGroup>
+
+      {/* ── Operations ── the machinery you tend between decisions. Empty in the early game (nothing
+          is live yet), and the group label hides itself when so — see `.hq__group` in hq.css. */}
+      <HqGroup label="Operations">
 
       {/* Legacy Era (item 4.1) — the post-IPO endgame: board mandates + moonshot megaprojects. */}
       {state.wentPublic && <LegacyEraCard state={state} onFund={fundMegaproject} onBuyPerk={buyLegacyPerk} onAdvanceFrontier={buyFrontierTier} />}{/* onAdvanceFrontier takes a lane (feature #6) */}
@@ -399,19 +416,61 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       )}
 
       <Upgrades />
+      </HqGroup>
 
-      {state.launched.length === 0 ? (
-        // While the first-run Coach is walking design→build→launch, don't also show the identical
-        // checklist here; it takes over once the tutorial is skipped or finished.
-        state.tutorialDone ? <GetStartedCard state={state} onNavigate={onNavigate} /> : null
-      ) : (
+      {/* ── Records ── the read-only tail: how the company has performed, and what happened. Nothing
+          here needs an action, which is exactly why it sits last and under its own label. */}
+      {/* Nothing to record until something has shipped. (A "Get started" checklist used to live here
+          for tutorial-skippers, repeating design → build → launch a third time after the Coach and the
+          objective ladder. The ladder's first rung IS that checklist, with a progress bar and the same
+          deep-link, and the Ready-to-launch / In-production cards carry its other two steps live — so
+          it was a third copy of guidance the screen already gives twice.) */}
+      <HqGroup label="Records">
+      {state.launched.length > 0 && (
         <>
           <PerformanceCard state={state} onNavigate={onNavigate} />
-          <StrategicInsightsCard state={state} onNavigate={onNavigate} />
+          {/* The advisory hints that used to live in a second card down here now ride along with the
+              objective in the single Next-move card above — one voice, one place, deduped. */}
           {state.feed.length > 0 && <FeedCard feed={state.feed} week={state.week} onNavigate={onNavigate} />}
         </>
       )}
+      </HqGroup>
     </div>
+  );
+}
+
+/** A labelled zone of the HQ scroll. The label hides itself when the group rendered no cards (every
+ *  card in a group self-gates and can return null), so an early-game player never sees an "Operations"
+ *  heading over empty space — see the `:has()` rule in hq.css. */
+function HqGroup({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="hq__group">
+      <h2 className="hq__group-label">{label}</h2>
+      {children}
+    </div>
+  );
+}
+
+/** The one-line explanation under the fallback office.
+ *
+ *  This now appears in exactly one situation: the device has no WebGL2, so there is no 3D office to
+ *  draw. It is not a preference and not a mode — nobody can reach it by choice any more.
+ *
+ *  It still needs saying, because the fallback is an AUTHORED garage: it renders the team and the
+ *  facility and knows nothing about placed furniture, so a player who has furnished an office sees
+ *  none of it. Unexplained that reads as "my purchases did nothing", which is both wrong and the kind
+ *  of doubt that stops people spending in the office shop at all. The layout bonuses (comfort, focus,
+ *  inspiration, desk zoning) are computed in the engine from `state.layout` and never touch the
+ *  renderer, so the honest thing is to say so. */
+function SimplifiedSceneNote({ glLost }: { glLost: boolean }) {
+  // Context loss already shows its own "Try 3D again" button right here — don't stack two
+  // explanations of the same missing picture.
+  if (glLost) return null;
+  return (
+    <p className="hq__scene-note">
+      <Info size={11} aria-hidden />
+      <span>This device can't run the 3D office — your office bonuses still apply.</span>
+    </p>
   );
 }
 
@@ -487,7 +546,7 @@ function OfficeOverview({ state, zones, crowded }: { state: GameState; zones: Re
 }
 
 // The garage/office scene + the interactive furniture builder ("Decorate" mode).
-function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: { use3d: boolean; hasProduction: boolean; active: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
+function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, onOpenBank }: { use3d: boolean; reducedMotion: boolean; hasProduction: boolean; active: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
   const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, applyLayoutSnapshot, setLayout, setFloorStyle, setWallStyle } = useGame();
   const [build, setBuild] = useState(false);
   // The office no longer labels each teammate, so teach touch players ONCE that the team is tappable
@@ -696,6 +755,7 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
                 upgrades={state.upgrades}
                 companyName={state.companyName}
                 dark={dark}
+                still={reducedMotion}
                 onContextLost={onGlLost}
                 builder={builder}
                 roomStyle={state.roomStyle}
@@ -710,6 +770,14 @@ function OfficeScene({ use3d, hasProduction, active, onNavigate, onOpenBank }: {
         ) : (
           <>
             <IsoScene staff={state.staff} staffCount={state.staff.length} facilityTier={state.facilityTier} hasProduction={hasProduction} />
+            {/* The 2D scene is an AUTHORED garage, not a render of the player's room — it knows the
+                team and the facility tier, but nothing about the 86-item furniture catalogue or where
+                anything was placed. So a player on this path buys a $12k Design Suite, arranges it,
+                and sees the picture not change. Worse, most people here never chose it: Reduce Motion
+                (a very common accessibility setting) silently routes them here, as does an old GPU.
+                Say so, and say the office still works — the bonuses are computed from the layout in
+                the engine and are entirely unaffected by which renderer drew the picture. */}
+            {!build && <SimplifiedSceneNote glLost={glLost} />}
             {/* Context loss is recoverable — let the player re-attempt the 3D view without
                 relaunching the app (a fresh Canvas mount usually gets a new GPU context). */}
             {glLost && (
@@ -1063,43 +1131,13 @@ function GoalBar({ label, value, target }: { label: string; value: number; targe
   );
 }
 
-/** Quick Start — the opening-moves map for a brand-new garage (no product shipped yet). A three-step
- *  checklist (Design → Build → Launch) that tracks where the player is, so the very first session has
- *  a clear, completable path. The In-production / Ready-to-launch cards above carry the actual build
- *  and launch actions; this is the overview. Replaced by Performance/Insights after the first ship. */
-function GetStartedCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
-  const building = state.building.length > 0;
-  const ready = state.ready.length > 0;
-  const steps = [
-    { label: "Design a product", icon: PencilRuler, done: building || ready, active: !building && !ready },
-    { label: "Build it", icon: Factory, done: ready, active: building && !ready },
-    { label: "Launch to market", icon: Rocket, done: false, active: ready },
-  ];
-  return (
-    <Card className="hq__qs">
-      <SectionHeader title="Get started" accessory="3 steps" />
-      <p className="hq__cta-text">Your garage is ready. Follow these to ship your first product.</p>
-      <ol className="hq__qs-steps">
-        {steps.map((s, i) => (
-          <li key={i} className={`hq__qs-step${s.done ? " hq__qs-step--done" : ""}${s.active ? " hq__qs-step--active" : ""}`}>
-            <span className="hq__qs-mark" aria-hidden>
-              {s.done ? <Check size={14} strokeWidth={3} /> : <s.icon size={14} />}
-            </span>
-            <span className="hq__qs-label">{s.label}</span>
-          </li>
-        ))}
-      </ol>
-      {!building && !ready && (
-        <Button block onClick={() => onNavigate("design")}><PencilRuler size={17} /> Open the Design Lab</Button>
-      )}
-      {building && !ready && <p className="hq__qs-note">Building now. Watch the progress above; you'll launch once it's ready.</p>}
-      {ready && <p className="hq__qs-note">Ready to launch, tap Launch above to ship it.</p>}
-    </Card>
-  );
-}
-
 const OBJECTIVE_ICONS: Record<ObjectiveIconName, LucideIcon> = {
   Rocket, UserPlus, Repeat, FlaskConical, Sparkles, TrendingUp, Wrench, Layers, Building2, Trophy, Crown, Cpu,
+};
+
+/** Same name→component resolution for the advisory hints (state/insights.ts stays DOM-free). */
+const INSIGHT_ICONS: Record<InsightIconName, LucideIcon> = {
+  Users, FlaskConical, Megaphone, TrendingUp, TrendingDown, Rocket, Clock, ArrowUp, Shapes, Target, Sparkles,
 };
 
 /** Item A1 — the one-time "what your first ship unlocked" card. Persists on HQ until tapped (unlike
@@ -1131,48 +1169,90 @@ function UnlockCard({ onOpenBank, onOpenProgress }: { onOpenBank: () => void; on
   );
 }
 
-/** The persistent next-step card: the first unfinished rung of the objective ladder, with a one-line
- *  why, a progress bar, and a deep-link to the right screen. When the whole ladder is done it retires
- *  to a quiet "free play" line (the StrategicInsightsCard below then carries ongoing guidance). The
- *  inner block is keyed on the objective id so each new rung animates in — progress feels earned. */
+/** THE guidance card — one place on HQ that answers "what should I do next?".
+ *
+ *  It used to be two cards, ten others apart: a "Next move" card carrying the objective ladder, and a
+ *  "Strategic insights" card listing three advisory hints. Together with the contract board and the
+ *  tab attention dots that put four-plus competing instructions on one screen, each in its own voice,
+ *  and the player had to work out which one actually mattered. They're merged here:
+ *
+ *  - PRIMARY is the first unfinished rung of the objective ladder (the authored progression spine),
+ *    with its step counter, one-line why, and deep-link. When the ladder is finished the top advisory
+ *    hint is promoted into the primary slot, so a late-game player gets a real directive instead of
+ *    the old content-free "You're running the show now" placard.
+ *  - SECONDARY is at most two hints, minus anything the primary already says (`OBJECTIVE_SUBSUMES`).
+ *
+ *  The inner block is keyed on the primary's id so each new rung animates in — progress feels earned. */
 function NextMoveCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
   const progress = currentObjective(state);
-  if (!progress) {
-    // Ladder complete — only a brand-new player needs hand-holding, so don't clutter forever: show
-    // the "you're in charge now" beat only until the player has shipped a few products.
-    if (state.launched.length > 3) return null;
-    return (
-      <Card className="hq__next hq__next--done">
-        <div className="hq__next-head">
-          <span className="hq__next-glyph" aria-hidden><Sparkles size={18} /></span>
-          <div className="hq__next-titles">
-            <span className="hq__next-eyebrow">All set-up goals complete</span>
-            <span className="hq__next-label">You're running the show now</span>
-          </div>
-        </div>
-        <p className="hq__next-detail">Chase reputation, new eras and the IPO at your own pace, the Insights below flag your best next move.</p>
-      </Card>
-    );
-  }
-  const { objective, step, total } = progress;
-  const Icon = OBJECTIVE_ICONS[objective.icon];
+  const hints = guidanceHints(state, progress?.objective.id ?? null);
+
+  // Ladder complete → promote the best remaining hint to primary. Nothing to say at all → say nothing.
+  const promoted = !progress ? hints[0] : null;
+  if (!progress && !promoted) return null;
+  const secondary = hints.slice(promoted ? 1 : 0, (promoted ? 1 : 0) + INSIGHT_SHOWN);
+
+  const key = progress ? progress.objective.id : promoted!.id;
+  const Icon = progress ? OBJECTIVE_ICONS[progress.objective.icon] : INSIGHT_ICONS[promoted!.icon];
+  const eyebrow = progress ? `Next move · ${progress.step} of ${progress.total}` : "Next move";
+  const label = progress ? progress.objective.label : promoted!.text;
+
   return (
     <Card className="hq__next">
-      <div className="hq__next-anim" key={objective.id}>
+      <div className="hq__next-anim" key={key}>
         <div className="hq__next-head">
           <span className="hq__next-glyph" aria-hidden><Icon size={18} /></span>
           <div className="hq__next-titles">
-            <span className="hq__next-eyebrow">Next move · {step} of {total}</span>
-            <span className="hq__next-label">{objective.label}</span>
+            <span className="hq__next-eyebrow">{eyebrow}</span>
+            <span className="hq__next-label">{label}</span>
           </div>
         </div>
-        <div className="hq__next-bar" aria-hidden>
-          <div className="hq__next-bar-fill" style={{ width: `${Math.round((step / total) * 100)}%` }} />
-        </div>
-        <p className="hq__next-detail">{objective.detail}</p>
-        <Button block variant="secondary" onClick={() => { onNavigate(objective.tab); haptic.light(); }}>
-          {objective.cta} <ChevronRight size={16} />
-        </Button>
+        {progress && (
+          <>
+            <div className="hq__next-bar" aria-hidden>
+              <div className="hq__next-bar-fill" style={{ width: `${Math.round((progress.step / progress.total) * 100)}%` }} />
+            </div>
+            <p className="hq__next-detail">{progress.objective.detail}</p>
+          </>
+        )}
+        {(() => {
+          // The primary's deep-link. Both shapes carry an optional tab; a hint without one is pure
+          // advice, so it simply renders no button rather than a dead control.
+          const tab = progress ? progress.objective.tab : promoted!.tab;
+          if (!tab) return null;
+          const cta = progress ? progress.objective.cta : "Take a look";
+          return (
+            <Button block variant="secondary" onClick={() => { onNavigate(tab); haptic.light(); }}>
+              {cta} <ChevronRight size={16} />
+            </Button>
+          );
+        })()}
+        {secondary.length > 0 && (
+          <div className="hq__next-also">
+            <p className="hq__next-also-label">Also worth doing</p>
+            <div className="hq__insights-list">
+              {secondary.map((ins) => {
+                const HintIcon = INSIGHT_ICONS[ins.icon];
+                const body = (
+                  <>
+                    <span className="hq__insight-icon"><HintIcon size={14} strokeWidth={2.5} /></span>
+                    <span className="hq__insight-text">{ins.text}</span>
+                    {ins.tab && <ChevronRight size={13} className="hq__insight-chevron" aria-hidden />}
+                  </>
+                );
+                // A hint with no destination is plain content, not a disabled control — screen readers
+                // shouldn't announce an inert "button, dimmed" for advice that isn't actionable.
+                return ins.tab ? (
+                  <button key={ins.id} className="hq__insight" onClick={() => onNavigate(ins.tab!)}>
+                    {body}
+                  </button>
+                ) : (
+                  <div key={ins.id} className="hq__insight hq__insight--static">{body}</div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </Card>
   );
@@ -1887,290 +1967,6 @@ function EraGoalCard({ state }: { state: GameState }) {
         return <p className="hq__goal-eta">~{weeksLeft} week{weeksLeft !== 1 ? "s" : ""} at current revenue</p>;
       })()}
     </div>
-  );
-}
-
-// Full stat labels derive from the single source (glossary STAT_INFO) so they can't drift.
-const INSIGHT_STAT_LABEL: Record<string, string> = Object.fromEntries(STAT_KEYS.map((k) => [k, STAT_INFO[k].label]));
-
-function StrategicInsightsCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
-  type Insight = { icon: LucideIcon; text: string; tab?: Tab };
-  const insights: Insight[] = [];
-
-  // 1. Idle staff — most immediately actionable
-  const idleCount = state.staff.filter((s) => s.assignment === "idle").length;
-  if (idleCount > 0) {
-    insights.push({
-      icon: Users,
-      text: `${idleCount} staff member${idleCount > 1 ? "s are" : " is"} unassigned, assign them to R&D or Marketing to compound output.`,
-      tab: "company",
-    });
-  }
-
-  // 2. Affordable research project — same eligibility Research itself applies, INCLUDING the
-  // doctrine fork: never nudge toward a project the player's chosen fork has padlocked.
-  const rp = Math.floor(state.researchPoints);
-  const nextProject = RESEARCH_PROJECTS
-    .filter((p) => !state.completedProjects.includes(p.id) && p.era <= state.era && p.rpCost <= rp && !forkLockedBy(state.completedProjects, p.id))
-    .sort((a, b) => a.rpCost - b.rpCost)[0];
-  if (nextProject) {
-    insights.push({
-      icon: FlaskConical,
-      text: `You have ${rp} RP, enough to unlock "${nextProject.name}". Head to Research to claim it.`,
-      tab: "research",
-    });
-  }
-
-  // 3. Product drought — no active products and nothing in the pipeline
-  const active = state.launched.filter((lp) => lp.weeksElapsed < lp.weeklyUnits.length);
-  const inPipeline = state.building.length > 0 || state.ready.length > 0;
-
-  // 2b. Breakout coaching — the recent launches keep landing "steady" and never break out. Read the
-  // latest launch's recorded drivers and name the ONE biggest lever, so a stuck player gets a
-  // specific, proactive nudge toward their first "solid"/hit instead of grinding identical sellers.
-  if (insights.length < 3 && state.launched.length >= 2) {
-    const recent = state.launched.slice(0, 3); // newest first (prepended on launch)
-    const brokeOut = recent.some((lp) => lp.verdict === "hit" || lp.verdict === "solid");
-    const ins = state.launched.find((lp) => lp.insight)?.insight;
-    if (!brokeOut && ins) {
-      const hasMarketer = state.staff.some((s) => s.assignment === "marketing");
-      if (ins.betterRivals >= 1) {
-        insights.push({
-          icon: FlaskConical,
-          text: 'Your launches keep landing "steady" because rivals outclass them, raise component tiers in R&D to break out with a "solid" or a hit.',
-          tab: "research",
-        });
-      } else if (ins.hype < 1.15) {
-        insights.push(
-          hasMarketer
-            ? { icon: Megaphone, text: 'Your products sell steadily but lack buzz, add a launch campaign to push the next one past "steady".', tab: "market" }
-            : { icon: Megaphone, text: 'Your products sell steadily but lack buzz, put someone on Marketing to lift launch hype and break past "steady".', tab: "company" },
-        );
-      } else if (ins.demandFit < 45) {
-        insights.push({
-          icon: TrendingUp,
-          text: 'Your launches keep just missing the trend, check Market demand before your next design to land a "solid".',
-          tab: "market",
-        });
-      }
-    }
-  }
-
-  if (insights.length < 3) {
-    if (active.length === 0 && !inPipeline) {
-      insights.push({
-        icon: Rocket,
-        text: "All products have finished their run, design and launch a new one to keep revenue flowing.",
-        tab: "design",
-      });
-    }
-  }
-
-  // 3b. Products ending soon — warn the player to start designing a successor
-  if (insights.length < 3 && !inPipeline) {
-    const endingSoon = active.filter((lp) => (lp.weeklyUnits.length - lp.weeksElapsed) <= 4);
-    if (endingSoon.length > 0) {
-      const name = endingSoon.length === 1 ? endingSoon[0].product.name : `${endingSoon.length} products`;
-      insights.push({
-        icon: Clock,
-        text: `${name} ${endingSoon.length === 1 ? "finishes" : "finish"} selling in ≤4 weeks, start a successor now to keep revenue continuous.`,
-        tab: "design",
-      });
-    }
-  }
-
-  // 3c. Low staff morale
-  if (insights.length < 3 && state.staff.length > 0) {
-    const unhappy = state.staff.filter((s) => s.mood < 28);
-    if (unhappy.length > 0) {
-      insights.push({
-        icon: Users,
-        text: `${unhappy[0].name} has very low morale (${Math.round(unhappy[0].mood)}%), upgrade Amenities or reduce workload to prevent an output slump.`,
-        tab: "company",
-      });
-    }
-  }
-
-  // 3d. Affordable HQ upgrade
-  if (insights.length < 3) {
-    const affordableUpgrade = UPGRADE_LINES.find((line) => {
-      const cur = state.upgrades[line.id] ?? 0;
-      if (cur >= line.maxTier) return false;
-      const cost = upgradeCost(state, line.id);
-      return cost !== null && state.cash >= cost;
-    });
-    if (affordableUpgrade) {
-      const cur = state.upgrades[affordableUpgrade.id] ?? 0;
-      const cost = upgradeCost(state, affordableUpgrade.id)!;
-      insights.push({
-        icon: ArrowUp,
-        text: `Your ${affordableUpgrade.name} can be upgraded to "${affordableUpgrade.tierNames[cur]}" for ${format(cost)}, unlocks ${affordableUpgrade.effectAt(cur + 1)}.`,
-      });
-    }
-  }
-
-  // 4. Rising market trend worth exploiting
-  if (insights.length < 3) {
-    const top = [...STAT_KEYS].sort((a, b) => {
-      const da = (state.trends.targetWeights[a] ?? 0) - (state.trends.weights[a] ?? 0);
-      const db = (state.trends.targetWeights[b] ?? 0) - (state.trends.weights[b] ?? 0);
-      return db - da;
-    })[0];
-    const topDelta = top ? (state.trends.targetWeights[top] ?? 0) - (state.trends.weights[top] ?? 0) : 0;
-    if (top && topDelta > 0.025) {
-      insights.push({
-        icon: TrendingUp,
-        text: `${INSIGHT_STAT_LABEL[top]} demand is climbing, your next product should prioritize it to ride the wave.`,
-        tab: "design",
-      });
-    }
-  }
-
-  // 5. Untapped category (blue-ocean opportunity)
-  if (insights.length < 3) {
-    const shippedCats = new Set(state.launched.map((lp) => lp.product.category));
-    const unshipped = CATEGORY_LIST.filter((c) => c.unlockEra <= state.era && !shippedCats.has(c.id));
-    if (unshipped.length > 0) {
-      insights.push({
-        icon: Shapes,
-        text: `You haven't shipped a ${unshipped[0].displayName} yet, an open market segment with no competition from you.`,
-        tab: "design",
-      });
-    }
-  }
-
-  // 6. Rival gaining strength in a category you're actively selling in
-  if (insights.length < 3) {
-    let threatComp: (typeof state.competitors)[0] | null = null;
-    let threatCat: CategoryId | null = null;
-    for (const comp of state.competitors) {
-      for (const [cat, str] of Object.entries(comp.strengthByCategory)) {
-        if (active.some((lp) => lp.product.category === cat) && (str ?? 0) >= 45) {
-          threatComp = comp;
-          threatCat = cat as CategoryId;
-          break;
-        }
-      }
-      if (threatComp) break;
-    }
-    if (threatComp && threatCat) {
-      const catDef = CATEGORY_LIST.find((c) => c.id === threatCat);
-      const strength = Math.round(threatComp.strengthByCategory[threatCat] ?? 0);
-      insights.push({
-        icon: TrendingDown,
-        text: `${threatComp.name} (strength ${strength}) is a strong rival in ${catDef?.displayName ?? threatCat}s, spec up your next launch to stay ahead.`,
-        tab: "market",
-      });
-    }
-  }
-
-  // 7. Open desks + healthy runway = good time to hire
-  if (insights.length < 3 && state.staff.length >= 1) {
-    // Hiring is gated by PLACED desks, not raw facility headcount, so count actual open seats
-    // (deskCapacity) — otherwise this could claim desks that haven't been placed yet.
-    const openDesks = deskCapacity(state) - state.staff.length;
-    const wkRevH = nextWeekRevenue(state);
-    const runwayH = runwayWeeks(state.cash, weeklyOutflow(state), wkRevH);
-    if (openDesks >= 1 && runwayH > 30) {
-      insights.push({
-        icon: Users,
-        text: `${openDesks} desk${openDesks > 1 ? "s" : ""} open and ${runwayH === Infinity ? "you are profitable" : `${runwayH}+ weeks of runway`}, a strong time to recruit.`,
-        tab: "company",
-      });
-    }
-  }
-
-  // 8. No marketer on team while launching products — missing hype boost
-  if (insights.length < 3 && state.staff.length >= 2) {
-    const hasAnyMarketer = state.staff.some((s) => s.assignment === "marketing");
-    const hasLaunched = state.launched.length > 0;
-    if (!hasAnyMarketer && hasLaunched) {
-      insights.push({
-        icon: Megaphone,
-        text: "No one is assigned to Marketing, each launch is missing a hype bonus that boosts sales velocity. Assign a team member or hire a marketer.",
-        tab: "company",
-      });
-    }
-  }
-
-  // 9. All launched products are in decline — prompt a new launch
-  if (insights.length < 3 && active.length > 0 && !inPipeline) {
-    const peakWk = BALANCE.sales.peakWeek;
-    const allDecline = active.every((lp) => lp.weeksElapsed > peakWk);
-    if (allDecline) {
-      insights.push({
-        icon: Rocket,
-        text: `All ${active.length === 1 ? "your active product has" : `${active.length} active products have`} passed their sales peak, launch something new now to capture fresh demand before revenue fades.`,
-        tab: "design",
-      });
-    }
-  }
-
-  // 10. Depth-system nudges — once the core-loop hints are satisfied, point the player at the strategic
-  // systems they may never have discovered (design briefs, doctrines, expansion, the Legacy tree).
-  // 10a. Never committed a Design Brief — targeting a segment earns bonus rep + fans.
-  if (insights.length < 3 && state.launched.length >= 3 && !state.launched.some((lp) => lp.product.targetSegment)) {
-    insights.push({
-      icon: Target,
-      text: "You've never set a Design Brief — commit a product to a target segment in the Design Lab for bonus reputation and fans when you nail it.",
-      tab: "design",
-    });
-  }
-  // 10b. Past the garage with no engineering doctrine chosen — a permanent company identity is waiting.
-  if (insights.length < 3 && state.era >= 2 && !(["perfHouse", "effHouse", "qualityHouse"] as ProjectId[]).some((id) => state.completedProjects.includes(id))) {
-    insights.push({
-      icon: FlaskConical,
-      text: "Pick an engineering doctrine in R&D — a permanent identity (+performance, battery, or quality) stamped on every product you ship.",
-      tab: "research",
-    });
-  }
-  // 10c. Still home-only with room to expand — open the first overseas market.
-  if (insights.length < 3 && state.unlockedRegions.length === 1 && state.launched.length >= 2) {
-    const firstRegion = REGIONS.find((r) => !state.unlockedRegions.includes(r.id) && state.cash >= (r.unlockCost as number));
-    if (firstRegion) {
-      insights.push({
-        icon: TrendingUp,
-        text: `Open ${firstRegion.name} to grow your addressable market — global reach lifts every launch's volume.`,
-        tab: "market",
-      });
-    }
-  }
-  // 10d. Post-IPO with Legacy Points burning a hole — route them in the Legacy tree.
-  if (insights.length < 3 && state.wentPublic && (state.legacyPoints ?? 0) > 0) {
-    insights.push({
-      icon: Sparkles,
-      text: `You have ${state.legacyPoints} Legacy Point${(state.legacyPoints ?? 0) > 1 ? "s" : ""} to spend — invest them in the Legacy tree for a permanent, build-defining boon.`,
-      tab: "hq",
-    });
-  }
-
-  if (insights.length === 0) return null;
-
-  return (
-    <Card className="hq__insights">
-      <SectionHeader title="Strategic insights" accessory={`${insights.length} hint${insights.length > 1 ? "s" : ""}`} />
-      <div className="hq__insights-list">
-        {insights.slice(0, 3).map((ins) => {
-          const Icon = ins.icon;
-          const body = (
-            <>
-              <span className="hq__insight-icon"><Icon size={14} strokeWidth={2.5} /></span>
-              <span className="hq__insight-text">{ins.text}</span>
-              {ins.tab && <ChevronRight size={13} className="hq__insight-chevron" aria-hidden />}
-            </>
-          );
-          // A hint with no destination is plain content, not a disabled control — screen readers
-          // shouldn't announce an inert "button, dimmed" for advice that isn't actionable.
-          return ins.tab ? (
-            <button key={ins.text} className="hq__insight" onClick={() => onNavigate(ins.tab!)}>
-              {body}
-            </button>
-          ) : (
-            <div key={ins.text} className="hq__insight hq__insight--static">{body}</div>
-          );
-        })}
-      </div>
-    </Card>
   );
 }
 

@@ -88,16 +88,12 @@
   font-size: var(--fs-caption);
   color: var(--ink-2);
 }
+/* The vital-signs row. One row now — the old second row (`.hq__fin-pills`) existed only because the
+   pills didn't fit, and was negative-margined up to pretend it was the same row anyway. */
 .hq__stats {
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-8);
-}
-.hq__fin-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-8);
-  margin-top: calc(var(--sp-8) * -1);
 }
 /* Item 5.3 — the rank-ladder "next boss" line on the home screen. */
 .hq__ladder {
@@ -107,13 +103,6 @@
 .hq__ladder strong { color: var(--ink-1); font-weight: 700; }
 .hq__ladder svg { color: var(--accent); flex: none; }
 .hq__ladder--top svg { color: var(--positive); }
-.hq__cta-text,
-.hq__latest {
-  font-size: var(--fs-body);
-  color: var(--ink-2);
-  line-height: 1.45;
-  margin-bottom: var(--sp-16);
-}
 
 /* News feed in HQ */
 .hq__feed-list {
@@ -1193,6 +1182,42 @@
   flex-shrink: 0;
 }
 
+/* ---------- HQ zone groups ----------
+   The home screen carries ~20 self-gating cards. Left as one flat column they read as a soup, so
+   they're grouped into labelled zones ("Your company" / "Operations" / "Records"). The group is a
+   transparent flex wrapper that reproduces `.hq`'s own column + gap, so the cards sit exactly where
+   they always did — the only new pixels are the hairline label. */
+.hq__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+}
+.hq__group-label {
+  display: none; /* revealed below only when the group actually rendered a card */
+  align-items: center;
+  gap: var(--sp-8);
+  margin: var(--sp-8) 0 0;
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.hq__group-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--hairline);
+}
+/* Every card in a group self-gates and may render nothing, so the label must not survive an empty
+   group — an "Operations" heading over blank space in the garage era is exactly the noise this
+   grouping is meant to remove. A component returning null emits no DOM, so "has a child that isn't
+   the label" is an exact test. Where :has() is unsupported the labels simply stay hidden, which is
+   the safe direction to fail. */
+.hq__group:has(> *:not(.hq__group-label)) > .hq__group-label {
+  display: flex;
+}
+
 /* ---------- Strategic insights card ---------- */
 .hq__insights-list {
   display: flex;
@@ -1388,60 +1413,6 @@
   line-height: 1.5;
   margin: 0 0 var(--sp-12);
 }
-/* Quick Start — opening-moves checklist */
-.hq__qs-steps {
-  list-style: none;
-  margin: var(--sp-4) 0 var(--sp-12);
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-8);
-}
-.hq__qs-step {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-12);
-  font-size: var(--fs-body);
-  color: var(--ink-2);
-}
-.hq__qs-mark {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-  border-radius: 999px;
-  background: var(--bg-elevated);
-  color: var(--ink-3);
-  border: 1.5px solid var(--hairline);
-}
-.hq__qs-step--active .hq__qs-mark {
-  color: var(--accent);
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-.hq__qs-step--active .hq__qs-label {
-  color: var(--ink);
-  font-weight: 700;
-}
-.hq__qs-step--done .hq__qs-mark {
-  color: #fff;
-  background: var(--positive);
-  border-color: var(--positive);
-}
-.hq__qs-step--done .hq__qs-label {
-  color: var(--ink-2);
-  text-decoration: line-through;
-  text-decoration-color: var(--ink-3);
-}
-.hq__qs-note {
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-  line-height: 1.5;
-  margin: 0;
-}
-
 /* Ladder progress bar */
 .hq__next-bar {
   height: 4px;
@@ -1464,15 +1435,21 @@
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
 }
-.hq__next--done {
-  border-color: color-mix(in srgb, var(--positive) 35%, var(--hairline));
+/* The secondary "Also worth doing" hints, folded into the Next-move card (they used to be their own
+   card ten rows further down). Set below the primary by a hairline + a quiet label, so the card reads
+   as one directive with footnotes rather than three equal instructions. */
+.hq__next-also {
+  margin-top: var(--sp-12);
+  padding-top: var(--sp-12);
+  border-top: 1px solid var(--hairline);
 }
-.hq__next--done .hq__next-glyph {
-  color: var(--positive);
-  background: color-mix(in srgb, var(--positive) 14%, transparent);
-}
-.hq__next--done .hq__next-eyebrow {
-  color: var(--positive);
+.hq__next-also-label {
+  margin: 0 0 var(--sp-8);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 @media (prefers-reduced-motion: reduce) {
   .hq__next-anim { animation: none; }
@@ -2184,3 +2161,29 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 }
 .hqb__zones--warn .hqb__zones-head,
 .hqb__zones--warn .hqb__zones-head b { color: var(--warning-text); }
+
+/* The "simplified view" note under the 2D office scene. Quiet by design — it is a reassurance, not
+   a warning: the player has lost nothing, the picture is just less detailed. */
+.hq__scene-note {
+  position: absolute;
+  left: var(--sp-16);
+  right: var(--sp-16);
+  bottom: var(--sp-12);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--sp-6);
+  /* Cap the measure and centre the whole row, so the glyph stays beside the first line instead of
+     drifting to the far edge once the sentence wraps. */
+  max-width: 42ch;
+  margin: 0 auto;
+  font-size: var(--fs-caption);
+  line-height: 1.35;
+  color: var(--ink-3);
+  text-align: left;
+  pointer-events: none;
+}
+.hq__scene-note svg {
+  flex: none;
+  margin-top: 2px;
+}

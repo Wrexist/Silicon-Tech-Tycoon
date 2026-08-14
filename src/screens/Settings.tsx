@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import {
   Bell,
-  Boxes,
   Check,
   Contrast,
   Download,
@@ -111,9 +110,6 @@ export function Settings({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="set__group">
-        <Row icon={<Boxes size={18} />} label="3D headquarters" sub="Real-time 3D office. Off uses the lighter 2D scene.">
-          <Switch label="3D headquarters" on={settings.garage3d} onChange={(v) => { setSettings({ garage3d: v }); sfx("toggle"); }} />
-        </Row>
         <Row icon={<Volume2 size={18} />} label="Sound effects">
           <Switch label="Sound effects" on={settings.sound} onChange={(v) => { setSettings({ sound: v }); if (v) sfx("toggle"); }} />
         </Row>
@@ -614,13 +610,17 @@ function Row({ icon, label, sub, children }: { icon: React.ReactNode; label: str
   );
 }
 
-function Switch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
+function Switch({ on, onChange, label, disabled }: { on: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
   return (
     <button
       className={`set__switch${on ? " set__switch--on" : ""}`}
       role="switch"
       aria-checked={on}
       aria-label={label}
+      // `disabled` is for a switch the DEVICE is overriding (Reduce Motion, no WebGL2), never for a
+      // preference the player could set — its Row always says which override is in force, so this
+      // reads as "respected", not "broken".
+      disabled={disabled}
       onClick={() => { haptic.light(); onChange(!on); }}
     >
       <span className="set__switch-knob" />

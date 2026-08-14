@@ -1311,7 +1311,9 @@ function Member({
 
       {confirmFire && (
         // Firing is irreversible and wipes accumulated skill/XP — confirm before it happens
-        // (mirrors the save-wipe confirms in Settings/Scenarios) and give real feedback on commit.
+        // (mirrors the save-wipe confirms in Settings/Scenarios). No confirmation toast on commit:
+        // the player just named this person in a dialog and the roster row vanishes as they watch,
+        // so a line telling them what they chose to do isn't information.
         <div className="co__confirm" role="group" aria-label={`Confirm letting go ${s.name}`}>
           <span className="co__confirm-text">Let go {s.name}? Their training is lost for good.</span>
           <div className="co__confirm-row">
@@ -1319,7 +1321,11 @@ function Member({
             <Button
               size="sm"
               variant="destructive"
-              onClick={() => { onFire(s.id); haptic.warning(); showToast(`${s.name} left the company`, { tone: "neutral" }); }}
+              // Button fires haptic.light() of its own accord before onClick; without this the one
+              // dismissal buzzed twice, and the warning cue it is meant to carry got a light tap
+              // stacked on top of it.
+              haptics="none"
+              onClick={() => { onFire(s.id); haptic.warning(); }}
             >
               Let go
             </Button>

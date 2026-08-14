@@ -134,7 +134,7 @@ let camZoomOffset = 0;
 function getCamZoom(): number { return camZoomOffset; }
 function setCamZoom(v: number): void { camZoomOffset = Math.max(CAM_ZOOM_MIN, Math.min(CAM_ZOOM_MAX, v)); }
 
-function CameraRig({ build = false, facilityTier = 1 }: { build?: boolean; facilityTier?: number }) {
+function CameraRig({ build = false, facilityTier = 1, still = false }: { build?: boolean; facilityTier?: number; still?: boolean }) {
   const { camera, pointer } = useThree();
   const target = useMemo(() => new THREE.Vector3(0, 1.5, 0), []);
   const keys = useRef<Set<string>>(new Set());
@@ -197,7 +197,11 @@ function CameraRig({ build = false, facilityTier = 1 }: { build?: boolean; facil
     // `settled` early-return below still fires the instant the camera reaches its resting pose after any
     // interaction — the drift only spends frames once the viewer has truly walked away, and collapses
     // back to zero (letting the camera re-settle) the moment the controls are touched again.
-    const driftK = Math.max(0, Math.min(1, (idleT.current - IDLE_DRIFT_DELAY) / 3));
+    // `still` (Reduce Motion) pins the drift OFF. This is the one animation in the office that moves
+    // the whole viewport, which is what prefers-reduced-motion is actually about — the rest of the
+    // scene's life is small, object-scale fidgeting that stays. Zeroing driftK here (rather than
+    // skipping the block) keeps the `settled` early-return below working exactly as it did.
+    const driftK = still ? 0 : Math.max(0, Math.min(1, (idleT.current - IDLE_DRIFT_DELAY) / 3));
     let driftYaw = 0, driftLift = 0;
     if (driftK > 0) {
       const e = st.clock.elapsedTime;
@@ -1909,7 +1913,7 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
   );
 }
 
-function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, desktops = 0, paused = false, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; desktops?: number; paused?: boolean; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
+function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, desktops = 0, paused = false, still = false, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; desktops?: number; paused?: boolean; still?: boolean; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
   const p = useMemo(() => roomPalette(dark), [dark]);
   const monitors = tierOf(upgrades, "computers") >= 2 ? 2 : 1;
   const amenityTier = tierOf(upgrades, "amenities");
@@ -1967,7 +1971,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
     <>
       <VisibilityPause paused={paused} />
       {!dark && <EnableShadows />}
-      <CameraRig build={!!builder?.build} facilityTier={facilityTier} />
+      <CameraRig build={!!builder?.build} facilityTier={facilityTier} still={still} />
       <PinchZoom />
       {studioEnv}
       <ambientLight intensity={dark ? 0.55 : 0.62} color={dark ? "#ffffff" : "#f6f8ff"} />
@@ -2150,6 +2154,7 @@ export const Garage3D = memo(function Garage3D({
   roomStyle = { floor: 0, wall: 0 },
   desktops = 0,
   paused = false,
+  still = false,
   onContextLost,
   onTapStaff,
   onTapBank,
@@ -2170,6 +2175,10 @@ export const Garage3D = memo(function Garage3D({
    *  WebGL context stays alive — only frames stop — so returning to HQ never re-creates the
    *  context (that churn is what made the 3D office fail on memory-constrained mobile browsers). */
   paused?: boolean;
+  /** Honour prefers-reduced-motion WITHOUT dropping the renderer: stills the idle camera drift, the
+   *  one animation here that moves the whole viewport. Reduce Motion used to route players to the 2D
+   *  scene instead, which silently hid every piece of furniture they had bought. */
+  still?: boolean;
   /** Called when the WebGL context is lost so the host can downgrade to the 2D fallback. */
   onContextLost?: () => void;
   /** Tap an employee → open their roster card (host navigates to Company). */
@@ -2200,7 +2209,7 @@ export const Garage3D = memo(function Garage3D({
           );
         }}
       >
-        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} desktops={desktops} paused={paused} onTapStaff={onTapStaff} onTapBank={onTapBank} />
+        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} desktops={desktops} paused={paused} still={still} onTapStaff={onTapStaff} onTapBank={onTapBank} />
       </Canvas>
     </div>
   );

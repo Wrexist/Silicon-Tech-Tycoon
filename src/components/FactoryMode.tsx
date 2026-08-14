@@ -34,12 +34,12 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
-import { webglSupported, prefersReducedMotion } from "../garage3d/support.ts";
+import { webglSupported } from "../garage3d/support.ts";
 import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineLayoutBreakdown, lineSpeedMult, lineUnitMult, machineCells, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { PROP_DEFS, propCellSet, factoryDecorSpeedMult, utilityDecorKinds, type PropKind } from "../engine/factoryProps.ts";
 import { sideOrderPayout, SIDE_ORDER_CANCEL_PCT } from "../engine/sideOrders.ts";
-import { useSettings, getSettings, setSettings } from "../state/settings.ts";
+import { getSettings, setSettings } from "../state/settings.ts";
 import { FactoryTutorial } from "./FactoryTutorial.tsx";
 
 // three.js stays in its own lazy chunk (the garage3d rule); the SVG map is the fallback for
@@ -233,21 +233,30 @@ export function FloorMinimap({ floor, lineOk, running, floorW = FLOOR.w, lockedB
 
 /* ----------------------------- fullscreen mode ----------------------------- */
 
+/** The "you can't build right now" nudge. `use3d` goes false for two unrelated reasons and they need
+ *  different words: a device with no WebGL2 will never run the builder, whereas a lost GPU context is
+ *  temporary and recoverable — telling that player their device can't run 3D is simply false, and
+ *  sends them off to replace hardware that works. Shared so the three call sites can't drift. */
+function needs3dMessage(glLost: boolean): string {
+  return glLost
+    ? "Building the line needs the 3D view — the graphics context was lost. Reopen the factory to retry."
+    : "Building the line needs the 3D view, which this device can't run.";
+}
+
 export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNavigate?: (t: Tab) => void }) {
   const d = useFactoryData();
   const { state } = d;
   const { buyUpgrade } = d.game;
   const [sheet, setSheet] = useState<null | "upgrades" | "stats" | "shop" | "decor">(null);
-  const settings = useSettings();
   const [glLost, setGlLost] = useState(false);
-  const use3d = settings.garage3d && webglSupported() && !prefersReducedMotion() && !glLost;
+  const use3d = webglSupported() && !glLost;
   // F2 Build mode — the selected tool paints cells on the 3D pad.
   const [buildTool, setBuildTool] = useState<null | MachineKind | PropKind | "belt" | "erase" | "upgrade">(null);
   // Placement is wired to the 3D pad; in the 2D fallback (3D off / no-WebGL / context lost) a palette
   // tile would arm a tool that can never drop, so route the same "needs 3D" nudge the Build button
   // shows instead of silently arming it. (Reachable when the GL context is lost mid-build.)
   const armTool = (t: MachineKind | PropKind | "belt" | "erase" | "upgrade") => {
-    if (!use3d) { showToast("Building needs the 3D factory view — turn it on in Settings.", { tone: "neutral" }); return; }
+    if (!use3d) { showToast(needs3dMessage(glLost), { tone: "neutral" }); return; }
     setBuildTool(t);
   };
   const [buildCat, setBuildCat] = useState<"machine" | "decor">("machine");
@@ -330,8 +339,9 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
     if (!prev) return;
     d.game.applyFactorySnapshot(prev);
     setPendingCell(null);
+    // No toast: the floor visibly snaps back to the previous layout, which says "undone" better than
+    // the word does. The haptic is the confirmation.
     haptic.medium();
-    showToast("Undone", { tone: "neutral" });
   };
 
   // Machine placement is a MOVABLE GHOST, not a blind tap: arming a machine tool drops a translucent
@@ -523,7 +533,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           <div className="fmode__panel fmode__stopped">
             <span className="fmode__stopped-title"><Wrench size={14} aria-hidden /> Line offline</span>
             <p className="fmode__empty">Connect the Intake to the Packer — build the line yourself, or tap Auto to lay a long conveyor track across the whole floor and line your machines up along it. A wired line builds every run faster.</p>
-            <button className="fmode__stopped-fix" onClick={() => { haptic.light(); if (!use3d) { showToast("Building needs the 3D factory view — turn it on in Settings.", { tone: "neutral" }); return; } setBuildCat("machine"); setBuildTool("belt"); }}>Fix in Build</button>
+            <button className="fmode__stopped-fix" onClick={() => { haptic.light(); if (!use3d) { showToast(needs3dMessage(glLost), { tone: "neutral" }); return; } setBuildCat("machine"); setBuildTool("belt"); }}>Fix in Build</button>
           </div>
         )}
         <div className="fmode__panel">
@@ -626,7 +636,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             haptic.light();
             // Placement is wired to the 3D pad; the 2D fallback can't drop machines, so tell the
             // player instead of arming a tool that silently does nothing.
-            if (!use3d) { showToast("Building needs the 3D factory view — turn it on in Settings.", { tone: "neutral" }); return; }
+            if (!use3d) { showToast(needs3dMessage(glLost), { tone: "neutral" }); return; }
             if (buildTool != null) { setBuildTool(null); } else { setBuildCat("machine"); setBuildTool("belt"); }
           }}
         >
@@ -671,8 +681,10 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                         snapshot();
                         const res = d.game.buyFloorMachine(pendingKind, pendingCell.c, pendingCell.r);
                         if (res.ok) {
+                          // No toast: the machine appears on the floor under the player's finger. A line
+                          // of text naming what they just watched drop in is pure echo, and placing is
+                          // the single most repeated action in Factory mode — one toast per tap.
                           haptic.success(); sfx("build");
-                          showToast(`${MACHINE_DEFS[pendingKind].name} placed`, { tone: "positive" });
                           // state.factoryFloor won't reflect the machine we just placed until the next
                           // render — seed the next ghost against a merged copy so back-to-back placements
                           // don't land the ghost back on the cell we just filled.
@@ -1132,9 +1144,8 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
   const d = useFactoryData();
   const { state } = d;
   const [open, setOpen] = useState(false);
-  const settings = useSettings();
   const [glLost, setGlLost] = useState(false);
-  const use3d = settings.garage3d && webglSupported() && !prefersReducedMotion() && !glLost;
+  const use3d = webglSupported() && !glLost;
   const cardLineOk = lineComplete(d.floor);
   // The card shows the REAL factory — the live 3D line, your paint job, the locked bay — not an
   // abstract map. Look-don't-touch (preview mode): taps open fullscreen, drags scroll the page.
