@@ -229,15 +229,16 @@ function fmtFans(n: number): string {
   return String(n);
 }
 
-/** Fire a celebratory toast when the fan count crosses a milestone. */
+/** Fire a celebratory toast when the fan count crosses a milestone. Only the HIGHEST threshold
+ *  crossed this tick is announced — a fast-forward that vaults several at once is one line, not a
+ *  stack — and it's low priority, so it yields to anything the player actually asked for. */
 function withFanToasts(prev: GameState, next: GameState): void {
-  for (const m of FAN_TOAST_THRESHOLDS) {
-    if (prev.fans < m && next.fans >= m) {
-      try {
-        showToast(`${fmtFans(m)} fans, your brand is growing!`, { tone: "positive" });
-      } catch { /* toast host not mounted */ }
-    }
-  }
+  const crossed = FAN_TOAST_THRESHOLDS.filter((m) => prev.fans < m && next.fans >= m);
+  const top = crossed.at(-1);
+  if (top == null) return;
+  try {
+    showToast(`${fmtFans(top)} fans, your brand is growing!`, { tone: "positive", priority: "low" });
+  } catch { /* toast host not mounted */ }
 }
 
 /** Fire a toast when staff gain a skill level during the live tick — coalesced, so a week that levels
@@ -256,61 +257,73 @@ function withStaffLevelToasts(prev: GameState, next: GameState): void {
   } catch { /* toast host not mounted */ }
 }
 
-/** Fire a summary toast when a product finishes its sales run this tick. */
+/** Fire a summary toast when a product finishes its sales run this tick. Coalesced like the staff
+ *  levels above: a week that retires several products at once (common on fast-forward, where whole
+ *  sell windows close between frames) is ONE line naming the biggest earner, not a stack of three. */
 function withProductFinishToasts(prev: GameState, next: GameState): void {
-  for (const nlp of next.launched) {
-    if (nlp.weeksElapsed < nlp.weeklyUnits.length) continue; // still selling
+  const finished = next.launched.filter((nlp) => {
+    if (nlp.weeksElapsed < nlp.weeklyUnits.length) return false; // still selling
     const plp = prev.launched.find((lp) => lp.product.id === nlp.product.id);
-    if (!plp || plp.weeksElapsed >= plp.weeklyUnits.length) continue; // wasn't selling last tick either
-    const v = nlp.verdict ?? "steady";
-    const tone = v === "hit" || v === "solid" ? "positive" : v === "flop" ? "negative" : "neutral";
-    try {
-      showToast(
-        `${nlp.product.name} finished its run, ${nlp.unitsSold.toLocaleString()} units · ${format(nlp.revenueToDate)}`,
-        { tone },
-      );
-    } catch { /* toast host not mounted */ }
-  }
+    return !!plp && plp.weeksElapsed < plp.weeklyUnits.length; // was selling last tick
+  });
+  if (finished.length === 0) return;
+  // Lead with the run that earned the most — it's the one the player cares about — and let the tone
+  // follow ITS verdict, so a single flop retiring alongside a hit doesn't read as bad news.
+  const lead = finished.reduce((top, lp) => (lp.revenueToDate > top.revenueToDate ? lp : top));
+  const v = lead.verdict ?? "steady";
+  const tone = v === "hit" || v === "solid" ? "positive" : v === "flop" ? "negative" : "neutral";
+  const rest = finished.length - 1;
+  try {
+    showToast(
+      `${lead.product.name} finished its run, ${lead.unitsSold.toLocaleString()} units · ${format(lead.revenueToDate)}${rest > 0 ? ` (+${rest} more)` : ""}`,
+      { tone },
+    );
+  } catch { /* toast host not mounted */ }
 }
 
 /** Celebrate when the lab FINISHES a timed research this tick. Completion happens inside the pure tick
  *  (activeResearch set → null), so the FX has to come from the diff. Only fires on tick advances — a
  *  manual cancel goes through its own callback and never reaches this. */
 function withResearchCompleteFx(prev: GameState, next: GameState): void {
-  if (prev.activeResearch && !next.activeResearch) {
-    try {
-      emitCelebrate();
-      sfx("rp");
-      showToast(`Research complete: ${prev.activeResearch.name}`, { tone: "positive", glyph: <FlaskConical size={15} /> });
-    } catch { /* fx host not mounted */ }
-  }
-  // Design Budget (feature #1) — a completed EP-raise project lifts the per-project budget. A subtle,
-  // secondary toast so the reward reads. Diff completedProjects so it only fires the tick it lands, and
-  // only for a fresh run (the flag is what makes the budget bind at all).
+  const done = prev.activeResearch && !next.activeResearch ? prev.activeResearch : null;
+  // Design Budget (feature #1) — a completed EP-raise project lifts the per-project budget. Diff
+  // completedProjects so it only counts the tick it lands, and only for a fresh run (the flag is what
+  // makes the budget bind at all).
+  let raise = 0;
   if (next.designBudgetEnabled && next.completedProjects.length > prev.completedProjects.length) {
     const prevSet = new Set(prev.completedProjects);
-    let raise = 0;
     for (const id of next.completedProjects) {
       if (prevSet.has(id)) continue;
       raise += EP_BUDGET_RAISES.find((r) => r.project === id)?.ep ?? 0;
     }
-    if (raise > 0) {
-      try { showToast(`Design budget +${raise} EP`, { tone: "neutral", glyph: <Cpu size={15} /> }); } catch { /* toast host not mounted */ }
-    }
+  }
+  // The budget raise IS the completion's reward, so when both land on the same tick they're one line —
+  // two toasts for one event was the clearest case of the app talking over itself.
+  if (done) {
+    try {
+      emitCelebrate();
+      sfx("rp");
+      showToast(
+        raise > 0 ? `Research complete: ${done.name} · design budget +${raise} EP` : `Research complete: ${done.name}`,
+        { tone: "positive", glyph: <FlaskConical size={15} /> },
+      );
+    } catch { /* fx host not mounted */ }
+  } else if (raise > 0) {
+    try { showToast(`Design budget +${raise} EP`, { tone: "neutral", glyph: <Cpu size={15} /> }); } catch { /* toast host not mounted */ }
   }
 }
 
-/** Fire celebratory toasts for any revenue milestones crossed between prev and next. */
+/** Fire a celebratory toast for the revenue milestone crossed between prev and next. Same rule as the
+ *  fan milestones: only the HIGHEST threshold crossed this tick, and at low priority — these fire on
+ *  the sim's schedule, not the player's, so they must never displace an answer the player is reading. */
 function withRevToasts(prev: GameState, next: GameState): void {
   const prevD = toDollars(prev.cumulativeRevenue);
   const nextD = toDollars(next.cumulativeRevenue);
-  for (const m of REV_MILESTONES) {
-    if (prevD < m && nextD >= m) {
-      try {
-        showToast(`Revenue milestone, ${fmtMilestone(m)} earned lifetime!`, { tone: "positive" });
-      } catch { /* toast host not mounted */ }
-    }
-  }
+  const top = REV_MILESTONES.filter((m) => prevD < m && nextD >= m).at(-1);
+  if (top == null) return;
+  try {
+    showToast(`Revenue milestone, ${fmtMilestone(top)} earned lifetime!`, { tone: "positive", priority: "low" });
+  } catch { /* toast host not mounted */ }
 }
 
 /** Announce newly-unlocked achievements. Two polish rules (Phase 1, item 5):

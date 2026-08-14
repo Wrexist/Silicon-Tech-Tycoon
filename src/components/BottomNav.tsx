@@ -1,5 +1,6 @@
 import { Building2, FlaskConical, Home, PencilRuler, TrendingUp, type LucideIcon } from "lucide-react";
 import { haptic } from "../design/haptics.ts";
+import type { Attention } from "../state/gameState.ts";
 import "./bottomNav.css";
 
 export type Tab = "hq" | "design" | "research" | "market" | "company";
@@ -20,7 +21,9 @@ export function BottomNav({
 }: {
   active: Tab;
   onChange: (t: Tab) => void;
-  badge?: Partial<Record<Tab, boolean>>;
+  /** Per-tab attention WEIGHT, not a boolean: `"act"` (someone is waiting on an answer) draws a solid
+   *  accent dot, `"opportunity"` (something nice is available) a quieter one. See `navAttention`. */
+  badge?: Partial<Record<Tab, Attention>>;
   // Which tabs are currently revealed (progressive onboarding). Omitted → all tabs show. Hidden
   // tabs never render, so their attention dots can't show either. TABS order is preserved.
   visible?: Partial<Record<Tab, boolean>>;
@@ -42,7 +45,9 @@ export function BottomNav({
           <span className="bnav__glyph" aria-hidden>
             <t.Icon size={21} strokeWidth={active === t.id ? 2.4 : 2} />
             {/* Attention dot — only on the tabs you're NOT already looking at. */}
-            {badge?.[t.id] && active !== t.id && <span className="bnav__badge" />}
+            {badge?.[t.id] && active !== t.id && (
+              <span className={`bnav__badge bnav__badge--${badge[t.id]}`} />
+            )}
           </span>
           <span className="bnav__label">{t.label}</span>
         </button>

@@ -5290,7 +5290,23 @@ export const canFoundPlatform = (s: GameState): boolean =>
   s.reputation >= BALANCE.platform.foundingMinReputation &&
   s.launched.length >= BALANCE.platform.foundingMinShipped;
 
-export interface NavAttention { hq: boolean; design: boolean; research: boolean; market: boolean; company: boolean }
+/** How loudly a tab is asking for the player.
+ *  - `"act"` — something is WAITING ON AN ANSWER and won't wait forever (an event choice, a poach
+ *    attempt, a client commission, a licensing offer). Ignoring it costs you something.
+ *  - `"opportunity"` — something is available whenever you feel like it (a claimable contract, an
+ *    affordable project or region, an era you've earned). Ignoring it costs nothing.
+ *  - `null` — nothing.
+ *
+ *  Splitting these was the point: one identical dot used to carry ~8 unrelated meanings on the Office
+ *  tab alone, so mid-game it was simply always lit and had stopped meaning anything. Two weights let
+ *  the player learn "bright dot = answer me, faint dot = there's something nice here". */
+export type Attention = "act" | "opportunity" | null;
+
+export interface NavAttention { hq: Attention; design: Attention; research: Attention; market: Attention; company: Attention }
+
+/** Pick the louder of two signals — `"act"` always outranks a mere opportunity. */
+const attention = (act: boolean, opportunity: boolean): Attention =>
+  act ? "act" : opportunity ? "opportunity" : null;
 
 /** Where is there something ACTIONABLE right now? Drives the bottom-nav "attention" dots so a player
  *  is never left wondering what to do next. Read-only + cheap; each flag is a genuine decision the
@@ -5309,18 +5325,25 @@ export function navAttention(s: GameState): NavAttention {
     (LEGACY_TREE.some((p) => legacyPerkAvailable(s.legacyPerks ?? [], p.id) && (s.legacyPoints ?? 0) >= p.cost) ||
       (s.legacyPoints ?? 0) >= frontierCost(s.frontierTier));
   return {
-    // A milestone, a personal decision, or a claimable / affordable reward waiting at HQ. Broadened
-    // so the many HQ-surfaced systems (contracts, side orders, the Legacy Era) can each light the dot.
-    hq: canAdvance(s) || canIPO(s) || s.pendingChoice != null || (s.pendingPoach ?? null) != null ||
-      claimableContract || pendingSideOrder || affordableMegaproject || spendableLegacyPoint,
-    // Pipeline idle once you're rolling → design the next product.
-    design: shipped && s.building.length === 0 && s.ready.length === 0,
+    // Office carries the most systems by far, so it's the tab that most needed the split: an event
+    // choice / poach / commission is somebody waiting on you; an earned era, a claimable contract or
+    // an affordable moonshot is a treat that will still be there next week.
+    hq: attention(
+      s.pendingChoice != null || (s.pendingPoach ?? null) != null || pendingSideOrder,
+      canAdvance(s) || canIPO(s) || claimableContract || affordableMegaproject || spendableLegacyPoint,
+    ),
+    // Pipeline idle once you're rolling → design the next product. A nudge, never urgent.
+    design: attention(false, shipped && s.building.length === 0 && s.ready.length === 0),
     // A project or component upgrade you can afford right now (includes doctrines + capstones).
-    research: researchReady(s),
+    research: attention(false, researchReady(s)),
     // A new region you can afford to open.
-    market: REGIONS.some((r) => !s.unlockedRegions.includes(r.id) && cash >= (r.unlockCost as number)),
-    // A licensing contract to sign, an OS version to ship, or the platform to found.
-    company: (s.pendingLicenseOffer ?? null) != null || (s.platformUnlocked && canReleaseOsVersion(s)) || canFoundPlatform(s),
+    market: attention(false, REGIONS.some((r) => !s.unlockedRegions.includes(r.id) && cash >= (r.unlockCost as number))),
+    // A licensing offer EXPIRES, so it's an answer owed; shipping an OS version or founding the
+    // platform are standing opportunities.
+    company: attention(
+      (s.pendingLicenseOffer ?? null) != null,
+      (s.platformUnlocked && canReleaseOsVersion(s)) || canFoundPlatform(s),
+    ),
   };
 }
 

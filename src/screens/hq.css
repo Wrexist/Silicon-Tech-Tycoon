@@ -1193,6 +1193,42 @@
   flex-shrink: 0;
 }
 
+/* ---------- HQ zone groups ----------
+   The home screen carries ~20 self-gating cards. Left as one flat column they read as a soup, so
+   they're grouped into labelled zones ("Your company" / "Operations" / "Records"). The group is a
+   transparent flex wrapper that reproduces `.hq`'s own column + gap, so the cards sit exactly where
+   they always did — the only new pixels are the hairline label. */
+.hq__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+}
+.hq__group-label {
+  display: none; /* revealed below only when the group actually rendered a card */
+  align-items: center;
+  gap: var(--sp-8);
+  margin: var(--sp-8) 0 0;
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.hq__group-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--hairline);
+}
+/* Every card in a group self-gates and may render nothing, so the label must not survive an empty
+   group — an "Operations" heading over blank space in the garage era is exactly the noise this
+   grouping is meant to remove. A component returning null emits no DOM, so "has a child that isn't
+   the label" is an exact test. Where :has() is unsupported the labels simply stay hidden, which is
+   the safe direction to fail. */
+.hq__group:has(> *:not(.hq__group-label)) > .hq__group-label {
+  display: flex;
+}
+
 /* ---------- Strategic insights card ---------- */
 .hq__insights-list {
   display: flex;
@@ -1464,15 +1500,21 @@
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: none; }
 }
-.hq__next--done {
-  border-color: color-mix(in srgb, var(--positive) 35%, var(--hairline));
+/* The secondary "Also worth doing" hints, folded into the Next-move card (they used to be their own
+   card ten rows further down). Set below the primary by a hairline + a quiet label, so the card reads
+   as one directive with footnotes rather than three equal instructions. */
+.hq__next-also {
+  margin-top: var(--sp-12);
+  padding-top: var(--sp-12);
+  border-top: 1px solid var(--hairline);
 }
-.hq__next--done .hq__next-glyph {
-  color: var(--positive);
-  background: color-mix(in srgb, var(--positive) 14%, transparent);
-}
-.hq__next--done .hq__next-eyebrow {
-  color: var(--positive);
+.hq__next-also-label {
+  margin: 0 0 var(--sp-8);
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 @media (prefers-reduced-motion: reduce) {
   .hq__next-anim { animation: none; }
