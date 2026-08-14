@@ -330,8 +330,9 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
     if (!prev) return;
     d.game.applyFactorySnapshot(prev);
     setPendingCell(null);
+    // No toast: the floor visibly snaps back to the previous layout, which says "undone" better than
+    // the word does. The haptic is the confirmation.
     haptic.medium();
-    showToast("Undone", { tone: "neutral" });
   };
 
   // Machine placement is a MOVABLE GHOST, not a blind tap: arming a machine tool drops a translucent
@@ -671,8 +672,10 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                         snapshot();
                         const res = d.game.buyFloorMachine(pendingKind, pendingCell.c, pendingCell.r);
                         if (res.ok) {
+                          // No toast: the machine appears on the floor under the player's finger. A line
+                          // of text naming what they just watched drop in is pure echo, and placing is
+                          // the single most repeated action in Factory mode — one toast per tap.
                           haptic.success(); sfx("build");
-                          showToast(`${MACHINE_DEFS[pendingKind].name} placed`, { tone: "positive" });
                           // state.factoryFloor won't reflect the machine we just placed until the next
                           // render — seed the next ghost against a merged copy so back-to-back placements
                           // don't land the ghost back on the cell we just filled.

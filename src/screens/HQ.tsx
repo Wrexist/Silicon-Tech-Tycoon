@@ -180,7 +180,11 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         </Card>
       )}
 
-      {/* Player-choice event card — a decision that gates the event flow, so it's in the priority zone. */}
+      {/* ONE answer at a time. An event choice and a poach attempt could both sit open, and with the
+          IPO / era cards below that put up to five separate calls-to-action in the band that is
+          supposed to mean "this needs you now" — which is the same as none of them meaning it. Both
+          persist until resolved and neither expires, so showing the event first and revealing the
+          poach the moment it's answered loses nothing and keeps the top of the screen singular. */}
       {state.pendingChoice && (
         <Card className="hq__choice">
           <div className="hq__choice-head">
@@ -203,8 +207,9 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         </Card>
       )}
 
-      {/* Rival poaching — keep your employee with a counter-offer, or let them walk (Track C) */}
-      {state.pendingPoach && (
+      {/* Rival poaching — keep your employee with a counter-offer, or let them walk (Track C).
+          Yields to an open event choice per the one-answer-at-a-time rule above. */}
+      {!state.pendingChoice && state.pendingPoach && (
         <Card className="hq__choice">
           <div className="hq__choice-head">
             <Crosshair size={14} className="hq__choice-icon" aria-hidden />
@@ -247,6 +252,10 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           (the tracker above owns this slot then). Deep-links into the Challenges sheet. */}
       {onOpenChallenges && <DailyChallengeCard onOpen={onOpenChallenges} />}
 
+      {/* The earned-milestone slot — ONE card, never two. Today the balance makes that automatic
+          (IPO needs era 4, and the era-4→5 step needs `wentPublic`, so the two can't both be ready),
+          but the band's whole job is to hold a single call-to-action, so the invariant is stated in
+          code rather than left resting on a balance constant two modules away. */}
       {ipoReady && (
         <Card className="hq__era hq__ipo">
           <div className="hq__era-body">
@@ -271,7 +280,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         </Card>
       )}
 
-      {advanceReady && (
+      {!ipoReady && advanceReady && (
         <Card className="hq__era">
           <div className="hq__era-body">
             <span className="hq__era-title">
@@ -310,14 +319,11 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           labelled zones instead of one undifferentiated column of ~20 cards, so the scroll is
           navigable: where you STAND, how the business RUNS, and the RECORD of what happened. */}
       <HqGroup label="Your company">
-      <div className="hq__stats">
-        <StatPill label="Products" value={state.launched.length} />
-        <StatPill label="Team" value={state.staff.length} />
-        <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
-        {state.era < maxEra()
-          ? <StatPill label="Era" value={`${state.era}/${maxEra()}`} tone="accent" />
-          : <StatPill label="Fans" value={formatCount(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />}
-      </div>
+      {/* The vital signs — ONE row, cut to four. It used to be two rows of six, with the second
+          negative-margined up to look like the first, and it led with trivia: "Products" duplicates
+          the Performance card's own Shipped count, and "Team" is both the Company tab's whole subject
+          and literally visible as desks in the office above. What's left is what you actually steer
+          by, money first, because this is a game about not running out of it. */}
       {(() => {
         const wkRev = nextWeekRevenue(state);
         const runway = runwayWeeks(state.cash, weeklyOutflow(state), wkRev);
@@ -325,9 +331,13 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         const runwayLabel = runway === Infinity ? "Profitable" : runway > 520 ? "10y+" : runway > 52 ? `${Math.round(runway / 52)}y` : `${runway} wk`;
         const runwayTone = runway === Infinity ? "positive" : runway < 8 ? "negative" : runway < 20 ? "neutral" : "positive";
         return (
-          <div className="hq__fin-pills">
+          <div className="hq__stats">
             <StatPill label="Cash" value={format(state.cash)} tone={state.cash >= 0 ? "neutral" : "negative"} />
             <StatPill label="Runway" value={runwayLabel} tone={runwayTone as "positive" | "negative" | "neutral"} />
+            <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
+            {state.era < maxEra()
+              ? <StatPill label="Era" value={`${state.era}/${maxEra()}`} tone="accent" />
+              : <StatPill label="Fans" value={formatCount(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />}
           </div>
         );
       })()}
@@ -412,12 +422,13 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
 
       {/* ── Records ── the read-only tail: how the company has performed, and what happened. Nothing
           here needs an action, which is exactly why it sits last and under its own label. */}
+      {/* Nothing to record until something has shipped. (A "Get started" checklist used to live here
+          for tutorial-skippers, repeating design → build → launch a third time after the Coach and the
+          objective ladder. The ladder's first rung IS that checklist, with a progress bar and the same
+          deep-link, and the Ready-to-launch / In-production cards carry its other two steps live — so
+          it was a third copy of guidance the screen already gives twice.) */}
       <HqGroup label="Records">
-      {state.launched.length === 0 ? (
-        // While the first-run Coach is walking design→build→launch, don't also show the identical
-        // checklist here; it takes over once the tutorial is skipped or finished.
-        state.tutorialDone ? <GetStartedCard state={state} onNavigate={onNavigate} /> : null
-      ) : (
+      {state.launched.length > 0 && (
         <>
           <PerformanceCard state={state} onNavigate={onNavigate} />
           {/* The advisory hints that used to live in a second card down here now ride along with the
@@ -1087,41 +1098,6 @@ function GoalBar({ label, value, target }: { label: string; value: number; targe
         <div className="hq__goalbar-fill" style={{ width: `${pct}%` }} />
       </div>
     </div>
-  );
-}
-
-/** Quick Start — the opening-moves map for a brand-new garage (no product shipped yet). A three-step
- *  checklist (Design → Build → Launch) that tracks where the player is, so the very first session has
- *  a clear, completable path. The In-production / Ready-to-launch cards above carry the actual build
- *  and launch actions; this is the overview. Replaced by Performance/Insights after the first ship. */
-function GetStartedCard({ state, onNavigate }: { state: GameState; onNavigate: (t: Tab) => void }) {
-  const building = state.building.length > 0;
-  const ready = state.ready.length > 0;
-  const steps = [
-    { label: "Design a product", icon: PencilRuler, done: building || ready, active: !building && !ready },
-    { label: "Build it", icon: Factory, done: ready, active: building && !ready },
-    { label: "Launch to market", icon: Rocket, done: false, active: ready },
-  ];
-  return (
-    <Card className="hq__qs">
-      <SectionHeader title="Get started" accessory="3 steps" />
-      <p className="hq__cta-text">Your garage is ready. Follow these to ship your first product.</p>
-      <ol className="hq__qs-steps">
-        {steps.map((s, i) => (
-          <li key={i} className={`hq__qs-step${s.done ? " hq__qs-step--done" : ""}${s.active ? " hq__qs-step--active" : ""}`}>
-            <span className="hq__qs-mark" aria-hidden>
-              {s.done ? <Check size={14} strokeWidth={3} /> : <s.icon size={14} />}
-            </span>
-            <span className="hq__qs-label">{s.label}</span>
-          </li>
-        ))}
-      </ol>
-      {!building && !ready && (
-        <Button block onClick={() => onNavigate("design")}><PencilRuler size={17} /> Open the Design Lab</Button>
-      )}
-      {building && !ready && <p className="hq__qs-note">Building now. Watch the progress above; you'll launch once it's ready.</p>}
-      {ready && <p className="hq__qs-note">Ready to launch, tap Launch above to ship it.</p>}
-    </Card>
   );
 }
 

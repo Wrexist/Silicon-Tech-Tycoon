@@ -16,20 +16,7 @@ import { emitHqReaction } from "./design/hqReaction.ts";
 import { LaunchReveal } from "./components/LaunchReveal.tsx";
 import { ReadyToLaunch } from "./components/ReadyToLaunch.tsx";
 import { KeynoteToasts } from "./components/KeynoteControl.tsx";
-import { RivalStrike } from "./components/RivalStrike.tsx";
-import { AwardsCeremonyOverlay } from "./components/AwardsCeremony.tsx";
-import { RivalryDeclared } from "./components/RivalryDeclared.tsx";
-import { NemesisTrophy } from "./components/NemesisTrophy.tsx";
-import { SecretRevealed } from "./components/SecretRevealed.tsx";
-import { EurekaMoment } from "./components/EurekaMoment.tsx";
-import { CommunityAsk } from "./components/CommunityAsk.tsx";
-import { StaffMoment } from "./components/StaffMoment.tsx";
-import { StaffEvent } from "./components/StaffEvent.tsx";
-import { PostLaunchEvent } from "./components/PostLaunchEvent.tsx";
-import { RegionalEvent } from "./components/RegionalEvent.tsx";
-import { EarningsCall } from "./components/EarningsCall.tsx";
-import { ContractOffer } from "./components/ContractOffer.tsx";
-import { DecisionInbox } from "./components/DecisionInbox.tsx";
+import { Interrupts } from "./components/Interrupts.tsx";
 import { ReviewPrompt } from "./components/ReviewPrompt.tsx";
 import { Paywall, ProChip } from "./components/Paywall.tsx";
 import { ProNudge } from "./components/ProNudge.tsx";
@@ -270,21 +257,8 @@ function AppShell() {
       <Confetti />
       <ReadyToLaunch />
       <KeynoteToasts />
-      <RivalStrike />
-      <AwardsCeremonyOverlay />
-      <RivalryDeclared />
-      <NemesisTrophy />
-      <SecretRevealed />
-      <EurekaMoment />
-      <CommunityAsk />
-      <StaffMoment />
-      <StaffEvent />
-      <PostLaunchEvent />
-      <RegionalEvent />
-      <EarningsCall />
-      <ContractOffer />
-      {/* Non-blocking banner for the low-stakes interrupt streams (they open on the player's schedule). */}
-      <DecisionInbox />
+      {/* Every card the engine can raise, in priority order — see components/Interrupts.tsx. */}
+      <Interrupts />
       <ReviewPrompt />
       {/* The single purchase surface. Mounted once, raised from anywhere via openPaywall(). */}
       <Paywall />

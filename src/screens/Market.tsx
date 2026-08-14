@@ -16,7 +16,7 @@ import { overallScore } from "../engine/product.ts";
 import { dollars, format, formatCount, formatShortDollars, sub, toDollars, cents } from "../engine/money.ts";
 import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
-import { postMortem, type FactorKey } from "../engine/postmortem.ts";
+import { postMortem, verdictOf, launchDrivers, launchTips } from "../engine/postmortem.ts";
 import { criticReviews } from "../engine/reviews.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends } from "../engine/stocks.ts";
 import {
@@ -83,11 +83,6 @@ const VERDICT_TONE: Record<Verdict, "positive" | "accent" | "negative"> = {
   hit: "positive", solid: "positive", steady: "accent", flop: "negative",
 };
 /** Verdict for a launched product — stored if present, else derived from the launch score. */
-function verdictOf(lp: LaunchedProduct): Verdict {
-  if (lp.verdict) return lp.verdict as Verdict;
-  return lp.launchScore >= 76 ? "hit" : lp.launchScore <= 22 ? "flop" : lp.launchScore >= 45 ? "solid" : "steady";
-}
-
 // Title-Case stat labels, single-sourced from the glossary (was a local duplicate that drifted).
 const STAT_LABEL: Record<keyof Stats, string> = {
   performance: STAT_INFO.performance.label,
@@ -1012,136 +1007,6 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
 
 /* ---------- Post-launch product detail ---------- */
 
-type DriverTone = "positive" | "accent" | "negative" | "neutral";
-interface Driver {
-  key: FactorKey;
-  label: string;
-  value: string;
-  detail: string;
-  tone: DriverTone;
-}
-
-/** Build the "why it performed" drivers in plain language. Prefers the launch-moment snapshot
- *  (insight) recorded on the product; falls back to a qualitative read from the launch score for
- *  saves written before insight existed — never fabricating numbers we don't have. */
-function performanceDrivers(lp: LaunchedProduct): Driver[] {
-  const ins = lp.insight;
-  const drivers: Driver[] = [];
-
-  // 1) Demand fit — how well the stats matched what consumers wanted at launch.
-  if (ins) {
-    const f = Math.round(ins.demandFit);
-    drivers.push({
-      key: "demand",
-      label: "Demand fit",
-      value: `${f}/100`,
-      detail: f >= 60 ? "Closely matched what the market wanted." : f >= 35 ? "A decent match for the trend." : "Out of step with what buyers wanted.",
-      tone: f >= 60 ? "positive" : f >= 35 ? "accent" : "negative",
-    });
-  } else {
-    const hi = lp.launchScore >= 76;
-    const lo = lp.launchScore <= 22;
-    drivers.push({
-      key: "demand",
-      label: "Demand fit",
-      value: hi ? "Strong" : lo ? "Weak" : "Fair",
-      detail: hi ? "Read the market well at launch." : lo ? "Mistimed the market." : "An average read on the trend.",
-      tone: hi ? "positive" : lo ? "negative" : "accent",
-    });
-  }
-
-  // 1b) Audience — which buyer segment this product won and which it lost (Epic A). Additive:
-  // skipped for saves written before segments existed (no dominantSegment recorded).
-  if (ins?.dominantSegment && ins.perSegment && ins.perSegment.length) {
-    const top = ins.perSegment.find((s) => s.id === ins.dominantSegment) ?? ins.perSegment[0];
-    const low = ins.perSegment.find((s) => s.id === ins.weakestSegment) ?? ins.perSegment[ins.perSegment.length - 1];
-    const lowReason = low.priceFit < 0.6 ? "priced out" : low.fit < 35 ? "specs missed" : "niche appeal";
-    drivers.push({
-      key: "audience",
-      label: "Audience",
-      value: top.name,
-      detail: `Strongest with ${top.name} buyers; weakest with ${low.name} (${lowReason}).`,
-      tone: "accent",
-    });
-  }
-
-  // 2) Price positioning — value buy vs. on-the-money vs. overpriced.
-  if (ins) {
-    const pf = ins.priceFit;
-    const over = pf < 0.8;
-    const under = pf > 1.12;
-    drivers.push({
-      key: "price",
-      label: "Price",
-      value: over ? "Overpriced" : under ? "Value buy" : "On the money",
-      detail: over ? "Buyers felt it cost too much for the spec." : under ? "Priced below its perceived value, which drove volume." : "Priced fairly for what it delivered.",
-      tone: over ? "negative" : under ? "positive" : "accent",
-    });
-  }
-
-  // 3) Competition pressure — rivals splitting or beating the market.
-  if (ins) {
-    const beats = ins.betterRivals;
-    const matches = ins.matchingRivals;
-    const kept = Math.round(ins.competitionFactor * 100);
-    drivers.push({
-      key: "competition",
-      label: "Competition",
-      value: beats > 0 ? `${beats} ahead` : matches > 0 ? `${matches} matched` : "Clear field",
-      detail: beats > 0
-        ? `Rivals outclassed you; you kept ~${kept}% of demand.`
-        : matches > 0
-          ? `Rivals split the market; you kept ~${kept}% of demand.`
-          : "No rival came close; you owned the category.",
-      tone: beats > 0 ? "negative" : matches > 0 ? "accent" : "positive",
-    });
-  }
-
-  // 4) Hype — reputation + marketing reach at launch.
-  if (ins) {
-    const h = ins.hype;
-    const strong = h >= 1.6;
-    const weak = h < 1.1;
-    drivers.push({
-      key: "hype",
-      label: "Hype",
-      value: strong ? "High" : weak ? "Low" : "Moderate",
-      detail: strong ? "Reputation and marketing gave a big launch boost." : weak ? "Little buzz; few buyers knew it existed." : "A steady amount of launch buzz.",
-      tone: strong ? "positive" : weak ? "negative" : "accent",
-    });
-  }
-
-  return drivers;
-}
-
-/** Derive up to 3 actionable post-launch tips from the recorded launch insight. */
-function generateTips(lp: LaunchedProduct): string[] {
-  const ins = lp.insight;
-  if (!ins) return [];
-  const v = verdictOf(lp);
-  const tips: string[] = [];
-  if (ins.demandFit < 40) {
-    tips.push("Poor trend match: check the Market tab before designing and build toward what consumers are currently demanding.");
-  }
-  if (ins.priceFit < 0.8) {
-    tips.push("Buyers found this overpriced. Try the 'Suggest' button in the Design Lab to dial in a fairer price next time.");
-  } else if (ins.priceFit > 1.12 && v !== "hit") {
-    tips.push("Underpriced: the quality supported a higher price. Charging a bit more improves margins without hurting demand.");
-  }
-  if (ins.betterRivals >= 2) {
-    tips.push("Multiple rivals outclassed this product: upgrade components to higher tiers and invest in R&D to unlock better tech.");
-  } else if (ins.betterRivals === 1) {
-    tips.push("One rival edged you out: a single component upgrade or a tighter price could swing the category your way.");
-  }
-  if (ins.hype < 1.05 && tips.length < 3) {
-    tips.push("Very little launch buzz. Put a team member on Marketing for an ongoing hype boost, or run a paid campaign (Social, Search, or TV) to multiply demand at the next launch.");
-  }
-  if (tips.length === 0 && v === "hit") {
-    tips.push("Strong launch: maintain momentum by designing a successor before this product finishes its run.");
-  }
-  return tips.slice(0, 3);
-}
-
 function ProductDetailSheet({
   lp,
   onClose,
@@ -1156,14 +1021,14 @@ function ProductDetailSheet({
   const canFlip = lp.product.category === "phone" || lp.product.category === "tablet";
   const [face, setFace] = useState<"front" | "back">("front");
   const v = verdictOf(lp);
-  const drivers = performanceDrivers(lp);
+  const drivers = launchDrivers(lp);
   // C1 — rank the drivers by how DECISIVE each was and synthesize a headline (2–3 dominant factors,
   // not a fog). Only when the launch-moment insight was recorded; older saves keep the plain list.
   const pm = lp.insight ? postMortem(lp.insight, v) : null;
   const orderedDrivers = pm
     ? [...drivers].sort((a, b) => (pm.impacts[b.key]?.impact ?? 0) - (pm.impacts[a.key]?.impact ?? 0))
     : drivers;
-  const tips = generateTips(lp);
+  const tips = launchTips(lp);
   // Fictional tech-press reviews derived from the recorded launch metrics (pure, presentation
   // only — never affects the sim). Falls back to neutral drivers for pre-insight saves.
   const reviews = criticReviews({

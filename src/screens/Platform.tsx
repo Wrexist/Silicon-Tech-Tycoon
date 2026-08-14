@@ -226,8 +226,9 @@ export function PlatformSheet({ onClose }: { onClose: () => void }) {
                 onClick={() => {
                   haptic.light();
                   sfx(on ? "tap" : "confirm");
+                  // No toast: the tile the player just tapped takes the selected state with a check
+                  // mark, right under their thumb. The confirm sound carries the rest.
                   setOsPhilosophy(p.id);
-                  if (!on) showToast(`${osDisplayName(state)} is now ${p.name}`, { tone: "positive" });
                 }}
               >
                 <span className="plat__phil-icon" aria-hidden><Icon size={18} /></span>
