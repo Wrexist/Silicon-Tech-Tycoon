@@ -19,6 +19,7 @@ import {
   setProRecord,
   trialDaysRemaining,
   yearlySavingsPercent,
+  yearlyValueVsMonthly,
   type ProRecord,
 } from "./pro.ts";
 
@@ -134,6 +135,21 @@ describe("yearlySavingsPercent", () => {
     expect(yearlySavingsPercent({ amount: Infinity }, monthly)).toBeNull();
     expect(yearlySavingsPercent({ amount: -19.99 }, monthly)).toBeNull();
     expect(yearlySavingsPercent(yearly, { amount: 0 })).toBeNull();
+  });
+
+  it("tells a measured NO apart from an unmeasurable one — the badge depends on it", () => {
+    // The distinction the paywall renders on: `none` means we compared and yearly is not cheaper,
+    // so a static "BEST VALUE" would be a claim the arithmetic refutes and no badge is shown.
+    // `unknown` means we have nothing to compare, so the authored badge stands.
+    expect(yearlyValueVsMonthly({ amount: 60 }, { amount: 3.99 })).toEqual({ kind: "none" });
+    expect(yearlyValueVsMonthly({ amount: 47.88 }, { amount: 3.99 })).toEqual({ kind: "none" });
+    expect(yearlyValueVsMonthly(undefined, { amount: 3.99 })).toEqual({ kind: "unknown" });
+    expect(yearlyValueVsMonthly({}, { amount: 3.99 })).toEqual({ kind: "unknown" });
+    expect(yearlyValueVsMonthly({ amount: 19.99, currency: "USD" }, { amount: 3.99, currency: "EUR" }))
+      .toEqual({ kind: "unknown" });
+    // Cheaper, but by too little to badge: a real saving, so "BEST VALUE" is not refuted.
+    expect(yearlyValueVsMonthly({ amount: 46 }, { amount: 3.99 })).toEqual({ kind: "unknown" });
+    expect(yearlyValueVsMonthly({ amount: 19.99 }, { amount: 3.99 })).toEqual({ kind: "saving", percent: 58 });
   });
 
   it("is true of the shipped ladder — the yearly row must actually be the better deal", () => {

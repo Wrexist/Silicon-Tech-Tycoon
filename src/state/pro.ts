@@ -123,27 +123,61 @@ function positiveFinite(n: unknown): n is number {
   return typeof n === "number" && Number.isFinite(n) && n > 0;
 }
 
+export interface PriceAmount {
+  amount?: number;
+  currency?: string;
+}
+
 /**
- * How much cheaper a year of `yearly` is than twelve months of `monthly`, as a whole percent.
+ * What we can honestly say about a year versus twelve months of monthly.
  *
- * Rounded DOWN so the claim is never larger than the truth, and null whenever it can't be made
- * honestly: a missing amount, a mismatched currency (two storefronts can never be compared), or a
- * yearly plan that isn't actually cheaper. Callers fall back to the static badge on null. Pure.
+ * Three outcomes, not two, because "we measured and there is no saving" and "we have nothing to
+ * measure with" must not render the same way:
+ *
+ *  • `saving`  — say it, with the number.
+ *  • `none`    — we DID compare, and yearly is not cheaper. Say nothing: falling back to a static
+ *                "BEST VALUE" here would be a comparative claim the arithmetic actively refutes.
+ *  • `unknown` — no comparable amounts (an older native build, a partial catalog read, two
+ *                currencies). Nothing is known either way, so the authored badge stands.
  */
-export function yearlySavingsPercent(
-  yearly: { amount?: number; currency?: string } | undefined,
-  monthly: { amount?: number; currency?: string } | undefined,
-): number | null {
-  if (!yearly || !monthly) return null;
-  if (!positiveFinite(yearly.amount) || !positiveFinite(monthly.amount)) return null;
+export type YearlyValue =
+  | { kind: "saving"; percent: number }
+  | { kind: "none" }
+  | { kind: "unknown" };
+
+export function yearlyValueVsMonthly(
+  yearly: PriceAmount | undefined,
+  monthly: PriceAmount | undefined,
+): YearlyValue {
+  if (!yearly || !monthly) return { kind: "unknown" };
+  if (!positiveFinite(yearly.amount) || !positiveFinite(monthly.amount)) return { kind: "unknown" };
   // Comparing amounts across currencies would be meaningless. Only a read that gave us both
   // currencies AND disagrees is disqualifying — a store that reports neither is still comparable,
   // because a single device only ever sees one storefront.
-  if (yearly.currency && monthly.currency && yearly.currency !== monthly.currency) return null;
+  if (yearly.currency && monthly.currency && yearly.currency !== monthly.currency) {
+    return { kind: "unknown" };
+  }
   const twelveMonths = monthly.amount * 12;
-  if (yearly.amount >= twelveMonths) return null; // nothing to claim
+  if (yearly.amount >= twelveMonths) return { kind: "none" };
+  // Rounded DOWN, so the number shown is never larger than the arithmetic supports.
   const pct = Math.floor(((twelveMonths - yearly.amount) / twelveMonths) * 100);
-  return pct >= MIN_CLAIMABLE_SAVING_PCT ? pct : null;
+  // A saving too small to be worth a badge is still a real saving — "BEST VALUE" isn't refuted by
+  // it, so this is `unknown` territory rather than `none`.
+  return pct >= MIN_CLAIMABLE_SAVING_PCT ? { kind: "saving", percent: pct } : { kind: "unknown" };
+}
+
+/**
+ * The claimable saving as a whole percent, or null when there is none to claim.
+ *
+ * A thin read of `yearlyValueVsMonthly` for callers that only need the number. Prefer the full
+ * result when rendering, so a measured "no saving" can be told apart from "nothing measured".
+ */
+export function yearlySavingsPercent(
+  yearly: PriceAmount | undefined,
+  monthly: PriceAmount | undefined,
+): number | null {
+  const value = yearlyValueVsMonthly(yearly, monthly);
+  return value.kind === "saving" ? value.percent : null;
 }
 
 export function proProduct(id: string): ProProduct | undefined {

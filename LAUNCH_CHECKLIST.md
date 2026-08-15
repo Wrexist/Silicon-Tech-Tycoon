@@ -42,12 +42,12 @@ detected as a paid-era customer and gets Pro forever, for nothing.
 - [ ] `grep FIRST_FREE_BUILD src/state/pro.ts` → **5**
 - [ ] Xcode → Version → **1.3.0**, and `package.json` version matches
 
-**The build number depends on how you ship, and it is not 5:**
+**The build number depends on how you ship:**
 
 | Route | Build number | Check |
 |---|---|---|
 | `ios-testflight-capacitor.yml` (the normal path — no Mac needed) | the workflow's **run number**, ~69 at the time of writing | Nothing to set. The run now *refuses to build* if that number is below `FIRST_FREE_BUILD`, so a reset counter fails loudly instead of giving Pro away |
-| Archiving locally in Xcode | whatever `CURRENT_PROJECT_VERSION` says (**5** in `project.pbxproj`) | Must be **≥ 5** and higher than any build already uploaded under marketing version 1.3.0 |
+| Archiving locally in Xcode | whatever `CURRENT_PROJECT_VERSION` says (**5** in `project.pbxproj`) | 5 is fine *if* no 1.3.0 build is already uploaded at 5 or above; otherwise raise it. Must be ≥ 5 either way |
 
 Either way the number must be **≥ 5** — anything below it is read as a paid-era download. Above the
 line, the exact value only has to be unique and increasing within a marketing version.
@@ -115,7 +115,7 @@ npm ci && npm test && npm run typecheck && npm run build && npx cap sync ios
       PR touching `ios/**`) **or** dispatch `ios-build-check.yml` by hand, and wait for it to go
       green *before* spending 40 minutes on the TestFlight run.
 - [ ] Xcode → **Product → Archive → Distribute App → App Store Connect → Upload**
-- [ ] TestFlight shows **1.3.0** with the build number from Phase 1 (the CI run number, not 5) and finishes processing
+- [ ] TestFlight shows **1.3.0** with the build number from Phase 1 (the CI run number, or whatever you archived locally) and finishes processing
 - [ ] Install that TestFlight build on a real iPhone before going further
 
 ---
@@ -200,7 +200,7 @@ General device smoke test while you're there:
 ## Phase 7 — Submit (10 min)
 
 - [ ] All **three** Pro products attached to the version
-- [ ] The 1.3.0 build you just uploaded is selected (see Phase 1 — its number is the CI run number, not 5)
+- [ ] The 1.3.0 build you just uploaded is selected (see Phase 1 for which number to expect)
 - [ ] **App Review Information → Notes** — paste the block from
       `appstore/SUBSCRIPTION_GUIDE.md` § Step 11. It tells the reviewer what's free, what Pro adds,
       that nothing purchasable affects the simulation, where the paywall and cancel path are, and

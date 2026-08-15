@@ -166,35 +166,47 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         return payload
     }
 
-    /// Turn our own stable group LABEL into the group IDENTIFIER StoreKit actually indexes by.
+    /// Turn our own stable group LABEL into the group IDENTIFIER StoreKit actually indexes by, or
+    /// nil when that cannot be established right now.
     ///
     /// The JS side passes `PRO_SUBSCRIPTION_GROUP` ("silicon_pro") because a name is the only thing
     /// the web layer can hold — but `Product.SubscriptionInfo.status(for:)` wants the identifier App
-    /// Store Connect assigned to the group, which is a numeric string and is not that name. Handed
-    /// a name no product carries, it finds nothing, every subscriber reads as "no subscription", and
-    /// they pay and get nothing. So ask the store which group its own Pro subscriptions are in.
+    /// Store Connect assigned to the group, which is a system-generated string and is not that name.
+    /// So ask the store which group its own Pro subscriptions are in.
     ///
-    /// Falls back to the caller's value whenever the store can't be reached or reports no group, so
-    /// this is a no-op wherever the two already agree (a local `.storekit` file, or an ASC group
-    /// whose identifier really is this string).
+    /// **Returning nil rather than the passed label is the whole point.** `status(for:)` does not
+    /// throw on an unrecognised group — it returns an EMPTY ARRAY, indistinguishable from "this
+    /// customer never subscribed". Handing it the label would therefore turn "we couldn't look the
+    /// products up" into a confident `active: false`, and `syncPro` revokes on exactly that: two
+    /// definitive noes (lifetime + subscription) clear the record, so one transient product-lookup
+    /// failure would log a paying subscriber out of what they bought. A nil here becomes a
+    /// `reject`, which `syncPro` reads as "unanswered" and never revokes on.
+    ///
+    /// Deliberately NOT cached. A cache would only help us GRANT on a later read after a transient
+    /// failure — and the next successful sync does that anyway — while mutable static state here
+    /// would be shared across every concurrent status read for no safety gain. Failing closed on
+    /// the read and leaving the local record untouched is the conservative half, and it is free.
     ///
     /// Costs nothing while RevenueCat is the active backend — `rc_subscriptionStatus` resolves
     /// entitlements by its own identifier and never uses the group at all. It matters because the
     /// StoreKit 2 path is kept complete precisely so that flipping `RevenueCatConfig.forceStoreKit2`
     /// is a one-line revert, and a revert must not silently stop reading subscription status.
     @available(iOS 15.0, *)
-    private static func resolveSubscriptionGroupID(fallback: String) async -> String {
+    private static func resolveSubscriptionGroupID(passed: String) async -> String? {
         let recurring = [
             "com.wrexist.silicon.pro.yearly",
             "com.wrexist.silicon.pro.monthly",
         ]
-        guard let products = try? await Product.products(for: recurring) else { return fallback }
+        guard let products = try? await Product.products(for: recurring) else { return nil }
         for product in products {
             if let group = product.subscription?.subscriptionGroupID, !group.isEmpty {
                 return group
             }
         }
-        return fallback
+        // The store answered but offered no subscription at all (products not configured, or a
+        // build with the SKUs removed). `passed` is only usable if it happens to BE an identifier,
+        // which we cannot check — so treat it as unresolved rather than risk a false negative.
+        return nil
     }
 
     @available(iOS 15.0, *)
@@ -336,9 +348,14 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         guard #available(iOS 15.0, *) else { return call.resolve(["active": false]) }
         Task {
             do {
-                let statuses = try await Product.SubscriptionInfo.status(
-                    for: Self.resolveSubscriptionGroupID(fallback: groupId)
-                )
+                // No resolved identifier means we cannot ASK the question, which is not the same
+                // answer as "you have no subscription" — and the JS side treats a resolved
+                // `active: false` as a definitive no and revokes on it. Reject instead, so
+                // `syncPro` records the read as unanswered and leaves the entitlement alone.
+                guard let group = await Self.resolveSubscriptionGroupID(passed: groupId) else {
+                    return call.reject("Could not resolve the Pro subscription group")
+                }
+                let statuses = try await Product.SubscriptionInfo.status(for: group)
                 // A group can report SEVERAL entitling statuses at once — Family Sharing, or a
                 // monthly and a yearly overlapping across a crossgrade boundary. Taking whichever
                 // came first in the array would make the reported product, expiry and renewal

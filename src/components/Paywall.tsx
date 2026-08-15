@@ -35,7 +35,7 @@ import { registerAppOverlay } from "../design/overlayGuard.ts";
 import { onPaywall, markOnboardingPaywallSeen, type PaywallRequest } from "../state/paywall.ts";
 import { paywallCopy, PRO_BENEFITS, REASON_BENEFIT_ORDER, RETURNING_COPY } from "../state/proGates.ts";
 import { getFounderIntent, INTENT_HEADLINE, leadWith, orderBenefits } from "../state/founderIntent.ts";
-import { FREE_TRIAL_DAYS, PRO_PRODUCTS, hasEverSubscribed, isPro, onProChanged, yearlySavingsPercent } from "../state/pro.ts";
+import { FREE_TRIAL_DAYS, PRO_PRODUCTS, hasEverSubscribed, isPro, onProChanged, yearlyValueVsMonthly } from "../state/pro.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST, COMPONENT_LINES } from "../engine/catalogs.ts";
 import { SCENARIOS } from "../engine/scenarios.ts";
@@ -168,9 +168,9 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
    * an older native build with no numeric amounts, mismatched currencies), and every use below
    * falls back to the static badge, so the row simply reads as it always did.
    */
-  const savingsPct = useMemo(() => {
+  const yearlyValue = useMemo(() => {
     const find = (tier: string) => rows.find((r) => r.product.tier === tier)?.offer;
-    return yearlySavingsPercent(find("yearly"), find("monthly"));
+    return yearlyValueVsMonthly(find("yearly"), find("monthly"));
   }, [rows]);
 
   const current = rows.find((r) => r.product.id === selected);
@@ -339,14 +339,18 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
               {rows.map(({ product, offer }) => {
                 const on = selected === product.id;
                 const showsTrial = offer.trialEligible && product.hasTrial;
-                // A measured claim outranks an adjective: when the store's numbers let us say how
-                // much yearly actually saves, that replaces "BEST VALUE" on the badge and the
-                // arithmetic gets spelled out on the row the player is deciding on.
-                const savingsOnRow = product.tier === "yearly" ? savingsPct : null;
-                const badge = savingsOnRow != null ? `SAVE ${savingsOnRow}%` : product.badge;
-                const note = savingsOnRow != null
-                  ? `${savingsOnRow}% less than 12 months of monthly.`
-                  : product.note;
+                // A measured claim outranks an adjective, and a REFUTED one outranks both. On the
+                // yearly row: say the number when the store's amounts support one; say nothing at
+                // all when those amounts say yearly isn't actually cheaper (a static "BEST VALUE"
+                // there would be a comparison the arithmetic contradicts); keep the authored badge
+                // only where nothing is known either way.
+                const value = product.tier === "yearly" ? yearlyValue : ({ kind: "unknown" } as const);
+                const badge = value.kind === "saving"
+                  ? `SAVE ${value.percent}%`
+                  : value.kind === "none" ? undefined : product.badge;
+                const note = value.kind === "saving"
+                  ? `${value.percent}% less than 12 months of monthly.`
+                  : value.kind === "none" ? undefined : product.note;
                 return (
                   <button
                     key={product.id}
