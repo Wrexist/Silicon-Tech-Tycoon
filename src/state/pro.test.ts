@@ -18,6 +18,8 @@ import {
   proStatusLine,
   setProRecord,
   trialDaysRemaining,
+  yearlySavingsPercent,
+  yearlyValueVsMonthly,
   type ProRecord,
 } from "./pro.ts";
 
@@ -69,6 +71,95 @@ describe("catalog", () => {
   it("resolves products by id and returns undefined for anything else", () => {
     expect(proProduct("com.wrexist.silicon.pro.yearly")?.tier).toBe("yearly");
     expect(proProduct("com.wrexist.silicon.sandbox")).toBeUndefined();
+  });
+
+  it("never types a price into display copy — the store is the only source of an amount", () => {
+    // A currency symbol or a bare amount in a badge or note is wrong in every storefront that
+    // isn't the one it was written for, and goes stale the moment App Store Connect changes.
+    // Value framing that involves money is COMPUTED from store amounts (yearlySavingsPercent).
+    const money = /[$€£¥]|\d+[.,]\d{2}/;
+    for (const p of PRO_PRODUCTS) {
+      expect(`${p.badge ?? ""} ${p.note ?? ""} ${p.lengthLabel} ${p.title}`).not.toMatch(money);
+    }
+  });
+
+  it("keeps a numeric amount beside every fallback price string, and the two agree", () => {
+    for (const p of PRO_PRODUCTS) {
+      expect(Number.isFinite(p.fallbackAmount)).toBe(true);
+      expect(p.fallbackAmount).toBeGreaterThan(0);
+      // The number must be the same money as the string, or the web build advertises one price
+      // and computes savings from another.
+      expect(p.fallbackPrice).toContain(String(p.fallbackAmount));
+    }
+  });
+});
+
+describe("yearlySavingsPercent", () => {
+  const yearly = { amount: 19.99, currency: "USD" };
+  const monthly = { amount: 3.99, currency: "USD" };
+
+  it("computes the saving against twelve months of monthly", () => {
+    // 12 × 3.99 = 47.88; 19.99 is 58.2% less. Floored to 58 — never rounded UP into a claim
+    // larger than the truth.
+    expect(yearlySavingsPercent(yearly, monthly)).toBe(58);
+  });
+
+  it("rounds down, so the number shown is always one the arithmetic supports", () => {
+    // Exactly 50% saved must never render as 51.
+    expect(yearlySavingsPercent({ amount: 60 }, { amount: 10 })).toBe(50);
+    // 49.9% floors to 49.
+    expect(yearlySavingsPercent({ amount: 60.12 }, { amount: 10 })).toBe(49);
+  });
+
+  it("claims nothing when there is nothing to claim", () => {
+    expect(yearlySavingsPercent({ amount: 47.88 }, { amount: 3.99 })).toBeNull(); // identical cost
+    expect(yearlySavingsPercent({ amount: 60 }, { amount: 3.99 })).toBeNull();    // yearly costs MORE
+    expect(yearlySavingsPercent({ amount: 46 }, { amount: 3.99 })).toBeNull();    // ~4%, below the floor
+  });
+
+  it("refuses to compare across currencies", () => {
+    // Two amounts from different storefronts are not comparable numbers, and a saving computed
+    // from them would be fiction.
+    expect(yearlySavingsPercent({ amount: 19.99, currency: "USD" }, { amount: 3.99, currency: "EUR" })).toBeNull();
+    // A store that reports no currency at all is still fine: one device sees one storefront.
+    expect(yearlySavingsPercent({ amount: 19.99 }, { amount: 3.99 })).toBe(58);
+  });
+
+  it("returns null rather than guessing when the store gave us no numbers", () => {
+    // An older native build, a partial catalog read, or a row the store didn't return. Every
+    // caller falls back to the static badge, so the row still renders.
+    expect(yearlySavingsPercent(undefined, monthly)).toBeNull();
+    expect(yearlySavingsPercent(yearly, undefined)).toBeNull();
+    expect(yearlySavingsPercent({}, monthly)).toBeNull();
+    expect(yearlySavingsPercent({ amount: Number.NaN }, monthly)).toBeNull();
+    expect(yearlySavingsPercent({ amount: Infinity }, monthly)).toBeNull();
+    expect(yearlySavingsPercent({ amount: -19.99 }, monthly)).toBeNull();
+    expect(yearlySavingsPercent(yearly, { amount: 0 })).toBeNull();
+  });
+
+  it("tells a measured NO apart from an unmeasurable one — the badge depends on it", () => {
+    // The distinction the paywall renders on: `none` means we compared and yearly is not cheaper,
+    // so a static "BEST VALUE" would be a claim the arithmetic refutes and no badge is shown.
+    // `unknown` means we have nothing to compare, so the authored badge stands.
+    expect(yearlyValueVsMonthly({ amount: 60 }, { amount: 3.99 })).toEqual({ kind: "none" });
+    expect(yearlyValueVsMonthly({ amount: 47.88 }, { amount: 3.99 })).toEqual({ kind: "none" });
+    expect(yearlyValueVsMonthly(undefined, { amount: 3.99 })).toEqual({ kind: "unknown" });
+    expect(yearlyValueVsMonthly({}, { amount: 3.99 })).toEqual({ kind: "unknown" });
+    expect(yearlyValueVsMonthly({ amount: 19.99, currency: "USD" }, { amount: 3.99, currency: "EUR" }))
+      .toEqual({ kind: "unknown" });
+    // Cheaper, but by too little to badge: a real saving, so "BEST VALUE" is not refuted.
+    expect(yearlyValueVsMonthly({ amount: 46 }, { amount: 3.99 })).toEqual({ kind: "unknown" });
+    expect(yearlyValueVsMonthly({ amount: 19.99 }, { amount: 3.99 })).toEqual({ kind: "saving", percent: 58 });
+  });
+
+  it("is true of the shipped ladder — the yearly row must actually be the better deal", () => {
+    const y = PRO_PRODUCTS.find((p) => p.tier === "yearly")!;
+    const m = PRO_PRODUCTS.find((p) => p.tier === "monthly")!;
+    const pct = yearlySavingsPercent({ amount: y.fallbackAmount }, { amount: m.fallbackAmount });
+    expect(pct).not.toBeNull();
+    // If a price change ever makes yearly a worse deal than monthly, the badge silently reverts to
+    // "BEST VALUE" — an adjective that would then be a lie. Fail here instead.
+    expect(pct!).toBeGreaterThanOrEqual(25);
   });
 });
 

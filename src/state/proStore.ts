@@ -43,8 +43,14 @@ export function proPurchasesAvailable(): boolean {
 /** One purchasable row, resolved against what the store will ACTUALLY sell right now. */
 export interface ProOffer {
   id: string;
-  /** Localized store price ("kr 39,00", "€3,99"). Falls back to the USD config string off-device. */
+  /** Localized store price ("kr 39,00", "€3,99"). Falls back to the USD config string off-device.
+   *  This is the ONLY price string that may ever be shown — see `amount`. */
   price: string;
+  /** The numeric price behind `price`, for plan-vs-plan value math only. Never rendered: formatting
+   *  money in JS is how a paywall ends up claiming a price the store won't charge. */
+  amount?: number;
+  /** ISO-4217 code for `amount`. Guards the comparison, never formats. */
+  currency?: string;
   /** True when this Apple ID can still claim the introductory free trial on this SKU. */
   trialEligible: boolean;
   /** Localized trial length from the store when available ("7 days"), else our copy fills in. */
@@ -74,7 +80,14 @@ function fallbackCatalog(): ProCatalog {
 function PRO_PRODUCTS_FALLBACK(): ProOffer[] {
   return PRO_PRODUCT_IDS.map((id) => {
     const p = proProduct(id)!;
-    return { id, price: p.fallbackPrice, trialEligible: p.hasTrial, owned: false };
+    return {
+      id,
+      price: p.fallbackPrice,
+      amount: p.fallbackAmount,
+      currency: "USD", // the fallback table is USD by definition; on device the store's own wins
+      trialEligible: p.hasTrial,
+      owned: false,
+    };
   });
 }
 
@@ -104,6 +117,11 @@ export async function getProCatalog(): Promise<ProCatalog> {
       offers.push({
         id,
         price: hit.price?.trim() || cfg.fallbackPrice,
+        // Numeric amount for value math. Only taken when the store actually gave us one — never
+        // paired with the USD fallback string, which would compare a real price against a
+        // config constant and could invent a saving that isn't real in this storefront.
+        amount: typeof hit.priceAmount === "number" && Number.isFinite(hit.priceAmount) ? hit.priceAmount : undefined,
+        currency: hit.currencyCode,
         // Only a SKU that carries a trial AND an Apple ID that hasn't used it shows trial framing.
         // Showing "7 days free" to an ineligible user is a false claim (Apple 3.1.2 exposure).
         trialEligible: cfg.hasTrial && hit.introEligible === true,

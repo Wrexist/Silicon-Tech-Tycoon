@@ -42,7 +42,7 @@ Defined once in `src/state/pro.ts` (`PRO_PRODUCTS`). Everything else reads from 
 
 | SKU | Tier | Price (USD fallback) | Notes |
 |---|---|---|---|
-| `com.wrexist.silicon.pro.yearly` | yearly | **$19.99 / year** | Default selection. `BEST VALUE`. 7-day trial. |
+| `com.wrexist.silicon.pro.yearly` | yearly | **$19.99 / year** | Default selection. `SAVE 58%` (computed). 7-day trial. |
 | `com.wrexist.silicon.pro.lifetime` | lifetime | **$29.99 once** | Non-consumable. Never renews. |
 | `com.wrexist.silicon.pro.monthly` | monthly | **$3.99 / month** | Low-friction entry. 7-day trial. |
 | `com.wrexist.silicon.sandbox` | — | $2.99 (legacy) | The paid era's Creative Mode IAP. **Honoured forever, never re-sold.** No longer offered. |
@@ -50,6 +50,23 @@ Defined once in `src/state/pro.ts` (`PRO_PRODUCTS`). Everything else reads from 
 **The prices in the code are display fallbacks for web/dev only.** On device the localized StoreKit
 price always wins. Change the price in **App Store Connect first**, then here — a paywall showing a
 price the store will not charge is a Guideline 3.1.2 rejection.
+
+**Value framing is computed, never typed.** The yearly row's badge and note come from
+`yearlySavingsPercent()` in `pro.ts`, which divides the store's own numeric amounts (`priceAmount` +
+`currencyCode`, carried through the bridge from both StoreKit 2 and RevenueCat). It rounds **down**,
+refuses to compare across currencies, and distinguishes three outcomes rather than two — because
+"we measured and there is no saving" must not render like "we have nothing to measure with":
+
+| Outcome | Badge |
+|---|---|
+| A claimable saving | `SAVE N%`, plus the basis spelled out on the selected row |
+| Compared, and yearly is **not** cheaper | **No badge.** A static `BEST VALUE` here is a comparison the arithmetic actively refutes |
+| Nothing comparable (older native build, partial read, mixed currencies) | The authored `BEST VALUE` stands — nothing is known either way |
+
+This replaced a hardcoded `"About $1.67 a month."`, which was a false statement in every storefront
+that isn't the US and went stale the moment a price moved in App Store Connect. **Never put an amount
+or a currency symbol in `badge`, `note` or any other display string** — `pro.test.ts` fails the build
+if you do.
 
 ### Why this ladder
 
@@ -154,7 +171,7 @@ Every one of them routes through **one** overlay (`components/Paywall.tsx`) via
 
 ### The conversion mechanics, and the evidence behind each
 
-Six deliberate mechanics, each drawn from what the subscription-app industry has actually measured —
+Ten deliberate mechanics, each drawn from what the subscription-app industry has actually measured —
 and each implemented in the version that keeps the "no dark patterns" promise rather than the
 version that squeezes the number hardest.
 
@@ -166,10 +183,21 @@ version that squeezes the number hardest.
 | 4 | **Billing-failure rescue** | ~⅓ of subscription churn is involuntary — an expired card, a declined charge — not a decision. Apple retries for up to 60 days and keeps the subscriber entitled through the grace period; the only missing piece is the user *knowing*. Reported recovery from doing this properly runs 15–20% of otherwise-lost revenue. | `components/ProNudge.tsx` |
 | 5 | **Returning-subscriber welcome** | Lapsed subscribers are the cheapest revenue an app has, and the surest way to lose them is to show them the first-time sales pitch again. A one-bit, never-cleared breadcrumb (`hasEverSubscribed`) swaps the headline for a welcome. **No discount is claimed** — real win-back pricing is configured in App Store Connect and shown by StoreKit's own sheet; our UI never states a price the store didn't give us. | `RETURNING_COPY` in `state/proGates.ts` |
 | 6 | **Monthly → Yearly crossgrade** | Yearly subscribers have materially higher LTV and lower churn. Offered only to someone already on Monthly, framed as what it is: the same Pro for less per month. Both SKUs share one subscription group, so StoreKit prorates it — no double charge, no cancel-first. | `ProGroup` in `screens/Settings.tsx` |
+| 7 | **A computed price anchor on the yearly row** | Relative-price framing is the best-evidenced single element on a plan row: the decision is never "is $19.99 a lot" in the abstract, it is "against what". `SAVE 58%` states the comparison the ladder was designed around. **Ours is arithmetic on the store's own amounts** — floored, currency-guarded, silently absent when it can't be computed, and suppressing even the static badge when the numbers refute it — rather than a number typed into the UI, which is what makes it safe to show in 175 storefronts. | `yearlySavingsPercent` in `state/pro.ts` |
+| 8 | **The gate leads the benefit list** | The headline already answered the wall the player walked into; until `REASON_BENEFIT_ORDER` existed the list under it still opened with "The full campaign" regardless, so a player who tapped a locked scenario read a scenario headline above an argument about something else. The first two items are all many players read. Reorder only — a test asserts nothing is added, dropped or edited for any reason. | `REASON_BENEFIT_ORDER` in `state/proGates.ts` |
+| 9 | **Risk reversal at the CTA** | The three objections that actually stop a thumb — am I trapped, will this become an ad-farm, am I buying an advantage — answered in one quiet line directly under the button, where the hesitation happens rather than eight scroll-lengths above it. Every item is a fact this product already guarantees, so the converting answer and the honest answer are the same sentence. Deliberately the quietest text in the pinned bar: reassurance that out-shouts the billed amount is the 3.1.2 "confusing design" rejection. | `.pwl__trust` in `components/Paywall.tsx` |
+| 10 | **The price ladder on screen, on the phones people own** | Measured, not assumed: with the full two-line benefit treatment the plans started ~600px down a 427px scroll window on an iPhone SE and ~685px down a 526px one on a 13 mini, so those players never saw that a choice existed — including Pro Lifetime, the row that answers the loudest objection to subscriptions. Below 880pt of height the eight promises keep their titles and give up their sub-copy, which is what gets skimmed anyway. | `@media (max-height: 880px)` in `components/paywall.css` |
 
 **Deliberately not implemented:** fabricated social proof, countdown timers, "limited time" pricing,
 a trial toggle, or a paywall you can't dismiss. The first four are lies, and the fifth is a
 Guideline 3.1.2 rejection as of January 2026.
+
+Also considered and **rejected on accuracy grounds**: a "you won't be charged until 21 Aug" date on
+the trial. It is a real conversion mechanic and it would strengthen the 3.1.2 disclosure — but the
+charge date is Apple's to compute, our copy would be derived from a local clock and a period string,
+and near midnight or across a DST boundary the two can disagree by a day. A date that is wrong is
+worse than no date. The same objection ("am I about to be charged?") is answered by the CTA's
+`Nothing to pay today · cancel any time` and by the trust row, neither of which can drift.
 
 #### The trial-reminder trade-off, written down
 
@@ -282,6 +310,39 @@ modes, each with a test:
 | What Pro includes | `isLocked` + `PRO_BENEFITS` in `proGates.ts` | Benefit list and gate table live side by side so they can't drift |
 | Paywall wording | `COPY` in `proGates.ts` | One entry per reason; the no-urgency test guards it |
 | Kill the purchase path | `NATIVE_PRO_WIRED = false` in `proStore.ts` | Native paths go "unavailable" — never the web mock, which would grant Pro free |
+
+### ROAS — what is actually measurable here, and what isn't
+
+Worth stating plainly before anyone plans paid acquisition against this app: **there is no
+attribution.** No SDK, no IDFA prompt, no install referrer, no `track()` call anywhere in the
+codebase — that is the deliberate trade in §9, and it is also a privacy claim now written into
+`PrivacyInfo.xcprivacy` and `docs/privacy/`. Adding attribution would mean adding an SDK, an ATT
+prompt and a new App Privacy declaration, which changes what this product *is*. Don't do it as a
+side effect of a growth experiment.
+
+What that leaves:
+
+| Question | Answerable? | Where |
+|---|---|---|
+| Installs → trial start → paid, in aggregate | **Yes** | App Store Connect *Subscriptions* + RevenueCat charts |
+| Trial conversion, churn, refunds, LTV by plan | **Yes** | RevenueCat cohorts |
+| Product-page impressions → downloads | **Yes** | App Store Connect *App Analytics* |
+| Which campaign produced which subscriber | **No** — nothing links them | — |
+| Per-campaign ROAS | **Only via Apple Search Ads**, which reports its own conversions | Apple Search Ads console |
+
+So the honest levers on return-per-install, in the order they move money:
+
+1. **Store conversion rate** (impressions → downloads). This is upstream of everything the paywall
+   can do and it is fully measurable. Screenshots, the preview video and the first three lines of
+   the description do the work — see `app-store-screenshots/` and `STORE_LISTING.md`. Remember the
+   rule from §5: **no marketing asset may name a price** (that was the 2.3.7 rejection).
+2. **Custom Product Pages.** Up to 35 per app, each with its own URL and its own conversion figure
+   in App Store Connect. This is the closest thing to per-campaign measurement available without an
+   SDK, and it works with any traffic source, not just Apple's.
+3. **Apple Search Ads**, if paid acquisition happens at all — it is the one channel that closes the
+   loop on its own without any tracking in the app.
+4. **The paywall itself**, which is what §4 above is for. Measured as a rate across all installs in
+   ASC/RevenueCat, never per source.
 
 ### Highest-value experiments, in order
 

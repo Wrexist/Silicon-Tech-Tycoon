@@ -1,14 +1,9 @@
-A fifth era, a hidden layer, and a company that finally answers back.
+Silicon is now free to play — and there's a Time Machine.
 
-• The Vault: eighteen classified dossiers whose conditions are secret. Each opens on something you did without being asked, and reveals itself a step at a time — a redaction block, then a whisper, then the exact terms, then the reward. Buy the intel if you're impatient; the deed is never for sale. What you learn carries into your next company.
-• The Autonomy Era: a genuine fifth era past the IPO, with two new categories — Neural Band and Home Robot — and a new component tier on every line.
-• Nemesis Duels: your arch-rival calls you out. Multi-week duels with escalating tiers, and a trophy when you take one.
-• Mastery & Seasons: per-category progress bars with signature cosmetics, plus a monthly Challenge Season track of device colourways, HQ finishes and profile badges.
-• Run the company, not just the product: crunch the team to rush a build, set standing reorder policies, work the sell window after launch, gamble on moonshot R&D with visible odds, promise a ship date at a keynote, draft an era mandate, and spend an engineering budget that makes every project a real choice.
-• A world that lives: employees with names and lives of their own, rivals that fight each other and not just you, review outlets that remember your last device, regional events that name the rival surging there, and an industry ladder of named bosses to climb.
-• See what you're climbing: a Company Roadmap of every era, category and endgame system ahead of you, one Goals ledger, a Help hub that explains every score, and a glossary.
-• As calm as you like: Calm Mode sets how often the game interrupts you, and low-stakes moments now wait quietly in a Decision Inbox.
-• A better HQ: a living 3D office with typing, chair swivels and glowing screens, 20 new furniture pieces and 8 room styles, a factory floor that actually runs, proper task chairs that always face their own monitor — plus Tidy Up for the office and Undo for the factory.
-• Rebalanced throughout: every era now rewards a great launch and punishes a lazy one, a rough start is something you can recover from instead of a dead end, and more than one way to play survives to the end.
+• Free to download, free to play. The whole design → launch → read-the-market → reinvest loop, the Garage and Growth eras start to finish, two scenarios, and a fresh seeded challenge every single day. Still no ads, no timers, no energy, no currencies, no loot boxes. That part is never changing.
+• Silicon Pro, if you want the rest: the Platform and AI eras, every scenario, New Game+ and the Ascension ladder, the Platform Division, Creative Mode, the Vault, the Device Museum, Category Mastery and your Founder Legend. Monthly or yearly with a free trial, or Pro Lifetime if you would rather own it once and be done.
+• The Time Machine. Pro quietly snapshots your company every quarter and keeps the last five. One catastrophic launch, one over-hired year, one factory bought at the wrong moment — rewind and take the other road. Campaign only: scenarios and challenges stay scored on their own terms.
+• Already bought Silicon? It's yours forever. Everyone who paid for the app before it went free is recognised automatically and granted Founding Owner — all of Pro, permanently, at no further cost. The separate Creative Mode unlock stays yours too.
+• Nothing you can buy changes the simulation in your favour. Pro unlocks content and modes, never an advantage inside a run.
 
-Faster loading and a long list of fixes.
+A founding brief at the start now asks what you're here to build, and the game leads with that.
