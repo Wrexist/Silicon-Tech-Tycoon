@@ -3,7 +3,7 @@ Convierte un garaje en un imperio tecnológico global, dispositivo por dispositi
 Silicon es una simulación de negocios premium, un tycoon de los de verdad. Aquí no te quedas viendo cómo suben los números: tú DISEÑAS los productos, CONSTRUYES la fábrica que los produce y DIRIGES la empresa que los vende. Funda una startup, lanza algo grandioso, aplasta a tus rivales, sal a la bolsa y aduéñate de la industria.
 
 DISEÑA CADA DISPOSITIVO
-Personaliza celulares, tabletas, laptops, consolas, monitores y lentes de realidad aumentada por dentro y por fuera: chip, pantalla, batería, materiales, cámaras, acabado y color, y mira cómo cada uno toma forma al instante en una vista vectorial nítida. Cada decisión mueve tus costos, tu margen y la reacción del mercado. La forma también cuenta: un diseño llamativo se vende solo.
+Personaliza celulares, tabletas, laptops, consolas, monitores y lentes de realidad aumentada por dentro y por fuera: chip, pantalla, batería, materiales, cámaras, acabado y color, y mira cómo cada uno toma forma al instante en una vista vectorial nítida. Cada decisión mueve tus costos, tu margen y la reacción del mercado.
 
 CONSTRUYE UNA FÁBRICA DE VERDAD
 El modo Fábrica es una línea de producción 3D viva que armas tú mismo. Tiende bandas transportadoras, instala y mejora máquinas y conecta la planta para producir más rápido: cada dispositivo pide sus propias máquinas (un celular quiere una selladora de pantallas; una laptop, una fresadora de chasis). Decórala con detalles y paredes pintadas, amplía el edificio y acepta encargos externos para que la línea no se detenga entre lanzamientos.
@@ -12,7 +12,7 @@ ATÍNALE AL MERCADO
 El gusto de la gente cambia semana con semana. Lee la tendencia, ponle el precio correcto, elige la campaña que le queda a tu presupuesto y encuentra tu ventana de lanzamiento. El juego siempre te dice POR QUÉ un producto triunfó o fracasó, así que cada lanzamiento te deja una lección.
 
 GÁNATE ENEMIGOS
-Compite contra una docena de rivales ficticios en la tabla de posiciones en vivo de la industria. Uno se convertirá en tu archirrival: una némesis con la que chocarás una y otra vez. Cuando un rival ataque tu categoría, enfrenta su dispositivo contra el tuyo y contesta el golpe. Y cada año, los Silicon Awards califican todos los lanzamientos en Dispositivo del Año, Diseño y Valor: arrasa con la ceremonia o guárdales rencor.
+Compite contra una docena de rivales ficticios en la tabla de posiciones en vivo de la industria. Uno se convertirá en tu archirrival: una némesis con la que chocarás una y otra vez. Cuando un rival ataque tu categoría, enfrenta su dispositivo contra el tuyo y contesta el golpe. Y cada año, los Silicon Awards califican todos los lanzamientos en Dispositivo del Año, Diseño y Valor.
 
 JUEGA EN LA BOLSA
 Compra acciones de tus rivales, gana un asiento en su consejo para conseguir información privilegiada, toma una participación de control para una compra hostil con descuento o adquiérelos por completo y absorbe su marca, sus fans y sus patentes. Luego saca tu propia empresa a la bolsa y supera las expectativas de resultados trimestrales de los analistas.
@@ -33,3 +33,6 @@ SILICON PRO
 Una suscripción opcional abre el resto de la industria: las eras de la Plataforma y de la IA, todos los escenarios, Nueva partida+, el modo Creativo, la Cámara y la Máquina del Tiempo. Mensual o anual con prueba gratis, o Pro Lifetime para comprarlo una sola vez. Nada de lo que compres cambia la simulación a tu favor.
 
 Funda tu empresa. Lanza algo grandioso. Dirige la industria.
+
+Términos de uso (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Política de privacidad: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/

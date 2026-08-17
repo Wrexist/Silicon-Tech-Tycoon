@@ -212,7 +212,7 @@ Full setup instructions: **`appstore/SUBSCRIPTION_GUIDE.md`**. Model and rationa
 | `com.wrexist.silicon.pro.lifetime` | **Non-Consumable** · **$29.99** one-time · Family Sharing **On** · display name `Silicon Pro Lifetime` |
 | Subscription description | Unlock the Platform and AI eras, every scenario, New Game+, Ascension, the Platform Division, Creative Mode, the Vault and the Device Museum. |
 | Review screenshot | Required per product: the in-app paywall (Settings → Silicon Pro → See what's in Pro) |
-| License Agreement URL | `https://wrexist.github.io/Silicon-Tech-Tycoon/terms/` — **required**, and linked in the paywall |
+| Terms of Use (EULA) | Apple's standard EULA, linked **in the description text** (last two lines of every localized description) — **required**, and the app's own `/terms/` page is linked in the paywall. See `appstore/REJECTION_3.1.2_EULA.md` |
 
 ### Legacy in-app purchase (keep live, no longer offered)
 
@@ -467,7 +467,8 @@ Recommended pre-submission checklist:
 - [ ] App pricing set to **Free** (with this submission, not before)
 - [ ] Silicon Pro group + 3 products created, priced, and trials attached
 - [ ] `FIRST_FREE_BUILD` in `state/pro.ts` matches the build number being shipped
-- [ ] License Agreement URL (`/terms/`) and Privacy Policy URL both live and loading
+- [ ] Every localized description still ends with the Terms of Use (EULA) + Privacy Policy links
+      (`node appstore/localizations/validate.mjs --all`), and both pages load
 - [ ] Small Business Program enrollment confirmed
 - [ ] App Privacy declares Purchase History + Device ID (app functionality, not linked, not used for
       tracking) and matches `PrivacyInfo.xcprivacy` and the hosted privacy policy

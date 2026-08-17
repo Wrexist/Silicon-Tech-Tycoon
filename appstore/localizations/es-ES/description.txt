@@ -3,7 +3,7 @@ Levanta una empresa tecnológica desde un garaje hasta un imperio global, dispos
 Silicon es una simulación de negocios premium, un auténtico juego de magnates. No te limitas a ver subir los números: DISEÑAS los productos, CONSTRUYES la fábrica que los produce y DIRIGES la empresa que los vende. Funda una startup, lanza algo grande, aplasta a tus rivales, sal a bolsa y domina la industria.
 
 DISEÑA CADA DISPOSITIVO
-Personaliza móviles, tabletas, portátiles, consolas, monitores y gafas de realidad aumentada por dentro y por fuera: chip, pantalla, batería, materiales, cámaras, acabado y color, y mira cómo cada uno cobra forma al instante en una nítida vista vectorial. Cada decisión mueve tus costes, tu margen y la reacción del mercado. La forma también cuenta: un diseño llamativo vende.
+Personaliza móviles, tabletas, portátiles, consolas, monitores y gafas de realidad aumentada por dentro y por fuera: chip, pantalla, batería, materiales, cámaras, acabado y color, y mira cómo cada uno cobra forma al instante en una nítida vista vectorial. Cada decisión mueve tus costes, tu margen y la reacción del mercado.
 
 CONSTRUYE UNA FÁBRICA DE VERDAD
 El modo Fábrica es una línea de producción 3D viva que montas tú mismo. Coloca cintas transportadoras, instala y mejora máquinas y cablea la planta para producir más rápido: cada dispositivo pide sus propias máquinas (un móvil quiere una selladora de pantallas; un portátil, una fresadora de chasis). Decórala con detalles y paredes pintadas, amplía el edificio y acepta pedidos externos para que la línea no pare entre lanzamientos.
@@ -33,3 +33,6 @@ SILICON PRO
 Una suscripción opcional abre el resto de la industria: las eras de la Plataforma y de la IA, todos los escenarios, Nueva partida+, el modo Creativo, la Cámara y la Máquina del Tiempo. Mensual o anual con prueba gratuita, o Pro Lifetime para comprarlo una sola vez. Nada de lo que compres cambia la simulación a tu favor.
 
 Funda tu empresa. Lanza algo grande. Dirige la industria.
+
+Términos de uso (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Política de privacidad: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/

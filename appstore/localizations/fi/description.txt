@@ -33,3 +33,6 @@ SILICON PRO
 Valinnainen tilaus avaa loput alasta: alusta-ajan ja tekoälyajan, kaikki skenaariot, New Game+:n, luovan tilan, holvin ja aikakoneen. Kuukausi- tai vuositilaus ilmaisella kokeilujaksolla, tai Pro Lifetime kertaostona. Mikään ostettava ei muuta simulaatiota sinun eduksesi.
 
 Perusta yhtiösi. Julkaise jotain suurta. Hallitse koko alaa.
+
+Käyttöehdot (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Tietosuojakäytäntö: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/

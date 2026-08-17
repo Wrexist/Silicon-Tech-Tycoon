@@ -33,3 +33,6 @@ Silicon 是一款買斷制的商業模擬經營遊戲。你不會只是看著數
 可選訂閱解鎖產業的後半段：平台時代與 AI 時代、所有劇本、二周目+、創意模式、檔案庫，以及時光機。可按月或按年訂閱，都含免費試用；也可以選擇一次買斷的 Pro Lifetime。任何付費內容都不會讓模擬結果偏向你。
 
 創辦你的公司。做出讓人驚豔的產品。稱霸整個產業。
+
+使用條款 (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+隱私權政策: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/

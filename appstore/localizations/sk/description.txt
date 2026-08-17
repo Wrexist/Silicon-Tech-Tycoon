@@ -33,3 +33,6 @@ SILICON PRO
 Voliteľné predplatné otvorí zvyšok odvetvia: éru platforiem a éru AI, všetky scenáre, Novú hru+, Kreatívny režim, Trezor a Stroj času. Mesačne alebo ročne s bezplatnou skúšobnou dobou, prípadne Pro Lifetime na jediný nákup. Nič, čo si kúpiš, nezmení simuláciu vo tvoj prospech.
 
 Založ firmu. Vypusti niečo skvelé. Ovládni odvetvie.
+
+Podmienky používania (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Zásady ochrany osobných údajov: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/

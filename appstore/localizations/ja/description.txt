@@ -33,3 +33,6 @@ Siliconは、本格派の会社経営シミュレーション＆タイクーン�
 任意のサブスクリプションで業界の続きが開きます。プラットフォーム時代とAI時代、すべてのシナリオ、New Game+、クリエイティブモード、ヴォールト、そしてタイムマシン。無料お試し付きの月額または年額、あるいは買い切りのPro Lifetime。購入で有利になる要素は一切ありません。
 
 会社を興せ。傑作を出荷せよ。業界を動かせ。
+
+利用規約 (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+プライバシーポリシー: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/

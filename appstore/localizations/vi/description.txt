@@ -3,7 +3,7 @@ Gây dựng công ty công nghệ từ một gara chật hẹp thành đế ch�
 Silicon là game mô phỏng kinh doanh cao cấp dành cho dân mê thể loại tycoon. Bạn không chỉ ngồi nhìn những con số nhảy múa — bạn TỰ THIẾT KẾ sản phẩm, TỰ XÂY nhà máy sản xuất chúng và TỰ ĐIỀU HÀNH công ty bán chúng. Khởi nghiệp, tung ra một sản phẩm để đời, đè bẹp đối thủ, đưa công ty lên sàn và thống trị cả ngành.
 
 TỰ TAY THIẾT KẾ MỌI THIẾT BỊ
-Tùy biến điện thoại, máy tính bảng, laptop, máy chơi game, màn hình và kính AR từ trong ra ngoài — chip, màn hình, pin, vật liệu, cụm camera, chất liệu hoàn thiện và màu sắc — rồi xem từng mẫu máy hiện lên sống động trong bản xem trước vector sắc nét. Mỗi lựa chọn đều xê dịch chi phí, biên lợi nhuận và phản ứng của thị trường. Kiểu dáng cũng quan trọng không kém: một thiết kế bắt mắt tự nó đã bán được hàng.
+Tùy biến điện thoại, máy tính bảng, laptop, máy chơi game, màn hình và kính AR từ trong ra ngoài — chip, màn hình, pin, vật liệu, cụm camera, chất liệu hoàn thiện và màu sắc — rồi xem từng mẫu máy hiện lên sống động trong bản xem trước vector sắc nét. Mỗi lựa chọn đều xê dịch chi phí, biên lợi nhuận và phản ứng của thị trường.
 
 XÂY MỘT NHÀ MÁY THỰC THỤ
 Chế độ Nhà máy là một dây chuyền sản xuất 3D sống động do chính tay bạn dựng nên. Đặt băng chuyền, lắp và nâng cấp máy móc, sắp xếp mặt sàn để dây chuyền chạy nhanh hơn — mỗi thiết bị cần đúng loại máy của nó (điện thoại cần máy ép màn hình, laptop cần máy phay khung). Trang trí bằng vật dụng và tường sơn, mở rộng nhà xưởng, và nhận Đơn hàng phụ để dây chuyền không nghỉ tay giữa các đợt ra mắt.
@@ -33,3 +33,6 @@ SILICON PRO
 Gói đăng ký tùy chọn mở ra phần còn lại của ngành: thời kỳ Nền tảng và thời kỳ AI, mọi kịch bản, New Game+, chế độ Sáng tạo, Hầm lưu trữ và Máy thời gian. Trả theo tháng hoặc theo năm kèm dùng thử miễn phí, hoặc Pro Lifetime mua một lần. Không có thứ gì bạn mua được làm thay đổi mô phỏng theo hướng có lợi cho bạn.
 
 Sáng lập công ty của bạn. Tung ra một sản phẩm để đời. Thống trị cả ngành công nghệ.
+
+Điều khoản sử dụng (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Chính sách quyền riêng tư: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/

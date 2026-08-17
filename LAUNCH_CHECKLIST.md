@@ -148,7 +148,10 @@ Full field-by-field values in `appstore/SUBSCRIPTION_GUIDE.md` Steps 4–9. Summ
 - [ ] **Small Business Program** enrolled (15% commission instead of 30%)
 
 ### 5c — Metadata
-- [ ] License Agreement URL → `https://wrexist.github.io/Silicon-Tech-Tycoon/terms/`
+- [ ] **Terms of Use (EULA) link in the DESCRIPTION text** — the last two lines of every
+      `appstore/localizations/<locale>/description.txt`. Without it the submission is auto-rejected
+      under 3.1.2 (it happened to build 70 — `appstore/REJECTION_3.1.2_EULA.md`). There is no
+      License Agreement *URL* field; leave App Information on Apple's standard EULA
 - [ ] Privacy Policy URL → `https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/`
 - [ ] Support URL live
 - [ ] Categories: **Simulation** (primary), **Strategy** (secondary)

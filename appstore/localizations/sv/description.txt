@@ -33,3 +33,6 @@ SILICON PRO
 En valfri prenumeration öppnar resten av branschen: plattforms- och AI-epoken, alla scenarier, New Game+, Kreativt läge, Kassaskåpet och Tidsmaskinen. Månadsvis eller årsvis med gratis provperiod, eller Pro Lifetime som ett enda köp. Inget du kan köpa ändrar simuleringen till din fördel.
 
 Grunda ditt företag. Leverera något stort. Styr branschen.
+
+Användarvillkor (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Integritetspolicy: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/

@@ -33,3 +33,6 @@ SILICON PRO
 Uma assinatura opcional abre o resto da indústria: as eras da Plataforma e da IA, todos os cenários, New Game+, o Modo Criativo, o Cofre e a Máquina do Tempo. Mensal ou anual com teste grátis, ou Pro Lifetime para comprar uma única vez. Nada que você compra muda a simulação a seu favor.
 
 Abra sua empresa. Lance algo incrível. Comande a indústria.
+
+Termos de Uso (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Política de Privacidade: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/

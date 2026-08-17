@@ -103,7 +103,11 @@ Field-by-field values are in `appstore/SUBSCRIPTION_GUIDE.md` Steps 4–9. The s
 - **Small Business Program** — 15% commission instead of 30%. It is free money and takes a minute.
 
 **Metadata**
-- License Agreement URL → `https://wrexist.github.io/Silicon-Tech-Tycoon/terms/`
+- **Terms of Use (EULA) link inside the description text** — already the last two lines of every
+  `appstore/localizations/<locale>/description.txt`, so just paste them whole. Apple auto-rejects a
+  subscription app whose description carries no EULA link, and App Information has no License
+  Agreement *URL* field to substitute for it (leave it on Apple's standard EULA).
+  See `appstore/REJECTION_3.1.2_EULA.md`
 - Privacy Policy URL → `https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/`
 - App Privacy → **Purchase History + Device ID**, both *app functionality*, both **not linked to the
   user** and **not used for tracking**. This is because RevenueCat processes purchases. It must match
@@ -186,6 +190,7 @@ Neither blocks submission:
 
 | Rejection | Almost always |
 |---|---|
+| 3.1.2 "no functional link to the Terms of Use (EULA)" | The EULA link missing from the **App Description text** — this is what happened to build 70. Fix + reply text: `appstore/REJECTION_3.1.2_EULA.md`. Metadata only, no new build |
 | 3.1.2 "subscription information" | A dead Terms/Privacy link (check Step 1), or a missing length label |
 | 2.1 "purchase did not complete" | A product not attached to the version, or not tested in sandbox |
 | 2.3.7 "accurate metadata" | A price in a screenshot or description |

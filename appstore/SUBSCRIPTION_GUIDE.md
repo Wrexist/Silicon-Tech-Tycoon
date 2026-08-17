@@ -31,7 +31,7 @@ Nothing here is optional.
 | 6 | Create the two auto-renewable subscriptions | ASC → inside that group | Monthly + Yearly both "Ready to Submit" |
 | 7 | Add the 7-day free trials | ASC → each recurring SKU | Introductory Offer on both |
 | 8 | Create Pro Lifetime (Non-Consumable) | ASC → In-App Purchases | Family Sharing ON |
-| 9 | Legal URLs + billing grace period | ASC → App Information | Both URLs load; grace period ON |
+| 9 | Legal links + billing grace period | ASC → Description + App Information | EULA link in the description, URLs load, grace period ON |
 | 10 | **Sandbox-test every row on a real device** | iPhone | Every row in the Step 10 table passes |
 | 11 | Attach all three products, paste review notes, submit | ASC | Submitted |
 
@@ -242,18 +242,43 @@ it is a one-time purchase, not a subscription tier.
 
 ---
 
-## Step 9 — Legal URLs and the billing grace period
+## Step 9 — Legal links and the billing grace period
 
-**App Information:**
-- **License Agreement URL** → `https://wrexist.github.io/Silicon-Tech-Tycoon/terms/`
-- **Privacy Policy URL** → `https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/`
+Guideline 3.1.2 wants the Terms of Use (EULA) and the Privacy Policy in **three** places, and they
+are three separate jobs. Miss the first one and the submission is rejected by an automated check
+before a human opens the build — that is what happened to 1.3.0 (build 70), see
+[`REJECTION_3.1.2_EULA.md`](./REJECTION_3.1.2_EULA.md).
 
-Both are also linked **inside the paywall** (`TERMS_URL` / `PRIVACY_URL` in `Paywall.tsx`) because
-Guideline 3.1.2 requires them in the purchase flow, not only in the metadata. **Confirm both load
-before submitting** — GitHub Pages must be enabled on `/docs` (see `docs/README.md`). A dead link
-here is a rejection, and it's the most common one.
+**1. In the App Description text itself — the one that gets you rejected.**
+The last two lines of every localized description are:
 
-If you use a custom domain later, update the two constants in `Paywall.tsx` at the same time.
+```text
+Terms of Use (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Privacy Policy: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/
+```
+
+That first URL is **Apple's standard EULA**, which is what this app uses. `validate.mjs` fails any
+locale whose description loses either line, so pasting from `appstore/localizations/` is enough —
+just don't hand-edit them out in App Store Connect. (If you ever switch to a *custom* EULA, you must
+instead paste its full text into ASC → App Information → **License Agreement**, and swap the URL in
+all 39 descriptions to `…/Silicon-Tech-Tycoon/terms/`.)
+
+**2. In App Store Connect's own fields.** App Information → **Privacy Policy URL** →
+`https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/`. There is no EULA *URL* field — the
+License Agreement section only offers Apple's standard agreement or a pasted custom one, which is
+why job 1 exists.
+
+**3. In the purchase flow.** Already done: `TERMS_URL` / `PRIVACY_URL` in `Paywall.tsx` render as
+links under the buy buttons. The paywall points at the app's own `/terms/` page, which restates the
+subscription terms in plain language — that is allowed alongside the standard EULA, and it is the
+page a player actually reads.
+
+**Confirm every URL loads before submitting** — GitHub Pages must be enabled on `/docs` (see
+`docs/README.md`). A dead legal link is a rejection, and it's the most common one.
+
+If you use a custom domain later, update the two constants in `Paywall.tsx`, the privacy URL in all
+39 descriptions, and `EULA_URL` / `PRIVACY_URL` in `appstore/localizations/validate.mjs` at the same
+time.
 
 ### Turn the billing grace period ON — same screen, don't skip it
 
@@ -355,7 +380,9 @@ Every line here is a real rejection or a real revenue leak. None are theoretical
 
 **Will get rejected if wrong**
 - [ ] `/terms/` and `/privacy/` both load in a browser *right now* (Step 0)
-- [ ] License Agreement URL + Privacy Policy URL filled in under App Information
+- [ ] **Every localized description ends with the Terms of Use (EULA) + Privacy Policy lines**
+      (`node appstore/localizations/validate.mjs --all` passes — it now checks this)
+- [ ] Privacy Policy URL filled in under App Information
 - [ ] Description no longer claims "single purchase" or "only in-app purchase, ever" (Step 2)
 - [ ] All three products attached to the version, and all three tested in sandbox (Step 10)
 - [ ] App Review notes pasted (Step 11)

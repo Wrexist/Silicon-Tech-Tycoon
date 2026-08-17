@@ -33,3 +33,6 @@ SILICON PRO
 Neobavezna pretplata otvara ostatak industrije: eru platforme i eru umjetne inteligencije, sve scenarije, Novu igru+, kreativni način, Trezor i Vremenski stroj. Mjesečno ili godišnje uz besplatno probno razdoblje, ili Pro Lifetime uz jednu kupnju. Ništa što možeš kupiti ne mijenja simulaciju u tvoju korist.
 
 Osnuj tvrtku. Izbaci nešto veliko. Zavladaj industrijom.
+
+Uvjeti uporabe (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Pravila privatnosti: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/
