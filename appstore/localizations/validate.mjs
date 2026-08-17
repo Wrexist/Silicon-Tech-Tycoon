@@ -8,6 +8,12 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = dirname(fileURLToPath(import.meta.url));
 
+// Guideline 3.1.2 — every localized description must carry a FUNCTIONAL Terms of Use (EULA) link.
+// v1.3.0 (build 70) was rejected for exactly this: the ASC License Agreement field alone does not
+// satisfy Apple's automated metadata check, the link has to be in the description text itself.
+const EULA_URL = 'https://www.apple.com/legal/internet-services/itunes/dev/stdeula/';
+const PRIVACY_URL = 'https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/';
+
 const LIMITS = {
   'name.txt': 30,
   'subtitle.txt': 30,
@@ -37,6 +43,14 @@ function checkLocale(locale) {
     }
     if (text.trim() === '') problems.push(`${file}: empty`);
     if (/\p{Extended_Pictographic}/u.test(text)) problems.push(`${file}: contains emoji`);
+  }
+
+  // legal links — the subscription rejection guard
+  const descPath = join(dir, 'description.txt');
+  if (existsSync(descPath)) {
+    const desc = readFileSync(descPath, 'utf8');
+    if (!desc.includes(EULA_URL)) problems.push('description.txt: no Terms of Use (EULA) link — Guideline 3.1.2');
+    if (!desc.includes(PRIVACY_URL)) problems.push('description.txt: no Privacy Policy link — Guideline 3.1.2');
   }
 
   // keyword-field format rules

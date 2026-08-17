@@ -106,8 +106,19 @@ SILICON PRO
 An optional subscription opens the rest of the industry: the Platform and AI eras, every scenario, New Game+ and Ascension, the Platform Division, Creative Mode, the Vault and the Device Museum, and the Time Machine that rewinds your company to any of the last five quarters. Monthly or yearly with a free trial, or buy it once with Pro Lifetime. Nothing you can buy changes the simulation in your favour.
 
 Found your company. Ship something great. Run the industry.
+
+Terms of Use (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Privacy Policy: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/
 ```
-(~3,050 chars — under the 4,000 limit)
+(~3,600 chars — under the 4,000 limit)
+
+⚠ **The last two lines are not optional and must not be edited out.** An app that sells
+auto-renewable subscriptions and has no Terms of Use link *in the description text* is rejected
+under Guideline 3.1.2 by an automated check, before a human ever opens the build — that is exactly
+what happened to 1.3.0 (build 70). The ASC **License Agreement** field alone does not satisfy it.
+The same two lines, with translated labels, are the last block of every
+`appstore/localizations/<locale>/description.txt`, and `validate.mjs` now fails any locale that
+loses them. See [`REJECTION_3.1.2_EULA.md`](./REJECTION_3.1.2_EULA.md).
 
 ---
 

@@ -33,3 +33,6 @@ SILICON PRO
 Egy opcionális előfizetés megnyitja az iparág többi részét: a Platform- és az MI-kort, az összes forgatókönyvet, a New Game+-t, a Kreatív módot, a Páncéltermet és az Időgépet. Havi vagy éves díjjal, ingyenes próbaidővel — vagy Pro Lifetime, egyetlen vásárlással. Semmi megvásárolható nem változtatja a szimulációt a te javadra.
 
 Alapítsd meg a céged. Dobj piacra valami nagyszerűt. Urald az iparágat.
+
+Felhasználási feltételek (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Adatvédelmi irányelvek: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/

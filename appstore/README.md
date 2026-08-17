@@ -5,6 +5,9 @@ Everything you need to ship **Silicon: Tech Tycoon** to the App Store, in one fo
 | File | What it's for |
 |---|---|
 | `APP_STORE_METADATA.md` | Every listing field, copy-paste ready (name, keywords, description, what's-new, age rating, privacy, review notes, URLs, checklist). |
+| `SUBSCRIPTION_GUIDE.md` | The Silicon Pro subscription, end to end: every App Store Connect field, the sandbox test matrix, and the go/no-go checklist. |
+| `REJECTION_3.1.2_EULA.md` | The 1.3.0 rejection (no Terms of Use link in the description), what fixed it, and the reply to App Review. Read this before touching any description field. |
+| `REVENUECAT_SETUP.md` | RevenueCat dashboard config, the Xcode SPM steps, and the customer-migration story. |
 | `IAP_GUIDE.md` | The single Creative Mode IAP — create it, wire StoreKit, test it. Includes the "ship with or without the IAP" decision. |
 | `SCREENSHOT_PROMPT.md` | A paste-ready prompt for Claude to turn raw captures into finished marketing screenshots, plus the recommended 5-image set + captions. |
 | `screenshots/raw/` | High-res (1290×2796) raw captures of the best scenes — feed these to the screenshot prompt, or replace with real-device TestFlight captures. |

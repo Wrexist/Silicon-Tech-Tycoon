@@ -33,3 +33,6 @@ SILICON PRO
 Opcjonalna subskrypcja otwiera resztę branży: erę platformy i erę AI, wszystkie scenariusze, Nową grę+, tryb Kreatywny, Skarbiec i Wehikuł czasu. Miesięcznie lub rocznie z darmowym okresem próbnym, albo Pro Lifetime — jednorazowo. Nic, co możesz kupić, nie zmienia symulacji na twoją korzyść.
 
 Załóż firmę. Wypuść coś wielkiego. Rządź branżą.
+
+Warunki użytkowania (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Polityka prywatności: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/

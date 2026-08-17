@@ -33,3 +33,6 @@ SILICON PRO
 Langganan opsional membuka sisa industrinya: Era Platform dan Era AI, semua skenario, New Game+, Mode Kreatif, Vault, dan Mesin Waktu. Bulanan atau tahunan dengan masa percobaan gratis, atau Pro Lifetime sekali beli. Tidak ada yang bisa kamu beli yang mengubah simulasi jadi menguntungkanmu.
 
 Dirikan perusahaanmu. Rilis produk hebat. Kuasai industrinya.
+
+Ketentuan Penggunaan (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Kebijakan Privasi: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/

@@ -117,6 +117,14 @@ Run this whenever the paywall changed. Each line is a real rejection someone has
 - [ ] **Restore Purchases** is on the paywall (and in Settings)
 - [ ] Plain-language auto-renew + trial-forfeiture disclosure
 
+**Guideline 3.1.2 — in the App Store *metadata*, which is a separate check that runs before review:**
+- [ ] Every localized description ends with a **Terms of Use (EULA)** link and a **Privacy Policy**
+      link — `node appstore/localizations/validate.mjs --all` enforces both
+- [ ] The EULA link is Apple's standard agreement
+      (`https://www.apple.com/legal/internet-services/itunes/dev/stdeula/`) unless a *custom* EULA
+      has been pasted into ASC → App Information → License Agreement, in which case link that page
+- [ ] **Privacy Policy URL** filled in under App Information, and the page loads publicly
+
 **The 2026 rules:**
 - [ ] **No toggle** anywhere near the trial — Apple began rejecting toggle paywalls in Jan 2026
 - [ ] Trial framing shown **only** when the store reports `introEligible`
@@ -147,6 +155,7 @@ Run this whenever the paywall changed. Each line is a real rejection someone has
 
 | Symptom | Almost always |
 |---|---|
+| 3.1.2 "no functional link to the Terms of Use (EULA) in the app's metadata" | The EULA link is missing from the **App Description text** — an automated pre-review check, nothing to do with the build. The ASC License Agreement section does not satisfy it and there is no EULA URL field. Paste the descriptions from `appstore/localizations/`, reply, resubmit the same build: `appstore/REJECTION_3.1.2_EULA.md` (1.3.0 build 70) |
 | 3.1.2 "subscription information" | Dead legal link, missing length label, or price not the most prominent element |
 | 3.1.2 "confusing design" | A toggle, or trial copy louder than the billed amount |
 | 2.1 "purchase did not complete" | A product attached to the build that isn't live/tested in sandbox, or a cancel treated as an error |

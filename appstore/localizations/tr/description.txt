@@ -33,3 +33,6 @@ SILICON PRO
 İsteğe bağlı abonelik sektörün kalanını açar: Platform ve YZ dönemleri, tüm senaryolar, New Game+, Yaratıcı Mod, Kasa ve Zaman Makinesi. Ücretsiz denemeyle aylık ya da yıllık, veya tek seferlik Pro Lifetime. Satın alabileceğin hiçbir şey simülasyonu senin lehine değiştirmez.
 
 Şirketini kur. Harika bir ürün çıkar. Sektörü sen yönet.
+
+Kullanım Koşulları (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Gizlilik Politikası: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/

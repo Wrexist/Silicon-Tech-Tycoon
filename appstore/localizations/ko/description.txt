@@ -33,3 +33,6 @@ SILICON PRO
 선택형 구독으로 업계의 나머지가 열려요. 플랫폼 시대와 AI 시대, 모든 시나리오, 뉴 게임+, 크리에이티브 모드, 볼트, 그리고 타임머신까지. 무료 체험이 포함된 월간 또는 연간 결제, 아니면 한 번만 구매하는 Pro Lifetime. 구매로 시뮬레이션이 유리해지는 요소는 하나도 없어요.
 
 회사를 세우세요. 대단한 제품을 내놓으세요. 업계를 지배하세요.
+
+이용약관 (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+개인정보 처리방침: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/

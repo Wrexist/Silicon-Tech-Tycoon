@@ -33,3 +33,6 @@ SILICON PRO
 An optional subscription opens the rest of the industry: the Platform and AI eras, every scenario, New Game+ and Ascension, the Platform Division, Creative Mode, the Vault and the Device Museum, and the Time Machine that rewinds your company to any of the last five quarters. Monthly or yearly with a free trial, or buy it once with Pro Lifetime. Nothing you can buy changes the simulation in your favour.
 
 Found your company. Ship something great. Run the industry.
+
+Terms of Use (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Privacy Policy: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/

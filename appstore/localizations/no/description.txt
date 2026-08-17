@@ -33,3 +33,6 @@ SILICON PRO
 Et valgfritt abonnement åpner resten av bransjen: plattform-æraen og AI-æraen, alle scenarioer, New Game+, Kreativ modus, Hvelvet og Tidsmaskinen. Månedlig eller årlig med gratis prøveperiode, eller Pro Lifetime som ett enkelt kjøp. Ingenting du kan kjøpe endrer simuleringen til din fordel.
 
 Start selskapet ditt. Lever noe stort. Styr bransjen.
+
+Bruksvilkår (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+Personvernerklæring: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/

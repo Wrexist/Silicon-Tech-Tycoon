@@ -33,3 +33,6 @@ SILICON PRO
 可选订阅解锁行业的后半程：平台时代与 AI 时代、全部剧本、二周目+、创造模式、档案库以及时光机。按月或按年订阅均含免费试用，也可以选择一次买断的 Pro Lifetime。任何付费内容都不会让模拟结果偏向你。
 
 创办你的公司。做出好产品。执掌整个行业。
+
+使用条款 (EULA): https://www.apple.com/legal/internet-services/itunes/dev/stdeula/
+隐私政策: https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/
