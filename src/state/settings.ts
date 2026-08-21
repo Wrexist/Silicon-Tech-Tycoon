@@ -27,15 +27,30 @@ export interface Settings {
    *  (survives a new company) and seeded into each game's state, which the pure sim reads. Default
    *  "standard" keeps the built-in cadence. */
   interruptPace: InterruptPace;
+  /** Accessibility: text scale as a PERCENT of the default root font size (100 = unchanged). The whole
+   *  type scale is rem-based (tokens.css), so this one number resizes every label in the app. Persisted
+   *  here so it survives a new company. */
+  textScale: number;
 }
 
 const KEY = "silicon.settings";
-const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, highContrast: false, decorateTutorialSeen: false, factoryTutorialSeen: false, dailyReminder: false, notifPrompted: false, interruptPace: "standard" };
+const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, highContrast: false, decorateTutorialSeen: false, factoryTutorialSeen: false, dailyReminder: false, notifPrompted: false, interruptPace: "standard", textScale: 100 };
+/** Legal text-scale steps (percent). Anything else read from storage snaps to the nearest step. */
+export const TEXT_SCALES = [85, 100, 115, 130] as const;
 
 function read(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Settings>) };
+    if (raw) {
+      const s = { ...DEFAULTS, ...(JSON.parse(raw) as Partial<Settings>) };
+      // Snap a corrupt/foreign textScale to the nearest legal step (never 0/negative/huge).
+      if (!TEXT_SCALES.includes(s.textScale as (typeof TEXT_SCALES)[number])) {
+        s.textScale = TEXT_SCALES.reduce((best, v) =>
+          Math.abs(v - s.textScale) < Math.abs(best - s.textScale) ? v : best,
+        );
+      }
+      return s;
+    }
   } catch {
     /* ignore */
   }
@@ -62,6 +77,7 @@ export function setSettings(patch: Partial<Settings>): void {
   }
   if (patch.theme !== undefined) applyTheme(current.theme);
   if (patch.highContrast !== undefined) applyContrast(current.highContrast);
+  if (patch.textScale !== undefined) applyTextScale(current.textScale);
   emit();
 }
 
@@ -92,9 +108,18 @@ function applyContrast(high: boolean): void {
   else root.removeAttribute("data-contrast");
 }
 
+/** Apply the text-scale preference: one inline font-size on <html> resizes every rem-based label
+ *  in the app. 100 clears the override so the stylesheet's default stands. */
+export function applyTextScale(scale: number): void {
+  const root = document.documentElement;
+  if (scale === 100) root.style.removeProperty("font-size");
+  else root.style.setProperty("font-size", `${scale}%`);
+}
+
 export function initSettings(): void {
   applyTheme(current.theme);
   applyContrast(current.highContrast);
+  applyTextScale(current.textScale);
   // Follow live OS theme changes while the pref is "system" (also re-syncs the status bar).
   try {
     matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {

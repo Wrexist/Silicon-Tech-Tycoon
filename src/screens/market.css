@@ -631,7 +631,7 @@
   border-radius: var(--r-pill);
   background: var(--surface);
   box-shadow: var(--shadow-subtle);
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 600;
 }
 .trade__qty-val {
@@ -1427,7 +1427,7 @@
 }
 .pd__pricecut-caret {
   margin-left: auto;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 400;
   color: var(--ink-3);
   line-height: 1;
@@ -1462,7 +1462,7 @@
   opacity: 0.6;
 }
 .pd__pricecut-arrow {
-  font-size: 16px;
+  font-size: 1rem;
   color: var(--ink-3);
   flex-shrink: 0;
 }
@@ -1906,7 +1906,7 @@
 .mkt__region-taste-chip { font-size: var(--fs-nano); font-weight: 700; color: hsl(var(--rgn-h, 210) 55% 44%); background: color-mix(in srgb, hsl(var(--rgn-h, 210) 60% 50%) 14%, transparent); padding: 2px 7px; border-radius: var(--r-pill); }
 .mkt__region-size { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 0; }
 .mkt__region-size-val { font-size: var(--fs-body); font-weight: 800; color: var(--ink); line-height: 1.1; }
-.mkt__region-size-cap { font-size: 10px; color: var(--ink-3); }
+.mkt__region-size-cap { font-size: 0.625rem; color: var(--ink-3); }
 .mkt__region-foot { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-8); }
 .mkt__region-foot > .ds-btn { flex: 1; min-width: 60%; }
 .mkt__region-tag { flex-shrink: 0; font-size: var(--fs-micro); font-weight: 800; color: hsl(var(--rgn-h, 210) 55% 46%); text-transform: uppercase; letter-spacing: 0.04em; }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  ALargeSmall,
   Bell,
   Check,
   Contrast,
@@ -29,14 +30,14 @@ import { agoLabel, listSnapshots, MAX_SNAPSHOTS, SNAPSHOT_EVERY_WEEKS, type Snap
 import { founderIntentLabel } from "../state/founderIntent.ts";
 import { getProRecord } from "../state/pro.ts";
 import { netWorth, type InterruptPace } from "../state/gameState.ts";
-import { setSettings, useSettings, type ThemePref } from "../state/settings.ts";
+import { setSettings, useSettings, TEXT_SCALES, type ThemePref } from "../state/settings.ts";
 import { disableDailyReminders, enableDailyReminders, notificationsAvailable } from "../state/notifications.ts";
 import { hasSandboxEntitlement } from "../state/entitlements.ts";
 import { IAP_ENTITLEMENT_EVENT } from "../state/iap.ts";
 import { manageProSubscription, proPurchasesAvailable, restorePro } from "../state/proStore.ts";
 import { openPaywall } from "../state/paywall.ts";
 import { useIsPro, useProStatus } from "../state/usePro.ts";
-import { useGame } from "../state/useGame.tsx";
+import { useGame, useGameActions } from "../state/useGame.tsx";
 import "./settings.css";
 
 const THEMES: { id: ThemePref; label: string; Icon: typeof Sun }[] = [
@@ -106,6 +107,23 @@ export function Settings({ onClose }: { onClose: () => void }) {
         </div>
         <Row icon={<Contrast size={18} />} label="High contrast" sub="Stronger borders, text and focus rings for low-vision readability.">
           <Switch label="High contrast" on={settings.highContrast} onChange={(v) => { setSettings({ highContrast: v }); sfx("toggle"); }} />
+        </Row>
+        {/* Text size — the whole type scale is rem-based, so one root font-size resizes every
+            label. A plain accessibility dial: no layout reflow risk beyond intended growth. */}
+        <Row icon={<ALargeSmall size={18} />} label="Text size" sub="Scales every label in the app.">
+          <div className="set__seg set__seg--text">
+            {TEXT_SCALES.map((v) => (
+              <button
+                key={v}
+                className={`set__seg-opt${settings.textScale === v ? " set__seg-opt--on" : ""}`}
+                aria-pressed={settings.textScale === v}
+                aria-label={`Text size ${v === 85 ? "small" : v === 100 ? "default" : v === 115 ? "large" : "extra large"}`}
+                onClick={() => { haptic.light(); sfx("toggle"); setSettings({ textScale: v }); }}
+              >
+                {v === 85 ? "S" : v === 100 ? "A" : v === 115 ? "L" : "XL"}
+              </button>
+            ))}
+          </div>
         </Row>
       </div>
 
@@ -223,7 +241,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
 
 /** Copies the backup string to the clipboard AND offers a file download. */
 function ExportButton() {
-  const { exportSave } = useGame();
+  const { exportSave } = useGameActions();
   const [copied, setCopied] = useState(false);
 
   const run = async () => {
@@ -250,7 +268,7 @@ function ExportButton() {
 }
 
 function ImportPanel({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
-  const { importSave } = useGame();
+  const { importSave } = useGameActions();
   const [text, setText] = useState("");
   const [confirming, setConfirming] = useState(false);
 

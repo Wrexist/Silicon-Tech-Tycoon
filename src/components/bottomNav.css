@@ -47,7 +47,7 @@
 }
 .bnav__glyph {
   position: relative;
-  font-size: 19px;
+  font-size: 1.1875rem;
   line-height: 1;
 }
 /* Attention dots come in two weights so the badge means something again. Every dot used to be the

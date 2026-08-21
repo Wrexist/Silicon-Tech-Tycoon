@@ -15,7 +15,7 @@
 .fmini__lockbay-pad { fill: color-mix(in srgb, var(--ink) 7%, var(--bg)); stroke: color-mix(in srgb, var(--ink) 24%, transparent); stroke-width: 1.5; stroke-dasharray: 5 4; }
 .fmini__lockbay-body { fill: color-mix(in srgb, var(--ink) 42%, transparent); }
 .fmini__lockbay-shackle { fill: none; stroke: color-mix(in srgb, var(--ink) 42%, transparent); stroke-width: 2.5; stroke-linecap: round; }
-.fmini__lockbay-txt { fill: color-mix(in srgb, var(--ink) 52%, transparent); font-size: 11px; font-weight: 800; letter-spacing: 0.04em; }
+.fmini__lockbay-txt { fill: color-mix(in srgb, var(--ink) 52%, transparent); font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.04em; }
 .fmini__belt { fill: color-mix(in srgb, var(--ink) 36%, var(--bg)); }
 .fmini__belt--live { fill: color-mix(in srgb, var(--warning) 55%, var(--bg)); }
 .fmini--run .fmini__belt--live { animation: fmini-pulse 2.2s ease-in-out infinite; }
@@ -140,7 +140,7 @@
 .fmode .strail__step--done .strail__bar--done { background: color-mix(in srgb, var(--accent) 60%, rgba(255,255,255,0.14)); }
 .fmode .strail__step--active .strail__node { color: #fff; }
 /* captions read on the dark panel; the whole trail fits the narrow order card */
-.fmode .strail__cap { color: rgba(255,255,255,0.5); font-size: 10px; }
+.fmode .strail__cap { color: rgba(255,255,255,0.5); font-size: 0.625rem; }
 .fmode .strail__step--done .strail__cap { color: rgba(255,255,255,0.68); }
 .fmode .strail__step--active .strail__cap { color: #fff; }
 .fmode__order-name { font-size: var(--fs-caption); font-weight: 800; }
@@ -222,7 +222,7 @@
   min-width: 17px; height: 17px; padding: 0 4px;
   border-radius: var(--r-pill);
   background: var(--negative); color: #fff;
-  font-size: 10px; font-weight: 800; line-height: 17px; text-align: center;
+  font-size: 0.625rem; font-weight: 800; line-height: 17px; text-align: center;
 }
 
 /* sheets (rendered by the shared Sheet primitive — content only) */
@@ -427,7 +427,7 @@
 }
 .fmode__ptile-icon { display: inline-flex; color: rgba(255,255,255,0.85); transition: transform 0.15s ease; }
 .fmode__ptile-name { font-size: var(--fs-nano); font-weight: 700; }
-.fmode__ptile-cost { font-size: 9px; font-weight: 600; color: rgba(255,255,255,0.55); }
+.fmode__ptile-cost { font-size: 0.5625rem; font-weight: 600; color: rgba(255,255,255,0.55); }
 .fmode__ptile--on { background: var(--accent); border-color: var(--accent); }
 .fmode__ptile--on .fmode__ptile-icon, .fmode__ptile--on .fmode__ptile-cost { color: rgba(255,255,255,0.9); }
 .fmode__ptile--util { width: 54px; }

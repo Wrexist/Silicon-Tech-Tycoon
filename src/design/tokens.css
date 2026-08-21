@@ -115,17 +115,18 @@
   --shadow-card: 0 1px 2px rgba(16, 19, 28, 0.06), 0 8px 24px rgba(16, 19, 28, 0.06);
   --shadow-floating: 0 4px 12px rgba(16, 19, 28, 0.1), 0 16px 40px rgba(16, 19, 28, 0.12);
 
-  /* Type */
+  /* Type — rem so the whole scale scales with the root font size (Settings → Text Size, and any
+     future Dynamic Type bridge). 1rem = 16px at the default 100%, so values are px÷16. */
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
   --font-rounded: -apple-system, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
-  --fs-large-title: 34px;
-  --fs-title: 28px;
-  --fs-headline: 20px;
-  --fs-body: 17px;
-  --fs-caption: 13px;
-  --fs-micro: 11px;
-  --fs-nano: 10px;
-  --fs-fx: 15px; /* floating gain/spend FX text — between caption and body on purpose */
+  --fs-large-title: 2.125rem; /* 34 */
+  --fs-title: 1.75rem;        /* 28 */
+  --fs-headline: 1.25rem;     /* 20 */
+  --fs-body: 1.0625rem;       /* 17 */
+  --fs-caption: 0.8125rem;    /* 13 */
+  --fs-micro: 0.6875rem;      /* 11 */
+  --fs-nano: 0.625rem;        /* 10 */
+  --fs-fx: 0.9375rem;         /* 15 — floating gain/spend FX text, between caption and body on purpose */
 
   /* Motion */
   --spring-standard: 350ms cubic-bezier(0.22, 1, 0.36, 1);
@@ -141,9 +142,9 @@
 @media (max-width: 360px) {
   :root {
     --edge: 14px;
-    --fs-large-title: 29px;
-    --fs-title: 24px;
-    --fs-headline: 18px;
+    --fs-large-title: 1.8125rem; /* 29 */
+    --fs-title: 1.5rem;          /* 24 */
+    --fs-headline: 1.125rem;     /* 18 */
   }
 }
 

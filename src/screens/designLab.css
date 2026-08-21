@@ -734,7 +734,7 @@
   justify-content: center;
   border-radius: var(--r-pill);
   background: var(--surface);
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 600;
   color: var(--ink);
   box-shadow: var(--shadow-subtle);
@@ -1096,7 +1096,7 @@
 .lab__price-display {
   flex: 1;
   text-align: center;
-  font-size: 30px;
+  font-size: 1.875rem;
   font-weight: 700;
   letter-spacing: -0.02em;
 }

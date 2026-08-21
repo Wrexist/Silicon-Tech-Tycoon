@@ -137,7 +137,7 @@
 .pwl__proof-item + .pwl__proof-item { border-left: 1px solid var(--glass-well-edge); }
 .pwl__proof-num { font-size: var(--fs-body); font-weight: 800; letter-spacing: -0.02em; color: var(--gold); }
 .pwl__proof-label {
-  font-size: 9px; font-weight: 600; color: var(--ink-3);
+  font-size: 0.5625rem; font-weight: 600; color: var(--ink-3);
   text-transform: uppercase; letter-spacing: 0.05em;
   white-space: nowrap; /* a wrapped label collides with its neighbours and reads as broken */
 }
@@ -224,7 +224,7 @@
 .pwl__plan-title { font-size: var(--fs-caption); font-weight: 700; white-space: nowrap; }
 .pwl__plan-badge {
   flex: 0 0 auto; white-space: nowrap;
-  font-size: 9px; font-weight: 800; letter-spacing: 0.05em;
+  font-size: 0.5625rem; font-weight: 800; letter-spacing: 0.05em;
   padding: 2px var(--sp-6); border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--warning-text);
 }
@@ -383,7 +383,7 @@
   .pwl__summary { margin-bottom: var(--sp-8); }
   .pwl__trust { margin-top: var(--sp-6); }
   .pwl__skip { margin-top: var(--sp-4); }
-  .pwl__fineprint { font-size: 9px; line-height: 1.4; }
+  .pwl__fineprint { font-size: 0.5625rem; line-height: 1.4; }
 }
 
 /* Shorter than this (landscape phone, a floating iPad pane) the pitch gives up its floor entirely.

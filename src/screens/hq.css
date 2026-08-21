@@ -1137,7 +1137,7 @@
   transition: height 0.4s ease;
 }
 .hq__forecast-label {
-  font-size: 9px;
+  font-size: 0.5625rem;
   font-weight: 700;
   color: var(--ink-3);
   letter-spacing: 0.02em;
