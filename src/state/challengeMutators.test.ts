@@ -31,7 +31,7 @@ describe("challenge sim-rule mutators (item 5.4)", () => {
   it("challengeRules is neutral outside a challenge → sim byte-identical", () => {
     const g = newGame(4);
     expect(g.activeChallenge).toBeNull();
-    expect(challengeRules(g)).toEqual({ demandMult: 1, noMarketing: false });
+    expect(challengeRules(g)).toEqual({ demandMult: 1, noMarketing: false, fixedPrice: false, categoryLock: null, burnMult: 1 });
     expect(effectiveHypeBonus(g)).toBe(hypeBonus(g));
   });
 

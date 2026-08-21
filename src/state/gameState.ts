@@ -100,6 +100,7 @@ import {
   demandVarianceMultiplier,
   initialTrends,
   priceFit,
+  priceGuidance,
   randomTrendTarget,
   scoreLaunch,
 } from "../engine/market.ts";
@@ -220,19 +221,33 @@ import { criticReviews, foldOutletThreads, type OutletThreads } from "../engine/
 export const SAVE_VERSION = 1;
 
 /** Item 5.4 — the ongoing sim RULES imposed by the active challenge's mutators (recession demand
- *  penalty / marketing blackout), re-derived from `activeChallenge`. Neutral (demandMult 1, no
- *  blackout) outside a challenge, so a normal run and the pinned sim are byte-identical. Pure. */
-export function challengeRules(s: GameState): { demandMult: number; noMarketing: boolean } {
+ *  penalty / marketing blackout / fixed pricing / a category lock / payroll bloat), re-derived from
+ *  `activeChallenge`. Neutral (demandMult 1, no rules) outside a challenge, so a normal run and the
+ *  pinned sim are byte-identical. Pure. */
+export function challengeRules(s: GameState): {
+  demandMult: number;
+  noMarketing: boolean;
+  fixedPrice: boolean;
+  categoryLock: CategoryId | null;
+  burnMult: number;
+} {
   const ac = s.activeChallenge;
-  if (!ac) return { demandMult: 1, noMarketing: false };
+  if (!ac)
+    return { demandMult: 1, noMarketing: false, fixedPrice: false, categoryLock: null, burnMult: 1 };
   const ch = ac.kind === "weekly" ? weeklyChallenge(ac.dateKey) : dailyChallenge(ac.dateKey);
   let demandMult = 1;
   let noMarketing = false;
+  let fixedPrice = false;
+  let categoryLock: CategoryId | null = null;
+  let burnMult = 1;
   for (const m of ch.mutators) {
     if (m.demandMult != null) demandMult *= m.demandMult;
     if (m.noMarketing) noMarketing = true;
+    if (m.fixedPrice) fixedPrice = true;
+    if (m.categoryLock) categoryLock = m.categoryLock;
+    if (m.burnMult != null) burnMult *= m.burnMult;
   }
-  return { demandMult, noMarketing };
+  return { demandMult, noMarketing, fixedPrice, categoryLock, burnMult };
 }
 
 export type FeedTone = "neutral" | "positive" | "negative" | "accent";
@@ -1167,8 +1182,14 @@ export const marketerSkill = (s: GameState) =>
 export const facilityRent = (s: GameState): Money =>
   BALANCE.facilities[s.facilityTier - 1].weeklyRent;
 export const facility = (s: GameState) => BALANCE.facilities[s.facilityTier - 1];
-export const burn = (s: GameState): Money =>
-  add(weeklyBurn(s.staff, facilityRent(s)), totalFactoryUpkeep(s.ownedFactories)) as Money;
+export const burn = (s: GameState): Money => {
+  const base = add(weeklyBurn(s.staff, facilityRent(s)), totalFactoryUpkeep(s.ownedFactories)) as Money;
+  // Item 5.4 — a challenge's payroll-bloat rule multiplies the whole operating burn. Neutral (×1)
+  // outside a challenge, so normal runs + the pinned sim are byte-identical; the tick's deduction,
+  // runway estimates and outflow displays all read through this one seam.
+  const m = challengeRules(s).burnMult;
+  return m === 1 ? base : (scale(base, m) as Money);
+};
 /** Item C3 — late-era operating drag. A frontier-scale company costs more just to keep running the
  *  bigger it has grown, so the endgame is no longer a free ratchet: the AI era carries a headwind
  *  scaled by lifetime revenue (capped, so it can never bankrupt a solvent company). 0 before the
@@ -1477,21 +1498,6 @@ export function buyUpgrade(state: GameState, id: UpgradeId): GameState {
     upgrades: { ...state.upgrades, [id]: cur + 1 },
     feed: trimFeed(feed),
   };
-}
-
-/** Price of the next garage desktop, or null when the player already owns the maximum. */
-function desktopCost(owned: number): Money | null {
-  if (owned >= BALANCE.desktops.max) return null;
-  const tiers = BALANCE.desktops.cost;
-  return tiers[owned] ?? tiers[tiers.length - 1];
-}
-
-/** Buy one more standalone computer desk for the garage (capped at BALANCE.desktops.max). */
-export function buyDesktop(state: GameState): GameState {
-  const cost = desktopCost(state.desktops);
-  if (cost === null || state.cash < cost) return state;
-  const feed = trimFeed([...state.feed, feedItem(state.week, "Set up a new office desk in the garage.", "accent")]);
-  return { ...state, cash: sub(state.cash, cost), desktops: state.desktops + 1, feed };
 }
 
 /** Pay to open distribution into a new geographic market (engine/regions.ts). No-op if it's already
@@ -3494,7 +3500,20 @@ export function startBuild(
   if (miss.length) return { state, ok: false, reason: "Pick every component first." };
   if (!isCategoryUnlocked(product.category, state.era))
     return { state, ok: false, reason: "Category not unlocked yet." };
-  if (product.price <= 0) return { state, ok: false, reason: "Set a price." };
+  // Item 5.4 — a challenge's category-lock mutator restricts builds to ONE category.
+  const lock = challengeRules(state).categoryLock;
+  if (lock && product.category !== lock)
+    return { state, ok: false, reason: `One Category: this run ships ${CATEGORIES[lock].displayName} devices only.` };
+  // Item 5.4 — a challenge's Fixed-Price mandate overrides the player's price with the engine's
+  // own fair-price guidance at build time. The job and the production plan both use the mandated
+  // fair price so the preview, the launch and the feed all reflect the mandated price.
+  const rules = challengeRules(state);
+  let buildProduct = product;
+  if (rules.fixedPrice) {
+    const fair = priceGuidance(productStats(state, product), product.category).fair;
+    if (product.price !== fair) buildProduct = { ...product, price: fair };
+  }
+  if (buildProduct.price <= 0) return { state, ok: false, reason: "Set a price." };
   // Design Budget (feature #1) — the ONE enforcement point: a fresh run's build can't exceed its
   // engineering-points budget. Gated on the opt-in flag, so old saves + the rival generator (which
   // never calls startBuild) + engine tests constructing arbitrary products are all unaffected.
@@ -3509,17 +3528,17 @@ export function startBuild(
     BALANCE.build.maxRun,
     Math.max(
       BALANCE.build.minRun,
-      Math.round(plannedUnits ?? recommendedRun(state, product, channelId)),
+      Math.round(plannedUnits ?? recommendedRun(state, buildProduct, channelId)),
     ),
   );
-  const plan = planProduction(state, product, units, channelId);
+  const plan = planProduction(state, buildProduct, units, channelId);
   if (state.cash < plan.totalUpfront) {
     return { state, ok: false, reason: `Need ${format(plan.totalUpfront)} for tooling + ${units.toLocaleString()} units.` };
   }
 
   const totalWeeks = plan.buildWeeks; // strategy-resolved (longer under "stretch")
   const job: BuildJob = {
-    product: { ...product, id: `prod-${state.productCounter}`, plannedUnits: units, channelId },
+    product: { ...buildProduct, id: `prod-${state.productCounter}`, plannedUnits: units, channelId },
     totalWeeks,
     weeksElapsed: 0,
     plannedUnits: units,
@@ -3529,13 +3548,13 @@ export function startBuild(
   feed.push(
     feedItem(
       state.week,
-      `Started a ${units.toLocaleString()}-unit run of “${product.name}”, ${format(plan.totalUpfront)} (${totalWeeks} wk).`,
+      `Started a ${units.toLocaleString()}-unit run of “${buildProduct.name}”, ${format(plan.totalUpfront)} (${totalWeeks} wk)${rules.fixedPrice ? ` · price set to ${format(priceGuidance(productStats(state, buildProduct), buildProduct.category).fair)} (Fixed Price)` : ""}`,
       "accent",
     ),
   );
   // Deepen the relationship with this run's supplier (the discount this run got was from PRIOR
   // history; the increment rewards the next one).
-  const sid = product.supplierId ?? DEFAULT_SUPPLIER_ID;
+  const sid = buildProduct.supplierId ?? DEFAULT_SUPPLIER_ID;
   const supplierLoyalty = { ...state.supplierLoyalty, [sid]: (state.supplierLoyalty?.[sid] ?? 0) + 1 };
   return {
     state: {
@@ -4111,6 +4130,7 @@ export function rushBuild(state: GameState, productId: string): ActionResult {
 }
 
 export function cutProductPrice(state: GameState, productId: string, newPrice: Money): ActionResult {
+  if (challengeRules(state).fixedPrice) return { state, ok: false, reason: "Prices are fixed this run." };
   const lp = state.launched.find((l) => l.product.id === productId);
   if (!lp) return { state, ok: false, reason: "Product not found." };
   if (lp.weeksElapsed >= lp.weeklyUnits.length) return { state, ok: false, reason: "Product lifecycle has ended." };

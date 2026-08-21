@@ -12,6 +12,7 @@
 import { makeRng } from "./rng.ts";
 import { dollars, format } from "./money.ts";
 import type { ScenarioMetric } from "./scenarios.ts";
+import type { CategoryId } from "./types.ts";
 
 export interface Mutator {
   id: string;
@@ -30,6 +31,15 @@ export interface Mutator {
   demandMult?: number;
   /** Marketing is off for the run — launch hype collapses to a floor (win on the product alone). */
   noMarketing?: boolean;
+  /** Every build is priced AT the engine's own fair-price guidance for the whole run — pricing skill
+   *  is removed; specs, timing and volume carry it instead. Enforced at startBuild (price overridden)
+   *  + cutProductPrice (refused). */
+  fixedPrice?: boolean;
+  /** Only this category may be BUILT during the run (startBuild refuses the rest). */
+  categoryLock?: CategoryId;
+  /** Weekly operating burn is multiplied for the whole run (payroll bloat) — applied in burn(), so
+   *  the tick's deduction, runway estimates and outflow displays all move together. */
+  burnMult?: number;
 }
 
 /** Catalog of challenge mutators — start-condition twists AND ongoing sim RULES (item 5.4). */
@@ -46,6 +56,9 @@ export const MUTATORS: readonly Mutator[] = [
   { id: "recession", name: "Recession", description: "The whole market has contracted — demand runs 30% cold all run.", demandMult: 0.7 },
   { id: "downturn", name: "Slow Market", description: "A softer market — demand runs 15% below normal.", demandMult: 0.85 },
   { id: "blackout", name: "Marketing Blackout", description: "No marketing at all — every launch must win on the product alone.", noMarketing: true },
+  { id: "mandate", name: "Fair-Price Mandate", description: "Every price is fixed at fair value — win on specs and timing alone.", fixedPrice: true },
+  { id: "onecat", name: "One Category", description: "This run ships phones only — go deep, not wide.", categoryLock: "phone" },
+  { id: "bloat", name: "Bloated Payroll", description: "Operating costs run double all run — keep revenue ahead of the burn.", burnMult: 2 },
 ] as const;
 
 export function mutatorById(id: string): Mutator | undefined {
