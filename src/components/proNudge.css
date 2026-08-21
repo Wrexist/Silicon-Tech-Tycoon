@@ -27,6 +27,8 @@
   pointer-events: auto;
   width: 100%;
   max-width: 520px;
+  /* Center within the strip on wide screens (iPad) — see .dinbox__card. */
+  margin-inline: auto;
   display: flex;
   align-items: center;
   gap: var(--sp-12);
