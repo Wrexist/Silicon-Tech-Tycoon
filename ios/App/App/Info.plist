@@ -38,6 +38,15 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<!-- iPad: portrait + both landscapes. The web layer is a centered 540px column at any width
+	     (verified via SHOTS_VIEWPORT=820x1180 captures), so rotation is safe, and supporting all
+	     orientations keeps the app multitasking/Split-View eligible on iPad. -->
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 </dict>
