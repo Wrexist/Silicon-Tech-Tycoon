@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import { FlaskConical, Lightbulb, ScanLine, Sparkles, CheckCircle2, X, type LucideIcon } from "lucide-react";
 import { BALANCE } from "../engine/balance.ts";
-import { useGame } from "../state/useGame.tsx";
+import { useGame, useGameControls } from "../state/useGame.tsx";
 import type { ActiveResearch } from "../state/gameState.ts";
 import "./researchProgress.css";
 
@@ -29,7 +29,8 @@ function stageFor(frac: number): { stage: Stage; index: number } {
 /** Sub-week smoothing so the ring counts up continuously (not 0→33→67% jumps), capped just short of
  *  the next week so the sim's own tick always lands ahead. Mirrors BuildProgress's useSmoothWeeks. */
 function useSmoothWeeks(elapsed: number, totalWeeks: number): number {
-  const { paused, fast, skipping } = useGame();
+  // Pacing flags only (F36) — the ring animates on its own rAF/interval, not the tick.
+  const { paused, fast, skipping } = useGameControls();
   const reduced = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
   const [est, setEst] = useState({ week: elapsed, sub: 0 });
   const sub = est.week === elapsed ? est.sub : 0;

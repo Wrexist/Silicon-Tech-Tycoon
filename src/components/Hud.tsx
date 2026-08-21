@@ -4,7 +4,7 @@ import { format } from "../engine/money.ts";
 import { eraName } from "../engine/eras.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { weeklyOutflow, nextWeekRevenue } from "../state/gameState.ts";
-import { useGame } from "../state/useGame.tsx";
+import { useGame, useGameActions, useGameControls } from "../state/useGame.tsx";
 import "./hud.css";
 
 function weekLabel(week: number): string {
@@ -120,7 +120,10 @@ export function Hud({ onSettings, onOpenBank, onOpenProgress, progressAttention 
  *  the tutorial, when the time controls leave the top HUD; hidden on the Design tab where the build
  *  wizard owns the bottom band. Sits just above the tab bar at the bottom-right (App gates it). */
 export function SpeedDial() {
-  const { paused, setPaused, fast, setFast, skipping, setSkipping } = useGame();
+  // Controls + actions only — never the game state — so the dial doesn't re-render on the weekly
+  // tick (F36). It reads pacing flags, which change only when the player taps.
+  const { paused, fast, skipping } = useGameControls();
+  const { setPaused, setFast, setSkipping } = useGameActions();
   return (
     <div className="speeddial" role="group" aria-label="Simulation speed">
       <button

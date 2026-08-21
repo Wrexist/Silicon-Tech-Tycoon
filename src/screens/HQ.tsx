@@ -75,7 +75,7 @@ import { frontierCost, frontierBonuses, frontierBandName, FRONTIER_LANES, nextFr
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { useGame } from "../state/useGame.tsx";
+import { useGame, useGameActions } from "../state/useGame.tsx";
 import { getSettings, setSettings } from "../state/settings.ts";
 import { IsoScene } from "../components/IsoScene.tsx";
 import { DecorateTutorial } from "../components/DecorateTutorial.tsx";
@@ -1144,7 +1144,7 @@ const INSIGHT_ICONS: Record<InsightIconName, LucideIcon> = {
  *  the old 4.2s toast), so the meta-game reveal is never a blink-and-miss. Deep-links to the two new
  *  homes (Progress hub + Bank) and dismisses via markUnlocksSeen. */
 function UnlockCard({ onOpenBank, onOpenProgress }: { onOpenBank: () => void; onOpenProgress?: () => void }) {
-  const { markUnlocksSeen } = useGame();
+  const { markUnlocksSeen } = useGameActions();
   return (
     <Card className="hq__next hq__unlock">
       <div className="hq__next-head">
@@ -1306,7 +1306,7 @@ function ContractsCard({ state, onClaim }: { state: GameState; onClaim: (id: str
  *  is disabled. Crunching shaves weeks off the timer but drains morale and runs paid overtime, so it's a
  *  deliberate "I need this now" choice, not a free speed-up. Only shown with a real team + a live timer. */
 function TeamFocusStrip({ state }: { state: GameState }) {
-  const { setTeamFocus } = useGame();
+  const { setTeamFocus } = useGameActions();
   const tf = BALANCE.teamFocus;
   const hasTeam = state.staff.length >= tf.minTeam;
   const hasResearch = !!state.activeResearch;

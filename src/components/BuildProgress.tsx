@@ -14,7 +14,7 @@ import { factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
 import { DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
 import { lineFor, stageForLine, stageIndexForLine } from "../engine/assemblyLine.ts";
 import { BALANCE } from "../engine/balance.ts";
-import { useGame } from "../state/useGame.tsx";
+import { useGameControls } from "../state/useGame.tsx";
 import type { BuildJob } from "../engine/types.ts";
 import "./buildProgress.css";
 
@@ -68,7 +68,8 @@ const RING_C = 2 * Math.PI * RING_R;
  *  the next week so the sim's own tick always lands ahead of the estimate — the ring counts up
  *  continuously from 0% and is never caught claiming progress the sim hasn't made. */
 function useSmoothWeeks(weeksElapsed: number, totalWeeks: number): number {
-  const { paused, fast, skipping } = useGame();
+  // Pacing flags only (F36) — the ring animates on its own interval, not the tick.
+  const { paused, fast, skipping } = useGameControls();
   const reduced = typeof matchMedia !== "undefined" && matchMedia("(prefers-reduced-motion: reduce)").matches;
   // The estimate is keyed to the week it was made for — a week the sim has since advanced past
   // reads as 0, so there's never a frame where the old fraction rides on the new week.

@@ -1,6 +1,6 @@
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, Check, CircuitBoard, CircleX, Compass, Copy, Cpu, Crown, Factory, Flame, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
-import { GameProvider, useGame } from "./state/useGame.tsx";
+import { GameProvider, useGame, useGameActions } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud, SpeedDial } from "./components/Hud.tsx";
 import { Bank } from "./components/Bank.tsx";
@@ -695,7 +695,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
 }
 
 function Onboarding({ onStart }: { onStart: () => void }) {
-  const { markOnboarded, setCompanyName } = useGame();
+  const { markOnboarded, setCompanyName } = useGameActions();
   const [name, setName] = useState("");
   const [scenariosOpen, setScenariosOpen] = useState(false);
   const [phase, setPhase] = useState<"intro" | "brief" | "pro" | "notify">("intro");

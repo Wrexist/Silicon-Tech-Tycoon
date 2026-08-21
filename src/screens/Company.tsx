@@ -57,7 +57,7 @@ import {
 } from "../state/gameState.ts";
 import { totalDebt, weeklyDebtService, weeklyPaymentFor } from "../engine/financing.ts";
 import { isDisciplineLead, mentorshipXpMult } from "../engine/org.ts";
-import { useGame } from "../state/useGame.tsx";
+import { useGame, useGameActions } from "../state/useGame.tsx";
 import { Sparkline } from "../components/charts.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
@@ -509,7 +509,7 @@ export function Company() {
  *  Good reputation earns a cheaper rate; leverage makes it pricier. A loan is a real bet — it can buy
  *  the runway to land a launch, or sink you faster if the bet misses. */
 function FinancingCard({ state }: { state: GameState }) {
-  const { takeLoan, repayLoan } = useGame();
+  const { takeLoan, repayLoan } = useGameActions();
   const loans = state.loans ?? [];
   const debt = totalDebt(loans);
   const service = weeklyDebtService(loans);
@@ -611,7 +611,7 @@ function FinancingCard({ state }: { state: GameState }) {
  *  raises output and makes them harder to poach), for a payroll-scaled cost on a cooldown. The spend-
  *  vs-save decision, opposite the reactive per-person Rest. */
 function MoraleCard({ state }: { state: GameState }) {
-  const { boostMorale } = useGame();
+  const { boostMorale } = useGameActions();
   const avg = state.staff.length
     ? Math.round(state.staff.reduce((a, s) => a + s.mood, 0) / state.staff.length)
     : 0;

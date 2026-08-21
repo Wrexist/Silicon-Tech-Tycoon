@@ -6,12 +6,14 @@
 import { useState } from "react";
 import { Home } from "lucide-react";
 import { Button } from "../design/primitives.tsx";
-import { useGame } from "../state/useGame.tsx";
+import { useGameActions, useGameControls } from "../state/useGame.tsx";
 import { showToast } from "../design/toast.tsx";
 import { haptic } from "../design/haptics.ts";
 
 export function ReturnHomeSection({ confirmText, toastText }: { confirmText: string; toastText: string }) {
-  const { homeSaved, returnHome } = useGame();
+  // Controls + actions only (F36) — homeSaved flips on stash/restore, never per tick.
+  const { homeSaved } = useGameControls();
+  const { returnHome } = useGameActions();
   const [confirmLeave, setConfirmLeave] = useState(false);
   if (!homeSaved) return null;
   const leave = () => {

@@ -8,7 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { Button } from "../design/primitives.tsx";
 import { SCORE_INFO, STAT_INFO, TERM_INFO } from "../engine/glossary.ts";
 import { STAT_KEYS } from "../engine/types.ts";
-import { useGame } from "../state/useGame.tsx";
+import { useGameActions } from "../state/useGame.tsx";
 import { haptic } from "../design/haptics.ts";
 import "./help.css";
 
@@ -24,7 +24,7 @@ const SECTIONS: HelpSection[] = [
 ];
 
 export function HelpSheet({ onClose }: { onClose: () => void }) {
-  const { replayCoach } = useGame();
+  const { replayCoach } = useGameActions();
   return (
     <div className="help">
       <div className="help__head">
