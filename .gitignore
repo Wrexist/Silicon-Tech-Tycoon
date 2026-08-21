@@ -15,6 +15,7 @@ store-shots
 .shots-raw
 .store-raw
 .ipad-raw
+.shots/
 
 # scratch from research tooling
 .tmp_ss/
