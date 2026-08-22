@@ -46,8 +46,9 @@ respects the LOCKED constraints (premium $8.99, offline, no backend, no dark pat
 - [ ] **Museum key collision on fixed-seed replays** — replaying the same daily/challenge (same seed)
       and shipping the same product id at the same week overwrites the prior museum entry. Add a
       monotonic launch counter to the key if duplicate enshrinements are wanted.
-- [ ] **Onboarding "Or take on a scenario"** ignores the typed company name (scenarios use "Silicon").
-      Pass the entered name into `newScenarioGame`.
+- [x] **Onboarding "Or take on a scenario" ignores the typed company name** — FIXED (verified in
+      code 2026-08): App.tsx passes the typed name as `initialName` → `ScenariosSheet` →
+      `startScenario(id, name)` → `newScenarioGame(..., name)`.
 
 ---
 

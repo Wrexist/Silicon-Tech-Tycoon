@@ -19,10 +19,14 @@ These are the house rules from `CLAUDE.md` — non-negotiable:
   test runs a seed twice and compares. New systems gate on **optional/backfilled** state fields and
   default to **no-ops**, so a do-nothing run stays byte-identical.
 - **Side-channel randomness** uses a DERIVED hash of `(seed, week, salt)` — never the main sim RNG.
-  Reserve a **fresh salt** per new derived-hash stream. Salts already in use: 11, 23, 37, 53, 71, 83,
-  91, 97, 101, 113, 127, 131, 137, 149, 151, 157, 163, 211, 223, 227, 229.
-  **Reserved by this roadmap:** 233 (staff life events), 239 (rival-vs-rival), 241 (nemesis beats),
-  251 (trend arcs), 257 (post-launch reactive events), 263 (board mandates), 269 (region flavor).
+  Reserve a **fresh salt** per new derived-hash stream. The authoritative in-use list now lives in
+  `CLAUDE.md` (11, 23, 37, 53, 71, 83, 91, 97, 101, 113, 127, 131, 137, 149, 151, 157, 163, 211,
+  223, 227, 229, 233 (+2331/2/3), 239 (+2391/2/3), 257, 263, 269, 271, 277, 281, 293, 229-side-order
+  note, 307 (+3070+i), 311 — see CLAUDE.md for the per-salt meaning).
+  **Reservations from this roadmap:** 233 (staff life events) ✅ used · 239 (rival-vs-rival) ✅ used ·
+  241 (nemesis beats) — NEVER consumed; nemesis shipped on 271/277, so **241 is free** ·
+  251 (trend arcs) — never consumed, **free** · 257 (post-launch reactive events) ✅ used ·
+  263 (board mandates) ✅ used · 269 (region flavor) ✅ used.
 - **Opportunistic full-screen interrupts share a budget** — gate new cards on `interruptQuiet`
   (`≥ BALANCE.interrupts.minGapWeeks` since `lastInterruptWeek`) AND the full `!base.pendingX` chain,
   and stamp `base.lastInterruptWeek = week` when they fire.

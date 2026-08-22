@@ -16,17 +16,23 @@ priorities.** When they disagree, this file wins; update it as work lands.
 
 ---
 
-## 0. Where the project actually is (verified this session)
+## 0. Where the project actually is (refreshed 2026-08)
 
 | Signal | State |
 |---|---|
-| Version | `1.0.0` (`package.json`) |
+| Version | `1.3.0` (`package.json`) — free download + **Silicon Pro** subscription |
 | Typecheck | `tsc -b` — **0 errors** ✅ |
-| Tests | **384 passing across 35 files** (vitest) ✅ |
+| Tests | **~1,694 passing across 160 files** (vitest), determinism pin green ✅ |
 | Build | `vite build` + PWA (manifest + service worker) green ✅ |
-| Engine purity | `engine/` is pure TS, fully unit-tested, deterministic (pinned by `engine.test.ts`) ✅ |
-| iOS pipeline | Capacitor shell + TestFlight CI workflow wired; reached a real device (build 11) ✅ |
-| Submission | **NOT submitted.** App Store Connect record + signing secrets are owner-side ⛔ |
+| Engine purity | `engine/` is pure TS, fully unit-tested, deterministic (pinned by `activeRun.determinism.test.ts`) ✅ |
+| iOS pipeline | Capacitor shell + TestFlight CI workflow wired; RevenueCat/StoreKit 2 seam live ✅ |
+| Balance harness | `npm run sim` — 40-seed optimizer baseline pinned; archetype panel + cliff probes healthy |
+
+> **Note on older sections below:** Phases 0–4 were written before the v1.3.0 pivot from an $8.99
+> paid app (+ a $2.99 Creative-Mode IAP) to **free download + Silicon Pro subscription**
+> (`MONETIZATION.md` is authoritative). Items mentioning `iap.ts`, cordova-plugin-purchase, or the
+> $8.99 price are historical — purchases today flow through `state/proStore.ts` over
+> `storeKitBridge.ts`, and Creative Mode travels with Pro.
 
 **Honest summary:** the game is feature-complete and heavily polished (TASK.md tracks v1 → v23:
 device renderer, 3D HQ + office builder, market sim, stocks/IPO, staff identities, achievements,
@@ -105,24 +111,25 @@ sheet, no balance cliff — and the balance knobs above either confirmed or adju
 
 ---
 
-## Phase 2 — Free update 1.1 "Goals & Bragging Rights" 🟢
+## Phase 2 — Free update 1.1 "Goals & Bragging Rights" 🟢 (SUPERSEDED by the Silicon Pro pivot)
 
 The retention backbone. **Most of this already shipped** (scenarios v20, share cards v20.1,
-challenges v21, museum v23, founder perks + AI-era content v23.2). 1.1 is therefore mostly *polish +
-the two engine items that were explicitly held for a go-ahead*, packaged as the first free update —
-the goodwill + word-of-mouth engine and visible depth for reviewers.
+challenges v21, museum v23, founder perks + AI-era content v23.2). The IAP items below were
+overtaken by events: there is no standalone Creative/Sandbox purchase any more — **Creative Mode
+travels with Silicon Pro** (`proGates.ts`), purchases run through `proStore.ts`/`storeKitBridge.ts`
+(RevenueCat or StoreKit 2 direct), and the legacy `iap.ts` restore path exists only so past buyers
+keep their entitlement.
 
-- [ ] **Wire + ship the Creative/Sandbox IAP** ($2.99) deferred from Phase 0: implement the 3
-      `NATIVE INTEGRATION POINT` stubs in `src/state/iap.ts` against `cordova-plugin-purchase` v13,
-      flip `NATIVE_IAP_WIRED`, test buy **and** restore on device, attach to the version.
+- [x] ~~**Wire + ship the Creative/Sandbox IAP**~~ — superseded: the stubs WERE implemented (against
+      `SiliconStoreKit.swift`, not cordova-plugin-purchase), then the whole model was replaced by the
+      subscription. Legacy SKU remains restorable.
 - [x] **Component sidegrades** (Wave 1c) — DONE 2026-06-21. The perf↔battery trade already shipped
       (`tuningShift`); this session added the **value↔premium margin axis** (`tuningCostMultiplier`
       + `marginShift`) so the optimal recipe depends on cost strategy too, and pinned both with
       `tuning.test.ts` + the `balanceGuards.test.ts` no-universal-recipe property — the direct strike
       at the GDT determinism failure. *Optional follow-up:* per-component (not per-product) variants.
-- [ ] **Sandbox depth so the IAP earns $2.99** (flagged thin): beyond the cash floor — unlimited
-      component tiers, a lite scenario-start editor, cosmetic-only extras. Without this the IAP is
-      a one-line toggle and reviews will say so.
+- [ ] **Sandbox depth so Pro earns its keep** (flagged thin): beyond the cash floor — unlimited
+      component tiers, a lite scenario-start editor, cosmetic-only extras.
 - [ ] **Polish carry-overs from Phase 1 device pass** that turned out to be real changes.
 
 **Definition of done:** 1.1 submitted; the IAP is buyable + restorable on device; at least one
@@ -159,48 +166,51 @@ recipe-determinism guard (sidegrades) is live and tested.
 ## Phase 4 — Paid DLC #1 "OS / Platform Division" 💵 (built — needs the live wrapper)
 
 `DLC_OS_PLATFORM.md` Phases A+B+C are **already built** (v22/v22.1): `engine/platform.ts`, state,
-`screens/Platform.tsx`, gated behind `platformUnlocked`. What remains is turning the entitlement
-stub into a real product.
+`screens/Platform.tsx`. The "DLC purchase" wrapper below was superseded by the pivot: Platform
+Division is now gated by the **Silicon Pro entitlement** (`proGates.ts` → `platformDivision`) plus
+the earned in-game founding (`foundPlatform` — cash + reputation + shipped track record). No
+separate IAP exists to create.
 
-- [ ] Create the Platform Division IAP in App Store Connect; wire its purchase/restore through the
-      same StoreKit seam as Creative Mode.
+- [x] ~~Create the Platform Division IAP~~ — superseded: Pro entitlement + earned founding.
 - [ ] On-device verification of the Platform sheet + the license-to-rivals trade-off reading
       clearly; playtest the licensing fee + strength-uplift magnitudes.
-- [ ] Marketing beat: this is the endgame "what now?" fix after IPO — position it as the post-launch
-      depth expansion.
+- [ ] Marketing beat: this is the endgame "what now?" fix after IPO — position it as a Pro highlight.
 
-**Definition of done:** Platform Division is a purchasable expansion, buyable + restorable on
-device, with its two new levers (version releases, rival licensing) balance-confirmed.
+**Definition of done:** Platform Division reads clearly on device, with its two new levers (version
+releases, rival licensing) balance-confirmed.
 
 ---
 
 ## Phase 5 — Performance & architecture hardening 🟠 (do alongside, not last)
 
-Logged across v9/v16/v17 audits. None block ship, but they protect the 60fps premium feel as
-content grows and reduce battery drain — worth a dedicated pass before the content cadence widens.
+Logged across v9/v16/v17 audits; refreshed against source 2026-08.
 
-- [ ] **State/actions context split (F36):** the 1s tick currently re-renders the whole tree
-      including 3D; the v16 `React.memo` pass captured most of the win but the split is still the
-      right long-term fix and the biggest remaining perf lever.
-- [ ] **Furniture instancing (F13):** only `BrickWall` is instanced today — draw calls scale with
-      decoration, and the new Office Shop (Phase 3) will push item counts up. Instance before that
-      lands or right after.
-- [ ] **`frameloop="demand"` + `invalidate()`** retrofit for battery (do with eyes on the office —
-      a wrong conversion silently freezes the scene).
-- [ ] GPU-tier quality scaling; keep-HQ-mounted canvas reuse; share Character geometries; clamp
-      `BrickWall` instance count; `ContactShadows frames` re-bake audit.
+- [x] **State/actions context split (F36):** DONE — external-store context split landed
+      (`refactor(state): external-store context split (F36)`).
+- [~] **Shared geometry/material cache (F13, evolved):** `garage3d/sharedGpu.ts` now pools
+      geometries/materials by full args, and the whole per-employee cluster is converted
+      (`RobotCharacter` + `Chair` + `HeadAccessory` + `DeskClutter` — up to ~16 copies of each no
+      longer allocate per instance per mount; verified pixel-equivalent in the shots harness).
+      Remaining: the parametric furniture catalog in `furniture3d.tsx` (~86 items) — same mechanical
+      conversion, do it incrementally. Only `BrickWall` + dust are instanced; light-mode VSM doubles
+      shadow cost.
+- [ ] **`frameloop="demand"` + `invalidate()`** retrofit for battery — measured HIGH-RISK: 36
+      always-on animation sites across Garage3D/Factory3D would each need invalidation or they
+      silently freeze. The cheap wins already shipped (off-screen `"never"`, hidden-tab pause,
+      throttled cosmetic loops, camera settle).
+- [x] `ContactShadows frames` re-bake audit — office already `frames={1}` + remount-keyed;
+      factory bakes 60 frames then freezes (deliberate). DPR caps confirmed ([1,1.75] HQ,
+      [1,1.4] preview). Disposal/listener sweep clean. BrickWall clamp moot (~350 max instances).
 
 **Definition of done:** a long late-game save with a fully decorated office holds frame rate on a
 mid-tier device and the 3D scene idles without redundant redraws.
 
 ---
 
-## Phase 6 — Reach & accessibility 🟢
+## Phase 6 — Reach & accessibility 🟢 (largely DONE)
 
-- [ ] **iPad layout** (v1 ships iPhone-only by deliberate choice). Adapt the HUD/screens to the
-      larger canvas and re-enable `TARGETED_DEVICE_FAMILY` 2 — opens a second device class of buyers.
-- [ ] **rem-based type + iOS Dynamic Type** so the UI respects system text size (accessibility +
-      App Store goodwill).
+- [x] **iPad layout** — DONE (`feat(ios): enable iPad`, wide-screen chrome centering).
+- [x] **rem-based type + iOS Dynamic Type** — DONE (`feat(a11y): rem-based type scale + Text Size setting`).
 - [ ] Round the deliberate intrinsic object colours in `furniture3d.tsx`/`Garage3D.tsx` through
       `RoomPalette` for light-theme harmony; broader hardcoded-px → token sweep on screen CSS.
 
@@ -252,8 +262,10 @@ Our data-driven `catalogs.ts` makes most of this cheap. Mix free drops (goodwill
 
 ## Locked constraints every phase is filtered through (do not violate)
 
-1. **$8.99 premium, complete & winnable, ZERO dark-pattern monetization.** IAP = creative/sandbox +
-   content DLC only. No login streaks, FOMO timers, currency, boosts, loot boxes, or ads. **Ever.**
+1. **Free to download; revenue = the ONE Silicon Pro subscription, ZERO dark-pattern monetization.**
+   (Pivot 2026-07 from the original $8.99-premium constraint.) Pro sells content and modes, never an
+   in-run advantage; every gate sits on a player action or UI surface, never in `engine/`. No login
+   streaks, FOMO timers, currency, boosts, loot boxes, or ads. **Ever.**
 2. **No backend. Fully offline.** No accounts, cloud saves, global leaderboards, or live events.
    Substitute for the social layer: personal-best history + local achievements + parametric share cards.
 3. **Zero image assets for hero content** — devices/UI/icons are parametric SVG/vector drawn in code.

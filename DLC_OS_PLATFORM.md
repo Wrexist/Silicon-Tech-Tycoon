@@ -1,5 +1,12 @@
 # DLC #1 — The OS / Platform Division
 
+> **STATUS (2026-08): BUILT, and the delivery model changed.** Phases A+B+C shipped (v22/v22.1).
+> There is no separate DLC purchase: Platform Division is gated by the **Silicon Pro entitlement**
+> (`proGates.ts` → `platformDivision`) plus the earned in-game founding — `foundPlatform()` charges
+> `BALANCE.platform.foundingCost` and requires reputation + a shipped track record
+> (`canFoundPlatform`). Inbound licensing contracts (`engine/licenseOffers.ts`) are the marquee
+> moment. Spec below is historical design rationale.
+
 **Status:** Phases A + B + C BUILT (TASK.md v22/v22.1) — `engine/platform.ts` + state +
 `screens/Platform.tsx`, gated behind `platformUnlocked` (Settings → Expansions). Phase C: license
 your OS to rivals for a recurring fee that strengthens them (the trade-off has teeth).
@@ -22,9 +29,8 @@ rivals for a new income stream.
 - **Fixes the endgame "what now?" beat.** Once you've IPO'd, a Platform division gives the most
   invested players a fresh strategic axis (recurring revenue, licensing politics) instead of a
   wall. Pairs naturally with New Game+ legacy bonuses.
-- **Monetization fit.** The base game's monetization is LOCKED ($8.99 premium, complete &
-  winnable). CLAUDE.md already reserves "DLC expansions ... ship post-launch." This is a paid
-  content expansion, not a v1 gate — no progression locks land in the base game.
+- **~~Monetization fit.~~** *(Historical: written under the $8.99-premium constraint; superseded by
+  free download + Silicon Pro — this content now anchors Pro.)*
 
 ## 2. What ALREADY exists in the engine (do not rebuild)
 

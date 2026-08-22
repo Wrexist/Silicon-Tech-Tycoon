@@ -23,7 +23,7 @@ parts come from* and *where you build* — into **meaningful, failable choices**
 and gives the already-existing supply-crunch events a cause the player actually controls.
 
 **Non-goals (hard guardrails):**
-- No new currency, no timers-for-money, no gates — monetization stays LOCKED ($8.99 premium). (RULE: monetization.)
+- No new currency, no timers-for-money, no gates — monetization is the ONE Silicon Pro subscription (was $8.99 premium; pivot 2026-07, see MONETIZATION.md). (RULE: monetization.)
 - No real supplier/foundry/brand names — fictional only. (IP discipline ship-blocker.)
 - No screen that ships rough. If a sub-feature can't be made premium this pass, it's logged, not shipped. (RULE #1.)
 - Keep `engine/` pure (no React/DOM); all new logic is unit-testable TS. (Golden rule.)
@@ -300,3 +300,4 @@ Build **P1, supplier-only**, as one vertical slice:
 6. Migration backfill + golden "old save == today" test.
 
 That slice alone turns manufacturing from an opaque step into a real bet — the rest builds on it.
+

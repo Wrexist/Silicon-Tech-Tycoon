@@ -1,5 +1,12 @@
 # Your Action Items — Submitting Silicon to the App Store
 
+> **⚠️ SUPERSEDED (2026-08).** This was written for the v1.0 paid-era submission ($8.99 price,
+> CocoaPods toolchain, the standalone Creative-Mode IAP). The app now ships as a **free download
+> with the Silicon Pro subscription** via RevenueCat/StoreKit 2, and the iOS build is SPM-only
+> (no CocoaPods) driven by the `ios-testflight-capacitor.yml` CI. **Use `LAUNCH_CHECKLIST.md`
+> instead**, with `MONETIZATION.md` and `appstore/SUBSCRIPTION_GUIDE.md` for everything
+> purchase-related. Kept below only for historical reference.
+
 Everything in this repo is done. Below are the **only things that require you**,
 in order. Estimated total time: **2–3 hours** on a Mac.
 

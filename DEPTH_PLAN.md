@@ -134,6 +134,7 @@ and **C** (pair naturally with A: rivalry headlines need rival arcs; named depar
 people layer), then **D** last and gated behind an explicit go-ahead + a `npm run sim` balance pass
 (it reshapes the tuned economy).
 
-Constraints every item is filtered through (unchanged): $8.99 premium, fully offline, zero
+Constraints every item is filtered through (monetization updated 2026-08): free download + the one Silicon Pro subscription (was $8.99 premium), fully offline, zero
 dark patterns, RULE #1 (premium through restraint), engine-first + tested, PROTECTED code
 (`engine/`, persistence schema in `state/`, `render/DeviceRenderer.tsx`) only with a go-ahead.
+

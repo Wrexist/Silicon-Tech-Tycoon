@@ -1,5 +1,10 @@
 # Plan — The Office Shop & Mobile Decorate Overhaul
 
+> **STATUS (2026-08): SHIPPED** — verified against source 2026-06-21 (see `ROADMAP.md` Phase 3):
+> engine attributes, pricing, undo-restore and the HQ Decorate shop are all live with tests
+> (`officeShop.test.ts`). Spec kept for reference. The one leftover it names — removing the dead
+> `buyDesktop` action — also shipped later.
+
 **Status:** Refined spec (v2), build-ready, awaiting go-ahead to start Phase A.
 Branch: `claude/game-audit-engagement-qiauna`.
 

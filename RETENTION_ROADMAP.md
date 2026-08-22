@@ -1,10 +1,15 @@
 # Silicon: Tech Tycoon — Retention & Post-Launch Roadmap
 
+> **STATUS (2026-08): historical.** Most of this shipped (scenarios, challenges, museum, NG+ perks,
+> OS division). The monetization constraint below was **replaced by the Silicon Pro pivot** —
+> free download + one subscription; see `MONETIZATION.md`. Kept for the design reasoning.
+
 **Purpose:** answer "what's the next update / DLC / remake, and how do we retain players while making
 the game better?" — grounded in competitor research and the project's LOCKED constraints.
 
 **Read this first — the three hard constraints that shape everything below (CLAUDE.md / LEARNINGS.md):**
-1. **$8.99 premium, complete & winnable, ZERO purchases.** v1 IAP = Sandbox/Creative unlock only.
+1. **~~$8.99 premium, complete & winnable, ZERO purchases.~~ v1 IAP = Sandbox/Creative unlock only.**
+   *(Superseded: free download + Silicon Pro subscription; Creative Mode travels with Pro.)*
    No login streaks, FOMO timers, currency, boosts, loot boxes, or ads. **Ever.**
 2. **No backend. Fully offline.** No accounts, no cloud saves, no global leaderboards, no live events.
 3. **Zero image assets for hero content** — devices/UI are parametric SVG drawn in code.

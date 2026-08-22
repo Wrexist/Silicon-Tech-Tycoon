@@ -1,5 +1,9 @@
 # Silicon: Tech Tycoon — Master Audit & Improvement Plan
 
+> **STATUS (2026-08): historical.** Superseded by the dated rounds — `AUDIT_2026-08-14.md` is the
+> current audit; `GAME_AUDIT_ROUND2_2026-07.md` and `AUDIT_2026-07-09.md` cover the July sweeps.
+> Kept as a checklist record.
+
 A living, exhaustive audit of the whole app. Worked top-to-bottom, then repeated. Each item is
 a checkbox; `[x]` done, `[~]` in progress, `[ ]` todo. Phases are ordered by risk/impact:
 foundation & correctness first, then UX polish, then depth/features, then the repeat sweeps.
