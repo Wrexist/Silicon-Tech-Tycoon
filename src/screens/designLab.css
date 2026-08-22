@@ -711,6 +711,20 @@
   margin-top: var(--sp-4);
 }
 .lab__ep--over .lab__ep-note { color: var(--negative-text); font-weight: 700; }
+/* Below-frontier advisory — quiet warning tint, same rhythm as the EP note above it. */
+.lab__frontier {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-6);
+  margin-top: var(--sp-8);
+  padding: var(--sp-8) var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--warning-soft);
+  font-size: var(--fs-micro);
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+.lab__frontier svg { flex: none; margin-top: 2px; color: var(--warning-text); }
 .lab__stepper {
   display: inline-flex;
   align-items: center;

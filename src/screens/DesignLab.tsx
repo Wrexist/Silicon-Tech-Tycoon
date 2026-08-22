@@ -43,6 +43,7 @@ import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { CircuitMotif } from "../design/CircuitMotif.tsx";
 import { FINISH_SWATCHES, ALUMINIUM_SEASON_START } from "../render/deviceStyle.ts";
 import { unlockedColorwayNames } from "../state/seasons.ts";
+import { frontierLag } from "../state/insights.ts";
 import {
   buildWeeksFor,
   burn,
@@ -873,6 +874,24 @@ export function DesignLab({
           <>
           <Card>
             <SectionHeader title="Components" accessory="tier gated by R&D" />
+            {/* Below-frontier warning — the harness's sharpest cliff, made legible at the moment of
+                choosing. Building under your own research is fatal when chronic; this says so BEFORE
+                tooling money is spent instead of in a post-mortem. */}
+            {(() => {
+              const lag = frontierLag(state, draft.category, draft.tiers);
+              if (lag.length === 0) return null;
+              const list = lag.map((l) => `${l.name} T${l.tier}→${l.researched}`).join(" · ");
+              return (
+                <p className="lab__frontier" role="note">
+                  <AlertTriangle size={12} aria-hidden />
+                  <span>
+                    {lag.length === 1
+                      ? `Your ${lag[0].name} is T${lag[0].tier}, but you've researched T${lag[0].researched} — shipping behind your own lab scores far lower.`
+                      : `${lag.length} components sit below your research (${list}) — shipping behind your own lab scores far lower.`}
+                  </span>
+                </p>
+              );
+            })()}
             {/* Design Budget (feature #1) — the engineering-points meter, so the complexity trade-off is
                 legible: every launch spends from a capped pool, not "max everything". Fresh runs only. */}
             {budgetOn && (

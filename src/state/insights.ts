@@ -10,16 +10,16 @@
 // It lives in state/ rather than engine/ because the predicates read derived helpers that live on the
 // state layer (runway, desk capacity, upgrade pricing) — engine/ must never import state/ for values.
 import { BALANCE } from "../engine/balance.ts";
-import { CATEGORY_LIST } from "../engine/catalogs.ts";
+import { CATEGORIES, CATEGORY_LIST, COMPONENT_LINES } from "../engine/catalogs.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { format } from "../engine/money.ts";
 import type { ObjectiveTab } from "../engine/objectives.ts";
 import { REGIONS } from "../engine/regions.ts";
 import { RESEARCH_PROJECTS, forkLockedBy, type ProjectId } from "../engine/research.ts";
-import { STAT_KEYS, type CategoryId } from "../engine/types.ts";
+import { STAT_KEYS, type CategoryId, type ComponentKind } from "../engine/types.ts";
 import { UPGRADE_LINES } from "../engine/upgrades.ts";
-import { deskCapacity, nextWeekRevenue, upgradeCost, weeklyOutflow, type GameState } from "./gameState.ts";
+import { deskCapacity, nextWeekRevenue, researchedTier, upgradeCost, weeklyOutflow, type GameState } from "./gameState.ts";
 
 /** A Lucide icon NAME, resolved to a component by the UI (same contract as ObjectiveIconName). */
 export type InsightIconName =
@@ -54,6 +54,37 @@ export const OBJECTIVE_SUBSUMES: Record<string, readonly string[]> = {
   "first-upgrade": ["upgrade"],
   "spend-legacy-point": ["legacy-points"],
 };
+
+// ---------- Pre-launch coaching (the Design Lab) ----------------------------------------------
+/** One component slot whose draft tier sits below the company's OWN research frontier. */
+export interface FrontierLagEntry {
+  kind: ComponentKind;
+  name: string;
+  tier: number;
+  researched: number;
+}
+
+/** Slots where the draft builds BELOW what the lab has already unlocked — the balance harness's
+ *  single sharpest cliff (a player who chronically ships one tier under their frontier loses most
+ *  runs; every other measured mistake is survivable). The picker itself is honest (pips + locked
+ *  next-tier teaser) but nothing connected choosing lower to LOSING, so the fatal mistake was
+ *  indistinguishable from a budget choice. Read at design time; pure. */
+export function frontierLag(
+  state: GameState,
+  category: CategoryId,
+  tiers: Partial<Record<ComponentKind, number>>,
+): FrontierLagEntry[] {
+  const slots = CATEGORIES[category]?.slots ?? [];
+  const out: FrontierLagEntry[] = [];
+  for (const kind of slots) {
+    const researched = researchedTier(state, kind);
+    const tier = Math.floor(tiers[kind] ?? 1);
+    if (Number.isFinite(tier) && tier >= 1 && tier < researched) {
+      out.push({ kind, name: COMPONENT_LINES[kind].displayName, tier, researched });
+    }
+  }
+  return out;
+}
 
 // Full stat labels derive from the single source (glossary STAT_INFO) so they can't drift.
 const INSIGHT_STAT_LABEL: Record<string, string> = Object.fromEntries(STAT_KEYS.map((k) => [k, STAT_INFO[k].label]));

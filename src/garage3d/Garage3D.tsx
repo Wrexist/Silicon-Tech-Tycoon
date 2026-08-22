@@ -25,6 +25,7 @@ import {
   type Rot,
 } from "../engine/furniture.ts";
 import { FurniturePiece } from "./furniture3d.tsx";
+import { sharedBox, sharedCapsule, sharedCylinder, sharedRounded, sharedSphere, sharedStandard, sharedTorus } from "./sharedGpu.ts";
 import { floorFinish, wallStyle, type FloorFinish, type WallStyle } from "../engine/roomStyle.ts";
 import { roomPalette, type RoomPalette } from "./palette.ts";
 import { ROBOT_COLORS, robotModelFor } from "./robotModels.ts";
@@ -718,52 +719,44 @@ function Room({ p, dark, finish, wall, cull, showWhiteboard = true }: { p: RoomP
 function Chair({ p, hue }: { p: RoomPalette; hue: string }) {
   const frame = p.metal;      // polished aluminium — frame, lift and base
   const fabric = p.metalDark; // graphite mesh/fabric — seat pad and back panel
+  // Shared GPU objects: a full desk bank is up to ~16 of these; every geometry + the three frame/
+  // fabric materials are identical across chairs (only the arm-pad hue varies), so they all come
+  // from the sharedGpu caches. Rounded boxes via sharedRounded (same args as <RoundedBox>).
+  const mFrameA = sharedStandard({ color: frame, metalness: 0.62, roughness: 0.32 });
+  const mLift = sharedStandard({ color: frame, metalness: 0.68, roughness: 0.26 });
+  const mFrameB = sharedStandard({ color: frame, metalness: 0.6, roughness: 0.3 });
+  const mFrameBack = sharedStandard({ color: frame, metalness: 0.58, roughness: 0.3 });
+  const mFabricSeat = sharedStandard({ color: fabric, roughness: 0.88, metalness: 0.04 });
+  const mFabricBack = sharedStandard({ color: fabric, roughness: 0.9, metalness: 0.03 });
+  const mPad = sharedStandard({ color: hue, roughness: 0.75, metalness: 0.05 });
   return (
     <group>
       {/* five-star base + gas lift */}
-      <mesh position={[0, 0.045, 0]}>
-        <cylinderGeometry args={[0.13, 0.4, 0.05, 5]} />
-        <meshStandardMaterial color={frame} metalness={0.62} roughness={0.32} />
-      </mesh>
-      <mesh position={[0, 0.26, 0]}>
-        <cylinderGeometry args={[0.048, 0.06, 0.4, 12]} />
-        <meshStandardMaterial color={frame} metalness={0.68} roughness={0.26} />
-      </mesh>
+      <mesh position={[0, 0.045, 0]} geometry={sharedCylinder(0.13, 0.4, 0.05, 5)} material={mFrameA} />
+      <mesh position={[0, 0.26, 0]} geometry={sharedCylinder(0.048, 0.06, 0.4, 12)} material={mLift} />
 
       {/* seat: one contoured pad, top surface held at 0.58 (SIT_LIFT is measured from it) */}
-      <RoundedBox args={[0.62, 0.115, 0.58]} radius={0.05} smoothness={4} position={[0, 0.5225, -0.02]}>
-        <meshStandardMaterial color={fabric} roughness={0.88} metalness={0.04} />
-      </RoundedBox>
+      <mesh position={[0, 0.5225, -0.02]} geometry={sharedRounded(0.62, 0.115, 0.58, 4, 0.05)} material={mFabricSeat} />
 
       {/* The spine: the back is carried on a stalk rising behind the seat, leaving daylight between
           seat and back. That gap is the single most recognisable cue of a modern task chair — an
           office chair whose back grows straight out of the seat cushion reads as a dining chair. */}
-      <RoundedBox args={[0.16, 0.3, 0.07]} radius={0.034} smoothness={3} position={[0, 0.63, -0.4]} rotation-x={-0.1}>
-        <meshStandardMaterial color={frame} metalness={0.6} roughness={0.3} />
-      </RoundedBox>
+      <mesh position={[0, 0.63, -0.4]} rotation-x={-0.1} geometry={sharedRounded(0.16, 0.3, 0.07, 3, 0.034)} material={mFrameB} />
 
       {/* back: raked ~6°, a slim polished frame with the panel set into it, floating above the seat */}
       {/* Taller than it is wide — a square back reads as a dining chair; a task chair rises past the
           shoulders. 0.72 is the floor on width: the seated robot's shell spans ±0.35 and the back has
           to cover it. */}
       <group position={[0, 1.07, -0.43]} rotation-x={-0.1}>
-        <RoundedBox args={[0.72, 0.88, 0.075]} radius={0.1} smoothness={4}>
-          <meshStandardMaterial color={frame} metalness={0.58} roughness={0.3} />
-        </RoundedBox>
-        <RoundedBox args={[0.58, 0.73, 0.085]} radius={0.075} smoothness={4} position={[0, 0.015, 0.006]}>
-          <meshStandardMaterial color={fabric} roughness={0.9} metalness={0.03} />
-        </RoundedBox>
+        <mesh geometry={sharedRounded(0.72, 0.88, 0.075, 4, 0.1)} material={mFrameBack} />
+        <mesh position={[0, 0.015, 0.006]} geometry={sharedRounded(0.58, 0.73, 0.085, 4, 0.075)} material={mFabricBack} />
       </group>
 
       {/* cantilevered arms, pads in the occupant's colour */}
       {[-0.365, 0.365].map((x, i) => (
         <group key={i} position={[x, 0, 0]}>
-          <RoundedBox args={[0.045, 0.22, 0.055]} radius={0.02} smoothness={2} position={[0, 0.63, -0.2]}>
-            <meshStandardMaterial color={frame} metalness={0.6} roughness={0.3} />
-          </RoundedBox>
-          <RoundedBox args={[0.075, 0.042, 0.3]} radius={0.021} smoothness={3} position={[0, 0.75, -0.08]}>
-            <meshStandardMaterial color={hue} roughness={0.75} metalness={0.05} />
-          </RoundedBox>
+          <mesh position={[0, 0.63, -0.2]} geometry={sharedRounded(0.045, 0.22, 0.055, 2, 0.02)} material={mFrameB} />
+          <mesh position={[0, 0.75, -0.08]} geometry={sharedRounded(0.075, 0.042, 0.3, 3, 0.021)} material={mPad} />
         </group>
       ))}
     </group>
@@ -791,39 +784,36 @@ function HeadAccessory({ accessory, hat }: { accessory: Accessory; hat: string }
     return (
       <group position={[0, 0.05, 0.31]}>
         {[-0.12, 0.12].map((x, i) => (
-          <mesh key={i} position={[x, 0, 0]} rotation-x={Math.PI / 2}>
-            <torusGeometry args={[0.075, 0.014, 8, 20]} />
-            <meshStandardMaterial color="#1a1d23" metalness={0.5} roughness={0.4} />
-          </mesh>
+          <mesh key={i} position={[x, 0, 0]} rotation-x={Math.PI / 2} geometry={sharedTorus(0.075, 0.014, 8, 20)} material={sharedStandard({ color: "#1a1d23", metalness: 0.5, roughness: 0.4 })} />
         ))}
-        <mesh position={[0, 0, 0]}><boxGeometry args={[0.06, 0.012, 0.012]} /><meshStandardMaterial color="#1a1d23" /></mesh>
+        <mesh position={[0, 0, 0]} geometry={sharedBox(0.06, 0.012, 0.012)} material={sharedStandard({ color: "#1a1d23" })} />
       </group>
     );
   if (accessory === "headphones")
     return (
       <group>
-        <mesh position={[0, 0.34, 0]} rotation-z={Math.PI / 2}><torusGeometry args={[0.34, 0.03, 10, 24, Math.PI]} /><meshStandardMaterial color="#15181d" roughness={0.5} /></mesh>
+        <mesh position={[0, 0.34, 0]} rotation-z={Math.PI / 2} geometry={sharedTorus(0.34, 0.03, 10, 24, Math.PI)} material={sharedStandard({ color: "#15181d", roughness: 0.5 })} />
         {[-0.34, 0.34].map((x, i) => (
-          <mesh key={i} position={[x, 0.02, 0]}><cylinderGeometry args={[0.09, 0.09, 0.08, 16]} rotation-z={Math.PI / 2} /><meshStandardMaterial color="#15181d" roughness={0.5} /></mesh>
+          <mesh key={i} position={[x, 0.02, 0]} rotation-z={Math.PI / 2} geometry={sharedCylinder(0.09, 0.09, 0.08, 16)} material={sharedStandard({ color: "#15181d", roughness: 0.5 })} />
         ))}
       </group>
     );
   if (accessory === "cap")
     return (
       <group position={[0, 0.24, 0]}>
-        <mesh><sphereGeometry args={[0.3, 20, 16, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color={hat} roughness={0.6} /></mesh>
-        <mesh position={[0, -0.01, 0.26]} rotation-x={-0.2}><boxGeometry args={[0.34, 0.03, 0.22]} /><meshStandardMaterial color={hat} roughness={0.6} /></mesh>
+        <mesh geometry={sharedSphere(0.3, 20, 16, 0, Math.PI * 2, 0, Math.PI / 2)} material={sharedStandard({ color: hat, roughness: 0.6 })} />
+        <mesh position={[0, -0.01, 0.26]} rotation-x={-0.2} geometry={sharedBox(0.34, 0.03, 0.22)} material={sharedStandard({ color: hat, roughness: 0.6 })} />
       </group>
     );
   if (accessory === "beanie")
     return (
-      <mesh position={[0, 0.26, 0]}><sphereGeometry args={[0.32, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.62]} /><meshStandardMaterial color={hat} roughness={0.85} /></mesh>
+      <mesh position={[0, 0.26, 0]} geometry={sharedSphere(0.32, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.62)} material={sharedStandard({ color: hat, roughness: 0.85 })} />
     );
   if (accessory === "earrings")
     return (
       <group>
         {[-0.31, 0.31].map((x, i) => (
-          <mesh key={i} position={[x, -0.12, 0.02]}><sphereGeometry args={[0.03, 10, 10]} /><meshStandardMaterial color="#e8c14a" metalness={0.7} roughness={0.3} /></mesh>
+          <mesh key={i} position={[x, -0.12, 0.02]} geometry={sharedSphere(0.03, 10, 10)} material={sharedStandard({ color: "#e8c14a", metalness: 0.7, roughness: 0.3 })} />
         ))}
       </group>
     );
@@ -898,44 +888,45 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
 
   return (
     <group ref={root} scale={1.25}>
-      {/* legs + rounded feet */}
+      {/* legs + rounded feet — geometries/materials come from the shared GPU cache (sharedGpu.ts):
+          16 characters × these meshes used to allocate every one of them per instance per mount. */}
       <group ref={legLRef} position={[-0.13, 0.3, 0]}>
-        <mesh position={[0, -0.13, 0]}><capsuleGeometry args={[0.075, 0.16, 6, 10]} /><meshStandardMaterial color={dark} roughness={0.5} /></mesh>
-        <mesh position={[0, -0.26, 0.05]}><sphereGeometry args={[0.11, 14, 12]} /><meshStandardMaterial color={dark} roughness={0.45} /></mesh>
+        <mesh position={[0, -0.13, 0]} geometry={sharedCapsule(0.075, 0.16, 6, 10)} material={sharedStandard({ color: dark, roughness: 0.5 })} />
+        <mesh position={[0, -0.26, 0.05]} geometry={sharedSphere(0.11, 14, 12)} material={sharedStandard({ color: dark, roughness: 0.45 })} />
       </group>
       <group ref={legRRef} position={[0.13, 0.3, 0]}>
-        <mesh position={[0, -0.13, 0]}><capsuleGeometry args={[0.075, 0.16, 6, 10]} /><meshStandardMaterial color={dark} roughness={0.5} /></mesh>
-        <mesh position={[0, -0.26, 0.05]}><sphereGeometry args={[0.11, 14, 12]} /><meshStandardMaterial color={dark} roughness={0.45} /></mesh>
+        <mesh position={[0, -0.13, 0]} geometry={sharedCapsule(0.075, 0.16, 6, 10)} material={sharedStandard({ color: dark, roughness: 0.5 })} />
+        <mesh position={[0, -0.26, 0.05]} geometry={sharedSphere(0.11, 14, 12)} material={sharedStandard({ color: dark, roughness: 0.45 })} />
       </group>
 
       {/* body — rounded shell with a lighter belly panel */}
-      <mesh position={[0, 0.6, 0]}><capsuleGeometry args={[0.28, 0.36, 10, 20]} /><meshStandardMaterial color={color} roughness={0.32} metalness={0.05} /></mesh>
-      <mesh position={[0, 0.55, 0.2]} scale={[0.7, 0.85, 0.45]}><sphereGeometry args={[0.26, 18, 18]} /><meshStandardMaterial color={belly} roughness={0.4} /></mesh>
+      <mesh position={[0, 0.6, 0]} geometry={sharedCapsule(0.28, 0.36, 10, 20)} material={sharedStandard({ color, roughness: 0.32, metalness: 0.05 })} />
+      <mesh position={[0, 0.55, 0.2]} scale={[0.7, 0.85, 0.45]} geometry={sharedSphere(0.26, 18, 18)} material={sharedStandard({ color: belly, roughness: 0.4 })} />
       {/* metallic neck ring */}
-      <mesh position={[0, 0.92, 0]}><cylinderGeometry args={[0.16, 0.18, 0.07, 18]} /><meshStandardMaterial color={metal} metalness={0.7} roughness={0.3} /></mesh>
+      <mesh position={[0, 0.92, 0]} geometry={sharedCylinder(0.16, 0.18, 0.07, 18)} material={sharedStandard({ color: metal, metalness: 0.7, roughness: 0.3 })} />
 
       {/* arms with rounded hands */}
       <group ref={armLRef} position={[-0.32, 0.72, 0]}>
-        <mesh position={[0, -0.16, 0]}><capsuleGeometry args={[0.085, 0.24, 6, 12]} /><meshStandardMaterial color={color} roughness={0.32} /></mesh>
-        <mesh position={[0, -0.32, 0]}><sphereGeometry args={[0.1, 14, 12]} /><meshStandardMaterial color={belly} roughness={0.4} /></mesh>
+        <mesh position={[0, -0.16, 0]} geometry={sharedCapsule(0.085, 0.24, 6, 12)} material={sharedStandard({ color, roughness: 0.32 })} />
+        <mesh position={[0, -0.32, 0]} geometry={sharedSphere(0.1, 14, 12)} material={sharedStandard({ color: belly, roughness: 0.4 })} />
       </group>
       <group ref={armRRef} position={[0.32, 0.72, 0]}>
-        <mesh position={[0, -0.16, 0]}><capsuleGeometry args={[0.085, 0.24, 6, 12]} /><meshStandardMaterial color={color} roughness={0.32} /></mesh>
-        <mesh position={[0, -0.32, 0]}><sphereGeometry args={[0.1, 14, 12]} /><meshStandardMaterial color={belly} roughness={0.4} /></mesh>
+        <mesh position={[0, -0.16, 0]} geometry={sharedCapsule(0.085, 0.24, 6, 12)} material={sharedStandard({ color, roughness: 0.32 })} />
+        <mesh position={[0, -0.32, 0]} geometry={sharedSphere(0.1, 14, 12)} material={sharedStandard({ color: belly, roughness: 0.4 })} />
       </group>
 
       {/* head */}
       <group ref={headRef} position={[0, 1.2, 0]}>
-        <mesh><sphereGeometry args={[0.33, 26, 26]} /><meshStandardMaterial color={color} roughness={0.3} metalness={0.05} /></mesh>
+        <mesh geometry={sharedSphere(0.33, 26, 26)} material={sharedStandard({ color, roughness: 0.3, metalness: 0.05 })} />
         {/* dark wrap-around visor */}
-        <mesh position={[0, 0.04, 0.04]} scale={[1.02, 0.62, 1.02]}><sphereGeometry args={[0.32, 24, 24, 0, Math.PI * 2, Math.PI * 0.18, Math.PI * 0.4]} /><meshStandardMaterial color={dark} roughness={0.25} metalness={0.2} /></mesh>
+        <mesh position={[0, 0.04, 0.04]} scale={[1.02, 0.62, 1.02]} geometry={sharedSphere(0.32, 24, 24, 0, Math.PI * 2, Math.PI * 0.18, Math.PI * 0.4)} material={sharedStandard({ color: dark, roughness: 0.25, metalness: 0.2 })} />
         {/* glowing eyes */}
-        <mesh position={[-0.12, 0.05, 0.3]}><sphereGeometry args={[0.055, 14, 14]} /><meshStandardMaterial color="#ffffff" emissive="#cfeaff" emissiveIntensity={2.2} toneMapped={false} /></mesh>
-        <mesh position={[0.12, 0.05, 0.3]}><sphereGeometry args={[0.055, 14, 14]} /><meshStandardMaterial color="#ffffff" emissive="#cfeaff" emissiveIntensity={2.2} toneMapped={false} /></mesh>
+        <mesh position={[-0.12, 0.05, 0.3]} geometry={sharedSphere(0.055, 14, 14)} material={sharedStandard({ color: "#ffffff", emissive: "#cfeaff", emissiveIntensity: 2.2, toneMapped: false })} />
+        <mesh position={[0.12, 0.05, 0.3]} geometry={sharedSphere(0.055, 14, 14)} material={sharedStandard({ color: "#ffffff", emissive: "#cfeaff", emissiveIntensity: 2.2, toneMapped: false })} />
         {/* antenna with a lit tip */}
         <group ref={antRef} position={[0, 0.3, 0]}>
-          <mesh position={[0, 0.1, 0]}><cylinderGeometry args={[0.018, 0.018, 0.22, 8]} /><meshStandardMaterial color={metal} metalness={0.6} roughness={0.3} /></mesh>
-          <mesh position={[0, 0.24, 0]}><sphereGeometry args={[0.05, 12, 12]} /><meshStandardMaterial color={moodColor ?? "#ff5a5a"} emissive={moodColor ?? "#ff5a5a"} emissiveIntensity={1.4} toneMapped={false} /></mesh>
+          <mesh position={[0, 0.1, 0]} geometry={sharedCylinder(0.018, 0.018, 0.22, 8)} material={sharedStandard({ color: metal, metalness: 0.6, roughness: 0.3 })} />
+          <mesh position={[0, 0.24, 0]} geometry={sharedSphere(0.05, 12, 12)} material={sharedStandard({ color: moodColor ?? "#ff5a5a", emissive: moodColor ?? "#ff5a5a", emissiveIntensity: 1.4, toneMapped: false })} />
         </group>
         {/* the employee's worn accessory (item 1.2) */}
         <HeadAccessory accessory={accessory} hat={dark} />
@@ -1080,20 +1071,20 @@ function DeskClutter({ seed, p }: { seed: number; p: RoomPalette }) {
     <group position={[0.44, 0.785, 0.08]}>
       {k === 0 && (
         <>
-          <mesh position={[0, 0.012, 0]} rotation-y={0.22}><boxGeometry args={[0.16, 0.02, 0.2]} /><meshStandardMaterial color="#e8e6df" roughness={0.9} /></mesh>
-          <mesh position={[0.02, 0.032, 0.01]} rotation-y={-0.16}><boxGeometry args={[0.16, 0.02, 0.2]} /><meshStandardMaterial color="#f3f1ea" roughness={0.9} /></mesh>
+          <mesh position={[0, 0.012, 0]} rotation-y={0.22} geometry={sharedBox(0.16, 0.02, 0.2)} material={sharedStandard({ color: "#e8e6df", roughness: 0.9 })} />
+          <mesh position={[0.02, 0.032, 0.01]} rotation-y={-0.16} geometry={sharedBox(0.16, 0.02, 0.2)} material={sharedStandard({ color: "#f3f1ea", roughness: 0.9 })} />
         </>
       )}
       {k === 1 && (
         <>
-          <mesh position={[0, 0.05, 0]}><cylinderGeometry args={[0.052, 0.046, 0.1, 10]} /><meshStandardMaterial color="#8a6b4a" roughness={0.8} /></mesh>
-          <mesh position={[0, 0.14, 0]}><sphereGeometry args={[0.08, 10, 10]} /><meshStandardMaterial color={p.plant} roughness={0.85} /></mesh>
+          <mesh position={[0, 0.05, 0]} geometry={sharedCylinder(0.052, 0.046, 0.1, 10)} material={sharedStandard({ color: "#8a6b4a", roughness: 0.8 })} />
+          <mesh position={[0, 0.14, 0]} geometry={sharedSphere(0.08, 10, 10)} material={sharedStandard({ color: p.plant, roughness: 0.85 })} />
         </>
       )}
       {k === 2 && (
         <>
-          <mesh position={[0, 0.03, 0]}><boxGeometry args={[0.1, 0.06, 0.16]} /><meshStandardMaterial color="#3b6ea5" roughness={0.7} /></mesh>
-          <mesh position={[0.005, 0.085, 0.01]}><boxGeometry args={[0.1, 0.05, 0.15]} /><meshStandardMaterial color="#b4694a" roughness={0.7} /></mesh>
+          <mesh position={[0, 0.03, 0]} geometry={sharedBox(0.1, 0.06, 0.16)} material={sharedStandard({ color: "#3b6ea5", roughness: 0.7 })} />
+          <mesh position={[0.005, 0.085, 0.01]} geometry={sharedBox(0.1, 0.05, 0.15)} material={sharedStandard({ color: "#b4694a", roughness: 0.7 })} />
         </>
       )}
     </group>

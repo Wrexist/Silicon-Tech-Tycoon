@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { newGame, type GameState } from "./gameState.ts";
-import { guidanceHints, strategicInsights, INSIGHT_SHOWN, OBJECTIVE_SUBSUMES } from "./insights.ts";
+import { guidanceHints, strategicInsights, INSIGHT_SHOWN, OBJECTIVE_SUBSUMES, frontierLag } from "./insights.ts";
 import { OBJECTIVES, currentObjective } from "../engine/objectives.ts";
 import { dollars } from "../engine/money.ts";
 import type { LaunchedProduct, Product } from "../engine/types.ts";
@@ -122,5 +122,32 @@ const KNOWN_INSIGHT_IDS = new Set([
 describe("the mirrored id catalogue", () => {
   it("matches what the generator emits (nothing has been renamed out from under it)", () => {
     for (const id of allEmittableIds()) expect(KNOWN_INSIGHT_IDS).toContain(id);
+  });
+});
+
+describe("frontierLag (pre-launch below-frontier warning)", () => {
+  it("flags slots the draft builds below the research frontier", () => {
+    // A fresh company has researched T1 everywhere, so a T1 draft lags nowhere.
+    const fresh = newGame(7);
+    expect(frontierLag(fresh, "phone", { chip: 1, display: 1 })).toEqual([]);
+  });
+
+  it("names each lagging slot with its tier and the researched tier", () => {
+    const s = { ...newGame(7), researched: { chip: 4, display: 2, battery: 1, materials: 1, software: 1, camera: 3 } } as GameState;
+    const lag = frontierLag(s, "phone", { chip: 2, display: 2, battery: 1 });
+    expect(lag.map((l) => l.kind).sort()).toEqual(["camera", "chip"]);
+    expect(lag.find((l) => l.kind === "chip")).toMatchObject({ tier: 2, researched: 4 });
+  });
+
+  it("a draft AT the frontier is clean; absent slots count as T1 and lag a researched frontier", () => {
+    const s = { ...newGame(7), researched: { chip: 4, display: 4, battery: 4, materials: 4, software: 4, camera: 4 } } as GameState;
+    expect(frontierLag(s, "phone", { chip: 4, display: 4, battery: 4, materials: 4, software: 4, camera: 4 })).toEqual([]);
+    // An empty draft defaults every slot to T1 — against a T4 frontier that's six lags waiting.
+    expect(frontierLag(s, "phone", {}).length).toBe(6);
+  });
+
+  it("ignores non-finite tiers (an incomplete draft simply doesn't lag)", () => {
+    const s = { ...newGame(7), researched: { chip: 5, display: 1, battery: 1, materials: 1, software: 1, camera: 1 } } as GameState;
+    expect(frontierLag(s, "phone", { chip: Number.NaN })).toEqual([]);
   });
 });
