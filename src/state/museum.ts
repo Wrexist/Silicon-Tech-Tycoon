@@ -25,19 +25,35 @@ export interface MuseumEntry {
   forecastUnits?: number; // projected lifetime volume at launch
 }
 
-export function getMuseum(): MuseumEntry[] {
+// Parse cache — same pattern as challengeProgress.ts: keyed by the RAW stored string so external
+// writes invalidate naturally and our own writes prime it. Entries are treated as immutable
+// records; the cached array is frozen (and typed readonly) so a stray mutation attempt fails
+// loudly in dev instead of silently corrupting the shared cache.
+let cache: { raw: string; list: readonly MuseumEntry[] } | null = null;
+
+export function getMuseum(): readonly MuseumEntry[] {
+  let raw: string | null = null;
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) return [];
-    // Tolerant: keep only entries that can render AND have a string key (used for de-dup + list identity).
-    return (parsed as MuseumEntry[]).filter(
-      (e) => e && typeof e.key === "string" && e.key.length > 0 && e.product && e.category && typeof e.name === "string",
-    );
+    raw = localStorage.getItem(KEY);
   } catch {
     return [];
   }
+  if (!raw) return [];
+  if (cache && cache.raw === raw) return cache.list;
+  let out: readonly MuseumEntry[] = [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    // Tolerant: keep only entries that can render AND have a string key (used for de-dup + list identity).
+    const list = (parsed as MuseumEntry[]).filter(
+      (e) => e && typeof e.key === "string" && e.key.length > 0 && e.product && e.category && typeof e.name === "string",
+    );
+    out = Object.freeze(list);
+  } catch {
+    return [];
+  }
+  cache = { raw, list: out };
+  return out;
 }
 
 /** Bulk-restore from a backup. Merges incoming entries with existing (de-duped by key), newest
@@ -52,8 +68,14 @@ export function mergeMuseum(incoming: unknown): void {
     seen.add(e.key);
     merged.push(e);
   }
-  const serialized = JSON.stringify(merged.slice(0, CAP));
-  try { localStorage.setItem(KEY, serialized); } catch { /* ignore */ }
+  const kept = merged.slice(0, CAP);
+  const serialized = JSON.stringify(kept);
+  try {
+    localStorage.setItem(KEY, serialized);
+    cache = { raw: serialized, list: Object.freeze(kept) };
+  } catch {
+    /* quota/eviction — leave the cache on the old raw so reads stay truthful */
+  }
   mirrorToNative(KEY, serialized);
 }
 
@@ -64,6 +86,7 @@ export function addMuseumEntry(entry: MuseumEntry): void {
   const serialized = JSON.stringify(next);
   try {
     localStorage.setItem(KEY, serialized);
+    cache = { raw: serialized, list: Object.freeze(next) };
   } catch {
     /* ignore */
   }

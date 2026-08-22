@@ -11,21 +11,37 @@ export function challengeKey(kind: string, dateKey: string): string {
   return `${kind}:${dateKey}`;
 }
 
+// Parse cache. HQ's ChallengeTracker re-reads bests every tick, so each render used to pay a
+// localStorage.getItem + JSON.parse. Keyed by the RAW stored string: an external write (another
+// tab, a backup import) changes it and invalidates naturally; our own writes prime it. The cached
+// map is frozen — every writer clones before mutating, and a reader that tried would fail loudly in
+// dev instead of silently corrupting the shared cache.
+let cache: { raw: string; map: ChallengeBests } | null = null;
+
 export function getChallengeBests(): ChallengeBests {
+  let raw: string | null = null;
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw) as unknown;
-    if (!parsed || typeof parsed !== "object") return {};
-    const out: ChallengeBests = {};
-    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
-      const n = Number(v);
-      if (Number.isFinite(n)) out[k] = n;
-    }
-    return out;
+    raw = localStorage.getItem(KEY);
   } catch {
     return {};
   }
+  if (!raw) return {};
+  if (cache && cache.raw === raw) return cache.map;
+  let out: ChallengeBests = {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return {};
+    const map: ChallengeBests = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      const n = Number(v);
+      if (Number.isFinite(n)) map[k] = n;
+    }
+    out = Object.freeze(map);
+  } catch {
+    return {};
+  }
+  cache = { raw, map: out };
+  return out;
 }
 
 export function bestScore(key: string): number | null {
@@ -59,13 +75,18 @@ export function challengeHistory(): ChallengeHistoryEntry[] {
 /** Bulk-restore (backup import). Merges with existing, keeping the higher score per key. */
 export function mergeChallengeBests(incoming: unknown): void {
   if (!incoming || typeof incoming !== "object") return;
-  const map = getChallengeBests();
+  const map = { ...getChallengeBests() }; // clone: the getter may return the shared cached map
   for (const [k, v] of Object.entries(incoming as Record<string, unknown>)) {
     const n = Math.round(Number(v));
     if (Number.isFinite(n) && (map[k] == null || n > map[k])) map[k] = n;
   }
   const serialized = JSON.stringify(map);
-  try { localStorage.setItem(KEY, serialized); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(KEY, serialized);
+    cache = { raw: serialized, map: Object.freeze(map) }; // we know exactly what's stored now
+  } catch {
+    /* quota/eviction — leave the cache on the old raw so reads stay truthful */
+  }
   mirrorToNative(KEY, serialized);
 }
 
@@ -74,13 +95,14 @@ export function recordChallengeBest(key: string, score: number): { improved: boo
   const s = Math.round(Number(score));
   // Never persist a non-finite score: it serializes to null and rehydrates as 0, corrupting bests.
   if (!Number.isFinite(s)) return { improved: false, best: bestScore(key) ?? 0 };
-  const map = getChallengeBests();
+  const map = { ...getChallengeBests() }; // clone: the getter may return the shared cached map
   const prev = map[key];
   if (prev != null && s <= prev) return { improved: false, best: prev };
   map[key] = s;
   const serialized = JSON.stringify(map);
   try {
     localStorage.setItem(KEY, serialized);
+    cache = { raw: serialized, map: Object.freeze(map) }; // we know exactly what's stored now
   } catch {
     /* ignore */
   }

@@ -90,10 +90,20 @@ export interface ScenarioResult {
   objectives: ObjectiveProgress[];
 }
 
-/** Derive the (read-only) facts a scenario evaluator needs from a full GameState. Pure adapter. */
+// Per-state memo. deriveScenarioFacts is called from the tick AND from every mounted tracker
+// (ScenarioTracker / ChallengeTracker / ResultCard) each render — five consumers re-deriving the
+// same snapshot, each paying netWorth()'s portfolio walk, on every week of a scenario run.
+// GameState is immutable-by-convention (every update spreads into a new object), so identity is a
+// sound cache key: one computation per state version, shared by all readers, GC'd with the state.
+const factsMemo = new WeakMap<GameState, ScenarioFacts>();
+
+/** Derive the (read-only) facts a scenario evaluator needs from a full GameState. Pure adapter
+ *  (memoized per state object — see factsMemo above). */
 export function deriveScenarioFacts(state: GameState): ScenarioFacts {
+  const cached = factsMemo.get(state);
+  if (cached) return cached;
   const hits = state.launched.filter((lp) => lp.verdict === "hit").length;
-  return {
+  const facts: ScenarioFacts = Object.freeze({
     cumulativeRevenue: toDollars(state.cumulativeRevenue),
     netWorth: toDollars(netWorth(state)),
     reputation: state.reputation,
@@ -102,7 +112,9 @@ export function deriveScenarioFacts(state: GameState): ScenarioFacts {
     hits,
     era: state.era,
     week: state.week,
-  };
+  });
+  factsMemo.set(state, facts);
+  return facts;
 }
 
 /** Current value of a metric from the facts snapshot. */
