@@ -69,22 +69,30 @@ const ARCHETYPES = {
     tierDrop: 0, priceSkew: 0, channelBudget: 0.12, idleChance: 0, skipCampaign: 0,
     hireRunway: 40, maxStaff: 10, expandShare: 0.2, runSkew: 0, vaultShare: 0.05,
   },
-  // Protects the balance sheet. Ships a notch below the frontier, buys cheap ads, hires late.
+  // Protects the balance sheet. Buys cheap ads, hires late, keeps a small team — but ships its BEST
+  // researched tech: sitting a tier below your own frontier is not caution, it's obsolescence, and
+  // the cliff probes show chronic tier lag executes a company (see the attribution probes that
+  // removed this dial: 11/20 → 0/20 bankrupt with every other cautious trait kept).
   cautious: {
-    label: "cautious", blurb: "hoards cash, ships a tier below the frontier, cheap ads",
-    tierDrop: 1, priceSkew: -0.08, channelBudget: 0.04, idleChance: 0.1, skipCampaign: 0.15,
+    label: "cautious", blurb: "hoards cash, cheap ads, small team — but ships its best tech",
+    tierDrop: 0, priceSkew: -0.08, channelBudget: 0.04, idleChance: 0.1, skipCampaign: 0.15,
     hireRunway: 90, maxStaff: 6, expandShare: 0.08, runSkew: -0.2, vaultShare: 0.02,
   },
-  // Spends into growth. Over-produces, buys the biggest campaign it can, hires flat out.
+  // Spends into growth. Chronically over-produces ~20% past the recommendation, buys the biggest
+  // campaign it can, hires flat out. The over-production is deliberately survivable-but-painful
+  // (0.20 ≈ 6/20 dead on the 20-seed panel; 0.25 ≈ 12/20 and 0.35 was 18/20) — a real risk appetite,
+  // not a suicide note.
   aggressive: {
     label: "aggressive", blurb: "spends into growth, over-produces, hires flat out",
     tierDrop: 0, priceSkew: 0.12, channelBudget: 0.3, idleChance: 0.05, skipCampaign: 0,
-    hireRunway: 12, maxStaff: 16, expandShare: 0.45, runSkew: 0.35, vaultShare: 0.1,
+    hireRunway: 12, maxStaff: 16, expandShare: 0.45, runSkew: 0.2, vaultShare: 0.1,
   },
-  // Plays in bursts, forgets things, guesses at prices. The most human of the four.
+  // Plays in bursts, forgets things, guesses at prices. The most human of the four. Its research
+  // lags naturally (idle weeks skip the lab); shipping below its own frontier was REMOVED as a
+  // constant for the same reason as cautious's.
   casual: {
     label: "casual", blurb: "plays in bursts, forgets campaigns, guesses at prices",
-    tierDrop: 1, priceSkew: 0, channelBudget: 0.08, idleChance: 0.35, skipCampaign: 0.4,
+    tierDrop: 0, priceSkew: 0, channelBudget: 0.08, idleChance: 0.35, skipCampaign: 0.4,
     hireRunway: 60, maxStaff: 8, expandShare: 0.15, runSkew: 0, vaultShare: 0.03,
   },
 };
@@ -212,11 +220,19 @@ function growTeam(s, a) {
  *  fires" here while being perfectly reachable in the real game, where the player cannot advance
  *  without answering. An idle week is a week the player didn't ACT, not one they slept through. */
 function settleWeek(s, interrupts, verdicts, verdictsByEra, countedLaunches) {
-  // ACCEPT, don't just dismiss. The census below nulls every pending card so the budget frees up,
-  // but nulling a licence offer is DECLINING it — and a bot that declines everything can never reach
-  // the content those acceptances gate (three concurrent OS licensees, six delivered contracts…).
-  // Same class of blind spot as the unanswered choice card: the difference between "the player saw
-  // this" and "the player said yes" is invisible in a pending-field count.
+  // COUNT first. The census measures "how many cards was this player shown", and three of those
+  // cards are ANSWERED below — signing a licence offer, resolving a choice, matching a poach —
+  // which nulls the field. Counting after the answers reported licence offers as 0 across 40
+  // full runs ("NEVER FIRES") while players were signing 3–7 of them per run: a measurement bug
+  // that read as dead content and would have misdirected tuning.
+  for (const key of INTERRUPT_ORDER) {
+    if (s[PENDING_FIELD[key]] != null) interrupts[key]++;
+  }
+  // ACCEPT, don't just dismiss. Nulling a pending card frees the interrupt budget, but nulling a
+  // licence offer is DECLINING it — and a bot that declines everything can never reach the content
+  // those acceptances gate (three concurrent OS licensees, six delivered contracts…). Same class of
+  // blind spot as the unanswered choice card: the difference between "the player saw this" and "the
+  // player said yes" is invisible in a pending-field count.
   if (s.pendingLicenseOffer) { const r = signLicenseOffer(s); if (r.ok) s = r.state; }
   if (s.pendingChoice) {
     const opts = s.pendingChoice.event.options ?? [];
@@ -227,7 +243,7 @@ function settleWeek(s, interrupts, verdicts, verdictsByEra, countedLaunches) {
   const cleared = {};
   for (const key of INTERRUPT_ORDER) {
     const field = PENDING_FIELD[key];
-    if (s[field] != null) { interrupts[key]++; cleared[field] = null; }
+    if (s[field] != null) cleared[field] = null;
   }
   if (Object.keys(cleared).length) s = { ...s, ...cleared };
 
@@ -635,7 +651,9 @@ console.log("");
   for (const [id, cs] of short) {
     const frac = median(cs.map((c) => c.frac));
     const bar = "#".repeat(Math.round(frac * 16)).padEnd(16, ".");
-    const note = frac === 0 ? "  <- 0%: needs a strategy this policy never uses (verify before calling it unreachable)" : "";
+    const note = frac === 0
+    ? "  <- 0%: rare for THIS policy — verified reachable (sellouts occur on some seeds at runSkew 0; a player who under-produces or pushes marketing mid-run earns them far faster)"
+    : "";
     console.log(`  ${id.padEnd(18)} ${NAMES[median(cs.map((c) => c.stage))].padEnd(10)} ${bar} ${(100 * frac).toFixed(0)}%${note}`);
   }
   console.log("");
