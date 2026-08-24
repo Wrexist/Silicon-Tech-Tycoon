@@ -254,8 +254,16 @@ Our data-driven `catalogs.ts` makes most of this cheap. Mix free drops (goodwill
 - [ ] **Era-distinct mechanics** — each era should *play* differently, not just scale numbers
       (deliberately deferred large item: it reshapes the per-era economy and needs a full playtest).
       The v23.2 era-specific events/choices are the safe slice; true mechanic divergence is the big bet.
-- [ ] **Deterministic "this week in tech" headlines** seeded from run state (the live feed may
-      already cover this — verify before building).
+- [ ] **Deterministic "this week in tech" headlines** seeded from run state — VERIFIED against
+      source 2026-08-24: *partially covered, deliberately not built further*. What exists: the feed's
+      reactive lines; two genuine world-context beats (trend-retarget line, `engine/climate.ts`
+      narration — both deterministic, but transition-weeks only); and `engine/buzz.ts` (BuzzTicker),
+      which IS the described headline style (rank/OS/rival/era context, pure fold over state, zero
+      RNG) but is render-only — never persisted to the feed, rotated by wall clock. What's missing:
+      a week-seeded ambient line on QUIET weeks (a `hash01(seed, week, freshSalt)` pool). The build
+      is small and the salt pattern is established, but the 2026-08 noise audit's verdict ("adding:
+      nothing — surface what exists more calmly") argues against a new ambient stream. Decide
+      against live-player feedback, not in the repo.
 - [ ] **Scenario authoring from a finished run** → shareable offline "challenge codes" (a pasteable
       string, our server-free substitute for sharing leaderboard runs).
 - [x] **Bankruptcy post-mortem share card** — DONE 2026-06-21. `ResultCard variant="postmortem"`

@@ -225,12 +225,14 @@ Run the AUDIT PROMPT (see plan §12) after P3 (engine+state) and after P5 (all s
 
 ## Backlog
 _(append out-of-scope improvements here as one-liners; do not act mid-session)_
-- **CSS token bug — `--spring-bounce` is undefined.** `eurekaMoment.css` (`.eur__glyph`) and
-  possibly others animate with `var(--spring-bounce)`, but no such token exists in `tokens.css` (or
-  anywhere else). An undefined var invalidates the whole `animation` shorthand, so those glyph
-  entrance animations silently never play. Fix: either define `--spring-bounce` in `tokens.css`
-  (an overshoot cubic-bezier, e.g. `420ms cubic-bezier(0.34, 1.56, 0.64, 1)`) or replace the usages
-  with `var(--spring-gentle)`. Found while building the paywall, which uses `--spring-gentle`.
+- [DONE 2026-08-24] **CSS token bug — `--spring-bounce` was undefined.** Ten call sites (eureka,
+  community ask, staff moment, rivalry declared, regional event, review prompt, earnings call,
+  contract offer glyphs + two fallback'd sites) animated with `var(--spring-bounce)`; the undefined
+  var invalidated the whole `animation` shorthand so eight of those entrances silently never played.
+  Fixed as prescribed: `--spring-bounce: 420ms cubic-bezier(0.34, 1.56, 0.64, 1)` in tokens.css +
+  the reduced-motion `1ms linear` neutralization beside the other springs. All eight keyframes end
+  at the base state (`transform: none; opacity: 1`), so this adds ONLY the authored entrance pop —
+  no settled frame changes.
 - **Free-tier ending is open-ended.** With the Pro wall at the era-3 advance, free players can never
   reach the IPO, so they get no terminal beat — the run just continues. If free retention looks weak
   post-launch, a *smaller* Growth-Era ending (a "you built something real" card at some revenue
@@ -240,7 +242,10 @@ _(append out-of-scope improvements here as one-liners; do not act mid-session)_
   mentorship/poaching/morale/loans, synergy archetypes/buyer mixes/research forks/subsystems) plus
   several polish waves — none logged here. 1.0.2's App Store "What's New" was written straight from
   `git log` + `DEPTH_PLAN.md` instead. Needs a v14-style reconciliation pass to bring TASK.md current.
-- **CSS bug — `src/screens/designLab.css`:** `.lab__hero-grid` is declared twice — as the Design Lab's two-column layout (~L121) AND as the dot-texture backdrop with `position:absolute;inset:0` (~L138). The absolute leaks onto the layout grid, pulling it out of flow, so at the app's 540px max width the Design Lab hero overlaps the Category selector (invisible on ≤430px phones). Fix: rename the backdrop-texture class (e.g. `.lab__hero-dots`) in the CSS + `DesignLab.tsx`. Worked around at capture-time in `shots-store.mjs`/`shots-ipad.mjs`; the real fix belongs in source.
+- [DONE — verified in source 2026-08-24] **CSS bug — `.lab__hero-grid` declared twice** in
+  designLab.css: already fixed as prescribed — the dot-texture backdrop is its own `.lab__hero-dots`
+  class (designLab.css L154, rendered by DesignLab.tsx L659); `.lab__hero-grid` (L137) is only the
+  layout grid. Stale backlog line.
 - **[PLAN READY] Supply chain — Suppliers & Factories.** Full design + phased build plan in
   `SUPPLY_CHAIN_PLAN.md`. Turns the opaque manufacturing step into real choices (where parts come
   from / where you build), and gives the existing random `supplyCrunch` events a player-controlled
@@ -2425,3 +2430,25 @@ Four fixes from playtest screenshots.
       workstation now flips the seat to the desk's FRONT (figure works facing the wall, like a
       real wall-facing desk) — applied to occupied desks, empty-desk chairs, and Decorate mode.
 - Gates: tsc 0 · 800 tests · build+PWA green · engine/state untouched (UI-only round).
+
+> **Gap note (2026-08-24):** v113+ (2026-07-07 → 2026-08-22) shipped without TASK.md entries — the
+> Silicon Pro pivot (free download + subscription, RevenueCat/StoreKit 2 seam), two App Store
+> rejection fixes, the five-audit noise/guidance/architecture round (AUDIT_2026-08-14.md), iPad +
+> rem-type, F36 context split, and the balance-sim archetype panel. `git log` + AUDIT_2026-08-14.md
+> + ROADMAP.md §0 are the authoritative record for that stretch.
+
+## v12x — F13 finished (furniture on shared GPU objects) + the bounce that never played (2026-08-24)
+- [x] **Whole furniture catalog on sharedGpu** (ROADMAP Phase 5 F13 remainder): all ~86 parametric
+      pieces in `furniture3d.tsx` — 365 mesh sites, none left declarative — take geometries/materials
+      from the pools as props. `sharedGpu.ts` gained plane/cone/ring pools, `sharedBasic` +
+      `sharedPhysical`, a `side` key on standard; `sharedRounded` now builds drei's EXACT
+      `<RoundedBox>` extrude (the old three-stdlib RoundedBoxGeometry was a lookalike mesh), and
+      material pools strip undefined params (three warns per undefined key). 5 new
+      `sharedGpu.test.ts` pins. Verified pixel-equivalent in the shots harness on the default staged
+      room AND a 26-item exotic-catalog staged layout (mean channel Δ ≤0.23/255, diffs only in the
+      animation band). tsc 0 · 1,703 tests · build+PWA green · determinism untouched (render-only).
+- [x] **`--spring-bounce` defined** (backlog item, found-while-building-the-paywall): eight interrupt
+      glyph entrances (eureka / community / staff moment / rivalry / regional / review stars /
+      earnings / contract) referenced the token that never existed, so their authored pops never
+      played. Token added exactly as the backlog prescribed + reduced-motion neutralization; settled
+      frames provably unchanged (every keyframe ends at base state).
