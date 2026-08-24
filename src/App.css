@@ -338,6 +338,15 @@
   gap: var(--sp-16);
   padding: var(--sp-8) 0;
 }
+/* Matches the loaded Settings/Progress `<h2>` (--fs-title, weight 700) AND their container's
+   zero top padding + --sp-16 gap, so the heading sits on the same pixel before and after the
+   chunk lands — the skeleton names the sheet instead of leaving an anonymous shell. */
+.app__screen-loading--titled { padding-top: 0; }
+.app__screen-loading-title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  margin: 0;
+}
 .app__screen-loading-bar {
   height: 96px;
   border-radius: var(--r-card);

@@ -269,12 +269,12 @@ function AppShell() {
       <ToastHost />
       <Bank open={bankOpen} onClose={() => setBankOpen(false)} />
       <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)} label="Settings">
-        <Suspense fallback={<ScreenLoading />}>
+        <Suspense fallback={<ScreenLoading title="Settings" />}>
           <Settings onClose={() => setSettingsOpen(false)} />
         </Suspense>
       </Sheet>
       <Sheet open={progressOpen} onClose={() => setProgressOpen(false)} label="Progress">
-        <Suspense fallback={<ScreenLoading />}>
+        <Suspense fallback={<ScreenLoading title="Progress" />}>
           <ProgressSheet onClose={() => setProgressOpen(false)} initialView={progressView} />
         </Suspense>
       </Sheet>
@@ -324,9 +324,23 @@ function TabBlockedOverlay({ onTakeOver }: { onTakeOver: () => void }) {
  *  with, so the tab switch reads as "loading" rather than "broken" — and, because it occupies the
  *  same box, nothing jumps when the real content lands. Purely presentational; no text to read and
  *  discard in the ~1 frame this is usually up for on a warm cache. */
-function ScreenLoading() {
+/** Suspense fallback while a lazy screen's chunk downloads.
+ *
+ *  `title` matters more than it looks. A TAB screen renders its `<h1>` outside Suspense, so a
+ *  loading tab still says "Research" — but a SHEET's name lives only in the dialog's aria-label,
+ *  so without this the sheet paints as an anonymous shell of blank boxes, which reads as a broken
+ *  screen rather than a loading one (it looked exactly that way in a capture, and a cold chunk
+ *  fetch on a slow connection shows a player the same thing). The heading uses the same
+ *  `--fs-title` weight the loaded Settings/Progress headers use, so nothing jumps when the real
+ *  content swaps in. */
+function ScreenLoading({ title }: { title?: string }) {
   return (
-    <div className="app__screen-loading" role="status" aria-label="Loading">
+    <div
+      className={`app__screen-loading${title ? " app__screen-loading--titled" : ""}`}
+      role="status"
+      aria-label={title ? `Loading ${title}` : "Loading"}
+    >
+      {title && <h2 className="app__screen-loading-title" aria-hidden>{title}</h2>}
       <div className="app__screen-loading-bar" />
       <div className="app__screen-loading-bar" />
       <div className="app__screen-loading-bar" />
@@ -773,7 +787,7 @@ function Onboarding({ onStart }: { onStart: () => void }) {
         </div>
       </div>
       <Sheet open={scenariosOpen} onClose={() => setScenariosOpen(false)} label="Scenarios">
-        <Suspense fallback={<ScreenLoading />}>
+        <Suspense fallback={<ScreenLoading title="Scenarios" />}>
           <ScenariosSheet onClose={() => setScenariosOpen(false)} initialName={name} />
         </Suspense>
       </Sheet>
