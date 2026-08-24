@@ -1864,7 +1864,7 @@
   gap: var(--sp-12);
   padding: var(--sp-4) 0 var(--sp-8);
 }
-.ctr__title { margin: 0; font-size: var(--fs-h2); font-weight: 800; letter-spacing: -0.02em; }
+.ctr__title { margin: 0; font-size: var(--fs-headline); font-weight: 800; letter-spacing: -0.02em; }
 .ctr__sub { margin: 0; font-size: var(--fs-body); color: var(--ink-2); line-height: 1.4; }
 .ctr__active {
   margin: 0;

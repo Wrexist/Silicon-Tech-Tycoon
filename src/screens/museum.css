@@ -60,11 +60,11 @@
 .mus__coll {
   padding: var(--sp-12);
   background: var(--glass-well); border: 1px solid var(--glass-well-edge);
-  border-radius: var(--radius-12);
+  border-radius: var(--r-button);
 }
 .mus__coll--done { border-color: color-mix(in srgb, var(--positive) 45%, var(--glass-well-edge)); }
 .mus__coll-top { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
-.mus__coll-name { display: inline-flex; align-items: center; gap: var(--sp-4); font-size: var(--fs-body); font-weight: 700; color: var(--ink-1); }
+.mus__coll-name { display: inline-flex; align-items: center; gap: var(--sp-4); font-size: var(--fs-body); font-weight: 700; color: var(--ink); }
 .mus__coll--done .mus__coll-name { color: var(--positive); }
 .mus__coll-count { font-size: var(--fs-caption); font-weight: 700; color: var(--ink-3); }
 .mus__coll-desc { display: block; margin: 2px 0 var(--sp-8); font-size: var(--fs-caption); color: var(--ink-3); }

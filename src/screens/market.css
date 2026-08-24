@@ -1361,7 +1361,7 @@
   gap: var(--sp-8);
   font-size: var(--fs-caption);
   font-weight: 700;
-  color: var(--ink-1);
+  color: var(--ink);
 }
 .pd__reorder-head svg { color: var(--accent); flex-shrink: 0; }
 .pd__reorder-tag {

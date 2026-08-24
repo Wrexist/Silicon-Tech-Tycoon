@@ -132,6 +132,10 @@
   --spring-standard: 350ms cubic-bezier(0.22, 1, 0.36, 1);
   --spring-snappy: 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
   --spring-gentle: 500ms cubic-bezier(0.25, 1, 0.4, 1);
+  /* Overshoot pop for celebratory glyph entrances. Ten call sites referenced this token before it
+     existed — an undefined var() invalidates the whole `animation` shorthand, so those entrances
+     silently never played. Do not remove without migrating them. */
+  --spring-bounce: 420ms cubic-bezier(0.34, 1.56, 0.64, 1);
   --count-up: 600ms;
 
   color-scheme: light dark;
@@ -282,6 +286,7 @@
     --spring-standard: 1ms linear;
     --spring-snappy: 1ms linear;
     --spring-gentle: 1ms linear;
+    --spring-bounce: 1ms linear;
     --count-up: 1ms;
   }
 }

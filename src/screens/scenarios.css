@@ -389,7 +389,7 @@
 .season__title {
   font-size: var(--fs-body);
   font-weight: 700;
-  color: var(--ink-1);
+  color: var(--ink);
   margin: 0;
 }
 .season__sub {
@@ -456,7 +456,7 @@
 .season__rung-name {
   font-size: var(--fs-caption);
   font-weight: 700;
-  color: var(--ink-1);
+  color: var(--ink);
 }
 .season__rung-kind {
   font-size: var(--fs-micro);

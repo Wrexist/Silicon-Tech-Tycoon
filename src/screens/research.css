@@ -458,7 +458,7 @@
   width: 1.5px;
   flex: 1;
   min-height: 16px;
-  background: var(--border);
+  background: var(--hairline);
   margin: 4px 0;
 }
 .rd__roadmap-body {
@@ -535,7 +535,7 @@
 .rd__roadmap-tag--locked {
   background: color-mix(in srgb, var(--ink-3) 7%, transparent);
   color: var(--ink-3);
-  border-color: var(--border);
+  border-color: var(--hairline);
 }
 
 /* "Used in" category tags on component tech cards */

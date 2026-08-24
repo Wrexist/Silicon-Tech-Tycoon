@@ -100,7 +100,7 @@
   display: flex; align-items: center; gap: var(--sp-4);
   font-size: var(--fs-caption); color: var(--ink-2);
 }
-.hq__ladder strong { color: var(--ink-1); font-weight: 700; }
+.hq__ladder strong { color: var(--ink); font-weight: 700; }
 .hq__ladder svg { color: var(--accent); flex: none; }
 .hq__ladder--top svg { color: var(--positive); }
 
@@ -132,7 +132,7 @@
 .hq__feed-item--accent .hq__feed-icon { color: var(--accent); }
 /* Item A2 — salience: elevate the beats that matter, mute the milestone spam (shown when expanded). */
 .hq__feed-item--high {
-  color: var(--ink-1); font-weight: 600;
+  color: var(--ink); font-weight: 600;
   padding-left: var(--sp-8);
   border-left: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
   margin-left: -2px;
@@ -492,7 +492,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--ink-1);
+  color: var(--ink);
 }
 .hqb__sw--locked:active {
   transform: none;
@@ -1369,7 +1369,7 @@
   font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4;
 }
 .hq__unlock-list li svg { flex: none; margin-top: 2px; color: var(--accent); }
-.hq__unlock-list strong { color: var(--ink-1); font-weight: 700; }
+.hq__unlock-list strong { color: var(--ink); font-weight: 700; }
 .hq__unlock-actions { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
 .hq__unlock-actions > * { flex: 1 1 auto; }
 .hq__next-head {
@@ -1556,7 +1556,7 @@
   gap: var(--sp-4);
   font-size: var(--fs-nano);
   font-weight: 700;
-  color: var(--ink-1);
+  color: var(--ink);
 }
 .hq__frontier-lane-head svg { color: var(--accent); flex-shrink: 0; }
 .hq__frontier-lane-count {
@@ -1646,7 +1646,7 @@
   gap: var(--sp-4);
   font-size: var(--fs-caption);
   font-weight: 700;
-  color: var(--ink-1);
+  color: var(--ink);
 }
 .hq__board-mult {
   font-size: var(--fs-caption);
@@ -1693,7 +1693,7 @@
   gap: var(--sp-4);
   font-size: var(--fs-caption);
   font-weight: 700;
-  color: var(--ink-1);
+  color: var(--ink);
 }
 .hq__focus-cost {
   font-size: var(--fs-nano);
@@ -2024,8 +2024,8 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 .hq__community-moment svg { color: var(--accent); flex-shrink: 0; }
 
 /* Nemesis Boss ladder (feature #7) — the passive "you vs them" duel card. */
-.hq__duel { border-color: color-mix(in srgb, var(--negative) 26%, var(--border)); }
-.hq__duel--ahead { border-color: color-mix(in srgb, var(--positive) 30%, var(--border)); }
+.hq__duel { border-color: color-mix(in srgb, var(--negative) 26%, var(--hairline)); }
+.hq__duel--ahead { border-color: color-mix(in srgb, var(--positive) 30%, var(--hairline)); }
 .hq__duel-head { display: flex; align-items: center; gap: var(--sp-12); margin-bottom: var(--sp-12); }
 .hq__duel-glyph {
   display: flex; align-items: center; justify-content: center;
@@ -2120,7 +2120,7 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 .hq__ops-act {
   display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
   padding: var(--sp-8) var(--sp-10); border-radius: var(--r-button);
-  background: var(--surface); border: 1px solid var(--border);
+  background: var(--surface); border: 1px solid var(--hairline);
   cursor: pointer; -webkit-tap-highlight-color: transparent; text-align: left;
 }
 .hq__ops-act svg { color: var(--ink-2); }
@@ -2147,7 +2147,7 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 .hq__ops-reorder-opts { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
 .hq__ops-reorder-opt {
   padding: 5px 10px; border-radius: var(--r-pill);
-  background: var(--surface); border: 1px solid var(--border);
+  background: var(--surface); border: 1px solid var(--hairline);
   font-size: var(--fs-nano); font-weight: 700; color: var(--ink-2);
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
