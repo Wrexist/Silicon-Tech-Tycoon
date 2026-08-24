@@ -187,13 +187,17 @@ Logged across v9/v16/v17 audits; refreshed against source 2026-08.
 
 - [x] **State/actions context split (F36):** DONE — external-store context split landed
       (`refactor(state): external-store context split (F36)`).
-- [~] **Shared geometry/material cache (F13, evolved):** `garage3d/sharedGpu.ts` now pools
-      geometries/materials by full args, and the whole per-employee cluster is converted
-      (`RobotCharacter` + `Chair` + `HeadAccessory` + `DeskClutter` — up to ~16 copies of each no
-      longer allocate per instance per mount; verified pixel-equivalent in the shots harness).
-      Remaining: the parametric furniture catalog in `furniture3d.tsx` (~86 items) — same mechanical
-      conversion, do it incrementally. Only `BrickWall` + dust are instanced; light-mode VSM doubles
-      shadow cost.
+- [x] **Shared geometry/material cache (F13, evolved):** `garage3d/sharedGpu.ts` pools
+      geometries/materials by full args. The per-employee cluster was converted first
+      (`RobotCharacter` + `Chair` + `HeadAccessory` + `DeskClutter`), then the ENTIRE parametric
+      furniture catalog in `furniture3d.tsx` (all ~86 items, 365 mesh sites — none left declarative).
+      `sharedRounded` now builds drei's exact extrude-with-creased-normals geometry (the earlier
+      three-stdlib RoundedBoxGeometry was a lookalike, not the same mesh), material pools strip
+      undefined params (three warns per undefined key per construction), and `sharedBasic`/
+      `sharedPhysical`/plane/cone/ring pools were added. Pinned by `sharedGpu.test.ts`; verified
+      pixel-equivalent in the shots harness on both the default staged room and a 26-item
+      "exotic catalog" staged layout. Still open (smaller): only `BrickWall` + dust are instanced;
+      light-mode VSM doubles shadow cost.
 - [ ] **`frameloop="demand"` + `invalidate()`** retrofit for battery — measured HIGH-RISK: 36
       always-on animation sites across Garage3D/Factory3D would each need invalidation or they
       silently freeze. The cheap wins already shipped (off-screen `"never"`, hidden-tab pause,
