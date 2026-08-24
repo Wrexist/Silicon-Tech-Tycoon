@@ -67,7 +67,7 @@
 }
 .rtl__title {
   margin: 0;
-  font-size: var(--fs-h2);
+  font-size: var(--fs-headline);
   font-weight: 800;
   letter-spacing: -0.02em;
 }

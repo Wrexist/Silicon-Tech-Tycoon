@@ -81,7 +81,7 @@
 .help__term {
   font-size: var(--fs-caption);
   font-weight: 700;
-  color: var(--ink-1);
+  color: var(--ink);
 }
 .help__def {
   font-size: var(--fs-caption);
@@ -103,7 +103,7 @@
 .help__coach-title {
   font-size: var(--fs-caption);
   font-weight: 700;
-  color: var(--ink-1);
+  color: var(--ink);
 }
 .help__coach-sub {
   font-size: var(--fs-nano);
