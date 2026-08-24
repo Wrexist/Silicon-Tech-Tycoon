@@ -55,15 +55,19 @@ describe("CSS custom-property references", () => {
       for (const m of t.matchAll(/["'`]--([\w-]+)["'`]/g)) defined.add(m[1]);
     }
 
+    // Scan CSS *and* TS/TSX: inline styles reference tokens too (`accent: "var(--fn-design)"`),
+    // and a typo there fails exactly as silently as one in a stylesheet. Scanning whole file text
+    // rather than line-by-line also catches a var() split across lines; the line number is
+    // recovered from the match index for the error message.
     const offenders: string[] = [];
-    for (const f of cssFiles) {
-      readFileSync(f, "utf8").split("\n").forEach((line, idx) => {
-        for (const m of line.matchAll(/var\(\s*--([\w-]+)\s*([,)])/g)) {
-          if (m[2] === ")" && !defined.has(m[1])) {
-            offenders.push(`${rel(f)}:${idx + 1}  var(--${m[1]}) — never defined, no fallback`);
-          }
+    for (const f of files) {
+      const text = readFileSync(f, "utf8");
+      for (const m of text.matchAll(/var\(\s*--([\w-]+)\s*([,)])/g)) {
+        if (m[2] === ")" && !defined.has(m[1])) {
+          const line = text.slice(0, m.index).split("\n").length;
+          offenders.push(`${rel(f)}:${line}  var(--${m[1]}) — never defined, no fallback`);
         }
-      });
+      }
     }
 
     expect(offenders, "define the token, fix the name, or give the var() a fallback:\n" + offenders.join("\n")).toEqual([]);

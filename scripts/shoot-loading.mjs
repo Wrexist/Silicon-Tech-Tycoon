@@ -10,16 +10,34 @@
 //   npm run build && node scripts/shoot-loading.mjs        # -> .shots/loading/settings-loading.png
 //   OUT_DIR=.shots/loading-before node scripts/shoot-loading.mjs
 import { createServer } from "node:http";
-import { readFile, mkdir } from "node:fs/promises";
-import { resolve, extname, normalize } from "node:path";
+import { readFile, mkdir, access } from "node:fs/promises";
+import { dirname, resolve, extname, normalize } from "node:path";
+import { fileURLToPath } from "node:url";
 import { chromium } from "playwright-core";
 
-const root = "/home/user/Silicon-Tech-Tycoon";
+// Paths are derived from this file, never hardcoded — the script has to run on any checkout.
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const distDir = resolve(root, "dist");
-const PORT = 5233;
+const PORT = Number(process.env.SHOTS_PORT || 5233);
 const EXE = process.env.SHOTS_CHROME || "/opt/pw-browsers/chromium";
-const outDir = process.env.OUT_DIR || "/home/user/Silicon-Tech-Tycoon/.shots/loading";
+const outDir = process.env.OUT_DIR
+  ? resolve(process.env.OUT_DIR)
+  : resolve(root, ".shots", "loading");
+const SAVE = process.env.SHOTS_SAVE || "/tmp/silicon-stage.json";
 await mkdir(outDir, { recursive: true });
+
+// Fail with the fix, not with an ENOENT stack: both inputs come from other commands.
+for (const [path, hint] of [
+  [resolve(distDir, "index.html"), "npm run build"],
+  [SAVE, "npm run shots:stage (or point SHOTS_SAVE at a save JSON)"],
+]) {
+  try {
+    await access(path);
+  } catch {
+    console.error(`missing ${path}\n  -> run: ${hint}`);
+    process.exit(1);
+  }
+}
 
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".woff2": "font/woff2", ".ico": "image/x-icon" };
 const indexFile = resolve(distDir, "index.html");
@@ -33,7 +51,7 @@ const server = createServer(async (req, res) => {
 });
 await new Promise((r) => server.listen(PORT, r));
 
-const save = JSON.parse((await readFile("/tmp/silicon-stage.json")).toString());
+const save = JSON.parse((await readFile(SAVE)).toString());
 save.lastActive = Date.now();
 const staged = JSON.stringify(save);
 
@@ -41,10 +59,13 @@ const browser = await chromium.launch({ executablePath: EXE, args: ["--no-sandbo
 // serviceWorkers: "block" — the PWA precaches every chunk, so a returning player never hits the
 // network for Settings. A FIRST load (no SW yet) does, which is the case this frame is about.
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, colorScheme: "dark", serviceWorkers: "block" });
+// Keys must match the app EXACTLY: persistence.ts uses "silicon.save.v1" and settings.ts uses
+// "silicon.settings" (no .v1 — an earlier draft of this script wrote "silicon.settings.v1", which
+// the app ignores, so the run silently fell back to default settings). Settings are merged over
+// DEFAULTS by settings.ts, so a partial object is fine; sound/haptics off keep the capture quiet.
 await ctx.addInitScript((v) => {
   localStorage.setItem("silicon.save.v1", v);
-  localStorage.setItem("silicon.settings.v1", JSON.stringify({ theme: "dark", sound: false, haptics: false }));
-  localStorage.setItem("silicon.tutorial.seen", "1");
+  localStorage.setItem("silicon.settings", JSON.stringify({ theme: "dark", sound: false, haptics: false }));
 }, staged);
 
 // Hold the Settings/Progress chunks well past the screenshot so their fallback is what's on
