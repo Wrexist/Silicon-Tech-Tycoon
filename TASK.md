@@ -237,11 +237,14 @@ _(append out-of-scope improvements here as one-liners; do not act mid-session)_
   reach the IPO, so they get no terminal beat — the run just continues. If free retention looks weak
   post-launch, a *smaller* Growth-Era ending (a "you built something real" card at some revenue
   milestone) is a better answer than moving `FREE_TIER.maxEra`. See `MONETIZATION.md` §9.
-- **TASK.md is stale again**: last dated entry is v56 (2026-06-28), but 52 commits since then shipped
-  all of DEPTH_PLAN.md Tracks A–D (v57–v69: narrative/voice, cascading events, rival story arcs,
-  mentorship/poaching/morale/loans, synergy archetypes/buyer mixes/research forks/subsystems) plus
-  several polish waves — none logged here. 1.0.2's App Store "What's New" was written straight from
-  `git log` + `DEPTH_PLAN.md` instead. Needs a v14-style reconciliation pass to bring TASK.md current.
+- **TASK.md drifts behind the code — a standing hazard, logged twice now.** As of 2026-06-28 the
+  last *versioned* entry was v56 while 52 commits had shipped all of DEPTH_PLAN.md Tracks A–D
+  (v57–v69: narrative/voice, cascading events, rival story arcs, mentorship/poaching/morale/loans,
+  synergy archetypes/buyer mixes/research forks/subsystems) plus several polish waves — none logged
+  here, so 1.0.2's App Store "What's New" was written straight from `git log` + `DEPTH_PLAN.md`.
+  It happened again through v113+ (see the gap note above the v12x entry). The changelog now runs
+  to v12x (2026-08-24); treat `git log` + the dated audits as authoritative whenever this file and
+  the source disagree, and reconcile in a v14-style pass rather than trusting the last heading.
 - [DONE — verified in source 2026-08-24] **CSS bug — `.lab__hero-grid` declared twice** in
   designLab.css: already fixed as prescribed — the dot-texture backdrop is its own `.lab__hero-dots`
   class (designLab.css L154, rendered by DesignLab.tsx L659); `.lab__hero-grid` (L137) is only the

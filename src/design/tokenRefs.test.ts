@@ -29,9 +29,47 @@ function walk(dir: string, out: string[] = []): string[] {
   return out;
 }
 
-const files = walk(SRC);
+// This file is excluded from its own scan: it necessarily contains `var(--x)` examples in prose
+// and token names in assertions, which are neither real references nor real definitions.
+const SELF = fileURLToPath(import.meta.url);
+const files = walk(SRC).filter((p) => p !== SELF);
 const cssFiles = files.filter((p) => p.endsWith(".css"));
 const rel = (p: string) => p.slice(SRC.length + 1);
+
+/** Everything the `animation` shorthand accepts that ISN'T a @keyframes name. */
+const ANIMATION_KEYWORDS = new Set([
+  "none", "inherit", "initial", "unset", "revert", "revert-layer",
+  "linear", "ease", "ease-in", "ease-out", "ease-in-out", "step-start", "step-end",
+  "infinite", "normal", "reverse", "alternate", "alternate-reverse",
+  "forwards", "backwards", "both", "running", "paused",
+]);
+
+/** Drop `fn(…)` calls — innermost first, so nesting unwinds — because they hold the commas that
+ *  would otherwise break item splitting (`cubic-bezier(0.2, 0.9, …)`, `var(--a, var(--b))`) and
+ *  never contain an animation name. */
+function stripFunctions(value: string): string {
+  let out = value, prev = "";
+  while (out !== prev) {
+    prev = out;
+    out = out.replace(/[\w-]*\([^()]*\)/g, " ");
+  }
+  return out;
+}
+
+/** The @keyframes names an `animation` shorthand value refers to — one per comma-separated item,
+ *  found regardless of field order (`fade 200ms` and `200ms ease fade` both name `fade`).
+ *  Exported shape kept tiny and pure so the parser itself is unit-testable above. */
+function animationNames(value: string): string[] {
+  return stripFunctions(value)
+    .split(",")
+    .flatMap((item) =>
+      item
+        .trim()
+        .split(/\s+/)
+        // Names are identifiers; durations/counts start with a digit or sign, so they drop out.
+        .filter((tok) => /^-?[a-zA-Z_][\w-]*$/.test(tok) && !ANIMATION_KEYWORDS.has(tok)),
+    );
+}
 
 describe("CSS custom-property references", () => {
   it("is actually reading stylesheet CONTENT (not just finding filenames)", () => {
@@ -50,9 +88,12 @@ describe("CSS custom-property references", () => {
       const t = readFileSync(f, "utf8");
       // CSS declarations: --name: value
       for (const m of t.matchAll(/--([\w-]+)\s*:/g)) defined.add(m[1]);
-      // TS/TSX: any string literal naming a custom property counts as a definition site —
-      // covers style={{ "--i": i }}, style={{ ["--i" as string]: i }}, setProperty("--x", …).
-      for (const m of t.matchAll(/["'`]--([\w-]+)["'`]/g)) defined.add(m[1]);
+      // TS/TSX definition SITES only — an object key (`style={{ "--a": … }}`, or the
+      // `["--i" as string]:` computed-key form) or a setProperty call. Deliberately NOT "any
+      // quoted --name": this file itself contains `toContain("--spring-bounce")`, and counting
+      // that as a definition would let the assertion prop up the very reference it is checking.
+      for (const m of t.matchAll(/["'`]--([\w-]+)["'`](?:\s+as\s+[\w.]+)?\s*\]?\s*:/g)) defined.add(m[1]);
+      for (const m of t.matchAll(/setProperty\(\s*["'`]--([\w-]+)/g)) defined.add(m[1]);
     }
 
     // Scan CSS *and* TS/TSX: inline styles reference tokens too (`accent: "var(--fn-design)"`),
@@ -73,24 +114,36 @@ describe("CSS custom-property references", () => {
     expect(offenders, "define the token, fix the name, or give the var() a fallback:\n" + offenders.join("\n")).toEqual([]);
   });
 
+  it("parses animation names out of the shorthand in any field order", () => {
+    // Regression cases for the shape the first version missed: it read only the identifier
+    // immediately after `animation:`, so a name placed after a duration, or any name past the
+    // first in a comma-separated list, was never checked.
+    expect(animationNames("fade 200ms ease both")).toEqual(["fade"]);
+    expect(animationNames("200ms ease late-name")).toEqual(["late-name"]);
+    expect(animationNames("fade 200ms, second-name 1s")).toEqual(["fade", "second-name"]);
+    // Commas inside functions must not split an item, and function values are never names.
+    expect(animationNames("cele-ray 520ms var(--d) cubic-bezier(0.2, 0.9, 0.3, 1) both")).toEqual(["cele-ray"]);
+    expect(animationNames("awd-drop var(--spring-bounce, var(--spring-standard)) both")).toEqual(["awd-drop"]);
+    // Pure-keyword declarations name nothing.
+    expect(animationNames("none")).toEqual([]);
+  });
+
   it("every animation name used in css has matching @keyframes", () => {
     const keyframes = new Set<string>();
     for (const f of cssFiles) {
       for (const m of readFileSync(f, "utf8").matchAll(/@keyframes\s+([\w-]+)/g)) keyframes.add(m[1]);
     }
-    const keywords = new Set([
-      "none", "inherit", "initial", "unset", "revert", "var", "infinite", "linear", "ease",
-      "forwards", "backwards", "both", "paused", "running", "alternate",
-    ]);
     const offenders: string[] = [];
     for (const f of cssFiles) {
-      readFileSync(f, "utf8").split("\n").forEach((line, idx) => {
-        for (const m of line.matchAll(/animation(?:-name)?:\s*([a-zA-Z][\w-]*)/g)) {
-          if (!keyframes.has(m[1]) && !keywords.has(m[1])) {
-            offenders.push(`${rel(f)}:${idx + 1}  animation "${m[1]}" has no @keyframes`);
+      const text = readFileSync(f, "utf8");
+      for (const m of text.matchAll(/animation(?:-name)?\s*:\s*([^;{}]+)/g)) {
+        for (const name of animationNames(m[1])) {
+          if (!keyframes.has(name)) {
+            const line = text.slice(0, m.index).split("\n").length;
+            offenders.push(`${rel(f)}:${line}  animation "${name}" has no @keyframes`);
           }
         }
-      });
+      }
     }
     expect(offenders, offenders.join("\n")).toEqual([]);
   });
