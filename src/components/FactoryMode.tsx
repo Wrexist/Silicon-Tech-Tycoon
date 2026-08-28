@@ -731,8 +731,8 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               return (
                 <>
                   <div className="fmode__build-seg" role="tablist" aria-label="Build category">
-                    <button role="tab" aria-selected={buildCat === "machine"} className={`fmode__build-tab${buildCat === "machine" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Machines</button>
-                    <button role="tab" aria-selected={buildCat === "decor"} className={`fmode__build-tab${buildCat === "decor" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("decor"); setBuildTool("crates"); }}>Decor</button>
+                    <button role="tab" id="fmode-build-tab-machine" aria-controls="fmode-build-palette" aria-selected={buildCat === "machine"} className={`fmode__build-tab${buildCat === "machine" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Machines</button>
+                    <button role="tab" id="fmode-build-tab-decor" aria-controls="fmode-build-palette" aria-selected={buildCat === "decor"} className={`fmode__build-tab${buildCat === "decor" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("decor"); setBuildTool("crates"); }}>Decor</button>
                   </div>
                   <span className="fmode__build-rule">{buildTool === "belt" ? "Drag to paint a belt run · tap for one · Auto routes it all." : buildCat === "machine" ? "Tap to place · hold any piece to move it. Erase refunds half." : "Tap to place · hold a prop to move it. Erase refunds half."}</span>
                   {/* Undo: a true reversal of the last build action, cash included — the same deal the
@@ -749,7 +749,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               );
             })()}
           </div>
-          <div className="fmode__palette">
+          <div className="fmode__palette" role="tabpanel" id="fmode-build-palette" aria-labelledby={`fmode-build-tab-${buildCat}`}>
             {buildCat === "machine" ? (
               <>
                 <button

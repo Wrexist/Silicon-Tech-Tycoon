@@ -582,7 +582,10 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
   const [glLost, setGlLost] = useState(false);
   // Stable identity so the memoized Garage3D office scene isn't re-rendered every sim tick by a fresh
   // inline arrow (its shallow prop compare would fail). onNavigate is a useState setter (stable).
-  const handleTapStaff = useCallback(() => onNavigate("company"), [onNavigate]);
+  // Tapping a staff robot / the bank vault mirrors its 2D sibling's feedback (BottomNav tab taps and
+  // the UnlockCard Bank button both fire haptic.light) — the haptics module respects the user setting.
+  const handleTapStaff = useCallback(() => { haptic.light(); onNavigate("company"); }, [onNavigate]);
+  const handleTapBank = useCallback(() => { haptic.light(); onOpenBank(); }, [onOpenBank]);
 
   // Decorate is a full-screen overlay: lock background page scroll while it's open so a drag on
   // the editor can't scroll HQ underneath it.
@@ -763,7 +766,7 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
                 height={build ? "100%" : 420}
                 paused={!active}
                 onTapStaff={handleTapStaff}
-                onTapBank={onOpenBank}
+                onTapBank={handleTapBank}
               />
             </Suspense>
           </ErrorBoundary>

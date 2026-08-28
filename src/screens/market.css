@@ -3,6 +3,13 @@
   flex-direction: column;
   gap: var(--sp-12);
 }
+/* The tabpanel wrapper (aria wiring for the sub-nav) stacks its cards exactly like `.mkt` itself,
+   so wrapping the panes changed nothing visually. */
+.mkt__pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+}
 
 /* Market sub-navigation — Standing · Products · Demand. Sticky segmented control (mirrors Company). */
 .mkt__subnav {

@@ -3,6 +3,13 @@
   flex-direction: column;
   gap: var(--sp-12);
 }
+/* The tabpanel wrapper (aria wiring for the sub-nav) stacks its cards exactly like `.co` itself,
+   so wrapping the panes changed nothing visually. */
+.co__pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+}
 
 /* Company sub-navigation — Overview · Team · Platform. A sticky segmented control so the three
    destinations stay one tap away however far the section scrolls. */
@@ -1383,4 +1390,24 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .co__proj-bar { animation: none; }
+}
+
+/* ── Tap-target floor (audit 3.3) ─────────────────────────────────────────────
+   Assignment pills (~38px) and the raise/rest buttons (~36px) sit a touch below
+   the 44pt floor; an invisible ::after extends each touch target vertically
+   without moving layout. */
+.co__assign-opt,
+.co__raise-btn,
+.co__rest-btn {
+  position: relative;
+}
+.co__assign-opt::after,
+.co__raise-btn::after,
+.co__rest-btn::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -3px;
+  bottom: -3px;
 }

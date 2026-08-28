@@ -852,6 +852,8 @@ export function DesignLab({
             <button
               key={t.id}
               role="tab"
+              id={`lab-tab-${t.id}`}
+              aria-controls="lab-tabpanel"
               aria-selected={labTab === t.id}
               className={`lab__tab${labTab === t.id ? " lab__tab--on" : ""}`}
               onClick={() => { haptic.light(); setLabTab(t.id); }}
@@ -867,7 +869,7 @@ export function DesignLab({
       </div>
 
       {/* Tab content — key forces remount → CSS fade-in on every tab switch */}
-      <div className="lab__pane" key={labTab}>
+      <div className="lab__pane" key={labTab} role="tabpanel" id="lab-tabpanel" aria-labelledby={`lab-tab-${labTab}`}>
 
         {/* ── 1: Components ───────────────────────────────── */}
         {labTab === "components" && (

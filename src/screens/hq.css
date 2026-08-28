@@ -2187,3 +2187,22 @@ body.hq-deco-open .hq > *:not(.hq__world) {
   flex: none;
   margin-top: 2px;
 }
+
+/* ── Tap-target floor (audit 3.3) ─────────────────────────────────────────────
+   The build-catalog pills and the selection toolbar buttons render ~29–31px tall;
+   redesigning the dense strips isn't worth it, so an invisible ::after extends the
+   touch target toward the 44pt floor without moving any layout. Vertical only —
+   the pills have horizontal neighbors, so sideways slack would overlap them. */
+.hqb__cat,
+.hqb__tool {
+  position: relative;
+}
+.hqb__cat::after,
+.hqb__tool::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -7px;
+  bottom: -7px;
+}

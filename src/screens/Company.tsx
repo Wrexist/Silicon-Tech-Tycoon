@@ -181,6 +181,8 @@ export function Company() {
           <button
             key={id}
             role="tab"
+            id={`co-tab-${id}`}
+            aria-controls="co-tabpanel"
             aria-selected={coTab === id}
             className={`co__subtab${coTab === id ? " co__subtab--on" : ""}`}
             onClick={() => { haptic.light(); setCoTab(id); }}
@@ -190,6 +192,9 @@ export function Company() {
           </button>
         ))}
       </div>
+
+      {/* One swapped tabpanel for the whole strip — labelled by whichever tab is active. */}
+      <div className="co__pane" role="tabpanel" id="co-tabpanel" aria-labelledby={`co-tab-${coTab}`}>
 
       {coTab === "overview" && (<>
       {/* Financials */}
@@ -477,6 +482,8 @@ export function Company() {
           <EmptyState glyph={<Layers size={36} strokeWidth={1.6} />} title="Platform locked" sub="Ship your first product, then found your OS as a business in its own right — services, licensing and feature modules." />
         )
       )}
+
+      </div>
 
       <Sheet open={statsOpen} onClose={() => setStatsOpen(false)} label="Company stats">
         <StatsSheet state={state} onClose={() => setStatsOpen(false)} />
@@ -1326,7 +1333,7 @@ function Member({
         // the player just named this person in a dialog and the roster row vanishes as they watch,
         // so a line telling them what they chose to do isn't information.
         <div className="co__confirm" role="group" aria-label={`Confirm letting go ${s.name}`}>
-          <span className="co__confirm-text">Let go {s.name}? Their training is lost for good.</span>
+          <span className="co__confirm-text">Let go {s.name}? Their training — skill {s.skill} — is lost for good.</span>
           <div className="co__confirm-row">
             <Button size="sm" variant="tertiary" onClick={() => setConfirmFire(false)}>Keep</Button>
             <Button

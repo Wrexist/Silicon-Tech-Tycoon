@@ -215,6 +215,8 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
           <button
             key={id}
             role="tab"
+            id={`mkt-tab-${id}`}
+            aria-controls="mkt-tabpanel"
             aria-selected={mktTab === id}
             className={`mkt__subtab${mktTab === id ? " mkt__subtab--on" : ""}`}
             onClick={() => { haptic.light(); setMktTab(id); }}
@@ -223,6 +225,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
           </button>
         ))}
       </div>
+
+      {/* One swapped tabpanel for the whole strip — labelled by whichever tab is active. */}
+      <div className="mkt__pane" role="tabpanel" id="mkt-tabpanel" aria-labelledby={`mkt-tab-${mktTab}`}>
 
       {mktTab === "standing" && (<>
       {/* Your company (equity) */}
@@ -948,6 +953,8 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         )}
       </Card>
       </>)}
+
+      </div>
 
       <Sheet open={!!detail} onClose={() => setDetailId(null)} label="Product detail">
         {detail && (
