@@ -125,12 +125,12 @@ describe("fork + prerequisite gating", () => {
         }
       }
     }
-    // NOTE (characterized, see report): completableProjectCount() counts ALL doctrine tier-2
+    // FIXED (was a characterized bug): completableProjectCount() used to count ALL doctrine tier-2
     // projects (overclockLab / enduranceCells / zeroDefectLine are non-forked), but each requires a
-    // mutually-exclusive House, so only ONE is ever reachable — the greedy closure lands 2 short of
-    // completableProjectCount(). Asserted as an inequality so a future fix in either direction passes.
-    expect(completed.length).toBeLessThanOrEqual(completableProjectCount());
-    expect(completed.length).toBeGreaterThanOrEqual(completableProjectCount() - 2);
+    // mutually-exclusive House, so only ONE is ever reachable per run. The count now equals the true
+    // per-run maximum — exactly what a legal greedy completion achieves (the doctrine trio is
+    // symmetric, so any House choice reaches the same total).
+    expect(completed.length).toBe(completableProjectCount());
     for (const p of RESEARCH_PROJECTS.filter((x) => !x.fork && !x.requires)) {
       expect(completed).toContain(p.id);
     }
@@ -139,11 +139,33 @@ describe("fork + prerequisite gating", () => {
     expect(tier2.filter((id) => completed.includes(id)).length).toBe(1);
   });
 
-  it("completableProjectCount = non-forked projects + one per fork group, strictly below the full list", () => {
+  it("completableProjectCount = true per-run maximum: one per fork group AND only the chosen House's tier-2", () => {
     const forks = new Set(RESEARCH_PROJECTS.filter((p) => p.fork).map((p) => p.fork!));
     const nonForked = RESEARCH_PROJECTS.filter((p) => !p.fork).length;
-    expect(completableProjectCount()).toBe(nonForked + forks.size);
+    // In the current catalog exactly 2 of the 3 doctrine tier-2 projects are locked out per run,
+    // so the count sits 2 below the naive "non-forked + one per fork" figure.
+    expect(completableProjectCount()).toBe(nonForked + forks.size - 2);
     expect(completableProjectCount()).toBeLessThan(RESEARCH_PROJECTS.length);
+  });
+
+  it("the Full R&D target is achievable by a legal completion set (greedy closure per House choice)", () => {
+    // For EVERY engineering-House choice, a run that picks that House and then greedily researches
+    // everything unlockable must land exactly on completableProjectCount() — the achievement is
+    // earnable regardless of which doctrine the player commits to.
+    for (const house of ["perfHouse", "effHouse", "qualityHouse"] as const) {
+      const completed: ProjectId[] = [house];
+      let progressed = true;
+      while (progressed) {
+        progressed = false;
+        for (const p of RESEARCH_PROJECTS) {
+          if (projectUnlocked(completed, p.id)) {
+            completed.push(p.id);
+            progressed = true;
+          }
+        }
+      }
+      expect(completed.length, `house ${house}`).toBe(completableProjectCount());
+    }
   });
 
   it("projectById and hasProject resolve", () => {
