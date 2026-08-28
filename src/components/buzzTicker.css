@@ -39,7 +39,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  animation: buzz-in 420ms var(--ease-out, ease-out) both;
+  animation: buzz-in var(--spring-standard) both;
 }
 .buzz__text--good { color: var(--positive); }
 .buzz__text--bad { color: var(--negative); }

@@ -1057,7 +1057,7 @@
   font-size: var(--fs-caption);
   font-weight: 700;
   box-shadow: 0 2px 8px -3px color-mix(in srgb, var(--accent) 40%, transparent);
-  transition: transform var(--motion-fast, 120ms) ease;
+  transition: transform var(--spring-snappy);
 }
 .pd__flip:active { transform: translateY(-50%) scale(0.94); }
 .pd__curve {
@@ -1391,17 +1391,17 @@
   padding: var(--sp-8) var(--sp-4);
   border-radius: var(--r-button);
   border: 1px solid var(--hairline);
-  background: var(--surface-sunken, transparent);
+  background: transparent;
   color: var(--ink-2);
   font-size: var(--fs-micro);
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  transition: background var(--dur-fast, 0.15s) ease, color var(--dur-fast, 0.15s) ease, border-color var(--dur-fast, 0.15s) ease;
+  transition: background var(--spring-snappy), color var(--spring-snappy), border-color var(--spring-snappy);
 }
 .pd__reorder-opt--on {
   background: var(--accent);
-  color: var(--on-accent, #fff);
+  color: var(--accent-ink);
   border-color: var(--accent);
 }
 .pd__pricecut-trigger {

@@ -71,6 +71,32 @@ function animationNames(value: string): string[] {
     );
 }
 
+/** Union of every custom-property NAME defined anywhere in src — CSS declarations, TS/TSX inline
+ *  style object keys, and setProperty calls. Shared by the fallback-less and fallback-carrying
+ *  reference checks below. */
+function collectDefinedNames(): Set<string> {
+  const defined = new Set<string>();
+  for (const f of files) {
+    const t = readFileSync(f, "utf8");
+    // CSS declarations: --name: value
+    for (const m of t.matchAll(/--([\w-]+)\s*:/g)) defined.add(m[1]);
+    // TS/TSX definition SITES only — an object key (`style={{ "--a": … }}`, or the
+    // `["--i" as string]:` computed-key form) or a setProperty call. Deliberately NOT "any
+    // quoted --name": this file itself contains `toContain("--spring-bounce")`, and counting
+    // that as a definition would let the assertion prop up the very reference it is checking.
+    for (const m of t.matchAll(/["'`]--([\w-]+)["'`](?:\s+as\s+[\w.]+)?\s*\]?\s*:/g)) defined.add(m[1]);
+    for (const m of t.matchAll(/setProperty\(\s*["'`]--([\w-]+)/g)) defined.add(m[1]);
+  }
+  return defined;
+}
+
+// Genuinely-defensive fallback references — a `var(--x, fallback)` where `--x` is DELIBERATELY not
+// defined anywhere in src (e.g. a hook point an embedder or future theme may set). Everything else
+// with an undefined name is a typo'd token wearing a fallback as camouflage: the fallback renders,
+// the token system silently stops owning that value, and theme/contrast overrides never reach it.
+// Add a name here ONLY with a comment saying who is expected to define it.
+const FALLBACK_ALLOWLIST = new Set<string>([]);
+
 describe("CSS custom-property references", () => {
   it("is actually reading stylesheet CONTENT (not just finding filenames)", () => {
     // The vacuity trap this suite fell into once: a file list of the right length whose contents
@@ -83,18 +109,7 @@ describe("CSS custom-property references", () => {
   });
 
   it("every fallback-less var(--x) resolves to a definition somewhere in src", () => {
-    const defined = new Set<string>();
-    for (const f of files) {
-      const t = readFileSync(f, "utf8");
-      // CSS declarations: --name: value
-      for (const m of t.matchAll(/--([\w-]+)\s*:/g)) defined.add(m[1]);
-      // TS/TSX definition SITES only — an object key (`style={{ "--a": … }}`, or the
-      // `["--i" as string]:` computed-key form) or a setProperty call. Deliberately NOT "any
-      // quoted --name": this file itself contains `toContain("--spring-bounce")`, and counting
-      // that as a definition would let the assertion prop up the very reference it is checking.
-      for (const m of t.matchAll(/["'`]--([\w-]+)["'`](?:\s+as\s+[\w.]+)?\s*\]?\s*:/g)) defined.add(m[1]);
-      for (const m of t.matchAll(/setProperty\(\s*["'`]--([\w-]+)/g)) defined.add(m[1]);
-    }
+    const defined = collectDefinedNames();
 
     // Scan CSS *and* TS/TSX: inline styles reference tokens too (`accent: "var(--fn-design)"`),
     // and a typo there fails exactly as silently as one in a stylesheet. Scanning whole file text
@@ -112,6 +127,30 @@ describe("CSS custom-property references", () => {
     }
 
     expect(offenders, "define the token, fix the name, or give the var() a fallback:\n" + offenders.join("\n")).toEqual([]);
+  });
+
+  it("every var(--x, fallback) also names a token that actually exists", () => {
+    // The quieter sibling of the check above, closed 2026-08: a fallback keeps the declaration
+    // ALIVE, so nothing looks broken — but --spring-smooth/--dur-fast/--on-accent/--fs-display/
+    // --surface-sunken and nine more were typo'd or never-created names whose fallbacks had
+    // silently become the real value, outside the token system's reach. An undefined name behind
+    // a fallback is a typo until proven defensive — prove it by adding it to FALLBACK_ALLOWLIST
+    // with a comment naming who defines it.
+    const defined = collectDefinedNames();
+    const offenders: string[] = [];
+    for (const f of files) {
+      const text = readFileSync(f, "utf8");
+      for (const m of text.matchAll(/var\(\s*--([\w-]+)\s*,/g)) {
+        if (!defined.has(m[1]) && !FALLBACK_ALLOWLIST.has(m[1])) {
+          const line = text.slice(0, m.index).split("\n").length;
+          offenders.push(`${rel(f)}:${line}  var(--${m[1]}, …) — token never defined; the fallback is what renders`);
+        }
+      }
+    }
+    expect(
+      offenders,
+      "map each name to a real token from design/tokens.css (matching what the fallback renders today), or allowlist it with a justification:\n" + offenders.join("\n"),
+    ).toEqual([]);
   });
 
   it("parses animation names out of the shorthand in any field order", () => {

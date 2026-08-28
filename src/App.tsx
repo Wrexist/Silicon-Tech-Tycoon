@@ -843,7 +843,7 @@ function NotifyOptIn({ companyName, onDone }: { companyName: string; onDone: () 
   return (
     <div className="onboard">
       <div className="onboard__scroll">
-        <div className="onboard__inner onboard__inner--notify">
+        <div className="onboard__inner">
           <div className="notifopt__glyph"><BellRing size={40} strokeWidth={1.7} /></div>
           <h1 className="onboard__title">Never miss a run</h1>
           <p className="onboard__tag">

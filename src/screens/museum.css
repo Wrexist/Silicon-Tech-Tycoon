@@ -90,7 +90,7 @@
 }
 .mus__card:active { transform: scale(0.98); }
 @media (hover: hover) and (pointer: fine) {
-  .mus__card:hover { box-shadow: var(--shadow-card-hover, var(--shadow-card)); border-color: var(--accent-soft, var(--hairline)); }
+  .mus__card:hover { box-shadow: var(--shadow-card); border-color: var(--accent-soft, var(--hairline)); }
 }
 .mus__faces {
   display: flex;

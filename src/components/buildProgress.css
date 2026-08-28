@@ -235,7 +235,7 @@
 .strail__step--active .strail__node {
   border-color: transparent;
   background: var(--accent);
-  color: var(--on-accent, #fff);
+  color: var(--accent-ink);
   box-shadow: 0 0 0 3px var(--accent-soft);
   animation: strail-pulse 2.4s ease-in-out infinite;
 }

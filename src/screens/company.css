@@ -68,7 +68,7 @@
   border: none; border-radius: var(--r-pill);
   background: var(--accent); color: var(--accent-ink, #fff);
   font-size: var(--fs-caption); font-weight: 700;
-  transition: transform var(--motion-fast, 120ms) ease, opacity var(--motion-fast, 120ms) ease;
+  transition: transform var(--spring-snappy), opacity var(--spring-snappy);
 }
 .co__deleg-hire:active { transform: scale(0.97); }
 .co__deleg-hire:disabled { opacity: 0.5; background: var(--bg-elevated); color: var(--ink-3); }
@@ -163,7 +163,7 @@
   height: 100%;
   border-radius: 999px;
   box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 35%, transparent);
-  transition: width var(--motion-medium, 240ms) ease;
+  transition: width var(--spring-snappy);
 }
 /* A glossy top sheen turns the flat mood bar into a lustrous, living surface (keeps the dynamic
    mood colour set inline; the width already animates as mood shifts). */
@@ -538,7 +538,7 @@
   gap: var(--sp-4);
   padding: var(--sp-12);
   border-radius: var(--r-card);
-  background: var(--surface-2, var(--well, rgba(0, 0, 0, 0.03)));
+  background: var(--surface-2);
   border: 1px solid var(--hairline);
 }
 .co__mandate-top {

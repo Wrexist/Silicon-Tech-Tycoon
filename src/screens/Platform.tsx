@@ -119,7 +119,7 @@ function OsUpdateButton({ ready, idleLabel, notReadyLabel, icon, stages, duratio
 
   if (installing) {
     return (
-      <div className="plat__update plat__update--installing" role="status" aria-live="polite" aria-label={`${stages[stageIdx]} ${pct}%`}>
+      <div className="plat__update" role="status" aria-live="polite" aria-label={`${stages[stageIdx]} ${pct}%`}>
         <div className="plat__update-track"><i className="plat__update-fill" style={{ width: `${pct}%` }} /></div>
         <div className="plat__update-status">
           <span className="plat__update-stage">{stages[stageIdx]}</span>

@@ -117,7 +117,7 @@
   gap: var(--sp-4);
 }
 .rcard__headline {
-  font-size: var(--fs-display, 30px);
+  font-size: var(--fs-title);
   font-weight: 800;
   line-height: 1.08;
   letter-spacing: -0.02em;

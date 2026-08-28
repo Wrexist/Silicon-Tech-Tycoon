@@ -111,7 +111,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
         {/* Text size — the whole type scale is rem-based, so one root font-size resizes every
             label. A plain accessibility dial: no layout reflow risk beyond intended growth. */}
         <Row icon={<ALargeSmall size={18} />} label="Text size" sub="Scales every label in the app.">
-          <div className="set__seg set__seg--text">
+          <div className="set__seg">
             {TEXT_SCALES.map((v) => (
               <button
                 key={v}

@@ -1155,7 +1155,7 @@
   transition: background 0.15s ease;
 }
 .hq__perf-best:active {
-  background: var(--surface-3, var(--surface-2));
+  background: var(--surface-2);
 }
 .hq__perf-best-label {
   font-size: var(--fs-micro);
@@ -1425,11 +1425,11 @@
   height: 100%;
   border-radius: 999px;
   background: var(--accent);
-  transition: width var(--spring-smooth, 0.4s ease);
+  transition: width var(--spring-standard);
 }
 /* Each new rung animates in so progress feels earned. */
 .hq__next-anim {
-  animation: hq-next-in 0.34s var(--ease-out, ease-out);
+  animation: hq-next-in var(--spring-standard);
 }
 @keyframes hq-next-in {
   from { opacity: 0; transform: translateY(6px); }
@@ -1543,10 +1543,10 @@
   padding: var(--sp-8) var(--sp-12);
   border-radius: var(--r-button);
   border: 1px solid var(--glass-well-edge, var(--hairline));
-  background: var(--glass-well, var(--surface-sunken, var(--hairline)));
+  background: var(--glass-well);
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--dur-fast, 0.15s) ease, background var(--dur-fast, 0.15s) ease;
+  transition: border-color var(--spring-snappy), background var(--spring-snappy);
 }
 .hq__frontier-lane:not(:disabled):hover { border-color: var(--accent); }
 .hq__frontier-lane:disabled { opacity: 0.5; cursor: not-allowed; }
@@ -1608,7 +1608,7 @@
   height: 100%;
   border-radius: 999px;
   background: var(--accent);
-  transition: width var(--spring-smooth, 0.4s ease);
+  transition: width var(--spring-standard);
 }
 .hq__contract--done .hq__contract-fill {
   background: var(--positive);
@@ -1663,7 +1663,7 @@
   height: 100%;
   border-radius: 999px;
   background: var(--accent);
-  transition: width var(--spring-smooth, 0.4s ease);
+  transition: width var(--spring-standard);
 }
 .hq__board-note {
   font-size: var(--fs-nano);
@@ -1705,7 +1705,7 @@
   gap: var(--sp-4);
   padding: var(--sp-2);
   border-radius: var(--r-button);
-  background: var(--surface-sunken, var(--hairline));
+  background: var(--hairline);
 }
 .hq__focus-btn {
   flex: 1;
@@ -1717,7 +1717,7 @@
   font-size: var(--fs-nano);
   font-weight: 700;
   cursor: pointer;
-  transition: background var(--dur-fast, 0.15s) ease, color var(--dur-fast, 0.15s) ease;
+  transition: background var(--spring-snappy), color var(--spring-snappy);
 }
 .hq__focus-btn:disabled {
   opacity: 0.4;
@@ -1725,7 +1725,7 @@
 }
 .hq__focus-btn--on {
   background: var(--accent);
-  color: var(--on-accent, #fff);
+  color: var(--accent-ink);
 }
 .hq__focus-note {
   font-size: var(--fs-nano);
@@ -2047,7 +2047,7 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 .hq__duel-side strong { display: block; font-size: var(--fs-body); font-weight: 800; color: var(--positive); }
 .hq__duel-side--rival { text-align: right; }
 .hq__duel-side--rival strong { color: var(--negative); }
-.hq__duel-bar { height: 8px; border-radius: var(--r-pill); background: var(--track, color-mix(in srgb, var(--ink) 10%, transparent)); overflow: hidden; }
+.hq__duel-bar { height: 8px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--ink) 10%, transparent); overflow: hidden; }
 .hq__duel-bar-fill { height: 100%; border-radius: var(--r-pill); background: var(--negative); transition: width var(--spring-gentle); }
 .hq__duel--ahead .hq__duel-bar-fill { background: var(--positive); }
 .hq__duel-foot {

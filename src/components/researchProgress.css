@@ -94,7 +94,7 @@
 .rprog__step--done .rprog__node { border-color: transparent; background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
 .rprog__bar--done { background: color-mix(in srgb, var(--accent) 55%, var(--hairline)); }
 .rprog__step--active .rprog__node {
-  border-color: transparent; background: var(--accent); color: var(--on-accent, #fff);
+  border-color: transparent; background: var(--accent); color: var(--accent-ink);
   box-shadow: 0 0 0 3px var(--accent-soft); animation: rprog-node-pulse 2.4s ease-in-out infinite;
 }
 .rprog--near .rprog__step--done .rprog__node { background: color-mix(in srgb, var(--positive) 16%, transparent); color: var(--positive); }

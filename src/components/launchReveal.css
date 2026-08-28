@@ -146,7 +146,7 @@
 .lreveal__verdict {
   font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em;
   color: var(--lreveal-accent);
-  animation: lreveal-pop var(--spring-bouncy, var(--spring-standard)) both;
+  animation: lreveal-pop var(--spring-bounce) both;
 }
 /* Hit-streak badge — a warm "on fire" pill that escalates the celebration for consecutive hits. */
 .lreveal__streak {
@@ -160,7 +160,7 @@
   color: var(--warning-text);
   font-size: var(--fs-caption);
   font-weight: 700;
-  animation: lreveal-pop var(--spring-bouncy, var(--spring-standard)) both;
+  animation: lreveal-pop var(--spring-bounce) both;
 }
 .lreveal__units { display: flex; flex-direction: column; gap: 1px; animation: lreveal-rise 0.4s var(--spring-standard) 0.08s both; }
 .lreveal__units-val { font-size: var(--fs-headline); font-weight: 800; }
