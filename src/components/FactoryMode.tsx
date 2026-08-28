@@ -1120,7 +1120,8 @@ function BoostButton() {
   const d = useFactoryData();
   const { rushBuild } = d.game;
   if (!d.lead || d.weeksLeft <= 0) {
-    return <button className="fmode__boost" disabled><Zap size={16} aria-hidden /> BOOST</button>;
+    const why = "No build running — plan a production run to rush it";
+    return <button className="fmode__boost" disabled title={why} aria-label={`BOOST — ${why}`}><Zap size={16} aria-hidden /> BOOST</button>;
   }
   const id = d.lead.product.id;
   return (

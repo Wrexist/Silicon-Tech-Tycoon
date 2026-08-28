@@ -459,6 +459,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
                             <Button
                               variant="secondary"
                               disabled={!afford}
+                              title={afford ? undefined : `Needs ${format(sub(r.unlockCost, state.cash))} more cash`}
                               haptics="none"
                               onClick={() => {
                                 unlockRegion(r.id);

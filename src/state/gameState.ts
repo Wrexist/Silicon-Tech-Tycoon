@@ -109,6 +109,7 @@ import {
   cents,
   dollars,
   format,
+  formatCount,
   gte,
   scale,
   sub,
@@ -2670,10 +2671,9 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   // the end of a "fiscal quarter" — gives the player a regular moment of reflection.
   if (!bankrupt && week > 0 && week % BALANCE.quartersWeeks === 0) {
     const qNum = Math.floor(week / BALANCE.quartersWeeks);
-    const fansStr = newFans >= 1000 ? `${(newFans / 1000).toFixed(1)}k` : String(newFans);
     feed.push(feedItem(
       week,
-      `Q${qNum} complete, ${format(cash)} cash · Rep ${Math.round(state.reputation)} · ${fansStr} fans.`,
+      `Q${qNum} complete, ${format(cash)} cash · Rep ${Math.round(state.reputation)} · ${formatCount(newFans)} fans.`,
       "accent",
     ));
   }

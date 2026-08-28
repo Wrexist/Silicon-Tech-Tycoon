@@ -635,11 +635,21 @@ function MoraleCard({ state }: { state: GameState }) {
         <p className="co__hint">Next company morale spend available in {cooldownLeft} wk.</p>
       ) : (
         <div className="co__loan-presets">
-          {options.map((o) => (
+          {options.map((o) => {
+            const can = canBoostMorale(state, o.kind);
+            // Cheap "why is this disabled" surface: no team, or the cash shortfall (cooldown is
+            // handled by the hint line above, which replaces these buttons entirely).
+            const why = can
+              ? undefined
+              : state.staff.length === 0
+                ? "Hire a teammate first — morale spends lift your staff"
+                : `Needs ${format(sub(moraleCost(state, o.kind), state.cash))} more cash`;
+            return (
             <Button
               key={o.kind}
               variant={o.kind === "offsite" ? "primary" : "secondary"}
-              disabled={!canBoostMorale(state, o.kind)}
+              disabled={!can}
+              title={why}
               haptics="none"
               onClick={() => {
                 boostMorale(o.kind);
@@ -650,7 +660,8 @@ function MoraleCard({ state }: { state: GameState }) {
             >
               {o.label} · +{o.lift} · {format(moraleCost(state, o.kind))}
             </Button>
-          ))}
+            );
+          })}
         </div>
       )}
     </Card>
@@ -1572,6 +1583,7 @@ function RecruitPanel({
               key={tier}
               className="co__recruit-tier"
               disabled={!affordable}
+              title={affordable ? undefined : `Needs ${format(sub(t.cost, state.cash))} more cash`}
               onClick={() => onRecruit(tier)}
             >
               <span className="co__recruit-tier-name">{t.label}</span>
