@@ -216,7 +216,10 @@ export function Settings({ onClose }: { onClose: () => void }) {
       <div className="set__group">
         {confirmReset ? (
           <div className="set__confirm" role="group" aria-label="Confirm starting a new company">
-            <span className="set__confirm-text">Start over and lose this company?</span>
+            <span className="set__confirm-text">
+              Start over? {state.companyName} — week {state.week}, {format(netWorth(state))} net
+              worth — is deleted for good.
+            </span>
             <div className="set__confirm-row">
               <Button variant="tertiary" onClick={() => setConfirmReset(false)}>Cancel</Button>
               <Button variant="destructive" onClick={() => { restart(); onClose(); }}>Restart</Button>
@@ -269,6 +272,7 @@ function ExportButton() {
 
 function ImportPanel({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
   const { importSave } = useGameActions();
+  const { state } = useGame();
   const [text, setText] = useState("");
   const [confirming, setConfirming] = useState(false);
 
@@ -293,8 +297,8 @@ function ImportPanel({ onDone, onCancel }: { onDone: () => void; onCancel: () =>
       {confirming ? (
         <>
           <p className="set__import-text">
-            Importing replaces your current company. This can't be undone. Export a backup first if
-            you want to keep it.
+            Importing replaces {state.companyName} (week {state.week}). This can't be undone. Export
+            a backup first if you want to keep it.
           </p>
           <div className="set__pair">
             <Button variant="tertiary" onClick={() => setConfirming(false)}>Back</Button>

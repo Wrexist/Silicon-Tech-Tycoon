@@ -661,7 +661,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
         </p>
         {confirmReset ? (
           <div className="ipo__confirm">
-            <span className="ipo__confirm-text">Retire {state.companyName} and start fresh? This run ends now.</span>
+            <span className="ipo__confirm-text">Retire {state.companyName} at week {state.week}? This run ends for good — only the legacy bonus above carries on.</span>
             <Button block variant="destructive" onClick={() => setForging(true)}>Yes, start New Game+</Button>
             <Button block variant="tertiary" onClick={() => setConfirmReset(false)}>Back</Button>
           </div>

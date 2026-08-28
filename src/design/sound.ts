@@ -74,6 +74,8 @@ type Cue =
   | "rp"
   | "era"
   | "mastery"
+  | "star"
+  | "challenge"
   | "bankrupt"
   | "error";
 
@@ -120,12 +122,28 @@ export function sfx(cue: Cue): void {
       chord([392, 523, 659, 784], 0.6, { type: "triangle", gain: 0.08 });
       break;
     case "mastery":
-      // Earning a scenario star / completing a challenge: a quick ascending arpeggio that resolves
-      // into a bright major chord. Between levelup (smaller) and era (bigger) — a real "you did it".
+      // A big earned win (achievement unlock, awards sweep, eureka jackpot, moonshot landing):
+      // a quick ascending arpeggio that resolves into a bright major chord. Between levelup
+      // (smaller) and era (bigger) — a real "you did it".
       tone({ freq: 523, dur: 0.1, type: "triangle", gain: 0.08 });
       tone({ freq: 659, dur: 0.1, type: "triangle", gain: 0.08, delay: 0.08 });
       tone({ freq: 784, dur: 0.1, type: "triangle", gain: 0.08, delay: 0.16 });
       chord([1047, 1319, 1568], 0.4, { type: "sine", gain: 0.07, delay: 0.24 });
+      break;
+    case "star":
+      // A scenario star lands on the shelf: a high glittering twinkle — two quick pings that
+      // ring out into a bright sine shimmer. Lighter and sparklier than mastery; unmistakably
+      // "a star", not a generic fanfare.
+      tone({ freq: 1047, to: 1319, dur: 0.08, type: "sine", gain: 0.07 });
+      tone({ freq: 1568, dur: 0.09, type: "sine", gain: 0.06, delay: 0.09 });
+      chord([1319, 1568, 2093], 0.35, { type: "sine", gain: 0.05, delay: 0.17 });
+      break;
+    case "challenge":
+      // Daily/weekly challenge complete: a proud two-beat "medal pinned" fanfare — a low root,
+      // a step up, then a wide warm chord. Weightier than levelup, rounder than mastery's ladder.
+      tone({ freq: 330, dur: 0.09, type: "triangle", gain: 0.1 });
+      tone({ freq: 494, dur: 0.1, type: "triangle", gain: 0.09, delay: 0.09 });
+      chord([587, 740, 880, 1175], 0.45, { type: "triangle", gain: 0.07, delay: 0.19 });
       break;
     case "bankrupt":
       tone({ freq: 300, to: 90, dur: 0.7, type: "sawtooth", gain: 0.1 });

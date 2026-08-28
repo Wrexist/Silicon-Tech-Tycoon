@@ -338,7 +338,7 @@ function announceAchievements(unlocked: readonly string[]): void {
   if (earned.length === 0) return;
   const fire = () => {
     try {
-      // A milestone deserves more than silent text â€” same weight as scenario stars.
+      // A milestone deserves more than silent text â€” the full mastery fanfare.
       sfx("mastery");
       haptic.success();
       if (earned.length === 1) {
@@ -427,7 +427,7 @@ function announceScenarioStars(state: GameState): void {
   if (!res || res.stars <= 0) return;
   const { improved, best } = recordStars(state.activeScenario, res.stars);
   if (!improved) return;
-  sfx("mastery");
+  sfx("star");
   const name = scenarioById(state.activeScenario)?.name ?? "Scenario";
   setTimeout(() => {
     try {
@@ -456,7 +456,7 @@ function syncChallengeBest(prev: GameState, next: GameState, announce: boolean):
   }
   const { improved, best } = recordChallengeBest(key, next.challengeScore);
   if (!announce || prev.challengeScore != null) return; // only on the locking transition
-  sfx("mastery");
+  sfx("challenge");
   const label = ch.kind === "weekly" ? "Weekly challenge" : "Daily challenge";
   const scored = formatScore(ch.scoreMetric, next.challengeScore);
   const tail = improved ? ", new best!" : ` Â· best ${formatScore(ch.scoreMetric, best)}`;
