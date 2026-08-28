@@ -15,8 +15,8 @@ function emit(): void {
   for (const l of listeners) l();
 }
 
-/** Is the waiting decision currently opened for full view? */
-export function isDecisionOpen(): boolean {
+/** Is the waiting decision currently opened for full view? (Internal — read via useDecisionOpen.) */
+function isDecisionOpen(): boolean {
   return open;
 }
 
@@ -35,7 +35,7 @@ export function closeDecision(): void {
   emit();
 }
 
-export function onDecisionOpenChange(fn: () => void): () => void {
+function onDecisionOpenChange(fn: () => void): () => void {
   listeners.add(fn);
   return () => listeners.delete(fn);
 }

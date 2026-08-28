@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { getMuseum, addMuseumEntry, type MuseumEntry } from "./museum.ts";
+import { getMuseum, addMuseumEntry, uniqueMuseumKey, type MuseumEntry } from "./museum.ts";
 import type { Product } from "../engine/types.ts";
 
 class MemStorage {
@@ -46,6 +46,25 @@ describe("device museum store", () => {
     expect(list).toHaveLength(60);
     expect(list[0].name).toBe("D69"); // newest kept
     expect(list.some((e) => e.name === "D9")).toBe(false); // oldest dropped
+  });
+
+  it("uniqueMuseumKey passes a fresh key through and suffixes a colliding one", () => {
+    expect(uniqueMuseumKey("s1-p1-w10")).toBe("s1-p1-w10"); // empty museum → unchanged
+    addMuseumEntry(entry("s1-p1-w10", "Original"));
+    expect(uniqueMuseumKey("s1-p1-w10")).toBe("s1-p1-w10~2");
+    addMuseumEntry(entry("s1-p1-w10~2", "Replay"));
+    expect(uniqueMuseumKey("s1-p1-w10")).toBe("s1-p1-w10~3"); // counter keeps climbing
+    expect(uniqueMuseumKey("s1-p1-w11")).toBe("s1-p1-w11"); // different base untouched
+  });
+
+  it("fixed-seed replay collision: an old save's entry survives a re-enshrinement of the same key", () => {
+    // Simulate a museum persisted BEFORE the fix: plain seed-product-week keys, no suffixes.
+    localStorage.setItem("silicon.museum.v1", JSON.stringify([entry("42-p1-9", "Old run")]));
+    // The replay enshrines via uniqueMuseumKey(base) → a NEW entry, not an overwrite.
+    addMuseumEntry(entry(uniqueMuseumKey("42-p1-9"), "Replay run"));
+    const names = getMuseum().map((e) => e.name);
+    expect(names).toEqual(["Replay run", "Old run"]); // both kept, newest first
+    expect(new Set(getMuseum().map((e) => e.key)).size).toBe(2); // keys stayed unique
   });
 
   it("filters out unrenderable entries (missing product/category)", () => {

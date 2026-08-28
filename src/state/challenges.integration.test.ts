@@ -108,6 +108,16 @@ describe("challenge best store", () => {
     expect(bestScore(key)).toBe(5000); // unchanged
   });
 
+  it("recordChallengeBest is a pure no-op (no write) when the score doesn't improve", async () => {
+    const { recordChallengeBest, challengeKey } = await import("./challengeProgress.ts");
+    const key = challengeKey("daily", DAY);
+    recordChallengeBest(key, 1000);
+    const raw = localStorage.getItem("silicon.challengeBests.v1");
+    recordChallengeBest(key, 1000); // equal — the recurring per-tick case
+    recordChallengeBest(key, 400); // worse
+    expect(localStorage.getItem("silicon.challengeBests.v1")).toBe(raw); // byte-identical store
+  });
+
   it("challengeHistory lists recorded results newest-first (kind-stable)", async () => {
     const { recordChallengeBest, challengeKey, challengeHistory } = await import("./challengeProgress.ts");
     recordChallengeBest(challengeKey("daily", "2026-06-19"), 100);
@@ -118,5 +128,50 @@ describe("challenge best store", () => {
       "daily:2026-06-19",
       "weekly:2026-06-15",
     ]);
+  });
+});
+
+describe("one-attempt lock (challenge attempts store)", () => {
+  it("defaults to unattempted, locks on record, and is idempotent (first timestamp kept)", async () => {
+    const { hasAttemptedChallenge, recordChallengeAttempt, getChallengeAttempts, challengeKey } = await import("./challengeProgress.ts");
+    const key = challengeKey("daily", DAY);
+    expect(hasAttemptedChallenge(key)).toBe(false);
+    recordChallengeAttempt(key, 1000);
+    expect(hasAttemptedChallenge(key)).toBe(true);
+    recordChallengeAttempt(key, 2000); // second start attempt — must not overwrite
+    expect(getChallengeAttempts()[key]).toBe(1000);
+    expect(hasAttemptedChallenge(challengeKey("daily", "2026-06-20"))).toBe(false); // other days free
+    expect(hasAttemptedChallenge(challengeKey("weekly", DAY))).toBe(false); // per-kind keys
+  });
+
+  it("a recorded best counts as attempted (pre-lock profiles can't replay a finished date)", async () => {
+    const { hasAttemptedChallenge, recordChallengeBest, challengeKey } = await import("./challengeProgress.ts");
+    const key = challengeKey("daily", "2026-06-01");
+    recordChallengeBest(key, 777); // old profile: best exists, no attempts map
+    expect(hasAttemptedChallenge(key)).toBe(true);
+  });
+
+  it("treats hostile persisted input as empty (old saves / corruption)", async () => {
+    const { getChallengeAttempts, hasAttemptedChallenge } = await import("./challengeProgress.ts");
+    for (const bad of ["{broken", "[1,2]", '"str"', "null", '{"daily:2026-06-19":"nope"}']) {
+      localStorage.setItem("silicon.challengeAttempts.v1", bad);
+      const map = getChallengeAttempts();
+      expect(map).toEqual({});
+      expect(hasAttemptedChallenge("daily:2026-06-19")).toBe(false);
+    }
+    // Mixed payload: finite values kept, garbage values dropped.
+    localStorage.setItem("silicon.challengeAttempts.v1", '{"daily:2026-06-19":123,"weekly:2026-06-15":"x"}');
+    expect(getChallengeAttempts()).toEqual({ "daily:2026-06-19": 123 });
+  });
+
+  it("mergeChallengeAttempts (backup import) unions keys, keeps the earliest start, ignores garbage", async () => {
+    const { mergeChallengeAttempts, getChallengeAttempts, recordChallengeAttempt } = await import("./challengeProgress.ts");
+    recordChallengeAttempt("daily:2026-06-19", 500);
+    mergeChallengeAttempts({ "daily:2026-06-19": 100, "weekly:2026-06-15": 900, bad: "x" });
+    expect(getChallengeAttempts()).toEqual({ "daily:2026-06-19": 100, "weekly:2026-06-15": 900 });
+    mergeChallengeAttempts(null);
+    mergeChallengeAttempts([1, 2]);
+    mergeChallengeAttempts("garbage");
+    expect(getChallengeAttempts()).toEqual({ "daily:2026-06-19": 100, "weekly:2026-06-15": 900 }); // unchanged
   });
 });

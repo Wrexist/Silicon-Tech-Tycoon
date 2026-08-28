@@ -29,6 +29,7 @@ import {
   buildWeeks,
   designCeiling,
   gainWeeklyXp,
+  isBankrupt,
   salaryFor,
   trainCost,
   weeklyBurn,
@@ -2559,7 +2560,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     feed.push(feedItem(week, "The candidate shortlist moved on to other offers.", "neutral"));
   }
 
-  const bankrupt = cash < 0;
+  const bankrupt = isBankrupt(cash); // === cash < 0, the engine's one bankruptcy definition
   if (bankrupt) {
     feed.push(feedItem(week, "Out of cash. The company has gone under.", "negative"));
   }

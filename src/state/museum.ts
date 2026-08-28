@@ -79,6 +79,20 @@ export function mergeMuseum(incoming: unknown): void {
   mirrorToNative(KEY, serialized);
 }
 
+/** Make a museum key unique against what's already enshrined. Replaying a fixed-seed run (a daily
+ *  challenge, a shared code) and shipping the same product at the same week produces the same base
+ *  key, which used to silently overwrite the earlier entry via addMuseumEntry's de-dupe. Appending a
+ *  `~N` replay counter keeps every enshrinement. Migration-safe: existing saved entries keep their
+ *  keys exactly as stored (getMuseum only requires a non-empty string key), and a fresh base key
+ *  passes through unchanged, so non-replay behaviour is byte-identical. */
+export function uniqueMuseumKey(base: string): string {
+  const keys = new Set(getMuseum().map((e) => e.key));
+  if (!keys.has(base)) return base;
+  let n = 2;
+  while (keys.has(`${base}~${n}`)) n++;
+  return `${base}~${n}`;
+}
+
 /** Add a freshly-shipped device to the museum (newest first, capped). De-dupes by key. */
 export function addMuseumEntry(entry: MuseumEntry): void {
   const list = getMuseum().filter((e) => e.key !== entry.key);

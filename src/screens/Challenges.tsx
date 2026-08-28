@@ -165,7 +165,13 @@ export function ChallengesSheet({ onClose }: { onClose: () => void }) {
   const history = challengeHistory();
 
   const begin = (t: Target) => {
-    startChallenge(t.kind, t.dateKey);
+    // startChallenge can refuse (one-attempt lock, or the company couldn't be parked) — it shows its
+    // own toast then; only celebrate + close when the run really started.
+    if (!startChallenge(t.kind, t.dateKey)) {
+      setConfirm(null);
+      haptic.error();
+      return;
+    }
     haptic.success();
     sfx("confirm");
     showToast(`${t.kind === "daily" ? "Daily" : "Weekly"} challenge started — good luck`, { tone: "positive" });

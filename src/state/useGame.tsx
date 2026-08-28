@@ -155,8 +155,8 @@ import {
 } from "./gameState.ts";
 import { getLegacy, setLegacy } from "./legacy.ts";
 import { recordStars, getScenarioStars, mergeScenarioStars } from "./scenarioProgress.ts";
-import { recordChallengeBest, challengeKey, getChallengeBests, mergeChallengeBests } from "./challengeProgress.ts";
-import { addMuseumEntry, getMuseum, mergeMuseum } from "./museum.ts";
+import { recordChallengeBest, challengeKey, getChallengeBests, mergeChallengeBests, bestScore, getChallengeAttempts, hasAttemptedChallenge, recordChallengeAttempt, mergeChallengeAttempts } from "./challengeProgress.ts";
+import { addMuseumEntry, getMuseum, mergeMuseum, uniqueMuseumKey } from "./museum.ts";
 import { recordFounder, getFounderRecord, mergeFounderRecord } from "./founderLegend.ts";
 import { getProfileAchievements, mergeProfileAchievements } from "./achievementsProfile.ts";
 import { recordSeasonCompletion, getSeasons, mergeSeasons, seasonLabel } from "./seasons.ts";
@@ -447,6 +447,13 @@ function syncChallengeBest(prev: GameState, next: GameState, announce: boolean):
   const ch = next.activeChallenge;
   if (!ch || next.challengeScore == null) return;
   const key = challengeKey(ch.kind, ch.dateKey);
+  // The score is immutable once locked, so after the locking tick this call is a recurring no-op —
+  // skip it when the store already holds this score or better. (Retries only when the earlier write
+  // failed, e.g. storage quota, so nothing observable changes.)
+  if (prev.challengeScore != null) {
+    const recorded = bestScore(key);
+    if (recorded != null && recorded >= next.challengeScore) return;
+  }
   const { improved, best } = recordChallengeBest(key, next.challengeScore);
   if (!announce || prev.challengeScore != null) return; // only on the locking transition
   sfx("mastery");
@@ -582,7 +589,9 @@ interface GameActionsValue {
   startScenario: (id: string, name?: string) => void;
   /** Begin a daily/weekly challenge (stashing the freeform company first, so returnHome can restore
    *  it). Defaults to today; pass a dateKey to play a specific (e.g. shared-by-code) challenge. */
-  startChallenge: (kind: ChallengeKind, dateKey?: string) => void;
+  /** Start a challenge run. False (with a toast) when refused — already attempted, or the freeform
+   *  company couldn't be parked. */
+  startChallenge: (kind: ChallengeKind, dateKey?: string) => boolean;
   /** Leave the active challenge/scenario and restore the stashed freeform company. Returns true if a
    *  company was restored, false if there was nothing stashed. */
   returnHome: () => boolean;
@@ -962,7 +971,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       const lp = next.launched[0];
       if (lp) {
         addMuseumEntry({
-          key: `${next.seed}-${lp.product.id}-${lp.launchedWeek}`,
+          // uniqueMuseumKey: a fixed-seed replay (daily challenge / shared code) shipping the same
+          // product at the same week must enshrine a NEW entry, not overwrite the earlier one.
+          key: uniqueMuseumKey(`${next.seed}-${lp.product.id}-${lp.launchedWeek}`),
           product: lp.product,
           name: lp.product.name,
           category: lp.product.category,
@@ -1410,6 +1421,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       legacy: getLegacy(),
       scenarioStars: getScenarioStars(),
       challengeBests: getChallengeBests(),
+      challengeAttempts: getChallengeAttempts(),
       museum: getMuseum(),
       achievements: getProfileAchievements(),
       founder: getFounderRecord(),
@@ -1430,6 +1442,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (typeof profile.legacy === "number" && profile.legacy > getLegacy()) setLegacy(profile.legacy);
       mergeScenarioStars(profile.scenarioStars);
       mergeChallengeBests(profile.challengeBests);
+      mergeChallengeAttempts(profile.challengeAttempts);
       mergeMuseum(profile.museum);
       mergeProfileAchievements(Array.isArray(profile.achievements) ? profile.achievements : undefined);
       mergeFounderRecord(profile.founder);
@@ -1821,17 +1834,27 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Daily/weekly challenge: a flavored run seeded from today's (UTC) date. Like scenarios, this takes
   // over the main slot â€” but the freeform company is stashed first (returnHome restores it), so a
   // challenge is a side trip you can leave, not a company-wipe. The per-date best lives in the profile.
-  const startChallenge = useCallback((kind: ChallengeKind, dateKey?: string) => {
+  const startChallenge = useCallback((kind: ChallengeKind, dateKey?: string): boolean => {
+    const dk = dateKey ?? dateKeyOf(new Date());
+    // One-attempt lock (REVIEW_FINDINGS P2): a date's challenge is one shot — starting it consumes
+    // the attempt, and a recorded best from before the lock existed counts as an attempt too.
+    const key = challengeKey(kind, dk);
+    if (hasAttemptedChallenge(key)) {
+      showToast(`Already attempted — each ${kind} challenge is one shot. ${kind === "weekly" ? "A new one arrives next week." : "A new one arrives tomorrow."}`, { tone: "negative" });
+      return false;
+    }
     if (!stashHomeIfFreeform()) {
       showToast("Couldn't free up storage to park your company â€” challenge cancelled to keep it safe.", { tone: "negative" });
-      return;
+      return false;
     }
     mergeProfileAchievements(gs().unlockedAchievements); // keep this run's milestones
     clearSave();
-    store.set({ ...newChallengeGame(kind, dateKey ?? dateKeyOf(new Date())), platformUnlocked: gs().platformUnlocked });
+    store.set({ ...newChallengeGame(kind, dk), platformUnlocked: gs().platformUnlocked });
+    recordChallengeAttempt(key); // stamp AFTER the run actually started, so an aborted stash doesn't burn the day
     setPaused(false);
     setFast(false);
     setSkipping(false);
+    return true;
   }, [stashHomeIfFreeform]);
 
   // Leave the current challenge/scenario and restore the stashed freeform company to the main slot.
