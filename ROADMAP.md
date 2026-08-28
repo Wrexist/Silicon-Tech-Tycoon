@@ -22,7 +22,7 @@ priorities.** When they disagree, this file wins; update it as work lands.
 |---|---|
 | Version | `1.3.0` (`package.json`) — free download + **Silicon Pro** subscription |
 | Typecheck | `tsc -b` — **0 errors** ✅ |
-| Tests | **~1,694 passing across 160 files** (vitest), determinism pin green ✅ |
+| Tests | **1,707 passing across 162 files** (vitest), determinism pin green ✅ |
 | Build | `vite build` + PWA (manifest + service worker) green ✅ |
 | Engine purity | `engine/` is pure TS, fully unit-tested, deterministic (pinned by `activeRun.determinism.test.ts`) ✅ |
 | iOS pipeline | Capacitor shell + TestFlight CI workflow wired; RevenueCat/StoreKit 2 seam live ✅ |
@@ -51,7 +51,8 @@ through that.
 
 ## Phase 0 — SHIP v1.0 🔴 (owner-side, blocks everything)
 
-The only critical-path work. Detailed steps live in `WHAT_YOU_NEED_TO_DO.md`; this is the gate.
+The only critical-path work. Detailed steps live in `LAUNCH_CHECKLIST.md` (the older
+`WHAT_YOU_NEED_TO_DO.md` is superseded); this is the gate.
 
 - [ ] Apple Developer Program membership active; App Store Connect app record created
       (`com.wrexist.silicon`, SKU `SILICON-TECH-TYCOON-001`).
@@ -61,12 +62,15 @@ The only critical-path work. Detailed steps live in `WHAT_YOU_NEED_TO_DO.md`; th
       `APP_STORE_CONNECT_API_KEY_BASE64`. Team ID `S3U8B8HH96` is already wired.
 - [ ] Mac/Xcode: `npx cap add ios` → portrait-only + iPhone-only → archive → TestFlight →
       on-device smoke (Preferences mirror, status bar theme, haptics, splash).
-- [ ] **IAP — it is already WIRED** (audited 2026-06-21, see `SHIP_READINESS.md`): `NATIVE_IAP_WIRED
-      = true`, a real StoreKit 2 bridge (`SiliconStoreKit.swift`), and the `.storekit` config all
-      ship. The purchase UI is SHOWN on device, so the owner **must create + attach** the
-      `com.wrexist.silicon.sandbox` IAP in App Store Connect (shown-but-unattached = 2.1 rejection).
-      *To defer instead:* flip `NATIVE_IAP_WIRED` to `false` (hides the UI) and ship it in 1.x.
-      **Recommendation: ship WITH it — the code is done; just create/attach + test buy+restore once.**
+- [ ] **Purchases — Silicon Pro is WIRED** (superseding the old paid-era text here, which told you
+      to create/attach the `com.wrexist.silicon.sandbox` IAP at $2.99 and flip `NATIVE_IAP_WIRED` —
+      that contradicts the locked constraints above and `LAUNCH_CHECKLIST.md`/`MONETIZATION.md`).
+      Current reality: purchases flow through `storeKitBridge.ts` → `SiliconStoreKit.swift`
+      (RevenueCat / StoreKit 2). The owner **creates + attaches the three Pro SKUs**
+      (`com.wrexist.silicon.pro.monthly` / `.yearly` / `.lifetime`) per `LAUNCH_CHECKLIST.md` and
+      `appstore/SUBSCRIPTION_GUIDE.md`. The legacy `com.wrexist.silicon.sandbox` SKU is
+      **legacy-restore-only**: keep it live in App Store Connect, never re-sell, never attach it to
+      the new submission's offering.
 - [ ] Submit for review. **Get the first real crash/retention data from live players** — it
       re-prioritizes everything below.
 
@@ -156,9 +160,8 @@ recipe-determinism guard (sidegrades) is live and tested.
       place/sell/duplicate, "Need $X", + a `DecorateTutorial`. 7 `officeShop.test.ts` cases.
 
 **Remaining (small):**
-- [ ] Remove the now-**dead `buyDesktop` action** (still exposed via `useGame` but no UI calls it;
-      desks-as-seats replaced it). Harmless legacy — low-priority cleanup, keeps old-save `desktops`
-      counting as seats through `deskCapacity`.
+- [x] Remove the now-**dead `buyDesktop` action** — ✅ shipped in commit `a5bd165`; zero references
+      remain in `src/`. Old-save `desktops` still count as seats through `deskCapacity`.
 - [ ] ⚠️ On-device polish pass of the Decorate UI (smoothness, no clipping) — device-only.
 
 ---
@@ -305,8 +308,8 @@ patterns. **Revenue grows via content (paid DLC), never via nags.**
 |---|---|---|---|
 | **0** | Ship v1.0 to the App Store | owner-side | **blocks everything** |
 | **1** | On-device debt burn-down + balance playtest | quality | right after submit |
-| **2** | Free 1.1: IAP wired, component sidegrades, sandbox depth | free + IAP | post-launch |
-| **3** | Office Shop (priced, attributed furniture) — ✅ already built; dead-code cleanup left | free content | done |
+| **2** | Free 1.1 retention backbone — mostly shipped; IAP items SUPERSEDED by the Silicon Pro pivot | free (IAP part superseded) | post-launch |
+| **3** | Office Shop (priced, attributed furniture) — ✅ built; `buyDesktop` cleanup shipped (a5bd165) | free content | done |
 | **4** | DLC #1: OS/Platform Division (built — needs live wrapper) | paid DLC | post-launch |
 | **5** | Perf: context split, instancing, demand frameloop | hardening | alongside |
 | **6** | iPad layout + Dynamic Type | reach/a11y | post-launch |

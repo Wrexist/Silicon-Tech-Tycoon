@@ -109,7 +109,7 @@ Re-verified 2026-08-14 — most of this was already done. Only the video is genu
 npm ci && npm test && npm run typecheck && npm run build && npx cap sync ios
 ```
 
-- [ ] All three green (1,693 tests, determinism pin included)
+- [ ] All three green (1,707 tests as of 2026-08, determinism pin included)
 - [ ] **The Swift compiles.** `npm test` never touches `ios/**`, and three past releases were burned
       on trivial Swift errors. Open the PR (the `iOS build check` workflow runs automatically on any
       PR touching `ios/**`) **or** dispatch `ios-build-check.yml` by hand, and wait for it to go

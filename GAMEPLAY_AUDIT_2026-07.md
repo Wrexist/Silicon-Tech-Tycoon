@@ -1,5 +1,10 @@
 # Gameplay Audit & Improvement Plan — 2026-07
 
+> **Status note (2026-08):** several boxes still open below have since been fixed elsewhere — the
+> `--danger` token item is moot after the Aug-24 design-token sweep, and the whole-week build-bar
+> jump was fixed by TASK v109's `useSmoothWeeks`. The remaining open items are being re-verified.
+> **`ROADMAP.md` is authoritative** for current status; treat this file as the July snapshot.
+
 A fresh full-app audit (three parallel domain sweeps: engine correctness/dead-code, gameplay
 depth/content, screens/UX immersion) cross-checked against a first-hand read of the tick loop,
 market/economy/sales engines, catalogs, balance, the design/subsystem/synergy system, and the

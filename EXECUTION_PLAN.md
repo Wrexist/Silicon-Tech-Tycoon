@@ -1,5 +1,18 @@
 # Silicon: Tech Tycoon — Execution Plan (the detailed TODO)
 
+> ## ⚠️ SUPERSEDED — do not work from this file
+>
+> This plan was written for **the $8.99 paid-download era** and pre-dates the Silicon Pro pivot:
+> it still references `src/state/iap.ts` / `NATIVE_IAP_WIRED` / cordova-plugin-purchase (all since
+> replaced by the Silicon Pro stack — `storeKitBridge.ts` + `SiliconStoreKit.swift` via RevenueCat/
+> StoreKit 2), and several Phase 5 items listed as open (e.g. F13 desk instancing, F36 context
+> split) have already shipped. Individual checkboxes below can no longer be trusted.
+>
+> **Work from [`ROADMAP.md`](ROADMAP.md)** (current phase status), **[`LAUNCH_CHECKLIST.md`](LAUNCH_CHECKLIST.md)**
+> (the submission path) and **[`MONETIZATION.md`](MONETIZATION.md)** (the business model).
+>
+> Kept only as the historical record of the original task breakdown.
+
 Granular, ordered breakdown of every `ROADMAP.md` phase into executable engineering tasks. Each
 task lists **files touched · order · tests · risk**. This is the working checklist; tick items as
 they land and mirror status into `ROADMAP.md`.
