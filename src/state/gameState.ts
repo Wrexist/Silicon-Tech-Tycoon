@@ -15,6 +15,7 @@ import {
 } from "../engine/competitors.ts";
 import { updateNemesis, nemesisLaunchEdge, nemesisTaunt, nemesisMilestone, heatTier, type Nemesis, type ClashSignal } from "../engine/nemesis.ts";
 import { startDuel, duelMet, duelProgress, duelReward, nextLadderTier, duelVictoryLine, type NemesisDuel } from "../engine/nemesisDuel.ts";
+import { recordRival, markRivalAcquired, rivalMemoryBeat, type RivalHistory } from "../engine/rivalMemory.ts";
 import { harvestSettlement } from "../engine/liveOps.ts";
 import { resolveEurekaChase, insightProgress, type EurekaMoment } from "../engine/eureka.ts";
 import { keynoteWindowWeeks, keynoteMaxBonus, keynotePressFlavour } from "../engine/keynote.ts";
@@ -473,6 +474,12 @@ export interface GameState {
    *  Optional/null → only ever set once a nemesis exists, which the pinned auto-player never forms,
    *  so the golden run is byte-identical. */
   queuedRivalry?: { rivalId: string; rivalName: string; doctrine: string } | null;
+  /** Rival head-to-head MEMORY (engine/rivalMemory.ts) — what the game remembers about each rival:
+   *  clashes won/lost, strikes weathered, price wars, duel outcomes, a buyout. A pure fold over
+   *  events the tick already computes deterministically; every writer requires player activity, so
+   *  the pinned do-nothing sim never creates it. Optional/backfilled → absent in old saves; every
+   *  read tolerates undefined. */
+  rivalHistory?: RivalHistory;
   /** Nemesis Boss ladder (feature #7) — the live duel against the standing arch-rival: out-value them
    *  by a margin before the window closes (engine/nemesisDuel.ts). Armed only while a nemesis exists,
    *  which the pinned auto-player never forms → optional/null keeps it byte-identical. */
@@ -1138,15 +1145,73 @@ export function newScenarioGame(scenarioId: string, seed = (Math.random() * 2 **
   const named = name?.trim() ? { ...base, companyName: name.trim() } : base;
   const scn = scenarioById(scenarioId);
   if (!scn) return named;
-  const { era, cash, reputation, fans } = scn.setup;
+  const { era, cash, reputation, fans, researchedTier: setupTier, researchPoints, team } = scn.setup;
   const startCash = cash ?? base.cash;
+  const startEra = era ?? base.era;
+
+  // Organic-parity research provision (REVIEW_FINDINGS "era-start scenarios begin under-provisioned"):
+  // seed every component line to the authored uniform tier, clamped to the highest tier the start
+  // era has actually unlocked, and never below the newGame() default. Pure data — no RNG involved.
+  let researched = base.researched;
+  if (setupTier != null) {
+    const next: typeof researched = { ...researched };
+    for (const kind of Object.keys(researched) as ComponentKind[]) {
+      let eraMax = 1;
+      for (let t = 1; ; t++) {
+        const def = tierDef(kind, t);
+        if (!def || def.era > startEra) break;
+        eraMax = t;
+      }
+      next[kind] = Math.max(researched[kind] ?? 1, Math.min(setupTier, eraMax));
+    }
+    researched = next;
+  }
+
+  // Seeded teammates — deterministic from the run's seed (the scenario state's own RNG), built the
+  // same way hireStaff builds a signing (identity, skills, market salary) but already on payroll at
+  // week 0 with a seat each, so a later-era start isn't a Platform-Era company run by one founder.
+  let staff = named.staff;
+  let staffCounter = named.staffCounter;
+  let desktops = named.desktops;
+  let rngState = named.rngState;
+  if (team && team.length > 0) {
+    const rng = rngFrom(named);
+    const hires: Staff[] = team.map((t) => {
+      const identity = makeIdentity(rng, t.role);
+      const member: Staff = {
+        id: `s${staffCounter}`,
+        role: t.role,
+        name: staffName(staffCounter),
+        skill: t.skill,
+        skills: makeSkills(rng, t.role, t.skill),
+        salary: salaryFor(t.role, t.skill),
+        assignment: ROLE_ASSIGNMENT[t.role],
+        xp: 0,
+        hiredWeek: 0,
+        ...identity,
+        bio: staffBio(identity.trait, identity.specialty, staffCounter),
+      };
+      staffCounter++;
+      return member;
+    });
+    staff = [...staff, ...hires];
+    desktops = Math.min(4, desktops + team.length); // one seat per seeded teammate (garage caps at 4)
+    rngState = rng.state();
+  }
+
   return {
     ...named,
     activeScenario: scenarioId,
-    era: era ?? base.era,
+    era: startEra,
     cash: startCash,
     reputation: reputation ?? base.reputation,
     fans: fans ?? base.fans,
+    researched,
+    researchPoints: researchPoints ?? base.researchPoints,
+    staff,
+    staffCounter,
+    desktops,
+    rngState,
     onboarded: true,
     tutorialDone: true,
     cashHistory: [{ week: 0, cash: toDollars(startCash) }],
@@ -3073,7 +3138,11 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
           const armed = startDuel(nem.rivalId, week, tier, ascend);
           base.nemesisDuel = armed;
           if (!offline) {
-            base.feed.push(feedItem(week, `The duel is on: out-value ${nemComp.name} within ${armed.endWeek - armed.startWeek} weeks to claim the trophy.`, "accent"));
+            // Memory-aware duel copy (rivalMemory): the arm line remembers trophies already taken
+            // off THIS rival. 0 for a first duel → the line reads exactly as before.
+            const priorTrophies = base.rivalHistory?.[nem.rivalId]?.duelsWon ?? 0;
+            const remembered = priorTrophies > 0 ? ` You've already taken ${priorTrophies} ${priorTrophies === 1 ? "trophy" : "trophies"} off them.` : "";
+            base.feed.push(feedItem(week, `The duel is on: out-value ${nemComp.name} within ${armed.endWeek - armed.startWeek} weeks to claim the trophy.${remembered}`, "accent"));
           }
         } else if (week >= duel.endWeek) {
           // The window closed — judge it (live valuations in integer cents, no RNG).
@@ -3095,6 +3164,8 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
             }
             // Re-arm at the higher rung — the ladder never ends.
             base.nemesisDuel = startDuel(nem.rivalId, week, nextTier, ascend);
+            // Remember the trophy (rivalMemory) — the profile + future duel copy speak from it.
+            base.rivalHistory = recordRival(base.rivalHistory, nem.rivalId, week, "duelWon");
           } else {
             // No punishment beyond a taunt — the duel re-arms at the SAME tier.
             if (!offline) {
@@ -3103,12 +3174,51 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
               base.feed.push(feedItem(week, `${nemComp.name}: “${nemesisTaunt(doctrine, base.seed, week, { tier: heatTier(nem.heat), turf })}”`, "accent"));
             }
             base.nemesisDuel = startDuel(nem.rivalId, week, duel.tier, ascend);
+            // Remember the lapsed window (rivalMemory) — they held you off this round.
+            base.rivalHistory = recordRival(base.rivalHistory, nem.rivalId, week, "duelLost");
           }
         }
       }
     } else if (base.nemesisDuel) {
       // The nemesis dissolved (rival left the field) → the duel dissolves with it.
       base.nemesisDuel = null;
+    }
+
+    // Rival head-to-head MEMORY (engine/rivalMemory.ts) — fold this tick's remembered events per
+    // rival: the clash signals harvested above (a struck blow is also a strike on file) and any
+    // cut-price offensive (contested launch) aimed at your turf. A pure fold over data the tick
+    // already computed — no RNG, no economy numbers touched. Every one of these events requires
+    // player activity, so the pinned do-nothing run never enters a branch that writes the field.
+    {
+      const prevHist = base.rivalHistory;
+      let hist = prevHist;
+      for (const s of clashSignals) {
+        if (s.kind === "struck") {
+          hist = recordRival(recordRival(hist, s.rivalId, week, "loss"), s.rivalId, week, "strike");
+        } else if (s.kind === "awardLoss") {
+          hist = recordRival(hist, s.rivalId, week, "loss");
+        } else {
+          hist = recordRival(hist, s.rivalId, week, "win"); // overtake / dethroned / awardWin
+        }
+      }
+      for (const r of rivalReleases) {
+        if (r.week === week && r.contested) hist = recordRival(hist, r.rivalId, week, "priceWar");
+      }
+      if (hist && hist !== prevHist) {
+        base.rivalHistory = hist;
+        // Notable-transition beats only (feed discipline): a third win over / third loss to / third
+        // price war with a rival — and never for the standing nemesis, whose own milestone lines
+        // already speak (nemesisMilestone). At most rare, once-per-crossing lines.
+        for (const id of Object.keys(hist)) {
+          if (hist[id] === prevHist?.[id] || base.nemesis?.rivalId === id) continue;
+          const beat = rivalMemoryBeat(prevHist?.[id], hist[id]);
+          if (beat) {
+            const name = base.competitors.find((c) => c.id === id)?.name;
+            if (name) base.feed.push(feedItem(week, beat.text.replace(/\{rival\}/g, name), beat.tone as FeedTone));
+          }
+        }
+        base.feed = trimFeed(base.feed);
+      }
     }
   }
 
@@ -4471,10 +4581,22 @@ export function resolveStrike(state: GameState, choice: StrikeResponse): ActionR
       lastClashWeek: state.week,
     };
   };
+  // Rival memory (engine/rivalMemory.ts): every answered strike is remembered — you weathered it,
+  // and the outcome banks a win or a loss with that rival (same semantics as the nemesis feud:
+  // paying to answer is a win; a hold wins only if your product genuinely outclasses theirs).
+  // Player-action only, so the pinned sim never writes this.
+  const bested = choice === "hold" ? strike.playerOverall >= strike.rivalOverall : true;
+  const rememberedHistory = recordRival(
+    recordRival(state.rivalHistory, strike.rivalId, state.week, "strikeWeathered"),
+    strike.rivalId,
+    state.week,
+    bested ? "win" : "loss",
+  );
   const cleared: GameState = {
     ...state,
     pendingStrike: null,
     lastStrikeWeek: state.week,
+    rivalHistory: rememberedHistory,
     ...(feudNemesis ? { nemesis: escalateFeud(feudNemesis) } : {}),
   };
   const feedLine = (g: GameState, text: string, tone: FeedTone): GameState => {
@@ -6836,6 +6958,8 @@ export function acquireRival(state: GameState, id: string): GameState {
     researchPoints: state.researchPoints + rpWindfall,
     absorbedBase: (state.absorbedBase ?? 0) + baseGain,
     acquiredRivals: [...state.acquiredRivals, id],
+    // Rival memory: the buyout is the last entry in their file (drives the epilogue's feud clause).
+    rivalHistory: markRivalAcquired(state.rivalHistory, id, state.week),
     nemesis: wasNemesis ? null : state.nemesis,
     // Buying out the arch-rival ends the running duel with them; the ladder tier + trophies persist so a
     // future nemesis inherits the rungs already climbed.

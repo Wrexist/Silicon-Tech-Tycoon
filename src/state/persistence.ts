@@ -524,6 +524,23 @@ function migrate(state: GameState): GameState | null {
   if (s.pendingNemesisTrophy != null && (typeof s.pendingNemesisTrophy !== "object" || typeof s.pendingNemesisTrophy.rivalName !== "string")) {
     s.pendingNemesisTrophy = null;
   }
+  // Rival head-to-head memory (added later): default absent — old saves simply have no history yet.
+  // An import is hostile input: keep only well-formed entries (finite, non-negative counters), drop
+  // anything else so a corrupt record can never render nonsense or break a fold.
+  if (s.rivalHistory != null) {
+    if (typeof s.rivalHistory !== "object" || Array.isArray(s.rivalHistory)) delete s.rivalHistory;
+    else {
+      const counters = ["wins", "losses", "strikes", "strikesWeathered", "priceWars", "duelsWon", "duelsLost", "lastWeek"] as const;
+      for (const k of Object.keys(s.rivalHistory)) {
+        const m = (s.rivalHistory as Record<string, Record<string, unknown>>)[k];
+        const bad = !m || typeof m !== "object" || Array.isArray(m)
+          || counters.some((f) => typeof m[f] !== "number" || !Number.isFinite(m[f]) || (m[f] as number) < 0);
+        if (bad) delete (s.rivalHistory as Record<string, unknown>)[k];
+        else if (m.acquiredWeek != null && !Number.isFinite(m.acquiredWeek)) delete m.acquiredWeek;
+      }
+      if (Object.keys(s.rivalHistory).length === 0) delete s.rivalHistory;
+    }
+  }
   // Eureka breakthroughs (added later): default none. Drop a malformed pending moment from an import.
   if (s.pendingEureka != null && (typeof s.pendingEureka !== "object" || !Number.isFinite(s.pendingEureka.bankRp))) {
     s.pendingEureka = null;

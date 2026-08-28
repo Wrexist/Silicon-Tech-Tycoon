@@ -14,6 +14,9 @@ export interface EpilogueInput {
   /** Item 4.4 — a doctrine clause (from research.doctrineSummary), naming the Houses the company
    *  committed to. Empty/undefined → no clause, so an unforked run reads exactly as before. */
   doctrine?: string;
+  /** Rival memory — the run's "defining feud" clause (rivalMemory.rivalryEpilogueClause), closing the
+   *  head-to-head story. Empty/undefined → no clause, so a feud-free run reads exactly as before. */
+  rivalry?: string;
 }
 
 function fmtFans(n: number): string {
@@ -52,7 +55,9 @@ export function campaignEpilogue(i: EpilogueInput): string {
       ? "Across every company you have founded, the legend of its founder only grows."
       : "The cramped garage where it all began is a stop on the company tour now.";
 
-  // Item 4.4 — a doctrine clause slots in before the close when the company committed to a House.
+  // Item 4.4 — a doctrine clause slots in before the close when the company committed to a House;
+  // the rivalry clause (rival memory) follows it, closing the head-to-head story.
   const doctrine = i.doctrine ? ` ${i.doctrine}` : "";
-  return `Five years later. ${standing} ${body}${doctrine} ${close}`;
+  const rivalry = i.rivalry ? ` ${i.rivalry}` : "";
+  return `Five years later. ${standing} ${body}${doctrine}${rivalry} ${close}`;
 }

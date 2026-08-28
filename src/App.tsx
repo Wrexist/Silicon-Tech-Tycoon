@@ -40,6 +40,7 @@ import { challengeTeaser, dailyChallenge, dateKeyOf } from "./engine/challenges.
 import { Button, Card } from "./design/primitives.tsx";
 import { format, toDollars, scale } from "./engine/money.ts";
 import { campaignEpilogue } from "./engine/epilogue.ts";
+import { rivalryEpilogueClause } from "./engine/rivalMemory.ts";
 import type { Product } from "./engine/types.ts";
 import { ipoValuation, legacyBonus, industryRank, navAttention, vaultSummary, type GameState } from "./state/gameState.ts";
 import { getFounderRecord, legendStanding, liveLegendScore } from "./state/founderLegend.ts";
@@ -603,6 +604,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
             fans: state.fans,
             legacy: state.legacy,
             doctrine: doctrineSummary(state.completedProjects),
+            rivalry: rivalryEpilogueClause(state.rivalHistory, (id) => state.competitors.find((c) => c.id === id)?.name),
           })}
         </p>
         <Card variant="inset" className="ipo__legacy">

@@ -65,6 +65,8 @@
 }
 .rst__title { margin: 0; font-size: var(--fs-title, var(--fs-headline)); font-weight: 800; letter-spacing: -0.02em; }
 .rst__sub { margin: 0; font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.45; }
+/* Head-to-head memory — a quiet "we've been here before" beneath the pitch. */
+.rst__history { margin: 0; font-size: var(--fs-caption); color: var(--ink-3); line-height: 1.4; font-style: italic; }
 
 /* The duel — their device vs yours, scores side by side. */
 .rst__duel {

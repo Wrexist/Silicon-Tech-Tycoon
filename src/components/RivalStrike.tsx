@@ -15,6 +15,7 @@ import { higherPriorityPending } from "../design/interruptPriority.ts";
 import { format, sub, cents, type Money } from "../engine/money.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
 import { heatTier, HEAT_TIER_LABEL } from "../engine/nemesis.ts";
+import { strikeHistoryLine } from "../engine/rivalMemory.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import "./rivalStrike.css";
@@ -80,6 +81,10 @@ export function RivalStrike() {
   // "it's personal"), not a context-free rival popup.
   const feud = strike.fromNemesis === true;
   const tierLabel = feud && strike.heat != null ? HEAT_TIER_LABEL[heatTier(strike.heat)] : null;
+  // Head-to-head memory (rivalMemory): "we've been here before" — the tick filed this strike before
+  // the card rendered, so the line counts it. Null on a first strike (no history to tell).
+  const mem = state.rivalHistory?.[strike.rivalId];
+  const historyLine = mem ? strikeHistoryLine(mem) : null;
 
   return (
     <div className="rst">
@@ -93,6 +98,7 @@ export function RivalStrike() {
           {feud && "It's personal — "}Their new {strike.rivalProductName} just landed in {strike.productName}'s market — your remaining sales take a {Math.round(BALANCE.market.competition.rivalEntrySalesHaircut * 100)}% hit unless the launch fades.
           {feud && " Answer them and you bank a win in the feud."}
         </p>
+        {historyLine && <p className="rst__history">{historyLine}</p>}
 
         <div className="rst__duel">
           <div className="rst__side">
