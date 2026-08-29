@@ -21,6 +21,7 @@ import {
   yearlySavingsPercent,
   yearlyValueVsMonthly,
   type ProRecord,
+  PRO_CHANGED_EVENT,
 } from "./pro.ts";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -339,5 +340,15 @@ describe("proStatusLine", () => {
   it("counts down an active trial", () => {
     setProRecord(rec({ isTrial: true, expiresAt: new Date(NOW + 3 * DAY).toISOString() }));
     expect(proStatusLine(NOW)).toContain("Free trial");
+  });
+});
+
+describe("the entitlement-changed event name", () => {
+  // `nativeStore.hydrateFromNative()` dispatches this event by LITERAL string (it cannot import
+  // `pro.ts`, which imports it — that would be a cycle). If the constant is ever renamed without
+  // the literal there, a subscriber whose record was restored from the durable mirror after first
+  // paint keeps looking at lock chips. Pin the two together.
+  it("is the literal nativeStore.ts dispatches", () => {
+    expect(PRO_CHANGED_EVENT).toBe("silicon:pro-changed");
   });
 });
