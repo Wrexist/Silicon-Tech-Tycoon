@@ -2455,3 +2455,44 @@ Four fixes from playtest screenshots.
       earnings / contract) referenced the token that never existed, so their authored pops never
       played. Token added exactly as the backlog prescribed + reduced-motion neutralization; settled
       frames provably unchanged (every keyframe ends at base state).
+
+## v12x+1 — excellence pass: correctness, rival memory, a11y, doc truth (2026-08-28)
+Orchestrated multi-agent pass over the whole repo; every unit landed green (tsc 0 · full suite ·
+determinism pin · build+PWA) before commit. 1,707 → **1,845 tests / 169 files**.
+- [x] **Docs reconciled** (6f14e56): EXECUTION_PLAN gets its missing SUPERSEDED banner (it still
+      taught the $8.99 paid-era IAP); ROADMAP Phase 0 purchase step now matches
+      LAUNCH_CHECKLIST/MONETIZATION (three Pro SKUs; sandbox SKU legacy-restore-only); shipped
+      `buyDesktop` cleanup ticked; test counts refreshed.
+- [x] **Design-system hygiene** (32a50ac): `.tabswap` takeover brought onto the liquid-glass
+      standard (clear scrim, glass card, edge reflection); 21 `var(--x, fallback)` refs whose
+      token existed nowhere mapped to real tokens; 6 no-op className modifiers styled or removed;
+      `tokenRefs.test.ts` now fails any fallback naming an undefined token.
+- [x] **State correctness** (01e7d5a): daily challenge gets a one-attempt-per-day lock
+      (hostile-input-tolerant store, backup merge, native mirror); museum keys no longer collide
+      on fixed-seed replays (migration-safe `~N` suffix); no-op `syncChallengeBest` writes
+      short-circuit; `isBankrupt` wired into `advanceOneWeek`; UI pass (e58148e) fixed the
+      quarterly feed's "2000.0k fans" via shared `formatCount` + 4 disabled-CTA reason hints.
+- [x] **Engine test coverage** (392f21e): dedicated files for product / market / research /
+      catalogs / balance — 105 characterization tests over the five biggest untested surfaces.
+- [x] **Rival head-to-head memory** (239a434) — the DEPTH_PLAN item: per-rival
+      wins/losses/strikes/price-wars/duels/buyout as a pure deterministic fold on an optional
+      `rivalHistory` field (absent until first interaction; no new RNG/salt). Surfaced only in
+      existing surfaces: Market rival-profile history line, third-strike card copy, duel trophy
+      count, rare feed beats on crossings, IPO-epilogue rivalry clause. 26 tests incl.
+      byte-for-byte replay.
+- [x] **Era-start scenarios provisioned from measurement** (3a16486): Head Start/Empire were
+      confirmed under-provisioned vs 40-seed organic era-2/3 arrival snapshots; they now start at
+      organic-median research tier, below-median RP, Empire founder+3 team below p10 headcount.
+      Thresholds unchanged; campaign sim byte-identical. Full `npm run sim` audit: 0 bankruptcies,
+      no dead-weight interrupts, all systems firing within the 1-per-4wk budget.
+- [x] **Full R&D achievement earnable** (3052243): `completableProjectCount()` counted all three
+      mutually-exclusive doctrine tier-2 projects (36 vs the true 34) — now an exact fork-aware
+      closure; already-earned ids kept (monotonic union).
+- [x] **Polish + a11y** (074dcee, acf21b7): distinct scenario-star and challenge-complete sound
+      cues; four generic confirms now name their concrete stake; all five `role=tab` strips
+      control real `role=tabpanel`s; 8 sub-44px controls get invisible hit-area expansion;
+      3D-office staff/vault taps fire the same light haptic as their 2D equivalents. Verified
+      already-fixed and left alone: launch-failure toast, chart empty-guard, shortlist confirm,
+      Fix-in-Build no-WebGL guard, emoji, `discountedRd`, dead CSS.
+- Known flags left deliberately: on-device verification debt (ROADMAP Phase 1) is device-only;
+  new content/balance expansion stays deferred until live-player data per ROADMAP.
