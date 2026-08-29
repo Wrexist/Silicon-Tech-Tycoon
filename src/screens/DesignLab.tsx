@@ -1265,7 +1265,12 @@ export function DesignLab({
               <p className="lab__field-effect">
                 <Target size={12} aria-hidden />{" "}
                 {draft.targetSegment
-                  ? `Aim for ${SEGMENTS.find((s) => s.id === draft.targetSegment)!.name} — nail their fit at launch for bonus reputation + fans. Miss it and you just forgo the bonus.`
+                  // `?.` not `!`: SEGMENTS covers every SegmentId, so this find is total for any
+                  // VALID draft — but `targetSegment` also arrives from a loaded save (designing a
+                  // successor seeds the draft from a launched product), and a save carrying a
+                  // segment id this build no longer ships would throw here, mid-render, taking the
+                  // Design Lab down to the screen-error card.
+                  ? `Aim for ${SEGMENTS.find((s) => s.id === draft.targetSegment)?.name ?? "that segment"} — nail their fit at launch for bonus reputation + fans. Miss it and you just forgo the bonus.`
                   : "Commit to a buyer segment to chase a launch bonus for nailing their fit."}
               </p>
             </Card>

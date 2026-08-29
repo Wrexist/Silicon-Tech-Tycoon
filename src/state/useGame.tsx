@@ -757,6 +757,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // player's input (skipInterrupt), then auto-pause with a one-line reason. Decision-paced time.
   const [skipping, setSkipping] = useState(false);
   const [tabBlocked, setTabBlocked] = useState(false);
+  // A throw out of the weekly tick used to be INVISIBLE and unrecoverable. The tick body runs inside
+  // `setInterval`, and React error boundaries only catch throws from render/lifecycle — never from a
+  // timer callback. So if `advanceOneWeek` (or any of the toast/unlock side-effects below it) threw on
+  // some particular week+state, the exception escaped to the browser, the store kept its last good
+  // state, and the interval went right on firing — throwing again every tick, forever. What the player
+  // saw was a game whose clock had simply stopped: no error, no card, no hint, and a Reload that
+  // restored the same save and froze at the same week again.
+  // Captured here and re-thrown during render instead, so the ROOT ErrorBoundary in App.tsx handles it
+  // like any other crash — with the copyable report, Reload, and the guarded Reset. `store.set`
+  // evaluates the updater BEFORE assigning (see GameStore.set), so a throw leaves the last committed
+  // week intact and the save on disk is still the last good one.
+  const [tickError, setTickError] = useState<Error | null>(null);
   // True while the player's freeform company is stashed because a challenge/scenario is running in the
   // main slot â€” drives the "return to your company" affordance in the run trackers. Seeded from disk so
   // it survives a reload mid-challenge (the stash is a separate key from the autosaved challenge run).
@@ -826,6 +838,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (paused || suspended || hidden || bankrupt || tabBlocked || !onboarded) return;
     const ms = (BALANCE.secondsPerTick / (fast || skipping ? BALANCE.fastMultiplier : 1)) * 1000;
     const id = setInterval(() => {
+      try {
       store.set((s) => {
         const next = withScenarioRunStars(withChallengeScore(advanceOneWeek(s)));
         const firstThisWeek = next.week !== announcedWeekRef.current;
@@ -888,6 +901,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
         }
         return out2;
       });
+      } catch (e) {
+        setTickError(e instanceof Error ? e : new Error(String(e)));
+      }
     }, ms);
     return () => clearInterval(id);
   }, [store, paused, suspended, hidden, fast, skipping, bankrupt, tabBlocked, onboarded]);
@@ -2024,6 +2040,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     () => ({ paused, fast, skipping, tabBlocked, suspended, homeSaved }),
     [paused, fast, skipping, tabBlocked, suspended, homeSaved],
   );
+
+  // Surface a tick crash as a render throw (see `tickError` above), so the ROOT ErrorBoundary in
+  // App.tsx shows the copyable report + Reload + guarded Reset instead of the game silently freezing.
+  // Deliberately AFTER every hook in this component: throwing earlier would skip the hooks below it
+  // and leave React's hook list for this fiber inconsistent. Here the render is complete except for
+  // the return, so the hook order is identical on the throwing render and every one before it.
+  if (tickError) throw tickError;
 
   return (
     <StoreContext.Provider value={store}>

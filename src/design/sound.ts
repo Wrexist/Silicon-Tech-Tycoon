@@ -4,17 +4,34 @@ import { getSettings } from "../state/settings.ts";
 
 let ctx: AudioContext | null = null;
 
+// A cue must NEVER be able to take the game down. `sfx()` is called from ordinary handlers but also
+// from inside the weekly tick (a commission delivering, a shortlist arriving), and constructing an
+// AudioContext genuinely throws: browsers cap the number of live contexts per page (as few as four on
+// some Safari builds) and reject the constructor outright when audio hardware is unavailable. Thrown
+// from the tick, that killed the sim — the failure mode a missing beep should never have. Every entry
+// point into the Web Audio API here is therefore guarded, and a failure degrades to silence, which is
+// the same outcome the `sound` setting already produces and which nothing else depends on.
+let audioFailed = false;
+
 function ac(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  if (!ctx) {
-    const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctor) return null;
-    ctx = new Ctor();
+  if (typeof window === "undefined" || audioFailed) return null;
+  try {
+    if (!ctx) {
+      const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctor) return null;
+      ctx = new Ctor();
+    }
+    // iOS uses "interrupted" (phone call / Siri), not just "suspended" — resume on ANY
+    // non-running state or post-interruption cues stay silent forever.
+    if (ctx.state !== "running") void ctx.resume();
+    return ctx;
+  } catch {
+    // Latch it: without this every later cue re-attempts the same failing construction, so a
+    // fast-forwarded run would pay the cost of a throw several times a second.
+    audioFailed = true;
+    ctx = null;
+    return null;
   }
-  // iOS uses "interrupted" (phone call / Siri), not just "suspended" — resume on ANY
-  // non-running state or post-interruption cues stay silent forever.
-  if (ctx.state !== "running") void ctx.resume();
-  return ctx;
 }
 
 // iOS only unlocks audio from a user gesture; the first cue can be tick-driven (e.g. a build
@@ -40,7 +57,19 @@ interface ToneSpec {
   delay?: number;
 }
 
-function tone({ freq, to, dur, type = "sine", gain = 0.12, delay = 0 }: ToneSpec) {
+function tone(spec: ToneSpec) {
+  // Second half of the "a cue can never crash the game" contract above: even with a live context, the
+  // node graph calls can throw (a context torn down by the OS mid-cue, an out-of-range ramp value).
+  // Silence is always the right answer here, so nothing from the audio graph escapes into a caller —
+  // several of which are on the weekly tick.
+  try {
+    play(spec);
+  } catch {
+    /* cue dropped — silence is not a failure worth propagating */
+  }
+}
+
+function play({ freq, to, dur, type = "sine", gain = 0.12, delay = 0 }: ToneSpec) {
   const a = ac();
   if (!a) return;
   const t0 = a.currentTime + delay;

@@ -270,14 +270,23 @@ function AppShell() {
       <ToastHost />
       <Bank open={bankOpen} onClose={() => setBankOpen(false)} />
       <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)} label="Settings">
-        <Suspense fallback={<ScreenLoading title="Settings" />}>
-          <Settings onClose={() => setSettingsOpen(false)} />
-        </Suspense>
+        {/* Lazy chunk → a failed fetch (stale service worker after a deploy, or a dropped cold-start
+            fetch) re-throws during render, and Suspense does not catch that — only a boundary does.
+            Unbounded, opening Settings could take the whole app down; bounded, the sheet says so and
+            closes. Settings is also where the save is exported, so it is the last screen that should
+            be able to crash the game. */}
+        <ErrorBoundary fallback={<ScreenError onHome={() => setSettingsOpen(false)} />}>
+          <Suspense fallback={<ScreenLoading title="Settings" />}>
+            <Settings onClose={() => setSettingsOpen(false)} />
+          </Suspense>
+        </ErrorBoundary>
       </Sheet>
       <Sheet open={progressOpen} onClose={() => setProgressOpen(false)} label="Progress">
-        <Suspense fallback={<ScreenLoading title="Progress" />}>
-          <ProgressSheet onClose={() => setProgressOpen(false)} initialView={progressView} />
-        </Suspense>
+        <ErrorBoundary fallback={<ScreenError onHome={() => setProgressOpen(false)} />}>
+          <Suspense fallback={<ScreenLoading title="Progress" />}>
+            <ProgressSheet onClose={() => setProgressOpen(false)} initialView={progressView} />
+          </Suspense>
+        </ErrorBoundary>
       </Sheet>
       {(state.era > seenEraModal || (state.pendingMandateOffer != null && state.pendingMandateOffer.eraTo === state.era)) && !state.wentPublic && !state.bankrupt && (
         <EraModal era={state.era} onDismiss={() => setSeenEraModal(state.era)} />
@@ -789,9 +798,11 @@ function Onboarding({ onStart }: { onStart: () => void }) {
         </div>
       </div>
       <Sheet open={scenariosOpen} onClose={() => setScenariosOpen(false)} label="Scenarios">
-        <Suspense fallback={<ScreenLoading title="Scenarios" />}>
-          <ScenariosSheet onClose={() => setScenariosOpen(false)} initialName={name} />
-        </Suspense>
+        <ErrorBoundary fallback={<ScreenError onHome={() => setScenariosOpen(false)} />}>
+          <Suspense fallback={<ScreenLoading title="Scenarios" />}>
+            <ScenariosSheet onClose={() => setScenariosOpen(false)} initialName={name} />
+          </Suspense>
+        </ErrorBoundary>
       </Sheet>
       {/* Onboarding renders before AppShell's tree, so the app-level <Paywall /> isn't mounted yet —
           without this, a Pro scenario tapped from the founding screen would raise an offer nobody

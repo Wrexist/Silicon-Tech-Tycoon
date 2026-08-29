@@ -26,6 +26,7 @@
 import { Suspense, createElement, lazy, type ComponentType, type ReactNode } from "react";
 import { useGame } from "../state/useGame.tsx";
 import { INTERRUPT_ORDER, isPending, type InterruptKey } from "../design/interruptPriority.ts";
+import { ErrorBoundary } from "./ErrorBoundary.tsx";
 // The Decision Inbox banner stays EAGER, and not by accident: it owns the open/closed lifecycle for
 // the low-stakes tier, and its cleanup effect (`if (!key) closeDecision()`) is what stops the next
 // decision from auto-opening instead of arriving as a banner. Unmounting it when nothing is pending
@@ -52,10 +53,24 @@ const OVERLAY: Record<InterruptKey, ComponentType> = {
 const NemesisTrophy = lazy(() => import("./NemesisTrophy.tsx").then((m) => ({ default: m.NemesisTrophy })));
 
 /** Mount `children` only while its card exists. `fallback={null}` because the alternative — a spinner
- *  where a full-screen takeover is about to be — would be worse than the frame it replaces. */
+ *  where a full-screen takeover is about to be — would be worse than the frame it replaces.
+ *
+ *  The ErrorBoundary is load-bearing, not defensive dressing. These overlays are LAZY, and a lazy
+ *  component whose chunk fails to arrive — a stale service worker asking for a hash that a new deploy
+ *  has already removed, or a cold first launch that went offline mid-fetch — re-throws that rejection
+ *  during render. Suspense does not catch it; only a boundary does. Without one here the throw walked
+ *  all the way to the root boundary in App.tsx and replaced the ENTIRE app with the crash card. Worse,
+ *  the `pendingX` that raised the card lives in the save, so the next launch raised the same card,
+ *  re-requested the same missing chunk and crashed again — an unbootable game whose only exit from the
+ *  crash screen was "delete the save". Bounded here, a card that cannot load renders nothing: the
+ *  decision stays pending (a later reload, with a fresh chunk list, shows it) and the game plays on. */
 function When({ on, children }: { on: boolean; children: ReactNode }) {
   if (!on) return null;
-  return <Suspense fallback={null}>{children}</Suspense>;
+  return (
+    <ErrorBoundary fallback={null}>
+      <Suspense fallback={null}>{children}</Suspense>
+    </ErrorBoundary>
+  );
 }
 
 export function Interrupts() {
