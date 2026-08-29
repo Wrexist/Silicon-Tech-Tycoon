@@ -11,7 +11,9 @@
 //                   tests assert the state comes out right; this asserts the app can then draw it.
 //
 // Needs a current dist/ (`npm run build`) and /tmp/silicon-showcase.json (`npm run shots:stage:showcase`).
-// The 1.1.0 pass is skipped unless /tmp/save-110.json exists — regenerate it by checking out the
+// The previous-release pass uses scripts/fixtures/save-1.1.0.json, a save WRITTEN BY THE 1.1.0-era
+// build itself (commit b90edc1) and committed so this check is reproducible. /tmp/save-110.json
+// still wins if present, for testing against a different old build. Older note:
 // 1.1.0 tag in a worktree and exporting a save from that build.
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
@@ -39,12 +41,22 @@ const URL = `http://localhost:${server.address().port}`;
 const browser = await chromium.launch({ executablePath: "/opt/pw-browsers/chromium-1194/chrome-linux/chrome", args: ["--no-sandbox", "--use-gl=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist"] });
 const problems = [];
 
-async function sweep(label, saveJson) {
+// `pro` seeds a lifetime Silicon Pro record. Without it the four Pro-gated Progress rows (Category
+// Mastery, The Vault, Founder Legend, Device Museum) open the PAYWALL instead of a view, so this
+// sweep never render-checks those screens at all — they were the audit's blind spot, not a bug.
+// Seeding is a local entitlement only: no store call, no purchase, and it re-syncs on a real device.
+async function sweep(label, saveJson, pro = false) {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
-  await ctx.addInitScript((v) => {
+  await ctx.addInitScript(([v, seedPro]) => {
     if (v) localStorage.setItem("silicon.save.v1", v);
     localStorage.setItem("silicon.settings", JSON.stringify({ theme: "dark", sound: false, haptics: false, garage3d: true, decorateTutorialSeen: true, factoryTutorialSeen: true }));
-  }, saveJson);
+    if (seedPro) {
+      localStorage.setItem("silicon.pro.v1", JSON.stringify({
+        tier: "lifetime", productId: "com.wrexist.silicon.pro.lifetime", expiresAt: null,
+        grantedAt: new Date().toISOString(), isTrial: false, willRenew: false, inGracePeriod: false,
+      }));
+    }
+  }, [saveJson, pro]);
   const p = await ctx.newPage();
   const note = (kind, text) => { if (/favicon/.test(text)) return; problems.push(`[${label}] ${kind}: ${text.slice(0, 300)}`); };
   p.on("pageerror", (e) => note("pageerror", e.message));
@@ -72,11 +84,29 @@ async function sweep(label, saveJson) {
       return;
     }
     // No save: onboarding IS the first-run path. Complete it so the rest of the sweep has a game.
-    await p.evaluate(() => {
-      [...document.querySelectorAll("button")]
-        .find((b) => /found/i.test((b.textContent || "").trim()))?.click();
-    });
-    const started = await p.waitForSelector(".bnav__item", { timeout: 15000 }).then(() => true).catch(() => false);
+    // It is MULTI-STEP (found -> motivation -> the Pro offer), and it grows: hard-coding one click
+    // is how this pass silently stopped walking anything. Step through generically instead, always
+    // taking the decline/skip option so the sweep never enters a purchase flow, and stop as soon as
+    // the bottom nav appears.
+    let started = false;
+    for (let step = 0; step < 8 && !started; step++) {
+      started = await p.$(".bnav__item").then((n) => !!n);
+      if (started) break;
+      const clicked = await p.evaluate(() => {
+        // NOT scoped to .onboard: the Pro offer step is the shared <Paywall/> overlay, mounted
+        // outside the onboarding subtree. Scoping here is why this pass found no button and bailed.
+        const vis = [...document.querySelectorAll("button")].filter((b) => b.offsetParent !== null);
+        if (!vis.length) return null;
+        // Prefer the non-committal path: skip / not now / decline, then a plain advance.
+        const decline = vis.find((b) => /not now|maybe later|skip|^found /i.test((b.textContent || "").trim()));
+        const target = decline || vis[vis.length - 1];
+        target.click();
+        return (target.textContent || "").trim().slice(0, 40);
+      });
+      if (!clicked) break;
+      await p.waitForTimeout(900);
+    }
+    if (!started) started = await p.waitForSelector(".bnav__item", { timeout: 15000 }).then(() => true).catch(() => false);
     if (!started) { note("nav", "onboarding never handed off to the game"); await ctx.close(); return; }
     await p.waitForTimeout(1500);
     for (let i = 0; i < 10; i++) { const sk = await p.$(".coach__skip"); if (!sk) break; await sk.evaluate((n) => n.click()); await p.waitForTimeout(200); }
@@ -123,7 +153,12 @@ async function sweep(label, saveJson) {
     return await p.waitForSelector(".prog__row", { timeout: 15000 }).then(() => true).catch(() => false);
   };
   if (!(await p.$('button[aria-label*="Progress"]'))) {
-    if (label !== "new game") note("nav", "Progress hub button missing on a company that has shipped");
+    // Read "has shipped" off the SAVE, not the label. The hub is progressively revealed, so a
+    // young fixture legitimately has no hub button and the old label-based guess reported a
+    // false failure against it.
+    let hasShipped = false;
+    if (saveJson) { try { hasShipped = (JSON.parse(saveJson).launched || []).length > 0; } catch { /* unreadable fixture */ } }
+    if (hasShipped) note("nav", "Progress hub button missing on a company that has shipped");
     await ctx.close();
     return;
   }
@@ -168,21 +203,22 @@ async function sweep(label, saveJson) {
 await sweep("new game", null);
 const rich = JSON.parse((await readFile("/tmp/silicon-showcase.json")).toString());
 rich.lastActive = Date.now();
-await sweep("late game", JSON.stringify(rich));
+await sweep("late game", JSON.stringify(rich), true);
 
 // The upgrade path, through the REAL built app rather than the state layer: a save written by
 // 1.1.0 (generated from commit 5fb925a) loaded into this build and walked screen by screen.
-const oldSave = await readFile("/tmp/save-110.json").catch(() => null);
+const oldSave = await readFile("/tmp/save-110.json").catch(() => null)
+  ?? await readFile(resolve(root, "scripts/fixtures/save-1.1.0.json")).catch(() => null);
 if (oldSave) {
   const old = JSON.parse(oldSave.toString());
   old.lastActive = Date.now();
-  await sweep("1.1.0 save", JSON.stringify(old));
+  await sweep("1.1.0 save", JSON.stringify(old), true);
 } else if (process.env.AUDIT_SKIP_UPGRADE === "1") {
   console.log("note: AUDIT_SKIP_UPGRADE=1 — the previous-release upgrade pass was deliberately skipped.");
 } else {
   // Not a note: the upgrade pass is the whole reason this audit exists at release time, and a
   // silently-skipped check reads exactly like a passing one.
-  problems.push("[1.1.0 save] /tmp/save-110.json missing — the previous-release upgrade pass did NOT run. "
+  problems.push("[1.1.0 save] no previous-release fixture (scripts/fixtures/save-1.1.0.json) — the upgrade pass did NOT run. "
     + "Regenerate it from a 1.1.0 build, or set AUDIT_SKIP_UPGRADE=1 to acknowledge the gap.");
 }
 
