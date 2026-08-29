@@ -307,7 +307,11 @@ function migrate(state: GameState): GameState | null {
   // (a truncated save), rather than crash on the first tick.
   if (s.trends == null || s.competitors == null || s.staff == null) return null;
   // Core numeric/array fields that, if missing on a truncated/old save, crash the first tick.
-  if (!Number.isFinite(s.week)) s.week = 0;
+  // `week` is the spine of every schedule in the sim (era gates, `week % n` cadences, deadline and
+  // retarget weeks). Non-finite is coerced, and so is NEGATIVE: no save this game ever wrote holds
+  // one, but a hand-edited or truncated-then-patched file could, and a negative week runs the whole
+  // calendar backwards from a place the sim has no path out of.
+  if (!Number.isFinite(s.week) || s.week < 0) s.week = 0;
   if (!Number.isFinite(s.cash)) s.cash = 0;
   if (!Number.isFinite(s.reputation)) s.reputation = 8;
   // Normalize `era` HERE rather than at its usual spot further down, because the reputation floor

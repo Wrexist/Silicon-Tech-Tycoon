@@ -140,6 +140,28 @@ describe("capture and restore", () => {
     expect(list[list.length - 1].week).toBe(SNAPSHOT_EVERY_WEEKS * 4); // oldest fell off
   });
 
+  it("a clock that moved BACKWARD cannot evict the snapshot just taken", () => {
+    // Fill the list with stamps from "the future" — a device whose clock was later corrected
+    // backwards (travel, a manual change, a bad sync) leaves exactly this state behind.
+    const future = Date.now() + 365 * 24 * 3600_000;
+    for (let i = 1; i <= MAX_SNAPSHOTS; i++) {
+      captureIfDue(campaign(SNAPSHOT_EVERY_WEEKS * i), future + i, true);
+    }
+    expect(listSnapshots()).toHaveLength(MAX_SNAPSHOTS);
+
+    // Now the clock is sane again and a new quarter comes due. Ranked purely by savedAt this
+    // snapshot sorts last of six and is sliced straight off — the Time Machine would silently
+    // stop recording for a YEAR. It must be kept.
+    const freshWeek = SNAPSHOT_EVERY_WEEKS * (MAX_SNAPSHOTS + 1);
+    expect(captureIfDue(campaign(freshWeek), Date.now(), true)).toBe(true);
+    const weeks = listSnapshots().map((s) => s.week);
+    expect(weeks).toContain(freshWeek);
+    expect(weeks).toHaveLength(MAX_SNAPSHOTS);
+    // ...and it is genuinely restorable, not just listed.
+    const id = listSnapshots().find((s) => s.week === freshWeek)!.id;
+    expect(restoreSnapshot(id, true)?.week).toBe(freshWeek);
+  });
+
   it("returns null for an unknown id", () => {
     expect(restoreSnapshot("nope", true)).toBeNull();
   });
