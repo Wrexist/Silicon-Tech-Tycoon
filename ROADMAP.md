@@ -60,7 +60,12 @@ The only critical-path work. Detailed steps live in `LAUNCH_CHECKLIST.md` (the o
       privacy URL before submission). GitHub Pages `/docs` or Netlify Drop.
 - [ ] Add the 3 CI secrets — `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`,
       `APP_STORE_CONNECT_API_KEY_BASE64`. Team ID `S3U8B8HH96` is already wired.
-- [ ] Mac/Xcode: `npx cap add ios` → portrait-only + iPhone-only → archive → TestFlight →
+- [ ] Archive → TestFlight → on-device smoke. **NOT `npx cap add ios`** — the native project is
+      committed (`ios/App/App.xcodeproj`) and carries the StoreKit/RevenueCat Swift; re-adding it
+      would discard that. Use `npx cap sync ios`, or the `ios-testflight-capacitor.yml` workflow,
+      which does the sync itself. Also note the project ships **universal** (`TARGETED_DEVICE_FAMILY
+      = "1,2"`), not iPhone-only — see `OWNER_RELEASE_ACTIONS.md` #2. Old text: portrait-only +
+      iPhone-only → archive → TestFlight →
       on-device smoke (Preferences mirror, status bar theme, haptics, splash).
 - [ ] **Purchases — Silicon Pro is WIRED** (superseding the old paid-era text here, which told you
       to create/attach the `com.wrexist.silicon.sandbox` IAP at $2.99 and flip `NATIVE_IAP_WIRED` —

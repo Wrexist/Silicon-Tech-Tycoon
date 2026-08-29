@@ -2496,3 +2496,37 @@ determinism pin · build+PWA) before commit. 1,707 → **1,845 tests / 169 files
       Fix-in-Build no-WebGL guard, emoji, `discountedRd`, dead CSS.
 - Known flags left deliberately: on-device verification debt (ROADMAP Phase 1) is device-only;
   new content/balance expansion stays deferred until live-player data per ROADMAP.
+
+## v12x+2 — release-candidate audit: crash surface, lifecycle, purchases, evidence (2026-08-29)
+Orchestrated release-readiness pass. Suite **1,845 → 1,889 tests / 169 → 173 files**; tsc, build,
+PWA, determinism pin and the 40-seed sim all green throughout. Deliverables: `RELEASE_EVIDENCE.md`,
+`OWNER_RELEASE_ACTIONS.md`, `PRIVACY_DISCLOSURE_INPUTS.md`, `RELEASE_CANDIDATE_READINESS.md`.
+- [x] **Crash surface** (6122a13): eight genuine risks fixed, two of them unrecoverable by the
+      player. 13 lazy interrupt overlays had no error boundary, and because the `pendingX` that
+      raises a card lives in the SAVE, a chunk missing after a deploy crashed the app, reloaded into
+      the same card, and crashed again — a save escapable only by deleting it. `boot()` was a
+      discarded promise, so a pre-mount throw froze the splash forever. A sim-tick throw (setInterval
+      is invisible to error boundaries) stopped the clock silently and re-threw every tick. Web
+      Audio, called from inside the tick, could take the tick down. Factory 3D + three lazy sheets
+      now degrade like HQ's office already did. Stale chunks also RECOVER: `vite:preloadError` →
+      one-shot session-flagged reload, never a loop.
+- [x] **Lifecycle / offline / saves** (e0ca5ee): double-advance proved structurally impossible (one
+      `advanceOneWeek` call site, no catch-up, no arithmetic on `lastActive`) and pinned by
+      source-invariant tests. Fixed: reminders starved without a cold launch (iOS suspends rather
+      than terminates); a backward clock silently evicted every fresh Time Machine snapshot; a
+      negative week was accepted on load. Added the offline/clock and save-corruption matrices.
+- [x] **Purchases** (3cb6d1d): full chain traced with evidence; identifiers agree across code,
+      `Configuration.storekit` and the appstore docs; no fail-open violations; no engine/entitlement
+      leakage. Fixed a paywall that could strand on a dead catalog probe, and late native hydration
+      that left a paying subscriber looking at lock chips.
+- [x] **The release screen-audit was blind** (ad9b26a): `npm run audit:screens` reported CLEAN while
+      measuring almost nothing — onboarding grew to three steps so the harness bailed and the whole
+      new-game sweep walked zero screens; the four Pro-gated Progress rows open the paywall so those
+      screens were never render-checked; the previous-release pass was skipped for want of a
+      fixture. All three repaired, `scripts/fixtures/save-1.1.0.json` committed (a save written by
+      the actual 1.1.0-era build), and all three passes now report CLEAN on the production build.
+- Hard blockers found, all owner-side, none a code defect: 1.3.0 is already uploaded as build 70
+  while the project says build 5; the project ships universal iPad while three docs assert
+  iPhone-only; the app preview video is WebM. See `OWNER_RELEASE_ACTIONS.md`.
+- Deliberately NOT done: no balance tuning (deferred to live player data, as before), no new
+  features, no crash/analytics SDK (the privacy stance is a deliberate trade-off).
