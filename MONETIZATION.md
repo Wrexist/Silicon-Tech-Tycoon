@@ -88,7 +88,11 @@ Defined once in `src/state/proGates.ts` (`FREE_TIER` + `isLocked`), and pinned b
 ### Free — a real game, not a demo
 - The complete design → launch → read-the-market → reinvest loop, unlimited products, no time limit
 - **The Garage Era and the Growth Era, start to finish** (`FREE_TIER.maxEra = 2`)
-- **A fresh seeded daily challenge, every day, forever**
+- **A fresh seeded daily challenge, every day, forever** — plus the weekly, the seasonal cosmetic
+  track, and the **full cross-run challenge archive** (your history, your personal best on each,
+  and share codes). The archive is deliberately free: it is what makes the daily worth coming
+  back to, so gating it would tax retention rather than sell content — see
+  `MONETIZATION_CONTRACT.md`
 - Two scenarios (`first-light`, `bootstrapped`)
 - Goals, Achievements, the Roadmap, the Help guide, the 3D office, the factory floor
 - No ads, no timers, no energy, no currency

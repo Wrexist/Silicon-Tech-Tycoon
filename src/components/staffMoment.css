@@ -34,6 +34,9 @@
   animation: stfm-glyph var(--spring-bounce) both;
 }
 @keyframes stfm-glyph { from { transform: scale(0.5) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }
+/* Result state — the "growth applied" reveal: a tighter, brighter beat than the decision card. */
+.stfm__card--result { max-width: 340px; }
+.stfm__glyph--result { background: color-mix(in srgb, var(--positive) 24%, transparent); }
 .stfm__eyebrow { margin-top: var(--sp-4); font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--positive); }
 .stfm__title { font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em; }
 .stfm__sub { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.5; margin: var(--sp-2) 0 var(--sp-8); }

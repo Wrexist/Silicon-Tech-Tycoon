@@ -90,15 +90,93 @@ export function mergeChallengeBests(incoming: unknown): void {
   mirrorToNative(KEY, serialized);
 }
 
+// ---------- One-attempt lock ----------
+// "Daily" means one shot: starting a date's challenge records the attempt here, and startChallenge
+// gates on it (REVIEW_FINDINGS P2). Keys are the same `${kind}:${dateKey}` as bests. Stored as a
+// map key → epoch-ms started (the value is informational; presence is the lock). Profile-level like
+// the bests, and hostile-input tolerant: any malformed payload reads as "no attempts".
+const ATTEMPTS_KEY = "silicon.challengeAttempts.v1";
+
+export type ChallengeAttempts = Record<string, number>;
+
+let attemptsCache: { raw: string; map: ChallengeAttempts } | null = null;
+
+export function getChallengeAttempts(): ChallengeAttempts {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(ATTEMPTS_KEY);
+  } catch {
+    return {};
+  }
+  if (!raw) return {};
+  if (attemptsCache && attemptsCache.raw === raw) return attemptsCache.map;
+  let out: ChallengeAttempts = {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const map: ChallengeAttempts = {};
+    for (const [k, v] of Object.entries(parsed as Record<string, unknown>)) {
+      const n = Number(v);
+      if (Number.isFinite(n)) map[k] = n;
+    }
+    out = Object.freeze(map);
+  } catch {
+    return {};
+  }
+  attemptsCache = { raw, map: out };
+  return out;
+}
+
+/** Has this challenge been started (or finished) before? A recorded BEST also counts: profiles from
+ *  before the lock existed have bests but no attempts map, and a completed challenge is by
+ *  definition an attempt — so old players can't replay a date they already played. */
+export function hasAttemptedChallenge(key: string): boolean {
+  return getChallengeAttempts()[key] != null || bestScore(key) != null;
+}
+
+/** Stamp a challenge as attempted (called when the run actually starts). Idempotent — the first
+ *  start's timestamp is kept. */
+export function recordChallengeAttempt(key: string, startedAt: number = Date.now()): void {
+  const existing = getChallengeAttempts();
+  if (existing[key] != null) return;
+  const n = Number(startedAt);
+  const map = { ...existing, [key]: Number.isFinite(n) ? n : 0 }; // clone: getter may return the shared cached map
+  const serialized = JSON.stringify(map);
+  try {
+    localStorage.setItem(ATTEMPTS_KEY, serialized);
+    attemptsCache = { raw: serialized, map: Object.freeze(map) };
+  } catch {
+    /* quota/eviction — leave the cache on the old raw so reads stay truthful */
+  }
+  mirrorToNative(ATTEMPTS_KEY, serialized);
+}
+
+/** Bulk-restore (backup import). Merges with existing, keeping the EARLIEST start per key. */
+export function mergeChallengeAttempts(incoming: unknown): void {
+  if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) return;
+  const map = { ...getChallengeAttempts() }; // clone: the getter may return the shared cached map
+  for (const [k, v] of Object.entries(incoming as Record<string, unknown>)) {
+    const n = Number(v);
+    if (Number.isFinite(n) && (map[k] == null || n < map[k])) map[k] = n;
+  }
+  const serialized = JSON.stringify(map);
+  try {
+    localStorage.setItem(ATTEMPTS_KEY, serialized);
+    attemptsCache = { raw: serialized, map: Object.freeze(map) };
+  } catch {
+    /* quota/eviction — leave the cache on the old raw so reads stay truthful */
+  }
+  mirrorToNative(ATTEMPTS_KEY, serialized);
+}
+
 /** Record a score for a challenge, keeping only the best. Returns whether it improved + the best. */
 export function recordChallengeBest(key: string, score: number): { improved: boolean; best: number } {
   const s = Math.round(Number(score));
   // Never persist a non-finite score: it serializes to null and rehydrates as 0, corrupting bests.
   if (!Number.isFinite(s)) return { improved: false, best: bestScore(key) ?? 0 };
-  const map = { ...getChallengeBests() }; // clone: the getter may return the shared cached map
-  const prev = map[key];
-  if (prev != null && s <= prev) return { improved: false, best: prev };
-  map[key] = s;
+  const prev = getChallengeBests()[key];
+  if (prev != null && s <= prev) return { improved: false, best: prev }; // no-op — before the clone
+  const map = { ...getChallengeBests(), [key]: s }; // clone: the getter may return the shared cached map
   const serialized = JSON.stringify(map);
   try {
     localStorage.setItem(KEY, serialized);

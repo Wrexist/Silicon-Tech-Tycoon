@@ -127,9 +127,17 @@ export function captureIfDue(state: GameState, now: number = Date.now(), pro: bo
   };
 
   // Newest first, capped. Oldest falls off the end.
-  const next = [snapshot, ...all.filter((s) => s.week !== state.week)]
-    .sort((a, b) => b.savedAt - a.savedAt)
-    .slice(0, MAX_SNAPSHOTS);
+  //
+  // The snapshot just taken is pinned at the head by CONSTRUCTION rather than by its `savedAt`:
+  // sorting the whole list on a wall-clock stamp lets a device clock that moved BACKWARD (travel,
+  // a manual change, a bad NTP sync) rank this one last of six and slice it straight off — the
+  // player's Time Machine would then quietly stop recording until the clock caught back up to the
+  // stale future stamps. Ordering the REST by recency keeps the list reading newest-first exactly
+  // as before on a sane clock.
+  const next = [
+    snapshot,
+    ...all.filter((s) => s.week !== state.week).sort((a, b) => b.savedAt - a.savedAt),
+  ].slice(0, MAX_SNAPSHOTS);
 
   return writeAll(next);
 }

@@ -307,7 +307,11 @@ function migrate(state: GameState): GameState | null {
   // (a truncated save), rather than crash on the first tick.
   if (s.trends == null || s.competitors == null || s.staff == null) return null;
   // Core numeric/array fields that, if missing on a truncated/old save, crash the first tick.
-  if (!Number.isFinite(s.week)) s.week = 0;
+  // `week` is the spine of every schedule in the sim (era gates, `week % n` cadences, deadline and
+  // retarget weeks). Non-finite is coerced, and so is NEGATIVE: no save this game ever wrote holds
+  // one, but a hand-edited or truncated-then-patched file could, and a negative week runs the whole
+  // calendar backwards from a place the sim has no path out of.
+  if (!Number.isFinite(s.week) || s.week < 0) s.week = 0;
   if (!Number.isFinite(s.cash)) s.cash = 0;
   if (!Number.isFinite(s.reputation)) s.reputation = 8;
   // Normalize `era` HERE rather than at its usual spot further down, because the reputation floor
@@ -523,6 +527,23 @@ function migrate(state: GameState): GameState | null {
   if (!Number.isFinite(s.nemesisTrophies) || s.nemesisTrophies < 0) s.nemesisTrophies = 0;
   if (s.pendingNemesisTrophy != null && (typeof s.pendingNemesisTrophy !== "object" || typeof s.pendingNemesisTrophy.rivalName !== "string")) {
     s.pendingNemesisTrophy = null;
+  }
+  // Rival head-to-head memory (added later): default absent — old saves simply have no history yet.
+  // An import is hostile input: keep only well-formed entries (finite, non-negative counters), drop
+  // anything else so a corrupt record can never render nonsense or break a fold.
+  if (s.rivalHistory != null) {
+    if (typeof s.rivalHistory !== "object" || Array.isArray(s.rivalHistory)) delete s.rivalHistory;
+    else {
+      const counters = ["wins", "losses", "strikes", "strikesWeathered", "priceWars", "duelsWon", "duelsLost", "lastWeek"] as const;
+      for (const k of Object.keys(s.rivalHistory)) {
+        const m = (s.rivalHistory as Record<string, Record<string, unknown>>)[k];
+        const bad = !m || typeof m !== "object" || Array.isArray(m)
+          || counters.some((f) => typeof m[f] !== "number" || !Number.isFinite(m[f]) || (m[f] as number) < 0);
+        if (bad) delete (s.rivalHistory as Record<string, unknown>)[k];
+        else if (m.acquiredWeek != null && !Number.isFinite(m.acquiredWeek)) delete m.acquiredWeek;
+      }
+      if (Object.keys(s.rivalHistory).length === 0) delete s.rivalHistory;
+    }
   }
   // Eureka breakthroughs (added later): default none. Drop a malformed pending moment from an import.
   if (s.pendingEureka != null && (typeof s.pendingEureka !== "object" || !Number.isFinite(s.pendingEureka.bankRp))) {

@@ -5,7 +5,7 @@
 > (`officeShop.test.ts`). Spec kept for reference. The one leftover it names — removing the dead
 > `buyDesktop` action — also shipped later.
 
-**Status:** Refined spec (v2), build-ready, awaiting go-ahead to start Phase A.
+**Status:** SHIPPED (see banner above). Originally: refined spec (v2), build-ready.
 Branch: `claude/game-audit-engagement-qiauna`.
 
 **Locked decisions (v2):**

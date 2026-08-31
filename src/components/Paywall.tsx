@@ -139,7 +139,13 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
   useEffect(() => {
     let live = true;
     setCatalog(null);
-    getProCatalog().then((c) => { if (live) setCatalog(c); });
+    // `.catch` as well as `.then`: `getProCatalog()` is written never to reject, but a probe that
+    // ever did would leave `catalog` null forever — the card stuck on "Contacting the App Store…"
+    // with no CTA and no retry. Resolving to the unavailable state instead keeps the honest retry
+    // card as the worst case, which is what App Review 2.1.0 wants to see.
+    getProCatalog()
+      .catch((): ProCatalog => ({ state: "unavailable", offers: [], fromStore: true }))
+      .then((c) => { if (live) setCatalog(c); });
     return () => { live = false; };
   }, [probe]);
 

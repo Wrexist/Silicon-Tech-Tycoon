@@ -40,6 +40,7 @@ import { challengeTeaser, dailyChallenge, dateKeyOf } from "./engine/challenges.
 import { Button, Card } from "./design/primitives.tsx";
 import { format, toDollars, scale } from "./engine/money.ts";
 import { campaignEpilogue } from "./engine/epilogue.ts";
+import { rivalryEpilogueClause } from "./engine/rivalMemory.ts";
 import type { Product } from "./engine/types.ts";
 import { ipoValuation, legacyBonus, industryRank, navAttention, vaultSummary, type GameState } from "./state/gameState.ts";
 import { getFounderRecord, legendStanding, liveLegendScore } from "./state/founderLegend.ts";
@@ -269,14 +270,23 @@ function AppShell() {
       <ToastHost />
       <Bank open={bankOpen} onClose={() => setBankOpen(false)} />
       <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)} label="Settings">
-        <Suspense fallback={<ScreenLoading title="Settings" />}>
-          <Settings onClose={() => setSettingsOpen(false)} />
-        </Suspense>
+        {/* Lazy chunk → a failed fetch (stale service worker after a deploy, or a dropped cold-start
+            fetch) re-throws during render, and Suspense does not catch that — only a boundary does.
+            Unbounded, opening Settings could take the whole app down; bounded, the sheet says so and
+            closes. Settings is also where the save is exported, so it is the last screen that should
+            be able to crash the game. */}
+        <ErrorBoundary fallback={<ScreenError onHome={() => setSettingsOpen(false)} />}>
+          <Suspense fallback={<ScreenLoading title="Settings" />}>
+            <Settings onClose={() => setSettingsOpen(false)} />
+          </Suspense>
+        </ErrorBoundary>
       </Sheet>
       <Sheet open={progressOpen} onClose={() => setProgressOpen(false)} label="Progress">
-        <Suspense fallback={<ScreenLoading title="Progress" />}>
-          <ProgressSheet onClose={() => setProgressOpen(false)} initialView={progressView} />
-        </Suspense>
+        <ErrorBoundary fallback={<ScreenError onHome={() => setProgressOpen(false)} />}>
+          <Suspense fallback={<ScreenLoading title="Progress" />}>
+            <ProgressSheet onClose={() => setProgressOpen(false)} initialView={progressView} />
+          </Suspense>
+        </ErrorBoundary>
       </Sheet>
       {(state.era > seenEraModal || (state.pendingMandateOffer != null && state.pendingMandateOffer.eraTo === state.era)) && !state.wentPublic && !state.bankrupt && (
         <EraModal era={state.era} onDismiss={() => setSeenEraModal(state.era)} />
@@ -603,6 +613,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
             fans: state.fans,
             legacy: state.legacy,
             doctrine: doctrineSummary(state.completedProjects),
+            rivalry: rivalryEpilogueClause(state.rivalHistory, (id) => state.competitors.find((c) => c.id === id)?.name),
           })}
         </p>
         <Card variant="inset" className="ipo__legacy">
@@ -659,7 +670,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
         </p>
         {confirmReset ? (
           <div className="ipo__confirm">
-            <span className="ipo__confirm-text">Retire {state.companyName} and start fresh? This run ends now.</span>
+            <span className="ipo__confirm-text">Retire {state.companyName} at week {state.week}? This run ends for good — only the legacy bonus above carries on.</span>
             <Button block variant="destructive" onClick={() => setForging(true)}>Yes, start New Game+</Button>
             <Button block variant="tertiary" onClick={() => setConfirmReset(false)}>Back</Button>
           </div>
@@ -787,9 +798,11 @@ function Onboarding({ onStart }: { onStart: () => void }) {
         </div>
       </div>
       <Sheet open={scenariosOpen} onClose={() => setScenariosOpen(false)} label="Scenarios">
-        <Suspense fallback={<ScreenLoading title="Scenarios" />}>
-          <ScenariosSheet onClose={() => setScenariosOpen(false)} initialName={name} />
-        </Suspense>
+        <ErrorBoundary fallback={<ScreenError onHome={() => setScenariosOpen(false)} />}>
+          <Suspense fallback={<ScreenLoading title="Scenarios" />}>
+            <ScenariosSheet onClose={() => setScenariosOpen(false)} initialName={name} />
+          </Suspense>
+        </ErrorBoundary>
       </Sheet>
       {/* Onboarding renders before AppShell's tree, so the app-level <Paywall /> isn't mounted yet —
           without this, a Pro scenario tapped from the founding screen would raise an offer nobody
@@ -843,7 +856,7 @@ function NotifyOptIn({ companyName, onDone }: { companyName: string; onDone: () 
   return (
     <div className="onboard">
       <div className="onboard__scroll">
-        <div className="onboard__inner onboard__inner--notify">
+        <div className="onboard__inner">
           <div className="notifopt__glyph"><BellRing size={40} strokeWidth={1.7} /></div>
           <h1 className="onboard__title">Never miss a run</h1>
           <p className="onboard__tag">

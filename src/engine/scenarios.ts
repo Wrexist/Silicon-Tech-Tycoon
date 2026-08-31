@@ -42,6 +42,17 @@ export interface ScenarioSetup {
   cash?: Money;
   reputation?: number;
   fans?: number;
+  /** Organic-parity provisioning for later-era starts (REVIEW_FINDINGS: "era-start scenarios begin
+   *  under-provisioned"). Sized from measured 40-seed harness snapshots at organic era arrival, and
+   *  deliberately AT-OR-BELOW the organic median so the scenario stays a challenge, not a gift.
+   *  Uniform starting tier for every component line; the applier clamps each line to the highest
+   *  tier the start era has actually unlocked, and never lowers a line below the newGame() default. */
+  researchedTier?: number;
+  /** Starting Research Point bank (organic era-2 arrival p50 ≈ 14 RP; era-3 p50 ≈ 52–68 RP). */
+  researchPoints?: number;
+  /** Teammates already on payroll at week 0, hired deterministically from the run's seed. Real
+   *  salaries apply from week 1 — a provisioned team is a burn rate, not free output. */
+  team?: ReadonlyArray<{ role: "engineer" | "designer" | "marketer"; skill: number }>;
 }
 
 export interface Scenario {
@@ -241,7 +252,10 @@ export const SCENARIOS: readonly Scenario[] = [
       "You begin mid-journey: a funded company with a reputation to defend. Skip the garage and play " +
       "the scaling game, reach the Platform Era and beyond.",
     difficulty: "standard",
-    setup: { era: 2, cash: dollars(2_000_000), reputation: 55, fans: 40_000 },
+    // Provisioned to the MEASURED organic era-2 arrival (40-seed harness, optimizer+casual):
+    // tiers p50 = T2 across every line, RP p50 ≈ 14–16, staff p50 = 1 (founder only, so no team).
+    // T2 research is the organic median; the 10 RP bank sits below it — a head start, not a gift.
+    setup: { era: 2, cash: dollars(2_000_000), reputation: 55, fans: 40_000, researchedTier: 2, researchPoints: 10 },
     tiers: [
       { stars: 1, objectives: [{ metric: "era", target: 3, label: "Reach the Platform Era" }] },
       { stars: 2, objectives: [
@@ -309,7 +323,15 @@ export const SCENARIOS: readonly Scenario[] = [
       "You command a Platform-Era powerhouse. The only thing left is dominance, colossal revenue, " +
       "an iconic brand, the biggest company in the industry.",
     difficulty: "expert",
-    setup: { era: 3, cash: dollars(20_000_000), reputation: 70, fans: 200_000 },
+    // Provisioned to the MEASURED organic era-3 arrival (40-seed harness): tiers p50 ≈ T3
+    // (avg 2.83–3.0), RP p50 ≈ 52–68, staff p50 = 6–7 (p10 = 5). Every provision sits at or below
+    // the organic median: T3 research, a 40-RP bank, and a team of founder+3 (below the p10
+    // headcount) whose salaries bite from week 1 — a Platform-Era powerhouse, still with room to build.
+    setup: {
+      era: 3, cash: dollars(20_000_000), reputation: 70, fans: 200_000,
+      researchedTier: 3, researchPoints: 40,
+      team: [{ role: "engineer", skill: 4 }, { role: "designer", skill: 4 }, { role: "marketer", skill: 4 }],
+    },
     tiers: [
       { stars: 1, objectives: [{ metric: "cumulativeRevenue", target: 100_000_000, label: "Earn $100M in lifetime revenue" }] },
       { stars: 2, objectives: [

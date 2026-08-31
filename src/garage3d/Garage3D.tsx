@@ -1595,7 +1595,13 @@ function brandTexture(name: string, accent: string): THREE.CanvasTexture {
   const c = document.createElement("canvas");
   c.width = 512;
   c.height = 288;
-  const ctx = c.getContext("2d")!;
+  // A 2D context is not guaranteed: WKWebView hands back null when the canvas budget is exhausted
+  // (a real condition on memory-pressured iPhones, where a WebGL context is already live alongside
+  // this one). This runs inside a useMemo during WallTV's render, so a null here would throw MID-
+  // RENDER and drop the player out of the whole 3D office into the 2D fallback over one wall poster.
+  // An empty texture keeps the office — the TV just shows a dark screen.
+  const ctx = c.getContext("2d");
+  if (!ctx) return new THREE.CanvasTexture(c);
   ctx.fillStyle = "#06080c";
   ctx.fillRect(0, 0, 512, 288);
   // diamond brand mark

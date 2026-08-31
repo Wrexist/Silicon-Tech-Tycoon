@@ -75,7 +75,7 @@
   gap: var(--sp-2);
   padding: var(--sp-12);
   border-radius: var(--r-card);
-  background: var(--glass-well, var(--surface-sunken, var(--hairline)));
+  background: var(--glass-well);
   border: 1px solid var(--glass-well-edge, transparent);
 }
 .help__term {

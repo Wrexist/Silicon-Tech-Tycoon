@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { Activity, Award, Building2, Check, ChevronRight, Clock, Crown, Eye, Globe, Landmark, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Swords, Target, TrendingDown, TrendingUp, Undo2, Wand2, X, type LucideIcon } from "lucide-react";
+import { Activity, Award, Building2, Check, ChevronRight, Clock, Crown, Eye, Globe, History, Landmark, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Swords, Target, TrendingDown, TrendingUp, Undo2, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -51,6 +51,7 @@ import type { CategoryId, CompetitorState, LaunchedProduct, Product, Stats } fro
 import { STAT_KEYS } from "../engine/types.ts";
 import { REGIONS, regionById, regionTasteFit, regionLoyaltyMul, shippableRegions, regionWorldShare, worldCoverage, regionTasteTop, type Region } from "../engine/regions.ts";
 import { heatTier, HEAT_TIER_LABEL } from "../engine/nemesis.ts";
+import { rivalMemoryLine } from "../engine/rivalMemory.ts";
 import { supplierFor, DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
 import { factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
@@ -214,6 +215,8 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
           <button
             key={id}
             role="tab"
+            id={`mkt-tab-${id}`}
+            aria-controls="mkt-tabpanel"
             aria-selected={mktTab === id}
             className={`mkt__subtab${mktTab === id ? " mkt__subtab--on" : ""}`}
             onClick={() => { haptic.light(); setMktTab(id); }}
@@ -222,6 +225,9 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
           </button>
         ))}
       </div>
+
+      {/* One swapped tabpanel for the whole strip — labelled by whichever tab is active. */}
+      <div className="mkt__pane" role="tabpanel" id="mkt-tabpanel" aria-labelledby={`mkt-tab-${mktTab}`}>
 
       {mktTab === "standing" && (<>
       {/* Your company (equity) */}
@@ -459,6 +465,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
                             <Button
                               variant="secondary"
                               disabled={!afford}
+                              title={afford ? undefined : `Needs ${format(sub(r.unlockCost, state.cash))} more cash`}
                               haptics="none"
                               onClick={() => {
                                 unlockRegion(r.id);
@@ -947,6 +954,8 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
       </Card>
       </>)}
 
+      </div>
+
       <Sheet open={!!detail} onClose={() => setDetailId(null)} label="Product detail">
         {detail && (
           <ProductDetailSheet
@@ -1431,6 +1440,18 @@ function RivalProfileSheet({ comp, releases, onTrade, onClose }: { comp: Competi
       <p className="rprof__doctrine">
         <Building2 size={13} aria-hidden /> <strong>{DOCTRINE_LABEL[rivalDoctrine(comp.id)]}:</strong> {DOCTRINE_EXPLAINER[rivalDoctrine(comp.id)]}
       </p>
+
+      {/* Head-to-head memory (engine/rivalMemory.ts) — what's on file between you and this rival.
+          The nemesis card above already shows the big win–loss record, so it's dropped there. */}
+      {(() => {
+        const mem = state.rivalHistory?.[comp.id];
+        const line = mem ? rivalMemoryLine(mem, { record: state.nemesis?.rivalId !== comp.id }) : null;
+        return line ? (
+          <p className="rprof__memory">
+            <History size={13} aria-hidden /> <strong>History:</strong> {line}
+          </p>
+        ) : null;
+      })()}
 
       {(licensed || held > 0) && (
         <div className="rprof__status">

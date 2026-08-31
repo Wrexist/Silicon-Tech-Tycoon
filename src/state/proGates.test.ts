@@ -29,7 +29,6 @@ const FEATURE_SET: Record<ProFeature, true> = {
   museum: true,
   mastery: true,
   founderLegend: true,
-  challengeArchive: true,
   timeMachine: true,
 };
 const ALL_FEATURES = Object.keys(FEATURE_SET) as ProFeature[];

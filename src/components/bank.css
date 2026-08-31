@@ -86,6 +86,10 @@
 .bank__runway-sep {
   opacity: 0.4;
 }
+/* The net-flow figure leads the runway pill — a notch heavier than the pill's base weight. */
+.bank__runway-net {
+  font-weight: 800;
+}
 .bank__runway--good {
   color: var(--positive);
   background: color-mix(in srgb, var(--positive) 12%, transparent);

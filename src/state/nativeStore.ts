@@ -14,7 +14,7 @@ import { Capacitor } from "@capacitor/core";
  *  Creative Mode unlock and the Silicon Pro record), and prestige. Losing the Pro record to storage
  *  eviction would lock a paying subscriber out of what they're paying for until the next successful
  *  store sync — on a plane, that's the whole flight. */
-const MIRROR_KEYS = ["silicon.save.v1", "silicon.save.v1.home", "silicon.iap.sandbox", "silicon.pro.v1", "silicon.legacy", "silicon.scenarioStars.v1", "silicon.challengeBests.v1", "silicon.museum.v1", "silicon.achievements.v1", "silicon.seasons.v1"] as const;
+const MIRROR_KEYS = ["silicon.save.v1", "silicon.save.v1.home", "silicon.iap.sandbox", "silicon.pro.v1", "silicon.legacy", "silicon.scenarioStars.v1", "silicon.challengeBests.v1", "silicon.challengeAttempts.v1", "silicon.museum.v1", "silicon.achievements.v1", "silicon.seasons.v1"] as const;
 
 function isNative(): boolean {
   try {
@@ -55,6 +55,7 @@ export function mirrorToNative(key: string, value: string | null): void {
  *  Must be awaited before the first localStorage read (see main.tsx boot order). */
 export async function hydrateFromNative(): Promise<void> {
   if (!isNative()) return;
+  let restoredEntitlement = false;
   try {
     const p = await prefs();
     if (!p) return;
@@ -62,12 +63,29 @@ export async function hydrateFromNative(): Promise<void> {
       try {
         if (localStorage.getItem(key) != null) continue;
         const { value } = await p.get({ key });
-        if (value != null) localStorage.setItem(key, value);
+        if (value != null) {
+          localStorage.setItem(key, value);
+          if (key === "silicon.pro.v1" || key === "silicon.iap.sandbox") restoredEntitlement = true;
+        }
       } catch {
         /* per-key: storage unavailable or quota — skip, the app still boots */
       }
     }
   } catch {
     /* plugin unavailable — boot proceeds exactly as before the mirror existed */
+  } finally {
+    // main.tsx RACES this against a 1.2s cap so a stalled bridge can never block first paint — so
+    // this can legitimately finish AFTER React has mounted and already read `isPro()` as false.
+    // Without a notification a paying subscriber would sit looking at lock chips until something
+    // else happened to write or the app was backgrounded. `usePro.ts` listens for this event.
+    // (The string is duplicated rather than imported from `pro.ts`, which imports THIS module —
+    // it must stay equal to `PRO_CHANGED_EVENT` there.)
+    if (restoredEntitlement && typeof window !== "undefined") {
+      try {
+        window.dispatchEvent(new Event("silicon:pro-changed"));
+      } catch {
+        /* non-DOM environment — nothing to notify */
+      }
+    }
   }
 }

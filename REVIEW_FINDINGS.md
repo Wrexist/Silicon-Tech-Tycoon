@@ -57,6 +57,8 @@ respects the LOCKED constraints (premium $8.99, offline, no backend, no dark pat
       tick) call `bestScore`/`bestStars` each render; `Company` calls `getMuseum`/`getScenarioStars`
       each render. Cheap individually, but parse-per-tick on the hot path. *Fix:* a tiny in-memory
       cache in each profile-store module, invalidated on write (the stores are the only writers).
+      *Update (2026-08):* partially addressed by commit `8cd1ed0` (in-memory caching landed for part
+      of this path); remaining call sites to be re-verified.
 - [ ] **`scenarioResultFor` / `challengeViewFor` recompute `netWorth`** (portfolio + stake) every tick
       via `deriveScenarioFacts`. Memoize per (week, relevant inputs) or compute lazily only when a
       tracker is mounted.
@@ -95,8 +97,10 @@ respects the LOCKED constraints (premium $8.99, offline, no backend, no dark pat
       yet" and Museum empty states read well, and that the Challenges sheet explains scoring at a glance.
 
 ## Features around the new systems (post-ship content cadence)
-- [ ] **Real StoreKit/IAP** for the Platform DLC (currently a Settings preview toggle) — mirror the
-      sandbox entitlement (purchase + restore + `iapAvailable()` gating), so it can ship as paid content.
+- [ ] ~~**Real StoreKit/IAP** for the Platform DLC (currently a Settings preview toggle) — mirror the
+      sandbox entitlement (purchase + restore + `iapAvailable()` gating), so it can ship as paid content.~~
+      **SUPERSEDED (2026-08):** the Silicon Pro pivot replaced standalone paid-content IAPs — the
+      Platform DLC now travels with the Pro entitlement. See `MONETIZATION.md`.
 - [x] **Local challenge history (DONE)** — the Challenges sheet now lists every past daily/weekly
       result (date, re-derived goal, your best), newest-first, from the existing `challengeProgress`
       store via a pure `challengeHistory()` helper. The offline leaderboard substitute. (A consecutive-

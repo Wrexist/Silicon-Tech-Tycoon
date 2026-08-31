@@ -155,8 +155,8 @@ import {
 } from "./gameState.ts";
 import { getLegacy, setLegacy } from "./legacy.ts";
 import { recordStars, getScenarioStars, mergeScenarioStars } from "./scenarioProgress.ts";
-import { recordChallengeBest, challengeKey, getChallengeBests, mergeChallengeBests } from "./challengeProgress.ts";
-import { addMuseumEntry, getMuseum, mergeMuseum } from "./museum.ts";
+import { recordChallengeBest, challengeKey, getChallengeBests, mergeChallengeBests, bestScore, getChallengeAttempts, hasAttemptedChallenge, recordChallengeAttempt, mergeChallengeAttempts } from "./challengeProgress.ts";
+import { addMuseumEntry, getMuseum, mergeMuseum, uniqueMuseumKey } from "./museum.ts";
 import { recordFounder, getFounderRecord, mergeFounderRecord } from "./founderLegend.ts";
 import { getProfileAchievements, mergeProfileAchievements } from "./achievementsProfile.ts";
 import { recordSeasonCompletion, getSeasons, mergeSeasons, seasonLabel } from "./seasons.ts";
@@ -338,7 +338,7 @@ function announceAchievements(unlocked: readonly string[]): void {
   if (earned.length === 0) return;
   const fire = () => {
     try {
-      // A milestone deserves more than silent text â€” same weight as scenario stars.
+      // A milestone deserves more than silent text â€” the full mastery fanfare.
       sfx("mastery");
       haptic.success();
       if (earned.length === 1) {
@@ -427,7 +427,7 @@ function announceScenarioStars(state: GameState): void {
   if (!res || res.stars <= 0) return;
   const { improved, best } = recordStars(state.activeScenario, res.stars);
   if (!improved) return;
-  sfx("mastery");
+  sfx("star");
   const name = scenarioById(state.activeScenario)?.name ?? "Scenario";
   setTimeout(() => {
     try {
@@ -447,9 +447,16 @@ function syncChallengeBest(prev: GameState, next: GameState, announce: boolean):
   const ch = next.activeChallenge;
   if (!ch || next.challengeScore == null) return;
   const key = challengeKey(ch.kind, ch.dateKey);
+  // The score is immutable once locked, so after the locking tick this call is a recurring no-op —
+  // skip it when the store already holds this score or better. (Retries only when the earlier write
+  // failed, e.g. storage quota, so nothing observable changes.)
+  if (prev.challengeScore != null) {
+    const recorded = bestScore(key);
+    if (recorded != null && recorded >= next.challengeScore) return;
+  }
   const { improved, best } = recordChallengeBest(key, next.challengeScore);
   if (!announce || prev.challengeScore != null) return; // only on the locking transition
-  sfx("mastery");
+  sfx("challenge");
   const label = ch.kind === "weekly" ? "Weekly challenge" : "Daily challenge";
   const scored = formatScore(ch.scoreMetric, next.challengeScore);
   const tail = improved ? ", new best!" : ` Â· best ${formatScore(ch.scoreMetric, best)}`;
@@ -582,7 +589,9 @@ interface GameActionsValue {
   startScenario: (id: string, name?: string) => void;
   /** Begin a daily/weekly challenge (stashing the freeform company first, so returnHome can restore
    *  it). Defaults to today; pass a dateKey to play a specific (e.g. shared-by-code) challenge. */
-  startChallenge: (kind: ChallengeKind, dateKey?: string) => void;
+  /** Start a challenge run. False (with a toast) when refused — already attempted, or the freeform
+   *  company couldn't be parked. */
+  startChallenge: (kind: ChallengeKind, dateKey?: string) => boolean;
   /** Leave the active challenge/scenario and restore the stashed freeform company. Returns true if a
    *  company was restored, false if there was nothing stashed. */
   returnHome: () => boolean;
@@ -748,6 +757,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // player's input (skipInterrupt), then auto-pause with a one-line reason. Decision-paced time.
   const [skipping, setSkipping] = useState(false);
   const [tabBlocked, setTabBlocked] = useState(false);
+  // A throw out of the weekly tick used to be INVISIBLE and unrecoverable. The tick body runs inside
+  // `setInterval`, and React error boundaries only catch throws from render/lifecycle — never from a
+  // timer callback. So if `advanceOneWeek` (or any of the toast/unlock side-effects below it) threw on
+  // some particular week+state, the exception escaped to the browser, the store kept its last good
+  // state, and the interval went right on firing — throwing again every tick, forever. What the player
+  // saw was a game whose clock had simply stopped: no error, no card, no hint, and a Reload that
+  // restored the same save and froze at the same week again.
+  // Captured here and re-thrown during render instead, so the ROOT ErrorBoundary in App.tsx handles it
+  // like any other crash — with the copyable report, Reload, and the guarded Reset. `store.set`
+  // evaluates the updater BEFORE assigning (see GameStore.set), so a throw leaves the last committed
+  // week intact and the save on disk is still the last good one.
+  const [tickError, setTickError] = useState<Error | null>(null);
   // True while the player's freeform company is stashed because a challenge/scenario is running in the
   // main slot â€” drives the "return to your company" affordance in the run trackers. Seeded from disk so
   // it survives a reload mid-challenge (the stash is a separate key from the autosaved challenge run).
@@ -817,6 +838,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (paused || suspended || hidden || bankrupt || tabBlocked || !onboarded) return;
     const ms = (BALANCE.secondsPerTick / (fast || skipping ? BALANCE.fastMultiplier : 1)) * 1000;
     const id = setInterval(() => {
+      try {
       store.set((s) => {
         const next = withScenarioRunStars(withChallengeScore(advanceOneWeek(s)));
         const firstThisWeek = next.week !== announcedWeekRef.current;
@@ -879,6 +901,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
         }
         return out2;
       });
+      } catch (e) {
+        setTickError(e instanceof Error ? e : new Error(String(e)));
+      }
     }, ms);
     return () => clearInterval(id);
   }, [store, paused, suspended, hidden, fast, skipping, bankrupt, tabBlocked, onboarded]);
@@ -962,7 +987,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       const lp = next.launched[0];
       if (lp) {
         addMuseumEntry({
-          key: `${next.seed}-${lp.product.id}-${lp.launchedWeek}`,
+          // uniqueMuseumKey: a fixed-seed replay (daily challenge / shared code) shipping the same
+          // product at the same week must enshrine a NEW entry, not overwrite the earlier one.
+          key: uniqueMuseumKey(`${next.seed}-${lp.product.id}-${lp.launchedWeek}`),
           product: lp.product,
           name: lp.product.name,
           category: lp.product.category,
@@ -1410,6 +1437,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       legacy: getLegacy(),
       scenarioStars: getScenarioStars(),
       challengeBests: getChallengeBests(),
+      challengeAttempts: getChallengeAttempts(),
       museum: getMuseum(),
       achievements: getProfileAchievements(),
       founder: getFounderRecord(),
@@ -1430,6 +1458,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (typeof profile.legacy === "number" && profile.legacy > getLegacy()) setLegacy(profile.legacy);
       mergeScenarioStars(profile.scenarioStars);
       mergeChallengeBests(profile.challengeBests);
+      mergeChallengeAttempts(profile.challengeAttempts);
       mergeMuseum(profile.museum);
       mergeProfileAchievements(Array.isArray(profile.achievements) ? profile.achievements : undefined);
       mergeFounderRecord(profile.founder);
@@ -1821,17 +1850,27 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Daily/weekly challenge: a flavored run seeded from today's (UTC) date. Like scenarios, this takes
   // over the main slot â€” but the freeform company is stashed first (returnHome restores it), so a
   // challenge is a side trip you can leave, not a company-wipe. The per-date best lives in the profile.
-  const startChallenge = useCallback((kind: ChallengeKind, dateKey?: string) => {
+  const startChallenge = useCallback((kind: ChallengeKind, dateKey?: string): boolean => {
+    const dk = dateKey ?? dateKeyOf(new Date());
+    // One-attempt lock (REVIEW_FINDINGS P2): a date's challenge is one shot — starting it consumes
+    // the attempt, and a recorded best from before the lock existed counts as an attempt too.
+    const key = challengeKey(kind, dk);
+    if (hasAttemptedChallenge(key)) {
+      showToast(`Already attempted — each ${kind} challenge is one shot. ${kind === "weekly" ? "A new one arrives next week." : "A new one arrives tomorrow."}`, { tone: "negative" });
+      return false;
+    }
     if (!stashHomeIfFreeform()) {
       showToast("Couldn't free up storage to park your company â€” challenge cancelled to keep it safe.", { tone: "negative" });
-      return;
+      return false;
     }
     mergeProfileAchievements(gs().unlockedAchievements); // keep this run's milestones
     clearSave();
-    store.set({ ...newChallengeGame(kind, dateKey ?? dateKeyOf(new Date())), platformUnlocked: gs().platformUnlocked });
+    store.set({ ...newChallengeGame(kind, dk), platformUnlocked: gs().platformUnlocked });
+    recordChallengeAttempt(key); // stamp AFTER the run actually started, so an aborted stash doesn't burn the day
     setPaused(false);
     setFast(false);
     setSkipping(false);
+    return true;
   }, [stashHomeIfFreeform]);
 
   // Leave the current challenge/scenario and restore the stashed freeform company to the main slot.
@@ -2001,6 +2040,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     () => ({ paused, fast, skipping, tabBlocked, suspended, homeSaved }),
     [paused, fast, skipping, tabBlocked, suspended, homeSaved],
   );
+
+  // Surface a tick crash as a render throw (see `tickError` above), so the ROOT ErrorBoundary in
+  // App.tsx shows the copyable report + Reload + guarded Reset instead of the game silently freezing.
+  // Deliberately AFTER every hook in this component: throwing earlier would skip the hooks below it
+  // and leave React's hook list for this fiber inconsistent. Here the render is complete except for
+  // the return, so the hook order is identical on the throwing render and every one before it.
+  if (tickError) throw tickError;
 
   return (
     <StoreContext.Provider value={store}>

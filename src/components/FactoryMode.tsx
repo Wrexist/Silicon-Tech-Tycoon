@@ -35,6 +35,7 @@ import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { webglSupported } from "../garage3d/support.ts";
+import { ErrorBoundary } from "./ErrorBoundary.tsx";
 import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineLayoutBreakdown, lineSpeedMult, lineUnitMult, machineCells, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { PROP_DEFS, propCellSet, factoryDecorSpeedMult, utilityDecorKinds, type PropKind } from "../engine/factoryProps.ts";
@@ -437,6 +438,11 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
     <div ref={ref} tabIndex={-1} className="fmode" role="dialog" aria-modal="true" aria-label="Factory mode">
       <div className="fmode__stage">
         {use3d ? (
+          /* Same degrade-don't-crash contract HQ's 3D office already had (screens/HQ.tsx): a throw
+             from inside the WebGL scene — a driver-level failure, or the lazy chunk not arriving —
+             falls back to the 2D floor map instead of propagating to the root boundary and replacing
+             the whole app with the crash card. Suspense alone catches neither case. */
+          <ErrorBoundary fallback={<FloorMinimap floor={d.floor} lineOk={lineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />}>
           <Suspense fallback={<FloorMinimap floor={d.floor} lineOk={lineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />}>
             <Factory3D
               active={d.active}
@@ -497,6 +503,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               onContextLost={() => setGlLost(true)}
             />
           </Suspense>
+          </ErrorBoundary>
         ) : (
           <FloorMinimap floor={d.floor} lineOk={lineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />
         )}
@@ -731,8 +738,8 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               return (
                 <>
                   <div className="fmode__build-seg" role="tablist" aria-label="Build category">
-                    <button role="tab" aria-selected={buildCat === "machine"} className={`fmode__build-tab${buildCat === "machine" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Machines</button>
-                    <button role="tab" aria-selected={buildCat === "decor"} className={`fmode__build-tab${buildCat === "decor" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("decor"); setBuildTool("crates"); }}>Decor</button>
+                    <button role="tab" id="fmode-build-tab-machine" aria-controls="fmode-build-palette" aria-selected={buildCat === "machine"} className={`fmode__build-tab${buildCat === "machine" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Machines</button>
+                    <button role="tab" id="fmode-build-tab-decor" aria-controls="fmode-build-palette" aria-selected={buildCat === "decor"} className={`fmode__build-tab${buildCat === "decor" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("decor"); setBuildTool("crates"); }}>Decor</button>
                   </div>
                   <span className="fmode__build-rule">{buildTool === "belt" ? "Drag to paint a belt run · tap for one · Auto routes it all." : buildCat === "machine" ? "Tap to place · hold any piece to move it. Erase refunds half." : "Tap to place · hold a prop to move it. Erase refunds half."}</span>
                   {/* Undo: a true reversal of the last build action, cash included — the same deal the
@@ -749,7 +756,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               );
             })()}
           </div>
-          <div className="fmode__palette">
+          <div className="fmode__palette" role="tabpanel" id="fmode-build-palette" aria-labelledby={`fmode-build-tab-${buildCat}`}>
             {buildCat === "machine" ? (
               <>
                 <button
@@ -1120,7 +1127,8 @@ function BoostButton() {
   const d = useFactoryData();
   const { rushBuild } = d.game;
   if (!d.lead || d.weeksLeft <= 0) {
-    return <button className="fmode__boost" disabled><Zap size={16} aria-hidden /> BOOST</button>;
+    const why = "No build running — plan a production run to rush it";
+    return <button className="fmode__boost" disabled title={why} aria-label={`BOOST — ${why}`}><Zap size={16} aria-hidden /> BOOST</button>;
   }
   const id = d.lead.product.id;
   return (
@@ -1157,6 +1165,7 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
       <button className="fcard__tap" onClick={() => { haptic.light(); setOpen(true); }} aria-label="Open factory mode">
         {use3d ? (
           <span className="fcard__scene" aria-hidden>
+            <ErrorBoundary fallback={mini}>
             <Suspense fallback={mini}>
               <Factory3D
                 preview
@@ -1186,6 +1195,7 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
                 onContextLost={() => setGlLost(true)}
               />
             </Suspense>
+            </ErrorBoundary>
           </span>
         ) : (
           mini

@@ -852,6 +852,8 @@ export function DesignLab({
             <button
               key={t.id}
               role="tab"
+              id={`lab-tab-${t.id}`}
+              aria-controls="lab-tabpanel"
               aria-selected={labTab === t.id}
               className={`lab__tab${labTab === t.id ? " lab__tab--on" : ""}`}
               onClick={() => { haptic.light(); setLabTab(t.id); }}
@@ -867,7 +869,7 @@ export function DesignLab({
       </div>
 
       {/* Tab content — key forces remount → CSS fade-in on every tab switch */}
-      <div className="lab__pane" key={labTab}>
+      <div className="lab__pane" key={labTab} role="tabpanel" id="lab-tabpanel" aria-labelledby={`lab-tab-${labTab}`}>
 
         {/* ── 1: Components ───────────────────────────────── */}
         {labTab === "components" && (
@@ -1263,7 +1265,12 @@ export function DesignLab({
               <p className="lab__field-effect">
                 <Target size={12} aria-hidden />{" "}
                 {draft.targetSegment
-                  ? `Aim for ${SEGMENTS.find((s) => s.id === draft.targetSegment)!.name} — nail their fit at launch for bonus reputation + fans. Miss it and you just forgo the bonus.`
+                  // `?.` not `!`: SEGMENTS covers every SegmentId, so this find is total for any
+                  // VALID draft — but `targetSegment` also arrives from a loaded save (designing a
+                  // successor seeds the draft from a launched product), and a save carrying a
+                  // segment id this build no longer ships would throw here, mid-render, taking the
+                  // Design Lab down to the screen-error card.
+                  ? `Aim for ${SEGMENTS.find((s) => s.id === draft.targetSegment)?.name ?? "that segment"} — nail their fit at launch for bonus reputation + fans. Miss it and you just forgo the bonus.`
                   : "Commit to a buyer segment to chase a launch bonus for nailing their fit."}
               </p>
             </Card>

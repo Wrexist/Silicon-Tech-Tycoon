@@ -1421,6 +1421,8 @@
   border: 1px solid var(--hairline); background: var(--surface-2);
 }
 .startfrom__row:active { background: var(--surface); }
+/* The "Fresh concept" add-new row — dashed outline reads as a blank slot, not an existing line. */
+.startfrom__row--fresh { border-style: dashed; }
 .startfrom__thumb {
   width: 52px; height: 52px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
@@ -2030,3 +2032,24 @@
 .lab__advsrc-caret { color: var(--ink-2); transition: transform 0.2s ease; }
 .lab__advsrc-caret--open { transform: rotate(180deg); }
 @media (prefers-reduced-motion: reduce) { .lab__advsrc-caret { transition: none; } }
+
+/* ── Tap-target floor (audit 3.3) ─────────────────────────────────────────────
+   Toggle (28px), swatch (38px) and suggest chip (32px) sit below the 44pt floor;
+   an invisible ::after extends each touch target vertically without moving layout
+   (rows have horizontal neighbors, so only vertical slack is safe to claim). */
+.lab__toggle,
+.lab__swatch,
+.lab__suggest {
+  position: relative;
+}
+.lab__toggle::after,
+.lab__swatch::after,
+.lab__suggest::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+.lab__toggle::after { top: -8px; bottom: -8px; }
+.lab__swatch::after { top: -3px; bottom: -3px; }
+.lab__suggest::after { top: -6px; bottom: -6px; }

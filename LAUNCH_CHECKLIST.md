@@ -20,16 +20,25 @@ The paywall links to `/terms/`, and that page only exists once this is on `main`
 serves from `main`, so **until the merge lands, the Terms link in your purchase flow is a 404** — the
 single most common Guideline 3.1.2 rejection.
 
-- [ ] PR merged into `main`
-- [ ] Waited ~1 minute for Pages to rebuild
-- [ ] `https://wrexist.github.io/Silicon-Tech-Tycoon/` loads
-- [ ] `https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/` loads
-- [ ] `https://wrexist.github.io/Silicon-Tech-Tycoon/terms/` loads ← **new page, check it specifically**
+> ### ✅ RESOLVED — verified live on 2026-08-29
+>
+> This is no longer a blocker. `docs/terms/index.html` **is present on `origin/main`**
+> (`git cat-file -e origin/main:docs/terms/index.html`), Pages is serving it, and all four URLs
+> below were fetched and returned **HTTP 200**. The deployed privacy page is byte-identical to
+> `docs/privacy/index.html` (8,344 bytes), so nothing is stale. The paywall's link constants
+> (`src/components/Paywall.tsx:47–48`) point at exactly these URLs, and the Terms page contains a
+> real "Silicon Pro — subscription terms" section.
+>
+> Re-run the four checks only if Pages settings or the `docs/` tree change.
+
+- [x] PR merged into `main` — `docs/terms/index.html` confirmed on `origin/main`
+- [x] Waited ~1 minute for Pages to rebuild
+- [x] `https://wrexist.github.io/Silicon-Tech-Tycoon/` loads — **200**
+- [x] `https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/` loads — **200**
+- [x] `https://wrexist.github.io/Silicon-Tech-Tycoon/support/` loads — **200**
+- [x] `https://wrexist.github.io/Silicon-Tech-Tycoon/terms/` loads — **200** ← the 3.1.2 page
 
 If Pages isn't enabled: repo **Settings → Pages → Deploy from a branch → `main` → `/docs`**.
-
-*I could not verify these from the build environment — outbound network to github.io is blocked here.
-You have to open them yourself.*
 
 ---
 
@@ -109,7 +118,7 @@ Re-verified 2026-08-14 — most of this was already done. Only the video is genu
 npm ci && npm test && npm run typecheck && npm run build && npx cap sync ios
 ```
 
-- [ ] All three green (1,693 tests, determinism pin included)
+- [ ] All three green (1,707 tests as of 2026-08, determinism pin included)
 - [ ] **The Swift compiles.** `npm test` never touches `ios/**`, and three past releases were burned
       on trivial Swift errors. Open the PR (the `iOS build check` workflow runs automatically on any
       PR touching `ios/**`) **or** dispatch `ios-build-check.yml` by hand, and wait for it to go

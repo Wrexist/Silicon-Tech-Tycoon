@@ -370,6 +370,8 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           <button
             key={id}
             role="tab"
+            id={`rd-tab-${id}`}
+            aria-controls="rd-tabpanel"
             aria-selected={rdTab === id}
             className={`rd__subtab${rdTab === id ? " rd__subtab--on" : ""}`}
             onClick={() => { haptic.light(); setRdTab(id); }}
@@ -378,6 +380,9 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
           </button>
         ))}
       </div>
+
+      {/* One swapped tabpanel for the whole strip — labelled by whichever tab is active. */}
+      <div className="rd__pane" role="tabpanel" id="rd-tabpanel" aria-labelledby={`rd-tab-${rdTab}`}>
 
       {rdTab === "projects" && (<>
       {/* Research income — where the weekly RP comes from, so the player can see how to grow it
@@ -706,6 +711,8 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         </div>
       </Card>
       </>)}
+
+      </div>
     </div>
   );
 }

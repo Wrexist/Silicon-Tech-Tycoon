@@ -277,8 +277,18 @@ on-device `localStorage` and never leave the device. Everything else is **not co
 | `NSPrivacyAccessedAPICategoryUserDefaults` | `CA92.1` — store user's app settings (game save) |
 
 No tracking (`NSPrivacyTracking` is false) and no other required-reason APIs. RevenueCat is the only
-third-party SDK, used solely to process purchases — see `REVENUECAT_SETUP.md` §8. These answers must
-match `ios/App/App/PrivacyInfo.xcprivacy` and `docs/privacy/` exactly.
+third-party **SDK**, used solely to process purchases — see `REVENUECAT_SETUP.md` §8.
+
+**Purchase data has two recipients, not one.** Besides RevenueCat, this project's own stateless
+endpoint at `silicon-refund-verify.vercel.app` receives the device's signed `AppTransaction` and
+returns a single `{ revoked: bool }` — used *only* for the legacy paid-era "Founding Owner" grant
+(`ios/App/App/RefundVerifyConfig.swift:25,38–53`). It does not change the ASC answers (still Purchase
+History + Device ID, app functionality, unlinked, non-tracking), but it is disclosed in both
+`PrivacyInfo.xcprivacy` and `docs/privacy/`, so this section names it too.
+
+These answers must match `ios/App/App/PrivacyInfo.xcprivacy`, `docs/privacy/` and
+`public/privacy.html` exactly. The full code-cited derivation, including what was searched to prove
+there is no third data flow, is in **`PRIVACY_DISCLOSURE_INPUTS.md`** at the repo root.
 
 ---
 
@@ -320,12 +330,19 @@ CONTACT: isacmolin@gmail.com
 
 | Field | Value |
 |---|---|
-| **Privacy Policy URL** (required) | `https://<your-host>/silicon/privacy.html` |
-| **Support URL** (required) | `https://<your-host>/silicon/support.html` |
-| Marketing URL (optional) | `https://<your-host>/silicon` |
+| **Privacy Policy URL** (required) | `https://wrexist.github.io/Silicon-Tech-Tycoon/privacy/` |
+| **Support URL** (required) | `https://wrexist.github.io/Silicon-Tech-Tycoon/support/` |
+| Marketing URL (optional) | `https://wrexist.github.io/Silicon-Tech-Tycoon/` |
+| Terms of Use / EULA URL | `https://wrexist.github.io/Silicon-Tech-Tycoon/terms/` |
 
-Ready-made pages live at `public/privacy.html` and `public/support.html` — host them on
-GitHub Pages or Netlify Drop (see WHAT_YOU_NEED_TO_DO.md Step 1) and paste the real URLs.
+**These are live.** All four return HTTP 200 today, served by GitHub Pages from `docs/` on `main`
+(`docs/.nojekyll` is present). The Terms and Privacy URLs are the exact strings the in-app paywall
+links to — `src/components/Paywall.tsx:47–48` — so ASC, the website and the purchase flow all agree.
+The deployed privacy page is byte-identical to `docs/privacy/index.html`, i.e. not stale.
+
+> The pages under `public/` (`public/privacy.html`, `public/support.html`) are the copies bundled
+> into the app's own web assets. They carry the same substantive text as `docs/`; the `docs/` copies
+> are what the public URLs above serve. Keep the pair in sync — see `PRIVACY_DISCLOSURE_INPUTS.md` §6.
 
 Minimum privacy policy text (already in `public/privacy.html`):
 ```text
@@ -376,7 +393,9 @@ and it is the 1.2.0 headline feature. `APP_STORE_FEATURING.md` assumes this exac
 Caption text is already burned ON the marketing frame (large, legible), not just alt text — the
 first two words of each caption matter most in the small search thumbnail.
 
-**iPad:** none required — the app ships iPhone-only (`TARGETED_DEVICE_FAMILY = "1"`), so ASC never
+**iPad:** ⚠️ **CORRECTED 2026-08-31 — the app ships UNIVERSAL** (`TARGETED_DEVICE_FAMILY = "1,2"`,
+`project.pbxproj:341,363`), so App Store Connect **DOES** require an iPad 13" set and App Review runs
+on iPad. See `DEVICE_SUPPORT_DECISION.md` before submitting. Superseded text: none required — ASC never
 asks for an iPad slot. `app-store-screenshots/ipad/` exists as press-kit material only, and renders
 the older line-up that predates the Vault.
 

@@ -2455,3 +2455,78 @@ Four fixes from playtest screenshots.
       earnings / contract) referenced the token that never existed, so their authored pops never
       played. Token added exactly as the backlog prescribed + reduced-motion neutralization; settled
       frames provably unchanged (every keyframe ends at base state).
+
+## v12x+1 — excellence pass: correctness, rival memory, a11y, doc truth (2026-08-28)
+Orchestrated multi-agent pass over the whole repo; every unit landed green (tsc 0 · full suite ·
+determinism pin · build+PWA) before commit. 1,707 → **1,845 tests / 169 files**.
+- [x] **Docs reconciled** (6f14e56): EXECUTION_PLAN gets its missing SUPERSEDED banner (it still
+      taught the $8.99 paid-era IAP); ROADMAP Phase 0 purchase step now matches
+      LAUNCH_CHECKLIST/MONETIZATION (three Pro SKUs; sandbox SKU legacy-restore-only); shipped
+      `buyDesktop` cleanup ticked; test counts refreshed.
+- [x] **Design-system hygiene** (32a50ac): `.tabswap` takeover brought onto the liquid-glass
+      standard (clear scrim, glass card, edge reflection); 21 `var(--x, fallback)` refs whose
+      token existed nowhere mapped to real tokens; 6 no-op className modifiers styled or removed;
+      `tokenRefs.test.ts` now fails any fallback naming an undefined token.
+- [x] **State correctness** (01e7d5a): daily challenge gets a one-attempt-per-day lock
+      (hostile-input-tolerant store, backup merge, native mirror); museum keys no longer collide
+      on fixed-seed replays (migration-safe `~N` suffix); no-op `syncChallengeBest` writes
+      short-circuit; `isBankrupt` wired into `advanceOneWeek`; UI pass (e58148e) fixed the
+      quarterly feed's "2000.0k fans" via shared `formatCount` + 4 disabled-CTA reason hints.
+- [x] **Engine test coverage** (392f21e): dedicated files for product / market / research /
+      catalogs / balance — 105 characterization tests over the five biggest untested surfaces.
+- [x] **Rival head-to-head memory** (239a434) — the DEPTH_PLAN item: per-rival
+      wins/losses/strikes/price-wars/duels/buyout as a pure deterministic fold on an optional
+      `rivalHistory` field (absent until first interaction; no new RNG/salt). Surfaced only in
+      existing surfaces: Market rival-profile history line, third-strike card copy, duel trophy
+      count, rare feed beats on crossings, IPO-epilogue rivalry clause. 26 tests incl.
+      byte-for-byte replay.
+- [x] **Era-start scenarios provisioned from measurement** (3a16486): Head Start/Empire were
+      confirmed under-provisioned vs 40-seed organic era-2/3 arrival snapshots; they now start at
+      organic-median research tier, below-median RP, Empire founder+3 team below p10 headcount.
+      Thresholds unchanged; campaign sim byte-identical. Full `npm run sim` audit: 0 bankruptcies,
+      no dead-weight interrupts, all systems firing within the 1-per-4wk budget.
+- [x] **Full R&D achievement earnable** (3052243): `completableProjectCount()` counted all three
+      mutually-exclusive doctrine tier-2 projects (36 vs the true 34) — now an exact fork-aware
+      closure; already-earned ids kept (monotonic union).
+- [x] **Polish + a11y** (074dcee, acf21b7): distinct scenario-star and challenge-complete sound
+      cues; four generic confirms now name their concrete stake; all five `role=tab` strips
+      control real `role=tabpanel`s; 8 sub-44px controls get invisible hit-area expansion;
+      3D-office staff/vault taps fire the same light haptic as their 2D equivalents. Verified
+      already-fixed and left alone: launch-failure toast, chart empty-guard, shortlist confirm,
+      Fix-in-Build no-WebGL guard, emoji, `discountedRd`, dead CSS.
+- Known flags left deliberately: on-device verification debt (ROADMAP Phase 1) is device-only;
+  new content/balance expansion stays deferred until live-player data per ROADMAP.
+
+## v12x+2 — release-candidate audit: crash surface, lifecycle, purchases, evidence (2026-08-29)
+Orchestrated release-readiness pass. Suite **1,845 → 1,889 tests / 169 → 173 files**; tsc, build,
+PWA, determinism pin and the 40-seed sim all green throughout. Deliverables: `RELEASE_EVIDENCE.md`,
+`OWNER_RELEASE_ACTIONS.md`, `PRIVACY_DISCLOSURE_INPUTS.md`, `RELEASE_CANDIDATE_READINESS.md`.
+- [x] **Crash surface** (6122a13): eight genuine risks fixed, two of them unrecoverable by the
+      player. 13 lazy interrupt overlays had no error boundary, and because the `pendingX` that
+      raises a card lives in the SAVE, a chunk missing after a deploy crashed the app, reloaded into
+      the same card, and crashed again — a save escapable only by deleting it. `boot()` was a
+      discarded promise, so a pre-mount throw froze the splash forever. A sim-tick throw (setInterval
+      is invisible to error boundaries) stopped the clock silently and re-threw every tick. Web
+      Audio, called from inside the tick, could take the tick down. Factory 3D + three lazy sheets
+      now degrade like HQ's office already did. Stale chunks also RECOVER: `vite:preloadError` →
+      one-shot session-flagged reload, never a loop.
+- [x] **Lifecycle / offline / saves** (e0ca5ee): double-advance proved structurally impossible (one
+      `advanceOneWeek` call site, no catch-up, no arithmetic on `lastActive`) and pinned by
+      source-invariant tests. Fixed: reminders starved without a cold launch (iOS suspends rather
+      than terminates); a backward clock silently evicted every fresh Time Machine snapshot; a
+      negative week was accepted on load. Added the offline/clock and save-corruption matrices.
+- [x] **Purchases** (3cb6d1d): full chain traced with evidence; identifiers agree across code,
+      `Configuration.storekit` and the appstore docs; no fail-open violations; no engine/entitlement
+      leakage. Fixed a paywall that could strand on a dead catalog probe, and late native hydration
+      that left a paying subscriber looking at lock chips.
+- [x] **The release screen-audit was blind** (ad9b26a): `npm run audit:screens` reported CLEAN while
+      measuring almost nothing — onboarding grew to three steps so the harness bailed and the whole
+      new-game sweep walked zero screens; the four Pro-gated Progress rows open the paywall so those
+      screens were never render-checked; the previous-release pass was skipped for want of a
+      fixture. All three repaired, `scripts/fixtures/save-1.1.0.json` committed (a save written by
+      the actual 1.1.0-era build), and all three passes now report CLEAN on the production build.
+- Hard blockers found, all owner-side, none a code defect: 1.3.0 is already uploaded as build 70
+  while the project says build 5; the project ships universal iPad while three docs assert
+  iPhone-only; the app preview video is WebM. See `OWNER_RELEASE_ACTIONS.md`.
+- Deliberately NOT done: no balance tuning (deferred to live player data, as before), no new
+  features, no crash/analytics SDK (the privacy stance is a deliberate trade-off).

@@ -172,7 +172,8 @@ working via the native plugin regardless of what happens to the purchase methods
 - `ProTier` union: `"monthly" | "yearly" | "lifetime" | "founding"`.
 - Free tier: eras 1–2, scenarios `first-light` and `bootstrapped`, daily challenge. Pro unlocks the
   Platform and AI eras, all scenarios, New Game+, Ascension, Platform Division, Creative Mode, the
-  Vault, the Museum, Mastery, Founder Legend, the Challenge Archive, and the Time Machine.
+  Vault, the Museum, Mastery, Founder Legend, and the Time Machine. (The Challenge
+  Archive is FREE — see MONETIZATION_CONTRACT.md.)
 
 Reference docs already in the repo: `MONETIZATION.md` (model + tuning levers),
 `appstore/SUBSCRIPTION_GUIDE.md` (App Store Connect setup, sandbox matrix, review notes),

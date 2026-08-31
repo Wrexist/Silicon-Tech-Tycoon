@@ -4,17 +4,34 @@ import { getSettings } from "../state/settings.ts";
 
 let ctx: AudioContext | null = null;
 
+// A cue must NEVER be able to take the game down. `sfx()` is called from ordinary handlers but also
+// from inside the weekly tick (a commission delivering, a shortlist arriving), and constructing an
+// AudioContext genuinely throws: browsers cap the number of live contexts per page (as few as four on
+// some Safari builds) and reject the constructor outright when audio hardware is unavailable. Thrown
+// from the tick, that killed the sim — the failure mode a missing beep should never have. Every entry
+// point into the Web Audio API here is therefore guarded, and a failure degrades to silence, which is
+// the same outcome the `sound` setting already produces and which nothing else depends on.
+let audioFailed = false;
+
 function ac(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  if (!ctx) {
-    const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctor) return null;
-    ctx = new Ctor();
+  if (typeof window === "undefined" || audioFailed) return null;
+  try {
+    if (!ctx) {
+      const Ctor = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!Ctor) return null;
+      ctx = new Ctor();
+    }
+    // iOS uses "interrupted" (phone call / Siri), not just "suspended" — resume on ANY
+    // non-running state or post-interruption cues stay silent forever.
+    if (ctx.state !== "running") void ctx.resume();
+    return ctx;
+  } catch {
+    // Latch it: without this every later cue re-attempts the same failing construction, so a
+    // fast-forwarded run would pay the cost of a throw several times a second.
+    audioFailed = true;
+    ctx = null;
+    return null;
   }
-  // iOS uses "interrupted" (phone call / Siri), not just "suspended" — resume on ANY
-  // non-running state or post-interruption cues stay silent forever.
-  if (ctx.state !== "running") void ctx.resume();
-  return ctx;
 }
 
 // iOS only unlocks audio from a user gesture; the first cue can be tick-driven (e.g. a build
@@ -40,7 +57,19 @@ interface ToneSpec {
   delay?: number;
 }
 
-function tone({ freq, to, dur, type = "sine", gain = 0.12, delay = 0 }: ToneSpec) {
+function tone(spec: ToneSpec) {
+  // Second half of the "a cue can never crash the game" contract above: even with a live context, the
+  // node graph calls can throw (a context torn down by the OS mid-cue, an out-of-range ramp value).
+  // Silence is always the right answer here, so nothing from the audio graph escapes into a caller —
+  // several of which are on the weekly tick.
+  try {
+    play(spec);
+  } catch {
+    /* cue dropped — silence is not a failure worth propagating */
+  }
+}
+
+function play({ freq, to, dur, type = "sine", gain = 0.12, delay = 0 }: ToneSpec) {
   const a = ac();
   if (!a) return;
   const t0 = a.currentTime + delay;
@@ -74,6 +103,8 @@ type Cue =
   | "rp"
   | "era"
   | "mastery"
+  | "star"
+  | "challenge"
   | "bankrupt"
   | "error";
 
@@ -120,12 +151,28 @@ export function sfx(cue: Cue): void {
       chord([392, 523, 659, 784], 0.6, { type: "triangle", gain: 0.08 });
       break;
     case "mastery":
-      // Earning a scenario star / completing a challenge: a quick ascending arpeggio that resolves
-      // into a bright major chord. Between levelup (smaller) and era (bigger) — a real "you did it".
+      // A big earned win (achievement unlock, awards sweep, eureka jackpot, moonshot landing):
+      // a quick ascending arpeggio that resolves into a bright major chord. Between levelup
+      // (smaller) and era (bigger) — a real "you did it".
       tone({ freq: 523, dur: 0.1, type: "triangle", gain: 0.08 });
       tone({ freq: 659, dur: 0.1, type: "triangle", gain: 0.08, delay: 0.08 });
       tone({ freq: 784, dur: 0.1, type: "triangle", gain: 0.08, delay: 0.16 });
       chord([1047, 1319, 1568], 0.4, { type: "sine", gain: 0.07, delay: 0.24 });
+      break;
+    case "star":
+      // A scenario star lands on the shelf: a high glittering twinkle — two quick pings that
+      // ring out into a bright sine shimmer. Lighter and sparklier than mastery; unmistakably
+      // "a star", not a generic fanfare.
+      tone({ freq: 1047, to: 1319, dur: 0.08, type: "sine", gain: 0.07 });
+      tone({ freq: 1568, dur: 0.09, type: "sine", gain: 0.06, delay: 0.09 });
+      chord([1319, 1568, 2093], 0.35, { type: "sine", gain: 0.05, delay: 0.17 });
+      break;
+    case "challenge":
+      // Daily/weekly challenge complete: a proud two-beat "medal pinned" fanfare — a low root,
+      // a step up, then a wide warm chord. Weightier than levelup, rounder than mastery's ladder.
+      tone({ freq: 330, dur: 0.09, type: "triangle", gain: 0.1 });
+      tone({ freq: 494, dur: 0.1, type: "triangle", gain: 0.09, delay: 0.09 });
+      chord([587, 740, 880, 1175], 0.45, { type: "triangle", gain: 0.07, delay: 0.19 });
       break;
     case "bankrupt":
       tone({ freq: 300, to: 90, dur: 0.7, type: "sawtooth", gain: 0.1 });

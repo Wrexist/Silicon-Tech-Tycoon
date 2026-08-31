@@ -3,6 +3,13 @@
   flex-direction: column;
   gap: var(--sp-12);
 }
+/* The tabpanel wrapper (aria wiring for the sub-nav) stacks its cards exactly like `.mkt` itself,
+   so wrapping the panes changed nothing visually. */
+.mkt__pane {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-12);
+}
 
 /* Market sub-navigation — Standing · Products · Demand. Sticky segmented control (mirrors Company). */
 .mkt__subnav {
@@ -763,6 +770,15 @@
 }
 .rprof__doctrine strong { color: var(--ink); font-weight: 700; }
 .rprof__doctrine svg { flex-shrink: 0; margin-top: 2px; color: var(--ink-3); }
+/* Head-to-head memory line — same quiet inset treatment as the doctrine note. */
+.rprof__memory {
+  display: flex; align-items: flex-start; gap: var(--sp-6);
+  font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.45;
+  margin: var(--sp-8) 0 0; padding: var(--sp-8) var(--sp-12);
+  background: var(--bg-elevated); border-radius: var(--r-button);
+}
+.rprof__memory strong { color: var(--ink); font-weight: 700; }
+.rprof__memory svg { flex-shrink: 0; margin-top: 2px; color: var(--ink-3); }
 .rprof__acquire { display: flex; flex-direction: column; gap: 6px; }
 .rprof__acquire-note { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4; text-align: center; }
 .rprof__status { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
@@ -1057,7 +1073,7 @@
   font-size: var(--fs-caption);
   font-weight: 700;
   box-shadow: 0 2px 8px -3px color-mix(in srgb, var(--accent) 40%, transparent);
-  transition: transform var(--motion-fast, 120ms) ease;
+  transition: transform var(--spring-snappy);
 }
 .pd__flip:active { transform: translateY(-50%) scale(0.94); }
 .pd__curve {
@@ -1391,17 +1407,17 @@
   padding: var(--sp-8) var(--sp-4);
   border-radius: var(--r-button);
   border: 1px solid var(--hairline);
-  background: var(--surface-sunken, transparent);
+  background: transparent;
   color: var(--ink-2);
   font-size: var(--fs-micro);
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
-  transition: background var(--dur-fast, 0.15s) ease, color var(--dur-fast, 0.15s) ease, border-color var(--dur-fast, 0.15s) ease;
+  transition: background var(--spring-snappy), color var(--spring-snappy), border-color var(--spring-snappy);
 }
 .pd__reorder-opt--on {
   background: var(--accent);
-  color: var(--on-accent, #fff);
+  color: var(--accent-ink);
   border-color: var(--accent);
 }
 .pd__pricecut-trigger {
