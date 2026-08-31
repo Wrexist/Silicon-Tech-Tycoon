@@ -23,7 +23,7 @@ Statuses: **VERIFIED** (evidence present), **NOT VERIFIED**, **NEEDS SIMULATOR**
 
 | Requirement | Cat | Evidence | Status | Owner |
 |---|---|---|---|---|
-| Unit + integration suite green | A | `npm test` → **173 files / 1,889 tests passed** | VERIFIED | — |
+| Unit + integration suite green | A | `npm test` → **177 files / 1,930 tests passed** | VERIFIED | — |
 | TypeScript clean | A | `npx tsc -b` → exit 0 | VERIFIED | — |
 | Production build green | A | `npm run build` → `✓ built`, PWA `precache 74 entries (3,487 KiB)` | VERIFIED | — |
 | 160-week determinism pin | A | `src/state/activeRun.determinism.test.ts` green in the run above | VERIFIED | — |
@@ -53,7 +53,7 @@ Statuses: **VERIFIED** (evidence present), **NOT VERIFIED**, **NEEDS SIMULATOR**
 |---|---|---|
 | New game | First-run path: onboarding → game, every revealed screen + sub-tab | **CLEAN** |
 | Late game (Pro seeded) | Showcase save; every screen incl. the four Pro-gated ones | **CLEAN** |
-| Previous-release save | `scripts/fixtures/save-1.1.0.json` — a save **written by the 1.1.0-era build** (commit `b90edc1`), loaded by this build | **CLEAN** |
+| Previous-release save | `scripts/fixtures/save-1.1.0.json` — a save **written by the 1.1.0-era build** (commit `b90edc1`), loaded by this build; load + migration now asserted, not assumed | **CLEAN** |
 
 Status: **VERIFIED (Category A/B)** for "no screen throws, no chunk fails to resolve, no asset 404s, an old save still renders".
 
@@ -122,7 +122,7 @@ Eight genuine risks were found and fixed this pass (commit `6122a13`). Two were 
 | Slow bridge no longer hides Pro | A | Late hydration now emits `silicon:pro-changed` so a paying subscriber stops seeing lock chips (fixed this pass) | **VERIFIED FIXED** |
 | One paywall surface | A | Only consumer of `openPaywall` is `<Paywall/>`; all 9 raise-sites route through it | VERIFIED |
 | 12 gates each have ProFeature + COPY + test | A | `FEATURE_SET` in `proGates.test.ts` is `Record<ProFeature, true>` — a missing member is a compile error | VERIFIED |
-| **`challengeArchive` gate is declared but never enforced** | A | Zero call sites in `src/`; `Challenges.tsx` renders the cross-run archive to free players unconditionally, while `FREE_TIER` and the paywall copy both claim it is Pro | **NOT VERIFIED — declared-but-unenforced** |
+| Challenge Archive is FREE, and no copy claims otherwise | A | Gate removed; recorded FREE in `MONETIZATION_CONTRACT.md`. Three further false claims (museum/mastery/founderLegend) reworded against the code. `proGates.enforcement.test.ts` now fails if any ProFeature is advertised without enforcement or copy | **VERIFIED FIXED** |
 | Legacy paid-era owners get Founding | A | Checked *before* any subscription read; keys off `AppTransaction.originalAppVersion` vs `FIRST_FREE_BUILD = 5`; production-environment-only so TestFlight testers don't all read as owners | VERIFIED (code) |
 | **Refund-verify endpoint is not deployed** | A/D | `POST https://silicon-refund-verify.vercel.app/api/verify-app-transaction` → **HTTP 404** (probed 2026-08-29). Fails open by design, so no legitimate owner is at risk, but a refunded paid-era buyer is currently granted Founding Pro | **NEEDS OWNER** |
 | Real purchase / cancel / Ask-to-Buy / restore-on-fresh-install / crossgrade | C | — | **NEEDS DEVICE** (StoreKit sandbox) |
@@ -203,15 +203,15 @@ Eight genuine risks were found and fixed this pass (commit `6122a13`). Two were 
 | # | Item | Cat | Why it blocks |
 |---|---|---|---|
 | H1 | **Build-number conflict.** `CURRENT_PROJECT_VERSION = 5` with `MARKETING_VERSION = 1.3.0`, but `appstore/REJECTION_3.1.2_EULA.md:27` and `APP_STORE_METADATA.md:118` record **1.3.0 already uploaded as build 70**. ASC refuses a build number ≤ one already uploaded for the same version train | D | The upload is rejected at upload time. Entitlements are unaffected (`FIRST_FREE_BUILD = 5` still grandfathers correctly, `isFoundingBuild(70)` is correctly false) |
-| H2 | **iPad reality vs documentation.** Project ships `"1,2"`; three docs instruct/assert iPhone-only | D + C | App Review runs on a 13" iPad, and ASC **requires** an iPad screenshot set. The committed iPad set is self-declared stale. Decide: ship universal (refresh screenshots, verify iPad layout) or set `"1"` |
-| H3 | **App preview video is WebM.** ASC does not accept WebM; the committed `.mp4` is the stale 1.1.0 cut | D | Either re-render as accepted `.mp4` or omit the preview |
+| H2 | **iPad decision.** Project ships `"1,2"` and support is INTENTIONAL (commit `827b707`). If universal ships, ASC **requires** an iPad set and review runs on iPad — but the committed iPad frames are captured at a **540×720** viewport and scaled full-bleed, while the app renders a **centered 540px column** on iPad, so they depict a layout the device never produces | D + C | See `DEVICE_SUPPORT_DECISION.md`; both branches written as executable plans |
+| ~~H3~~ | **DOWNGRADED to RISK** — an App Preview is OPTIONAL, so WebM does not block submission. Asset measured: WebM/VP8 1080×2340 25fps; committed `.mp4` is the 1.1.0 cut | D | Ship without a preview, or transcode per `APP_PREVIEW_DELIVERY.md` |
 
 ### HIGH RISK — shippable, but knowingly
 | # | Item | Cat | Note |
 |---|---|---|---|
 | R1 | `npm test` does not gate the TestFlight workflow | D | A dispatch from a red ref builds and uploads. One `npm test` step closes it |
 | R2 | Refund-verify endpoint returns 404 | D | Fails open, so no legitimate owner is harmed; a refunded paid-era buyer keeps Founding Pro |
-| R3 | `challengeArchive` gate declared but never enforced | A | Paywall copy claims the archive is Pro; it is free. Wire the gate **or** drop the claim before submission — an unfulfilled purchase claim is a 3.1.2 surface |
+| ~~R3~~ | **RESOLVED** — Challenge Archive is free and every remaining Pro claim was verified true; drift is now blocked by a test | A | See `MONETIZATION_CONTRACT.md` |
 | R4 | No automated version-agreement check | A | package.json / pbxproj / CI input can silently diverge |
 | R5 | PWA auto-update reloads mid-play unannounced | A | Progress is safe; the screen is lost without explanation |
 | R6 | `.bak` save unreachable + not mirrored on iOS | A | A corrupted save is preserved but the player has no way to recover it |
@@ -235,3 +235,27 @@ See **`OWNER_RELEASE_ACTIONS.md`**.
 | `c00e600` | `PRIVACY_DISCLOSURE_INPUTS.md`, `RELEASE_CANDIDATE_READINESS.md`; three stale doc claims corrected |
 
 **Suite: 1,845 → 1,889 tests / 169 → 173 files.** Determinism pin, engine purity and the monetization boundary unchanged throughout.
+
+
+---
+
+## 12. Final closure pass (2026-08-31)
+
+| Commit | Change |
+|---|---|
+| `47edb6b` | Promo assets measured from container box trees; App Preview established OPTIONAL, so WebM is not a blocker |
+| `d45cd9e` | Challenge Archive recorded FREE and its gate removed; museum/mastery/founderLegend copy corrected against the code; enforcement guard added |
+| `126bbf7` | Version plan (next build = 71 from CI run numbering) and iPad decision doc; three actively-false device-family claims corrected |
+| `5d9849e` | Screen audit proves its own coverage (floors, onboarding, paywall-vs-view, fixture-loaded + migration-ran); browser resolution made portable; 17 crash-recovery pins |
+
+**Suite: 1,889 → 1,930 tests / 173 → 177 files.** Determinism pin, engine purity and the monetization
+boundary unchanged. No balance number, gameplay system, or price was touched.
+
+### Two claims this pass had to correct in earlier documents
+Both were written by this project's own release passes, which makes them the most likely to be
+trusted and the most damaging to leave standing:
+1. `RELEASE_CANDIDATE_READINESS.md` and `appstore/APP_STORE_METADATA.md` stated
+   `TARGETED_DEVICE_FAMILY = "1"` — a value that does not exist in the repo — and told the owner ASC
+   would never ask for iPad screenshots. It will.
+2. This document previously listed the WebM preview as a HARD blocker. Previews are optional; it is a
+   RISK, not a blocker.

@@ -21,14 +21,25 @@ Verified identifiers used below (read from the repo — none invented):
 
 ## DO NOW — hard blockers
 
-### 1. Resolve the build-number conflict before any upload
-`project.pbxproj` carries `MARKETING_VERSION = 1.3.0` with `CURRENT_PROJECT_VERSION = 5`, but the repo records **1.3.0 already uploaded as build 70** (`appstore/REJECTION_3.1.2_EULA.md:27`, `appstore/APP_STORE_METADATA.md:118`). App Store Connect rejects a build number less than or equal to one already uploaded for the same version train, so an upload at build 5 fails at upload time.
+### 1. Build number — answered, one action
+1.3.0 is already uploaded as **build 70** (`appstore/REJECTION_3.1.2_EULA.md:3`), while the repo
+carries `CURRENT_PROJECT_VERSION = 5`. App Store Connect rejects a build number ≤ one already
+uploaded for the same version train.
 
-Do one of:
-- **Ship as 1.3.1** (recommended): run the TestFlight workflow with `marketing_version = 1.3.1`. CI stamps the build number from `GITHUB_RUN_NUMBER`, so the collision disappears. Also bump `package.json` `version` to `1.3.1` so the in-app Settings string matches.
-- **Stay on 1.3.0**: dispatch with `build_number` ≥ 71.
+**This resolves itself if you use CI.** The TestFlight workflow stamps the build number from
+`GITHUB_RUN_NUMBER`; its newest run is **#70**, run numbers are contiguous with no reset, so the next
+dispatch stamps **71 > 70**. No `build_number` override is needed.
 
-Do **not** lower `FIRST_FREE_BUILD` (`src/state/pro.ts:394`, currently `5`). It is the paid-era grandfathering line: builds below it grant Founding Pro. Build 70 and 71 are correctly *not* founding.
+- Dispatch `ios-testflight-capacitor.yml` with `marketing_version = 1.3.1` (recommended — a clean
+  train) or `1.3.0`. If the run log shows a build number ≤ 70, pass `build_number` explicitly as 71+.
+- Bump `package.json` `version` to match, so the in-app Settings string agrees with the store.
+- **Never change `FIRST_FREE_BUILD = 5`** to fix a version problem. It is the paid-era grandfathering
+  line: raising it grants Founding Pro free to every existing downloader, and no test guards that
+  direction. Full detail: `RELEASE_VERSION_PLAN.md`.
+
+⚠️ A related mistake has already shipped once: a binary stamped **1.3.2** was attached to an ASC
+version record of **1.3.0**. Nothing checks that `package.json`, the pbxproj and the CI input agree —
+check by hand before dispatch.
 
 ### 2. Decide iPad: ship universal, or set iPhone-only
 The project **ships universal** — `TARGETED_DEVICE_FAMILY = "1,2"` (`project.pbxproj:341,363`) with iPad orientations declared (`Info.plist:44-49`). `ROADMAP.md:219` confirms iPad support was enabled deliberately. But `SHIP_READINESS.md:37`, `BUILD_IOS.md:67-73` and `app-store-screenshots/README.md:50` all still say iPhone-only.
@@ -38,13 +49,21 @@ The project **ships universal** — `TARGETED_DEVICE_FAMILY = "1,2"` (`project.p
 
 Either way, correct the three stale docs so the next person isn't misled.
 
-### 3. Replace or drop the app preview video
-The preview is WebM, which App Store Connect does not accept; the committed `.mp4` is the stale 1.1.0 cut (`RELEASE_CANDIDATE_READINESS.md`). Re-render an accepted `.mp4` at a required size, or omit the preview — screenshots alone are sufficient.
+### 3. App preview — NOT a blocker (downgraded)
+An App Preview is **optional**; screenshots alone satisfy the media requirement. The current asset is
+WebM/VP8 1080×2340 25fps (ASC rejects WebM) and the committed `.mp4` is the 1.1.0 cut. Ship without a
+preview, or transcode locally — exact `ffmpeg` + `ffprobe` commands, and why it cannot be produced in
+CI (the bundled ffmpeg has libvpx and no MP4 muxer), are in `APP_PREVIEW_DELIVERY.md`.
 
-### 4. Decide the `challengeArchive` claim
-`FREE_TIER` (`src/state/proGates.ts:59`) and the paywall copy (`:177`) both tell the player the cross-run challenge archive is a Pro feature. **It is not gated** — `Challenges.tsx` renders it to everyone; the `ProFeature` has zero call sites. Either wire the gate or remove the claim from the copy. Advertising a purchase benefit the app does not enforce is a Guideline 3.1.2 surface. (Left unfixed deliberately: closing it means *adding* a gate, which is a product decision.)
+### 4. ~~Challenge Archive~~ — RESOLVED, no action
+The Challenge Archive is **free**, deliberately, and no copy claims otherwise any more. Auditing that
+turned up three further untrue claims (Museum, Mastery, Founder Legend) which were corrected against
+the code — notably Mastery's copy implied Pro unlocked gameplay perks, which would have been
+pay-to-win under 3.1.1; it never did. A test now blocks any feature being advertised without being
+enforced. See `MONETIZATION_CONTRACT.md`.
 
----
+### 4b. PRODUCT DECISION STILL OPEN — iPad (see #2)
+This is the one product decision the repository cannot make for you.
 
 ## BEFORE TESTFLIGHT
 
@@ -54,6 +73,13 @@ The preview is WebM, which App Store Connect does not accept; the committed `.mp
      run: npm test
    ```
 6. **Set the three CI secrets** (exact names, from the workflow): `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID`, `APP_STORE_CONNECT_API_KEY_BASE64`. The key **must** carry the **Admin** role — a Developer or App-Manager key archives fine and then fails `-exportArchive` with a cloud-signing permission error. Team ID is already in the workflow, not a secret.
+7b. **Wire the screen audit into CI (recommended).** `npm run audit:screens` is the only check that
+   catches a lazy chunk that fails in a real bundle, a screen that throws on real data, or an old
+   save that no longer renders — and no workflow runs it. It now resolves a browser via
+   `SHOTS_CHROME` or playwright's own install, so a CI job needs: `npx playwright install
+   --with-deps chromium`, `npm run build`, `npm run shots:stage:showcase`, then `npm run
+   audit:screens`. Not added here because it cannot be verified from this container.
+
 7. **Run `.github/workflows/ios-build-check.yml` once on this branch.** It needs no secrets and runs a real `xcodebuild ... build` on macOS. This is the only proof that the Swift compiles and that `canImport(RevenueCat)` resolves — `npm test` never touches `ios/**`, and the repo notes three past releases were burned by exactly that gap.
 8. **Deploy or accept the refund-verify function.** `POST https://silicon-refund-verify.vercel.app/api/verify-app-transaction` returns **HTTP 404** (probed 2026-08-29). It fails open by design, so no legitimate owner is at risk — but a refunded paid-era buyer currently keeps Founding Pro. Deploy it, or accept knowingly.
 
@@ -150,3 +176,14 @@ Feedback rules: avoid "what do you think?". Ask what *confused* them and *when*.
 Release → TestFlight → real player feedback → bug triage → qualitative insight → **balance adjustment** → retention improvement → new content.
 
 The discipline that matters: **balance numbers change on evidence, not on intuition.** The repo has a 40-seed simulation harness (`npm run sim`) that reports the curve, an interrupt census and reachability — use it to check that a proposed change does what you think, but let *player* behaviour decide which change to make. Deferred content ideas (a new era, category expansion, deeper rival AI) are listed in `ROADMAP.md` Phase 7 and should stay deferred until live data says which one players actually want.
+
+
+---
+
+## The single final gate
+
+`APP_STORE_SUBMISSION_GATE.md` is the line-by-line checklist to work immediately before submitting.
+It carries every requirement with its owner, evidence, status and blocking level.
+
+**Repository-side blockers: none.** Two owner-side hard blockers remain: the build number (#1, which
+the next CI dispatch satisfies on its own) and the iPad decision (#2/#4b).
