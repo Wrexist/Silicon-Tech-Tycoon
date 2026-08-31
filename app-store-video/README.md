@@ -19,6 +19,10 @@ text overlays baked in.
 >        -pix_fmt yuv420p -movflags +faststart -an Silicon-TechTycoon-promo.mp4
 > ```
 >
+> Full measured audit of both files, Apple's requirements (with the parts that need verifying
+> flagged as such), and the exact transcode + validation workflow: **`APP_PREVIEW_DELIVERY.md`**
+> at the repo root.
+>
 > Then **watch it through once** before uploading. The frames below were verified by sampling, which
 > catches a blank or blocked beat but not pacing.
 
