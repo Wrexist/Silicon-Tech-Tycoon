@@ -37,7 +37,6 @@ export type ProFeature =
   | "museum"
   | "mastery"
   | "founderLegend"
-  | "challengeArchive"
   | "timeMachine";
 
 /**
@@ -56,7 +55,11 @@ export const FREE_TIER = {
   maxEra: 2,
   /** Scenarios playable for free — the two on-ramps. The rest are Pro. */
   scenarioIds: ["first-light", "bootstrapped"] as readonly string[],
-  /** Daily challenges are free, every day, forever. Only the cross-run ARCHIVE is Pro. */
+  /** Daily AND weekly challenges are free, every day, forever — and so is the whole cross-run
+   *  challenge archive (past dailies, the weekly, your personal best on each, and share codes).
+   *  That is a deliberate product decision: the archive is what makes the daily worth returning to,
+   *  and a paywall there would tax the retention loop rather than sell content. See
+   *  MONETIZATION_CONTRACT.md. */
   dailyChallenge: true,
 } as const;
 
@@ -85,7 +88,6 @@ export function isLocked(feature: ProFeature, pro: boolean = isPro()): boolean {
     case "museum":
     case "mastery":
     case "founderLegend":
-    case "challengeArchive":
     case "timeMachine":
       return true;
   }
@@ -158,23 +160,18 @@ const COPY: Record<PaywallReason, PaywallCopy> = {
   },
   museum: {
     eyebrow: "Device Museum",
-    title: "Every device you ever shipped",
-    body: "A permanent, cross-company gallery of your designs, with the numbers each one posted. Pro keeps the collection.",
+    title: "Your devices, all in one place",
+    body: "A cross-company gallery of the devices you've shipped — the 60 most recent, with the numbers each one posted. Every run keeps adding to it; Pro opens the gallery.",
   },
   mastery: {
     eyebrow: "Category Mastery",
     title: "Master every category",
-    body: "Long-arc mastery tracks per product category, each with its own perks for the founders who go deep instead of wide. Pro unlocks all of them.",
+    body: "Long-arc mastery tracks for all ten device categories, with the small category-scoped perks they earn. The tracks level in every run — Pro opens the board that shows all ten, how far each has come, and what the next level gives you.",
   },
   founderLegend: {
     eyebrow: "Founder Legend",
     title: "Your career, across every company",
-    body: "A lifetime record that outlives any single run — every empire, every Heat level cleared, every title earned. Pro tracks the whole career.",
-  },
-  challengeArchive: {
-    eyebrow: "Challenge Archive",
-    title: "Every challenge, forever",
-    body: "Today's challenge is always free. Pro keeps the full archive — past dailies, the weekly, and your personal best on each one.",
+    body: "A lifetime record that outlives any single run — every empire, every Heat level cleared, every title earned. It keeps accruing whether or not you subscribe; Pro opens the record and the ranks.",
   },
   upgradeYearly: {
     eyebrow: "Same Pro, less money",
@@ -230,7 +227,6 @@ export const REASON_BENEFIT_ORDER: Partial<Record<PaywallReason, readonly string
   museum: ["The archives", "Creative Mode", "The full campaign"],
   mastery: ["The archives", "The full campaign", "New Game+"],
   founderLegend: ["The archives", "New Game+", "The full campaign"],
-  challengeArchive: ["The archives", "Every scenario", "The full campaign"],
   timeMachine: ["The Time Machine", "The full campaign", "The archives"],
   // `onboarding` is absent on purpose: with no gate to answer, the founding brief's ambition
   // ordering takes over there instead. `upgradeYearly` is absent because that player already owns
