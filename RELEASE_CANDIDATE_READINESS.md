@@ -90,7 +90,7 @@ promo line and a different keyword string; shipping from it would reintroduce "p
 | Set | Count | Dimensions | Verdict |
 |---|---|---|---|
 | `app-store-screenshots/store/` | 10 (`01-vault` … `10-premium`) | **1284 × 2778** (measured on all ten) | The submission set, already in upload order |
-| `app-store-screenshots/ipad/` | 10 | 2064 × 2752 | **Press-kit only** — app is iPhone-only (`TARGETED_DEVICE_FAMILY = "1"`), so ASC never asks. Also renders the pre-Vault line-up |
+| `app-store-screenshots/ipad/` | 10 | 2064 × 2752 | ⚠️ **CORRECTED 2026-08-31** — the project ships **universal** (`TARGETED_DEVICE_FAMILY = "1,2"`, `project.pbxproj:341,363`), so App Store Connect **DOES** require an iPad set. These frames are also captured at a 540×720 viewport and scaled full-bleed, which is not how the app renders on iPad (a centered 540px column). See `DEVICE_SUPPORT_DECISION.md` |
 | `app-store-screenshots/6.7/` | 5 | 1284 × 2778 | Superseded legacy hero set (`scripts/shots.mjs`) |
 
 **⚠ Size-label discrepancy (flag, not fixed — owner decision).**

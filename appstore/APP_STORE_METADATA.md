@@ -393,7 +393,9 @@ and it is the 1.2.0 headline feature. `APP_STORE_FEATURING.md` assumes this exac
 Caption text is already burned ON the marketing frame (large, legible), not just alt text — the
 first two words of each caption matter most in the small search thumbnail.
 
-**iPad:** none required — the app ships iPhone-only (`TARGETED_DEVICE_FAMILY = "1"`), so ASC never
+**iPad:** ⚠️ **CORRECTED 2026-08-31 — the app ships UNIVERSAL** (`TARGETED_DEVICE_FAMILY = "1,2"`,
+`project.pbxproj:341,363`), so App Store Connect **DOES** require an iPad 13" set and App Review runs
+on iPad. See `DEVICE_SUPPORT_DECISION.md` before submitting. Superseded text: none required — ASC never
 asks for an iPad slot. `app-store-screenshots/ipad/` exists as press-kit material only, and renders
 the older line-up that predates the Vault.
 
