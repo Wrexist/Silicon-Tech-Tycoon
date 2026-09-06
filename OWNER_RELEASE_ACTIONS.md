@@ -42,7 +42,7 @@ version record of **1.3.0**. Nothing checks that `package.json`, the pbxproj and
 check by hand before dispatch.
 
 ### 2. Decide iPad: ship universal, or set iPhone-only
-The project **ships universal** — `TARGETED_DEVICE_FAMILY = "1,2"` (`project.pbxproj:341,363`) with iPad orientations declared (`Info.plist:44-49`). `ROADMAP.md:219` confirms iPad support was enabled deliberately. But `SHIP_READINESS.md:37`, `BUILD_IOS.md:67-73` and `app-store-screenshots/README.md:50` all still say iPhone-only.
+The project **ships universal** — `TARGETED_DEVICE_FAMILY = "1,2"` (`project.pbxproj:341,363`) with iPad orientations declared (`Info.plist:53-59`). `ROADMAP.md:219` confirms iPad support was enabled deliberately. But `SHIP_READINESS.md:37`, `BUILD_IOS.md:67-73` and `app-store-screenshots/README.md:50` all still say iPhone-only.
 
 - **Ship universal** → App Store Connect **requires** an iPad 13" screenshot set, and App Review will run the app on an iPad. The committed set at `app-store-screenshots/ipad/` (10 PNGs) is self-declared stale — regenerate with `npm run shots:ipad`. Verify iPad portrait *and* landscape by hand (see ON PHYSICAL DEVICE #6).
 - **Ship iPhone-only** → set `TARGETED_DEVICE_FAMILY = "1"` in both configs and remove `UISupportedInterfaceOrientations~ipad`. Cheaper, and it matches the three docs.

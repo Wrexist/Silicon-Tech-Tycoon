@@ -47,7 +47,7 @@ of those.
 | Device family, **Debug** | `ios/App/App.xcodeproj/project.pbxproj:341` | `TARGETED_DEVICE_FAMILY = "1,2";` |
 | Device family, **Release** | `ios/App/App.xcodeproj/project.pbxproj:363` | `TARGETED_DEVICE_FAMILY = "1,2";` |
 | iPhone orientations | `ios/App/App/Info.plist:37-40` | Portrait only |
-| **iPad orientations** | `ios/App/App/Info.plist:44-49` | Portrait + LandscapeLeft + LandscapeRight |
+| **iPad orientations** | `ios/App/App/Info.plist:53-59` | All four (Portrait, PortraitUpsideDown, LandscapeLeft, LandscapeRight) — mandatory while the bundle is Split-View eligible; three failed the TestFlight upload with altool 90474. Pinned by `src/iosBundle.contract.test.ts` |
 | iPad rationale comment | `ios/App/App/Info.plist:41-43` | present, hand-written (quoted §3.3) |
 | `LSRequiresIPhoneOS` | `ios/App/App/Info.plist:29-30` | `true` (iOS-only app; **does not** exclude iPad — iPad runs iPadOS and accepts this) |
 | Required capabilities | `ios/App/App/Info.plist:33-35` | `arm64` only — excludes no modern iPad |
@@ -127,22 +127,24 @@ lists the same item in the phase table (`| **6** | iPad layout + Dynamic Type | 
 
 ### 3.3 `Info.plist` carries a hand-written iPad rationale
 
-`ios/App/App/Info.plist:41-49`:
+`ios/App/App/Info.plist:41-59`:
 
 ```xml
-<!-- iPad: portrait + both landscapes. The web layer is a centered 540px column at any width
-     (verified via SHOTS_VIEWPORT=820x1180 captures), so rotation is safe, and supporting all
-     orientations keeps the app multitasking/Split-View eligible on iPad. -->
+<!-- iPad: ALL FOUR orientations, and that is not a preference — it is a hard upload requirement.
+     … (full rationale in the file) … -->
 <key>UISupportedInterfaceOrientations~ipad</key>
 <array>
     <string>UIInterfaceOrientationPortrait</string>
+    <string>UIInterfaceOrientationPortraitUpsideDown</string>
     <string>UIInterfaceOrientationLandscapeLeft</string>
     <string>UIInterfaceOrientationLandscapeRight</string>
 </array>
 ```
 
 The `~ipad` suffix is a deliberate device-specific override, sitting immediately below an
-iPhone block (`:37-40`) that is **portrait-only**. Someone wrote two different orientation policies
+iPhone block (`:37-40`) that is **portrait-only**. (PortraitUpsideDown was added after altool
+rejected the first 1.4.0 upload with error 90474: a Split-View-eligible iPad app must list all
+four. `src/iosBundle.contract.test.ts` now fails the suite rather than the upload.) Someone wrote two different orientation policies
 for two device classes and explained the difference in a comment. That is not inheritance.
 
 ### 3.4 `src/` contains iPad-aware layout code — four independent sites
@@ -465,16 +467,16 @@ asset.)*
 **Both** must change. Editing only Release leaves a universal Debug build that behaves differently
 from the shipped one and misleads anyone testing locally.
 
-**One Info.plist key block.** In `ios/App/App/Info.plist`, remove lines **41-49** — the comment plus
+**One Info.plist key block.** In `ios/App/App/Info.plist`, remove lines **41-59** — the comment plus
 the entire `UISupportedInterfaceOrientations~ipad` key and its `<array>`:
 
 ```xml
-<!-- iPad: portrait + both landscapes. The web layer is a centered 540px column at any width
-     (verified via SHOTS_VIEWPORT=820x1180 captures), so rotation is safe, and supporting all
-     orientations keeps the app multitasking/Split-View eligible on iPad. -->
+<!-- iPad: ALL FOUR orientations, and that is not a preference — it is a hard upload requirement.
+     … (full rationale in the file) … -->
 <key>UISupportedInterfaceOrientations~ipad</key>
 <array>
     <string>UIInterfaceOrientationPortrait</string>
+    <string>UIInterfaceOrientationPortraitUpsideDown</string>
     <string>UIInterfaceOrientationLandscapeLeft</string>
     <string>UIInterfaceOrientationLandscapeRight</string>
 </array>

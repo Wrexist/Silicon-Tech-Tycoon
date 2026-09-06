@@ -38,12 +38,22 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
-	<!-- iPad: portrait + both landscapes. The web layer is a centered 540px column at any width
-	     (verified via SHOTS_VIEWPORT=820x1180 captures), so rotation is safe, and supporting all
-	     orientations keeps the app multitasking/Split-View eligible on iPad. -->
+	<!-- iPad: ALL FOUR orientations, and that is not a preference — it is a hard upload requirement.
+	     This bundle declares no UIRequiresFullScreen, so it is multitasking/Split-View eligible, and
+	     Apple then demands every orientation including PortraitUpsideDown: a Split-View app can be
+	     resized while the iPad is held any way up, so an app that refuses one of them would have to
+	     be evicted mid-gesture. Listing only three fails at UPLOAD, not at review — altool error
+	     90474, "you need to include all of the ... orientations to support iPad multitasking", which
+	     is what rejected the first 1.4.0 build.
+	     If upside-down is ever genuinely unwanted, the ONLY legal way to drop it is to add
+	     UIRequiresFullScreen=true and give up Split View (and the release notes that promise it) —
+	     never by shortening this array.
+	     Rotation itself is safe: the web layer is a centered 540px column at any width, verified via
+	     SHOTS_VIEWPORT=820x1180 captures. -->
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
