@@ -68,6 +68,13 @@ export const FREE_TIER = {
  *  price itself. */
 export type PaywallReason =
   | "onboarding"
+  /**
+   * The company's first product shipped, and it did well. NOT a `ProFeature`: nothing is locked
+   * here and the player has not asked a question — it is the second (and last) proactive impression
+   * of the offer, placed at the first moment the game has actually proved itself. See
+   * `shouldShowDebutOffer` in `paywall.ts` for the timing rules.
+   */
+  | "debut"
   /** Offered ONLY to an existing monthly subscriber, so it needs `force` (see `openPaywall`). */
   | "upgradeYearly"
   | ProFeature;
@@ -122,6 +129,11 @@ const COPY: Record<PaywallReason, PaywallCopy> = {
     eyebrow: "Silicon Pro",
     title: "Build the whole empire",
     body: "Silicon is free to play — the garage, the lab, the market, all of it. Pro opens the rest of the industry.",
+  },
+  debut: {
+    eyebrow: "Your first product is out",
+    title: "Now build the company around it",
+    body: "One device is a start. Pro carries the run the whole way — the Platform and AI eras, an OS of your own, every scenario, and New Game+ when you retire this company. Everything you've played so far stays free.",
   },
   eraAdvance: {
     eyebrow: "You've earned the Platform Era",
@@ -217,6 +229,7 @@ export const PRO_BENEFITS: { title: string; body: string }[] = [
  * silently vanishing.
  */
 export const REASON_BENEFIT_ORDER: Partial<Record<PaywallReason, readonly string[]>> = {
+  debut: ["The full campaign", "Every scenario", "New Game+"],
   eraAdvance: ["The full campaign", "Platform Division", "New Game+"],
   scenario: ["Every scenario", "The full campaign", "New Game+"],
   newGamePlus: ["New Game+", "The archives", "The full campaign"],
@@ -229,7 +242,9 @@ export const REASON_BENEFIT_ORDER: Partial<Record<PaywallReason, readonly string
   founderLegend: ["The archives", "New Game+", "The full campaign"],
   timeMachine: ["The Time Machine", "The full campaign", "The archives"],
   // `onboarding` is absent on purpose: with no gate to answer, the founding brief's ambition
-  // ordering takes over there instead. `upgradeYearly` is absent because that player already owns
+  // ordering takes over there instead. `debut` IS listed even though it answers no gate either —
+  // by then the player has shipped something, so leading with the arc ahead of them beats leading
+  // with an ambition they stated before they had played. `upgradeYearly` is absent because that player already owns
   // every one of these — reordering their own benefits would be theatre.
 };
 

@@ -81,7 +81,7 @@
    behind, and nested filters are flaky.) */
 .cele .ds-btn--primary, .rvd .ds-btn--primary, .eur .ds-btn--primary, .awd .ds-btn--primary,
 .rst .ds-btn--primary, .rtl .ds-btn--primary, .lreveal .ds-btn--primary, .dtut .ds-btn--primary,
-.ds-sheet .ds-btn--primary {
+.pwl .ds-btn--primary, .ds-sheet .ds-btn--primary {
   background:
     linear-gradient(180deg, color-mix(in srgb, #fff 46%, transparent), color-mix(in srgb, #fff 6%, transparent) 34%, transparent 66%),
     color-mix(in srgb, var(--accent) 78%, transparent);
@@ -93,7 +93,7 @@
 }
 .cele .ds-btn--secondary, .rvd .ds-btn--secondary, .eur .ds-btn--secondary, .awd .ds-btn--secondary,
 .rst .ds-btn--secondary, .rtl .ds-btn--secondary, .lreveal .ds-btn--secondary, .dtut .ds-btn--secondary,
-.ds-sheet .ds-btn--secondary {
+.pwl .ds-btn--secondary, .ds-sheet .ds-btn--secondary {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent 52%),
     color-mix(in srgb, var(--accent) 22%, transparent);
@@ -106,7 +106,8 @@
    (keyboard), never on touch. */
 .cele .ds-btn:focus-visible, .rvd .ds-btn:focus-visible, .eur .ds-btn:focus-visible,
 .awd .ds-btn:focus-visible, .rst .ds-btn:focus-visible, .rtl .ds-btn:focus-visible,
-.lreveal .ds-btn:focus-visible, .dtut .ds-btn:focus-visible, .ds-sheet .ds-btn:focus-visible {
+.lreveal .ds-btn:focus-visible, .dtut .ds-btn:focus-visible, .pwl .ds-btn:focus-visible,
+.ds-sheet .ds-btn:focus-visible {
   outline: none;
   box-shadow:
     inset 0 1.5px 0 rgba(255, 255, 255, 0.65),

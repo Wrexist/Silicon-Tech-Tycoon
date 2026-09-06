@@ -33,7 +33,7 @@ import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { registerAppOverlay } from "../design/overlayGuard.ts";
 import { onPaywall, markOnboardingPaywallSeen, type PaywallRequest } from "../state/paywall.ts";
-import { paywallCopy, PRO_BENEFITS, REASON_BENEFIT_ORDER, RETURNING_COPY } from "../state/proGates.ts";
+import { FREE_TIER, paywallCopy, PRO_BENEFITS, REASON_BENEFIT_ORDER, RETURNING_COPY } from "../state/proGates.ts";
 import { getFounderIntent, INTENT_HEADLINE, leadWith, orderBenefits } from "../state/founderIntent.ts";
 import { FREE_TRIAL_DAYS, PRO_PRODUCTS, hasEverSubscribed, isPro, onProChanged, yearlyValueVsMonthly } from "../state/pro.ts";
 import { BALANCE } from "../engine/balance.ts";
@@ -65,6 +65,24 @@ const PROOF: { value: string; label: string }[] = [
   { value: `${Object.values(COMPONENT_LINES).reduce((n, line) => n + line.tiers.length, 0)}`, label: "parts" },
   { value: `${SCENARIOS.length}`, label: "scenarios" },
 ];
+
+/**
+ * The campaign arc — the one PICTURE on the card.
+ *
+ * A paywall for a visual game that is nothing but text undersells the game, and the single thing
+ * this offer is actually selling is "the rest of the campaign". Drawn from the real era table and
+ * the real gate constant, so it can never claim a shape the game doesn't have: add an era, or move
+ * `FREE_TIER.maxEra`, and the picture follows. Names are stripped of the trailing " Era" so five
+ * of them fit across a 375pt card without wrapping into nonsense.
+ */
+const ERA_ARC = BALANCE.eras.map((e) => ({
+  era: e.era,
+  short: e.name.replace(/\s*Era$/, ""),
+  pro: e.era > FREE_TIER.maxEra,
+}));
+
+/** The last era a free company can reach — names the boundary the arc draws, in the game's own words. */
+const LAST_FREE_ERA = BALANCE.eras.find((e) => e.era === FREE_TIER.maxEra)?.name ?? "Growth Era";
 
 export function Paywall() {
   const [req, setReq] = useState<PaywallRequest | null>(null);
@@ -288,6 +306,26 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
             <span className="pwl__eyebrow">{copy.eyebrow}</span>
             <h2 className="pwl__title" id="pwl-title">{copy.title}</h2>
             <p className="pwl__body">{copy.body}</p>
+
+            {/* Where free stops and Pro starts, as a shape rather than a sentence. Computed from
+                BALANCE.eras + FREE_TIER.maxEra — the picture and the gate can never disagree. */}
+            <div
+              className="pwl__arc"
+              role="img"
+              aria-label={`Free play covers the first ${FREE_TIER.maxEra} of ${ERA_ARC.length} eras. Pro opens the rest.`}
+            >
+              <div className="pwl__arc-track" aria-hidden>
+                {ERA_ARC.map((e) => (
+                  <div key={e.era} className={`pwl__arc-era${e.pro ? " pwl__arc-era--pro" : ""}`}>
+                    <span className="pwl__arc-bar" />
+                    <span className="pwl__arc-name">{e.short}</span>
+                  </div>
+                ))}
+              </div>
+              <p className="pwl__arc-cap" aria-hidden>
+                Free through the {LAST_FREE_ERA}. Pro opens the rest.
+              </p>
+            </div>
           </div>
 
           {/* Proof, counted from the real content tables rather than typed in. A sim player's first
@@ -371,7 +409,13 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
                     <span className="pwl__plan-main">
                       <span className="pwl__plan-head">
                         <span className="pwl__plan-title">{product.title}</span>
-                        {badge && <span className="pwl__plan-badge">{badge}</span>}
+                        {badge && (
+                          <span
+                            className={`pwl__plan-badge${product.badgeTone === "quiet" ? " pwl__plan-badge--quiet" : ""}`}
+                          >
+                            {badge}
+                          </span>
+                        )}
                         {offer.owned && <span className="pwl__plan-badge pwl__plan-badge--owned">OWNED</span>}
                       </span>
                       {/* Length of subscription — required next to the price. */}

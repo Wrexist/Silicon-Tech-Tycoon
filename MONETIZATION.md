@@ -154,15 +154,16 @@ Pro sells **content and modes**, never an advantage inside a run.
 |---|---|---|---|
 | 0 | **Founding brief** (one question) | — | Once per device, right after naming the company; shapes what #1 leads with |
 | 1 | **Founding offer** | `onboarding` | Once per device, immediately after the brief |
-| 2 | **The era wall** | `eraAdvance` | On tapping *Advance* into era 3 — the primary conversion moment |
-| 3 | New Game+ | `newGamePlus` | On the IPO overlay, after winning |
-| 4 | Ascension / Heat | `ascension` | Raising Heat on the IPO overlay |
-| 5 | Scenarios | `scenario` | Tapping a locked scenario |
-| 6 | Platform Division | `platformDivision` | Company → Platform tab |
-| 7 | Creative Mode | `creativeMode` | Settings |
-| 8 | Vault / Museum / Mastery / Legend | matching id | Progress hub rows |
-| 9 | Time Machine | `timeMachine` | Settings — shown locked, with the pitch, before it's needed |
-| 10 | Settings status row | `onboarding` | "See what's in Pro" |
+| 2 | **Debut offer** | `debut` | Once per device, on dismissing the launch reveal for the company's FIRST product — and only when it landed `hit` or `solid` |
+| 3 | **The era wall** | `eraAdvance` | On tapping *Advance* into era 3 — the primary conversion moment |
+| 4 | New Game+ | `newGamePlus` | On the IPO overlay, after winning |
+| 5 | Ascension / Heat | `ascension` | Raising Heat on the IPO overlay |
+| 6 | Scenarios | `scenario` | Tapping a locked scenario |
+| 7 | Platform Division | `platformDivision` | Company → Platform tab |
+| 8 | Creative Mode | `creativeMode` | Settings |
+| 9 | Vault / Museum / Mastery / Legend | matching id | Progress hub rows |
+| 10 | Time Machine | `timeMachine` | Settings — shown locked, with the pitch, before it's needed |
+| 11 | Settings status row | `onboarding` | "See what's in Pro" |
 
 Every one of them routes through **one** overlay (`components/Paywall.tsx`) via
 `openPaywall({ reason, onUnlocked })`, which:
@@ -190,7 +191,10 @@ version that squeezes the number hardest.
 | 7 | **A computed price anchor on the yearly row** | Relative-price framing is the best-evidenced single element on a plan row: the decision is never "is $19.99 a lot" in the abstract, it is "against what". `SAVE 58%` states the comparison the ladder was designed around. **Ours is arithmetic on the store's own amounts** — floored, currency-guarded, silently absent when it can't be computed, and suppressing even the static badge when the numbers refute it — rather than a number typed into the UI, which is what makes it safe to show in 175 storefronts. | `yearlySavingsPercent` in `state/pro.ts` |
 | 8 | **The gate leads the benefit list** | The headline already answered the wall the player walked into; until `REASON_BENEFIT_ORDER` existed the list under it still opened with "The full campaign" regardless, so a player who tapped a locked scenario read a scenario headline above an argument about something else. The first two items are all many players read. Reorder only — a test asserts nothing is added, dropped or edited for any reason. | `REASON_BENEFIT_ORDER` in `state/proGates.ts` |
 | 9 | **Risk reversal at the CTA** | The three objections that actually stop a thumb — am I trapped, will this become an ad-farm, am I buying an advantage — answered in one quiet line directly under the button, where the hesitation happens rather than eight scroll-lengths above it. Every item is a fact this product already guarantees, so the converting answer and the honest answer are the same sentence. Deliberately the quietest text in the pinned bar: reassurance that out-shouts the billed amount is the 3.1.2 "confusing design" rejection. | `.pwl__trust` in `components/Paywall.tsx` |
-| 10 | **The price ladder on screen, on the phones people own** | Measured, not assumed: with the full two-line benefit treatment the plans started ~600px down a 427px scroll window on an iPhone SE and ~685px down a 526px one on a 13 mini, so those players never saw that a choice existed — including Pro Lifetime, the row that answers the loudest objection to subscriptions. Below 880pt of height the eight promises keep their titles and give up their sub-copy, which is what gets skimmed anyway. | `@media (max-height: 880px)` in `components/paywall.css` |
+| 10 | **The price ladder on screen, on the phones people own** | Measured, not assumed: with the argument in authored order the plans sat below the fold on the short phones — on a 375×667 SE only 49% of Pro Lifetime and 0% of Pro Monthly were visible at rest, and on a 375×812 13 mini 79% and 0%. Those players could not see that a CHOICE existed, including Pro Lifetime, the row that answers the loudest objection to subscriptions. Below 1000pt of height the plans now render ABOVE the what-you-unlock panel (visual order only — DOM order, and so screen-reader order, is untouched), which puts all three rows fully on screen on every current iPhone regardless of how long the gate's headline copy runs. | `@media (max-height: 1000px)` in `components/paywall.css` |
+
+| 11 | **A second, EARNED impression** | The founding offer is the app's highest-volume impression and its lowest-intent one — it lands on someone who has named a company and played nothing, and because it shows once per device a single skip used to spend every unprompted impression the app had. The debut offer is the other half: one more showing, at the first moment the game has demonstrated what it is. Gated on a *good* first launch, because pitching a subscription over a flop reads as opportunism. Two lifetime unprompted impressions, both skippable, never a third — and it stores its one bit in localStorage, never in the save, so the determinism pin cannot see it. | `shouldShowDebutOffer` in `state/paywall.ts` · `components/LaunchReveal.tsx` |
+| 12 | **The campaign arc — the one picture on the card** | A paywall for a game this visual that is nothing but type undersells the product, and the thing being sold is literally "the rest of the campaign". The arc draws all five eras with the free ones muted and the Pro ones lit, over a caption naming the boundary in the game's own words. Built from `BALANCE.eras` + `FREE_TIER.maxEra`, so it is the same class of claim as the proof strip: it cannot drift from what the game actually does. Move the wall and the picture moves. | `ERA_ARC` in `components/Paywall.tsx` |
 
 **Deliberately not implemented:** fabricated social proof, countdown timers, "limited time" pricing,
 a trial toggle, or a paywall you can't dismiss. The first four are lies, and the fifth is a
@@ -230,6 +234,10 @@ for the first few hundred trials before deciding.
 - The founding offer shows **once per device**, and is **always skippable**. A free app you cannot
   get past fails Apple's minimum-functionality bar — and a player who hasn't seen the game can't
   want it.
+- **Exactly two unprompted impressions, ever** — the founding offer and the debut offer. Both are
+  once-per-device, both are skippable, and neither repeats. Every impression after those two is one
+  the player asked for by walking into a lock. If a third proactive surface is ever proposed, it
+  replaces one of these rather than joining them.
 - **Locked rows stay tappable.** A padlock you can't press teaches nothing about what's behind it.
   Every lock opens the offer that explains it.
 - **No countdowns, no "limited time", no fake scarcity.** The same products are always available at

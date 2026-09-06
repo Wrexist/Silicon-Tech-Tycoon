@@ -119,6 +119,43 @@
   font-size: var(--fs-micro); color: var(--ink-2); line-height: 1.5;
 }
 
+/* ---------- the campaign arc ----------
+   The one picture on the card. A paywall for a game this visual that is nothing but type undersells
+   the product, and "the rest of the campaign" is literally what is being bought — so the offer
+   shows the shape of it: five era segments, the free ones muted, the Pro ones lit gold. Built from
+   BALANCE.eras + FREE_TIER.maxEra in the component, so the drawing cannot drift from the gate.
+   Sentence case, not the uppercase used elsewhere: "AUTONOMY" does not fit a fifth of a 375pt card,
+   and the lowercase form is both narrower and quieter beside the gold. */
+.pwl__arc { width: 100%; margin-top: var(--sp-12); }
+.pwl__arc-track { display: flex; align-items: flex-end; gap: var(--sp-4); }
+.pwl__arc-era {
+  flex: 1 1 0; min-width: 0;
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-6);
+}
+.pwl__arc-bar {
+  width: 100%; height: 5px; border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--ink) 13%, transparent);
+}
+/* The lit half. The glow is what makes the gold read as "switched on" rather than merely a second
+   colour — the whole point of the graphic is that one half of the arc is dark until you subscribe. */
+.pwl__arc-era--pro .pwl__arc-bar {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--gold) 88%, #fff), var(--gold));
+  box-shadow: 0 0 10px -2px color-mix(in srgb, var(--gold) 60%, transparent);
+}
+.pwl__arc-name {
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-size: var(--fs-nano); font-weight: 700; color: var(--ink-3);
+}
+.pwl__arc-era--pro .pwl__arc-name { color: var(--warning-text); }
+/* On a 375pt card each era gets ~57px, and "Autonomy" at 10px overruns it — the ellipsis was
+   graceful but read as a rendering fault on the one graphic the card has. 9px clears it with room,
+   and the names are a label track, not body copy. */
+@media (max-width: 390px) { .pwl__arc-name { font-size: 0.5625rem; } }
+.pwl__arc-cap {
+  margin: var(--sp-8) 0 0;
+  font-size: var(--fs-nano); color: var(--ink-3); line-height: 1.4;
+}
+
 /* ---------- proof strip ----------
    Content counts, read from the real catalogs. Answers "how much game is there?" without inventing
    a single number. */
@@ -169,8 +206,12 @@
   flex: 0 0 auto; margin-top: 1px;
   width: 16px; height: 16px; border-radius: var(--r-pill);
   display: inline-flex; align-items: center; justify-content: center;
-  background: color-mix(in srgb, var(--positive) 22%, transparent);
-  color: var(--positive-text);
+  /* Gold, not green. Eight saturated green discs were the least premium thing on a card whose whole
+     material is gold glass — three competing palettes (gold card, green ticks, accent CTA) is what
+     made this read as a template SaaS paywall rather than a prestige surface. `--warning-text` is
+     the readable-in-both-themes gold ink the plan badge and the Pro chip already use. */
+  background: color-mix(in srgb, var(--gold) 20%, transparent);
+  color: var(--warning-text);
 }
 .pwl__benefit-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; line-height: 1.3; }
 .pwl__benefit-text strong { font-size: var(--fs-micro); font-weight: 700; }
@@ -229,6 +270,13 @@
   background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--warning-text);
 }
 .pwl__plan-badge--owned { background: color-mix(in srgb, var(--positive) 18%, transparent); color: var(--positive-text); }
+/* A label, not an anchor. The gold badge is the yearly row's savings claim and it only works while
+   it is the loudest thing on the ladder — Lifetime's "ONE TIME" has to be legible without competing
+   for that job. */
+.pwl__plan-badge--quiet {
+  background: color-mix(in srgb, var(--ink) 10%, transparent);
+  color: var(--ink-2);
+}
 /* Length of subscription — required by Apple beside the price, so it is never de-emphasised
    below legibility. */
 .pwl__plan-length { font-size: var(--fs-nano); color: var(--ink-2); line-height: 1.35; }
@@ -344,8 +392,9 @@
    find — the titles are what gets skimmed anyway. Above this height (Pro Max, iPad, desktop) there
    is room for both, so both stay.
 
-   880px catches the 812–852pt band (13 mini, 14, 15, 16) that sits above the 740px rules below. */
-@media (max-height: 880px) {
+   950px covers every current iPhone (the 932pt Pro Max included — it was showing sub-copy and
+   paying for it with a half-clipped Monthly row); iPad and desktop keep the full treatment. */
+@media (max-height: 950px) {
   .pwl__benefit-text small { display: none; }
   /* Two columns even on a 375pt-wide phone. The single-column rule above exists because a TITLE
      PLUS its sub-copy is unreadable in a 155pt column — with the sub-copy gone the titles are short
@@ -354,6 +403,35 @@
      `max-width: 380px` rule on purpose: equal specificity, so this wins where both apply. */
   .pwl__benefits { grid-template-columns: 1fr 1fr; gap: var(--sp-8) var(--sp-12); }
   .pwl__unlock-head { margin-bottom: var(--sp-8); }
+}
+
+/* ---------- the ladder must be REACHABLE, not merely present ----------
+   Measured on the built app, not assumed. With the argument in authored order (pitch → proof →
+   what-you-unlock → plans) the ladder sat below the fold on the short phones: on a 375×667 SE only
+   49% of Pro Lifetime and 0% of Pro Monthly were visible at rest, and on a 375×812 13 mini 79% and
+   0%. Those players could not see that a CHOICE existed — no anchor, no visible one-time option,
+   which is exactly the row that answers the loudest objection to a subscription. The CTA still
+   worked, so this cost the choice rather than the sale, and it cost the highest-ARPU row most.
+
+   Below this height the plans move ABOVE the unlock panel: everything that argues (headline, era
+   arc, proof) still comes first, and the panel that merely elaborates gives up its position instead
+   of the ladder giving up its visibility.
+
+   DOM order is untouched, so a screen reader still gets the authored argument (promises, then
+   prices) — both sequences are coherent, which is what WCAG 1.3.2 actually asks; only the visual
+   order changes, and only where the authored one does not fit. */
+/* Every phone height, not a measured band. A height query cannot see how long the COPY is, and the
+   gate headlines vary a lot — the onboarding pitch fits a 932pt Pro Max in authored order, but the
+   Time Machine's five-line body on the same device pushes Pro Monthly back under the fade. Rather
+   than chase per-reason thresholds, the ladder simply outranks the elaboration on anything phone-
+   shaped; iPad and desktop (>1000pt) have room for both and keep the authored order. */
+@media (max-height: 1000px) {
+  .pwl__hero { order: 1; }
+  .pwl__proof { order: 2; }
+  .pwl__loading, .pwl__unavailable { order: 3; }
+  .pwl__plans { order: 4; margin-top: var(--sp-12); }
+  .pwl__unlock { order: 5; }
+  .pwl__fineprint { order: 6; }
 }
 
 /* ---------- short screens (iPhone SE and friends) ----------
@@ -368,6 +446,12 @@
    landscape phones and iPad split view. The pitch is the part that gives way, never the CTA. */
 @media (max-height: 740px) {
   .pwl__card { padding: var(--sp-16) var(--sp-20) var(--sp-12); }
+  /* The era arc already answers "how much game is there?" in a picture, and it answers it better
+     than four counts do — so on the shortest phones the numeric strip is what pays for the ladder's
+     seat. Everywhere taller, both stay. */
+  .pwl__proof { display: none; }
+  .pwl__arc { margin-top: var(--sp-10); }
+  .pwl__arc-cap { margin-top: var(--sp-6); }
   .pwl__scroll { min-height: 140px; }
   .pwl__glyph { width: 44px; height: 44px; }
   .pwl__body { display: none; }
