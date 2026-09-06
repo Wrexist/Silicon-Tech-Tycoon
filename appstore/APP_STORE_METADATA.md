@@ -122,11 +122,31 @@ loses them. See [`REJECTION_3.1.2_EULA.md`](./REJECTION_3.1.2_EULA.md).
 
 ---
 
-## 5. What's New (release notes for v1.3.0)
+## 5. What's New (release notes for v1.4.0)
 
 > The canonical copy lives in `appstore/localizations/en-US/release_notes.txt` and is translated into
 > all 39 ASC locales alongside it — **paste from there, not from here**, and run
 > `node appstore/localizations/validate.mjs --all` before uploading. Reproduced below for review.
+
+⚠️ **en-US is updated for 1.4.0; the other 38 locales still carry the 1.3.0 text.** `validate.mjs`
+checks lengths, emoji and the legal links — it cannot see that a translation is stale — so the
+remaining locales must be translated before this version is uploaded.
+
+```text
+Now on iPad — and your rivals remember everything.
+
+• Silicon runs on iPad. Portrait or landscape, full screen or in Split View alongside whatever else you're doing. Same game, more room to run it.
+• Rivals keep score. Every rival now carries a record of your feud — the launches you won, the ones you lost, the strikes you weathered, the price wars, the duel trophies. Their Market profile shows the history, a third strike knows it's the third, a duel counts the trophies you've taken off them, and an old rivalry earns its own line in your IPO epilogue.
+• Three new challenge rules. A Fair-Price Mandate that takes pricing out of your hands, a One Category run that only lets you ship phones, and a Bloated Payroll where every salary bites twice as hard.
+• The Lab tells you when you're shipping backwards. Speccing components below your own research frontier is the most expensive habit in this game, and nothing ever connected it to losing. A quiet advisory now names every lagging slot before you commit the build.
+• Text Size. Four steps in Settings, from small to extra large, and every label in the app follows.
+• The Challenge Archive is free, and stays free — your whole cross-run history, your personal best on every past daily, and share codes, for everyone. Pro's descriptions got the same audit: the Museum, Category Mastery and Founder Legend now say precisely what they do, because your mastery perks and your legend accrue whether or not you subscribe. The Pro screen also draws the full five-era arc now, so you can see exactly where free ends.
+• Steadier, faster, quieter. Three separate crashes that could leave a save unopenable are gone. The 3D office shares its furniture and staff on the GPU instead of rebuilding them. Eight card entrances that silently never played now play. Bigger tap targets, haptics in the 3D office, distinct sounds for a scenario star and a finished challenge, and confirmations that name what you're actually about to lose.
+
+Also fixed: the Full R&D achievement is earnable again, the daily challenge is one attempt per day for everyone, Head Start and Empire now begin like companies that really reached those eras, and daily reminders survive a warm resume.
+```
+
+**Previous release notes (v1.3.0)**
 
 ```text
 Silicon is now free to play — and there's a Time Machine.
