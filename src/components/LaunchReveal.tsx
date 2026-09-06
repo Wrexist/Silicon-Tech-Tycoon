@@ -10,6 +10,7 @@ import { registerAppOverlay } from "../design/overlayGuard.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { emitHqReaction } from "../design/hqReaction.ts";
 import { prefersReducedMotion } from "../garage3d/support.ts";
+import { markDebutOfferSeen, openPaywall, shouldShowDebutOffer } from "../state/paywall.ts";
 import "./launchReveal.css";
 
 type Stage = "intro" | "reviews" | "verdict";
@@ -73,7 +74,24 @@ export function LaunchReveal({ onSeeBreakdown }: { onSeeBreakdown?: (productId: 
     // The office reacts as you return to it: cheer on a win/debut, a brief slump on a flop.
     if (data.isHit || data.firstLaunch || data.verdict === "solid") emitHqReaction("cheer");
     else if (data.verdict === "flop") emitHqReaction("slump");
+
+    // The debut offer — the app's second and last unprompted impression of Silicon Pro, placed at
+    // the first moment the game has actually proved itself. Conditions, all required:
+    //   • this was the company's FIRST product, and
+    //   • it landed well (a flop is the worst possible moment to ask), and
+    //   • the player is free and has never been shown this particular beat (`paywall.ts` owns that).
+    // Marked seen at raise time rather than on dismissal: there is no dismissal path that could
+    // record it for us, and "shown once" has to hold even if the player force-quits mid-offer.
+    const debut =
+      data.firstLaunch && (data.isHit || data.verdict === "solid") && shouldShowDebutOffer();
     setData(null);
+    if (debut) {
+      markDebutOfferSeen();
+      // A beat after the reveal leaves, so the offer reads as the next step rather than as
+      // something that was waiting behind the celebration. Tracked like every other timer here so
+      // it cannot outlive the component.
+      timers.current.push(setTimeout(() => openPaywall({ reason: "debut" }), 900));
+    }
   };
 
   // a11y: this is a hand-built modal shown on EVERY launch, so it must carry the same focus/keyboard

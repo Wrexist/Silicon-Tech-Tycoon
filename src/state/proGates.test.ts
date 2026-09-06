@@ -104,7 +104,7 @@ describe("daily challenges stay free", () => {
 
 describe("paywall copy", () => {
   it("has a headline for every reason a gate can raise", () => {
-    for (const f of [...ALL_FEATURES, "onboarding" as const, "upgradeYearly" as const]) {
+    for (const f of [...ALL_FEATURES, "onboarding" as const, "debut" as const, "upgradeYearly" as const]) {
       const c = paywallCopy(f);
       expect(c.title.trim().length).toBeGreaterThan(0);
       expect(c.body.trim().length).toBeGreaterThan(0);
@@ -117,7 +117,7 @@ describe("paywall copy", () => {
     // the same price, so any urgency framing would be a lie — and a dark pattern this project has
     // explicitly promised not to ship.
     const banned = /limited time|hurry|expires in|only today|last chance|\d+ hours left|act now/i;
-    for (const f of [...ALL_FEATURES, "onboarding" as const, "upgradeYearly" as const]) {
+    for (const f of [...ALL_FEATURES, "onboarding" as const, "debut" as const, "upgradeYearly" as const]) {
       const c = paywallCopy(f);
       expect(`${c.eyebrow} ${c.title} ${c.body}`).not.toMatch(banned);
     }

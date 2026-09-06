@@ -2,12 +2,15 @@
 // and one that gets the app a one-star "it nags you constantly" review.
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import {
+  debutOfferSeen,
   firstLaunchAt,
+  markDebutOfferSeen,
   markOnboardingPaywallSeen,
   onPaywall,
   onboardingPaywallSeen,
   openPaywall,
   resetPaywallFlags,
+  shouldShowDebutOffer,
   shouldShowOnboardingPaywall,
   stampFirstLaunch,
 } from "./paywall.ts";
@@ -47,6 +50,50 @@ describe("the founding offer", () => {
     grantFounding();
     // No `pro` argument — this reads the real entitlement, which is what the app does.
     expect(shouldShowOnboardingPaywall()).toBe(false);
+  });
+});
+
+describe("the debut offer", () => {
+  it("is available to a free player who has never seen it", () => {
+    expect(debutOfferSeen()).toBe(false);
+    expect(shouldShowDebutOffer(false)).toBe(true);
+  });
+
+  it("is shown exactly ONCE per device", () => {
+    markDebutOfferSeen();
+    expect(debutOfferSeen()).toBe(true);
+    expect(shouldShowDebutOffer(false)).toBe(false);
+  });
+
+  it("is never shown to someone who already pays", () => {
+    expect(shouldShowDebutOffer(true)).toBe(false);
+  });
+
+  it("is never shown to a Founding Owner from the paid era", () => {
+    grantFounding();
+    // No `pro` argument — reads the real entitlement, exactly as the app does.
+    expect(shouldShowDebutOffer()).toBe(false);
+  });
+
+  it("is independent of the founding offer, so the two are two impressions and not one", () => {
+    // The whole point of this beat is that skipping the founding offer no longer spends every
+    // unprompted impression the app has. Seeing (and skipping) one must not consume the other.
+    markOnboardingPaywallSeen();
+    expect(shouldShowOnboardingPaywall(false)).toBe(false);
+    expect(shouldShowDebutOffer(false)).toBe(true);
+  });
+
+  it("caps the app at TWO unprompted impressions, ever", () => {
+    markOnboardingPaywallSeen();
+    markDebutOfferSeen();
+    expect(shouldShowOnboardingPaywall(false)).toBe(false);
+    expect(shouldShowDebutOffer(false)).toBe(false);
+  });
+
+  it("is forgotten by the dev reset along with the founding offer", () => {
+    markDebutOfferSeen();
+    resetPaywallFlags();
+    expect(debutOfferSeen()).toBe(false);
   });
 });
 

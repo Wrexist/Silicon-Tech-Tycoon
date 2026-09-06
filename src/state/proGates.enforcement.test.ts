@@ -94,7 +94,9 @@ describe("every advertised Pro feature is actually enforced", () => {
   });
 
   it("keeps no orphan copy for a reason that no longer exists", () => {
-    const valid = new Set<string>([...FEATURES, "onboarding", "upgradeYearly"]);
+    // `onboarding` and `debut` are the two PROACTIVE reasons — neither answers a lock, so
+    // neither is a ProFeature and neither can be expected to have an `isLocked` call site.
+    const valid = new Set<string>([...FEATURES, "onboarding", "debut", "upgradeYearly"]);
     for (const key of COPY_KEYS) {
       expect(valid.has(key), `COPY still sells "${key}", which is not a PaywallReason`).toBe(true);
     }

@@ -49,6 +49,10 @@ export interface ProProduct {
   /** Optional badge, e.g. "BEST VALUE". Superseded at render time by a COMPUTED savings badge when
    *  the store gave us numbers to compute one from — a measured claim beats an adjective. */
   badge?: string;
+  /** How loudly the badge is drawn. `gold` is the anchor treatment and belongs to ONE row at a
+   *  time — two gold badges on one ladder cancel each other out and the anchor stops anchoring.
+   *  `quiet` labels a row without competing with it. Defaults to `gold`. */
+  badgeTone?: "gold" | "quiet";
   /** Small "why this one" line under the title. Never a countdown, never fake scarcity — and never
    *  a PRICE: a price typed in here is wrong in every storefront that isn't USD. Value framing that
    *  involves money is derived from the store's own amounts instead (`yearlySavingsPercent`). */
@@ -86,6 +90,12 @@ export const PRO_PRODUCTS: ProProduct[] = [
     recurring: false,
     billingSuffix: "",
     hasTrial: false,
+    // Persistent, because the one-time nature IS the pitch for this row and it was previously only
+    // legible once selected — on a ladder where the yearly plan is preselected, that meant the
+    // answer to "I don't want a subscription" was invisible to everyone who didn't tap it. Quiet
+    // rather than gold so the yearly savings badge keeps the anchor.
+    badge: "ONE TIME",
+    badgeTone: "quiet",
     note: "Buy once. Yours forever, including what comes later.",
   },
   {
