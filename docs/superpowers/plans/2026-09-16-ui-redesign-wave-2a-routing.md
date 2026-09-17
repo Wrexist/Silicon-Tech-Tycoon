@@ -580,3 +580,47 @@ Append a short "Wave 2a outcome" section to this plan: status, commit range, the
 - **No screen content changes.** Settings keeps its current body; Platform, Museum and Goals still have no render block and their hashes still resolve to "root only".
 - **`WIRED_PAGES` is still `["settings"]`.** Wave 2b adds `platform` and its render block in the same change, so the two can never disagree.
 - **`PAGE_TITLES` is not yet a descriptor.** When a page needs a right-hand action or a subtitle, promote it to a `PAGE_DEFS` record in that page's own plan rather than growing this one speculatively.
+
+---
+
+## Wave 2a outcome (completed 2026-09-16)
+
+**Status: COMPLETE.** Three batched tasks plus two fix rounds, each independently reviewed.
+
+**Verification on the final HEAD:**
+
+- 
+pm run typecheck - 0 errors
+- 
+pm test - 1,971 passed / 181 files (1,948 + 18 new route tests + 5 hook tests)
+- 
+pm run build - green
+- 
+pm run verify:ui2 - PASS
+- 
+pm run audit:screens - CLEAN
+- Flag off -  9-settings is still the Settings sheet; no frame shows a page header
+- **Deep link** - #/market/settings boots with **Market** highlighted, the Settings page open, a back chevron, and exactly one title (
+pm run verify:deeplink now asserts this)
+- No engine file touched
+
+**Why a new script exists:** the screenshot harness presses Escape during boot to dismiss interrupts, and Escape pops a deep-linked page — so its frame showed Office and could not prove the invariant. scripts/verify-deeplink-ui2.mjs boots at the hash and asserts the rail highlight, the header title, the back chevron and that Settings' own .set__title is suppressed, without dismissing anything. Run it with 
+pm run verify:deeplink (after 
+pm run build).
+
+**Fix rounds:**
+
+1. A tab change from an open page wrote the OLD root into the URL (clear() ran before setTab), so the address bar named the tab being left and a reload landed wrong. clear now takes the destination root.
+2. URL-encoding the section introduced a throw: decodeURIComponent on a malformed hash (#/company/settings/%) raised URIError at boot. A safeDecode makes the parser total again, pinned by a test.
+
+**Two plan defects the implementer caught:** the section-parsing test used platform, which is deliberately unwired and so can never resolve — retargeted to the wired settings page with the intent preserved; and the plan's arithmetic was off, 16 tests in the model not 15, so the suite is 1,971. The plan text was corrected in the same commit.
+
+**Deferred minors (carry into Wave 2b):**
+
+- Section case is not preserved on round-trip (the parser lowercases before decoding); only matters if a case-sensitive param is ever added.
+- A second tab tap while no page is open can still leave the URL naming the previous root (the Wave 1b early-return rule, outside this wave's scope).
+- hashForRoute calls encodeURIComponent, which throws on a lone surrogate; no in-repo caller can supply one.
+- Commit 305c4ea alone does not typecheck (the batch is linear by design); a bisect would want the tasks squashed.
+- Legacy single-segment links (#/settings) now mean "root, no page" rather than the Settings page.
+
+**Wave 2b entry:** the section rail. A page renders its own rail in the body (the shell owns the header, settled here), and WIRED_PAGES gains platform in the same change that adds its render block, so the two can never disagree.
