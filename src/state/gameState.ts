@@ -150,6 +150,7 @@ import {
   type SecretProgress,
   type SecretStage,
 } from "../engine/secrets.ts";
+import { recordFinancialWeek, type FinancialWeek } from "../engine/financials.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplierEthicsRepDelta, contractTerm, contractDiscount, supplierFor, DEFAULT_SUPPLIER_ID, type ContractTerm } from "../engine/suppliers.ts";
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
@@ -378,6 +379,9 @@ export interface GameState {
   ready: Product[]; // built, awaiting launch
   launched: LaunchedProduct[];
   cashHistory: { week: number; cash: number }[];
+  /** One row per simulated week (revenue, expenses, profit) for the growth chart. Optional and
+   *  backfilled to [] → absent on old saves, so a run that never records one is byte-identical. */
+  financialHistory?: FinancialWeek[];
   feed: FeedItem[];
   nextEventWeek: number;
   lastEvent: { text: string; tone: FeedTone; week: number } | null;
@@ -935,6 +939,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0, asce
     ready: [],
     launched: [],
     cashHistory: [{ week: 0, cash: toDollars(BALANCE.startingCash) }],
+    financialHistory: [],
     feed: [feedItem(0, "Company founded. Time to design something great.", "accent")],
     nextEventWeek: BALANCE.events.firstWeek,
     lastEvent: null,
@@ -1100,6 +1105,7 @@ export function newChallengeGame(kind: ChallengeKind, dateKey: string): GameStat
     activeChallenge: { kind: ch.kind, dateKey: ch.dateKey, scoreMetric: ch.scoreMetric, scoreWeek: ch.scoreWeek },
     challengeScore: null,
     cashHistory: [{ week: 0, cash: toDollars(cash) }],
+    financialHistory: [],
     feed: [feedItem(0, `${kind === "weekly" ? "Weekly" : "Daily"} challenge, ${ch.mutators.map((m) => m.name).join(" + ")}. Score: best ${ch.scoreMetric} by week ${ch.scoreWeek}.`, "accent")],
   };
 }
@@ -1215,6 +1221,7 @@ export function newScenarioGame(scenarioId: string, seed = (Math.random() * 2 **
     onboarded: true,
     tutorialDone: true,
     cashHistory: [{ week: 0, cash: toDollars(startCash) }],
+    financialHistory: [],
     feed: [feedItem(0, `Scenario started, ${scn.name}. ${scn.tagline}`, "accent")],
   };
 }
@@ -2633,6 +2640,17 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const cashHistory = [...state.cashHistory, { week, cash: toDollars(cash) }];
   if (cashHistory.length > 260) cashHistory.shift();
 
+  // Weekly financial history (Silicon 2.0 growth chart) — the same week's revenue and expenses,
+  // recorded unconditionally as SAVE data so a flag-on build can chart a run that began earlier.
+  // Revenue is the product gross this tick booked into cumulativeRevenue (its only writer), read as
+  // the delta so it can never drift from the ledger; expenses use the SAME `weeklyOutflow` the
+  // runway / burn readout shows. Whole dollars, matching cashHistory.
+  const financialHistory = recordFinancialWeek(state.financialHistory ?? [], {
+    week,
+    revenue: toDollars(sub(cumulativeRevenue, state.cumulativeRevenue)),
+    expenses: toDollars(weeklyOutflow(state)),
+  });
+
   // Installed-base history for the Platform "OS reach" sparkline — one sample per week while the
   // division exists, capped to a sparkline-friendly window.
   let osBaseHistory = state.osBaseHistory;
@@ -2813,6 +2831,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     sideOrdersCompleted,
     sideOrderClients,
     cashHistory,
+    financialHistory,
     osBaseHistory,
     osApps,
     osThreat,

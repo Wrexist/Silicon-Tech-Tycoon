@@ -341,6 +341,9 @@ function migrate(state: GameState): GameState | null {
   // Seed the sparkline from the company's ACTUAL cash (entries store whole dollars), not a false
   // $0 baseline, so a save missing cashHistory doesn't misrepresent its finances for a render cycle.
   if (!Array.isArray(s.cashHistory)) s.cashHistory = [{ week: s.week ?? 0, cash: Number.isFinite(s.cash) ? toDollars(s.cash) : 0 }];
+  // Weekly financial history (added later): default empty — it only fills as weeks pass, and an empty
+  // list means the growth chart reads "no data" rather than misrepresenting a returning company.
+  if (!Array.isArray(s.financialHistory)) s.financialHistory = [];
   if (!Array.isArray(s.feed)) s.feed = [];
   // Counters must exceed EVERY id ever minted, not the surviving count — products are permanent
   // and staff can be fired, so a length-based backfill would remint a live id (dup React keys +

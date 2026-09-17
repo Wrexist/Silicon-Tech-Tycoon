@@ -31,6 +31,11 @@ export const BALANCE = {
   weeksPerTick: 1,
   quartersWeeks: 13,
 
+  // --- Weekly financial history (Silicon 2.0 growth chart) ---
+  financials: {
+    historyCap: 260, // ~5 years of weeks; matches cashHistory's cap so the two stay in step
+  },
+
   // --- Stats ---
   statMax: 100,
 
