@@ -28,7 +28,7 @@ import { useIsPro } from "./state/usePro.ts";
 import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
-import { registerAppOverlay } from "./design/overlayGuard.ts";
+import { appOverlayOpen, registerAppOverlay } from "./design/overlayGuard.ts";
 import { railShown, useLayoutMode } from "./design/layout.ts";
 import { PAGE_TITLES } from "./state/pageStack.ts";
 import { usePageNav } from "./state/usePageNav.ts";
@@ -162,11 +162,17 @@ function AppShell() {
   const showRail = uiVersion === "next" && railShown(layoutMode);
   const { page, push, pop } = usePageNav();
 
-  // Escape closes a pushed page, matching every popup in the app. The sheets own their own Escape
-  // handling, so this only fires while a page is open and no sheet is up.
+  // Escape closes a pushed page, matching every popup in the app — but ONLY when no top-level app
+  // overlay owns the screen. Full-screen interrupts register with overlayGuard and handle their own
+  // Escape; without this guard one press would dismiss the card AND pop the page beneath it (the
+  // same reason FactoryMode checks `appOverlayOpen()` before peeling itself).
   useEffect(() => {
     if (!page) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && pop();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (appOverlayOpen()) return; // the modal owns this Escape
+      pop();
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [page, pop]);

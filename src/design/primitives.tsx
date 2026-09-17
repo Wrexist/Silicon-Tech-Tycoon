@@ -11,6 +11,7 @@ import { ChevronLeft, Sparkles } from "lucide-react";
 import { haptic } from "./haptics.ts";
 import { sfx } from "./sound.ts";
 import { lockScroll } from "./scrollLock.ts";
+import { registerAppOverlay } from "./overlayGuard.ts";
 import "./primitives.css";
 
 /* ---------- Card ---------- */
@@ -293,6 +294,13 @@ export function Sheet({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+  // Register as a top-level app overlay (like every interrupt): the sheet owns Escape while it's up,
+  // so a lower full-screen layer — Factory mode, or the shell's page-level Escape — stands down
+  // instead of one press closing the sheet AND peeling the layer beneath it.
+  useEffect(() => {
+    if (!open) return;
+    return registerAppOverlay();
+  }, [open]);
   useEffect(() => { if (open) setOffset(0); }, [open]);
   // Touch swipe-to-dismiss across the whole sheet. We claim the gesture as a dismiss only when the
   // content is scrolled to the very top AND the finger is moving down — so scrolling the content

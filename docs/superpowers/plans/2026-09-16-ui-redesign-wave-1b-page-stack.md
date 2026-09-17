@@ -422,7 +422,7 @@ $env:SHOTS_UI2="1"; npm run shots:diff -- wave1b-phone
 $env:SHOTS_UI2="1"; $env:SHOTS_VIEWPORT="1024x768"; npm run shots:diff -- wave1b-wide
 ```
 
-Then, from the phone flag-on capture directory, confirm the sheet still renders (09-settings.png shows the Settings **sheet**, since the harness never taps the gear — that is expected and is the flag-off parity check for `wave1b-off`).
+Then check the Settings frames in both capture directories. The harness DOES tap the HUD gear (see the gear click in `scripts/shots-diff.mjs`), so the flag decides what 09-settings.png shows: with the flag **off**, `wave1b-off/09-settings.png` shows the Settings **sheet** (the shipped-game parity path), and with the flag **on**, `wave1b-phone/09-settings.png` and `wave1b-wide/09-settings.png` show the Settings **pushed page** — header "Settings" with a visible back chevron — which is the real proof the page path works.
 
 Then prove the page path with a real deep-link. `scripts/shots-diff.mjs` navigates to `SHOTS_URL` when it is set, and it still starts its own preview server on 5199, so pointing it at the hash exercises exactly the deep-link branch:
 
