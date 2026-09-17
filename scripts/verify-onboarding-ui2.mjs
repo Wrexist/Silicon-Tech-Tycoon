@@ -64,7 +64,7 @@ await browser.close();
 server.close();
 
 if (!reached) { console.error("FAIL: onboarding never reached the game."); process.exit(1); }
-if (errors.some((e) => /hook/i.test(e))) { console.error("FAIL: hook error during first run:\n" + errors.join("\n")); process.exit(1); }
+if (errors.some((e) => /hook|minified react error #(310|321)/i.test(e))) { console.error("FAIL: hook error during first run:", errors); process.exit(1); }
 if (errors.length) { console.error("FAIL: console/page errors during first run:\n" + errors.join("\n")); process.exit(1); }
 if (!rail) { console.error("FAIL: flag on at 1024x768 but the rail never rendered."); process.exit(1); }
 console.log("PASS: onboarding completed with the flag on, no hook/console errors, rail rendered.");

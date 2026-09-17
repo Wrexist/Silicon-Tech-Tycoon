@@ -111,7 +111,7 @@
   --rail-w-compact: 76px;
   --topbar-h: 52px;
   --content-max: 540px;         /* the phone column, matching #root today */
-  --content-max-tablet: 760px;
+  --shell-max: calc(var(--content-max) + var(--rail-w) + var(--sp-24)); /* rail + column + gutter */
   --content-max-wide: 1200px;
 
   /* Radius */

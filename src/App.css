@@ -4,6 +4,13 @@
      glass surfaces; the base color lives on body. */
   background: transparent;
 }
+/* Silicon 2.0 shell: once the rail is shown (>= 800px), widen the root so the rail sits in its
+   own left gutter instead of over the content, and pad the content past it. Flag-gated, so the
+   shipped game's 540px column is untouched. */
+@media (min-width: 800px) {
+  #root:has(.app--next) { max-width: var(--shell-max); }
+  .app--next { padding-left: calc(var(--rail-w) + var(--sp-24)); }
+}
 .app__main {
   padding: var(--sp-16) var(--edge) 0;
 }

@@ -1,8 +1,8 @@
-/* The wide-layout side rail. Fixed like the bottom nav, but clamped to the content column so it
+/* The wide-layout side rail. Fixed like the bottom nav, but clamped to the shell's left edge so it
    never drifts to the viewport edge on a 13" iPad. Only mounts at tablet/wide (App gates it). */
 .railnav {
   position: fixed;
-  left: max(var(--edge), calc(50% - var(--content-max-tablet) / 2));
+  left: max(var(--edge), calc(50% - var(--shell-max) / 2));
   top: calc(var(--topbar-h) + var(--sp-16));
   z-index: 28;
   display: flex;

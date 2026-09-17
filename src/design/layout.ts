@@ -3,7 +3,10 @@
 // testable without a DOM.
 import { useEffect, useState } from "react";
 
-export const LAYOUT_BREAKPOINTS = { tablet: 700, wide: 1100 } as const;
+// The side rail is 208px and the content column is 540px, so below ~800px of viewport the two
+// cannot coexist without the rail covering content; 800 is also ≈ iPad portrait (820), the first
+// real device that fits both.
+export const LAYOUT_BREAKPOINTS = { tablet: 800, wide: 1100 } as const;
 
 export type LayoutMode = "phone" | "tablet" | "wide";
 
