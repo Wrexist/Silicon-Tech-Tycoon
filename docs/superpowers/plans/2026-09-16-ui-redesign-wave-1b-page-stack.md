@@ -462,3 +462,42 @@ git commit -m "feat(ui2): open Settings as a pushed page behind the flag"
 - **No params and no nested stacks yet.** `platform`, `museum` and `goals` are declared so the hash encoder round-trips them, but no screen is migrated to a page in this wave — that is Wave 2, and each gets its own plan.
 - **The top bar is still `Hud`.** Restructuring it into the mockup's single row remains a separate, higher-risk task.
 - **Sheet-hosted Settings is intentionally retained** for the flag-off path; the two paths must not both render the same screen at once, which the `uiVersion` branch guarantees.
+
+---
+
+## Wave 1b outcome (completed 2026-09-16)
+
+**Status: COMPLETE.** Four tasks plus three fix rounds; every round independently reviewed.
+
+**Verification on the final HEAD:**
+
+- 
+pm run typecheck - 0 errors
+- 
+pm test - 1,961 passed / 181 files (1,948 + 12 new page-stack tests + 1 from the unwired-page test)
+- 
+pm run build - green
+- 
+pm run verify:ui2 - PASS
+- 
+pm run audit:screens - CLEAN
+- Flag off - Settings still opens as the sheet; a stale #/settings or #/platform hash renders the normal classic screens (captured and read)
+- Flag on, 1024px - the gear pushes a Settings page with one "Settings" title and a back chevron; Escape and browser Back return to the root; #/platform renders a normal root screen rather than an empty page
+- No engine file touched
+
+**Fix rounds:**
+
+1. History side effects sat inside the setStack updaters; React 19 StrictMode double-invokes them, so push could write two entries and pop could step back twice. Moved into the callbacks behind a ref mirror (48fb086).
+2. The page path was not gated on the flag, so a #/settings URL broke the classic build; HQ also kept rendering under a pushed page. Single-sourced the gate in usePageNav (page: null, no-op push/pop when disabled) and paused HQ with ctive={tab === "hq" && page == null} (78916d).
+3. Final review found three more: a declared-but-unwired page deep-linked to a blank screen, Settings drew two titles, and tapping a root tab desynced nav from content. Fixed with WIRED_PAGES, .app--next .set__title, and a clear() on tab change (54363d).
+4. That clear() left a deep-linked frame's hash in the URL, so a later push+pop re-opened the page. It now rewrites the hash unconditionally (6d19ec8).
+
+**Deferred minors (carry into Wave 2):**
+
+- pushPage/push still accept the wider PageId, so an unwired id is type-allowed though unreachable; a WIRED_PAGES-typed parameter would close it.
+- The initializer still seeds the stack from the hash even when disabled; harmless (output gated) but a mid-session flag flip would activate a stale deep link.
+- DecorateTutorial/FactoryTutorial handle Escape without registering with the overlay guard.
+- pageFromHash rejects a trailing slash (#/settings/ -> root).
+- Sheet registration changes the flag-off overlay counter; the only reader is FactoryMode's Escape, so it is a latent-collision fix rather than a regression.
+
+**Wave 2 entry decision (from the final review):** PageStack is a flat PageId[] and the hash cannot carry a root, so reloading #/settings always returns to Office. The spec's model is { root, page, params }. Decide that shape before the Company -> Platform migration, along with how a page passes a right-hand action or its own sub-navigation, since the shell header currently hardcodes title+back.
