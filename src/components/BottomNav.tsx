@@ -5,7 +5,9 @@ import "./bottomNav.css";
 
 export type Tab = "hq" | "design" | "research" | "market" | "company";
 
-const TABS: { id: Tab; label: string; Icon: LucideIcon; color: string }[] = [
+/** The five root tabs. Exported so RailNav (the wide-layout twin) reads the same list — a second
+ *  hand-written copy is how the bottom nav and the rail would silently drift apart. */
+export const TABS: { id: Tab; label: string; Icon: LucideIcon; color: string }[] = [
   { id: "hq", label: "Office", Icon: Home, color: "var(--accent)" },
   { id: "design", label: "Design", Icon: PencilRuler, color: "var(--fn-design)" },
   { id: "research", label: "Research", Icon: FlaskConical, color: "var(--fn-eng)" },
