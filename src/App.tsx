@@ -160,7 +160,7 @@ function AppShell() {
   const uiVersion = useUiVersion();
   const layoutMode = useLayoutMode();
   const showRail = uiVersion === "next" && railShown(layoutMode);
-  const { page, pop } = usePageNav();
+  const { page, push, pop } = usePageNav();
 
   // Escape closes a pushed page, matching every popup in the app. The sheets own their own Escape
   // handling, so this only fires while a page is open and no sheet is up.
@@ -204,7 +204,7 @@ function AppShell() {
   return (
     <div className={`app${uiVersion === "next" ? " app--next" : ""}`}>
       <Hud
-        onSettings={() => setSettingsOpen(true)}
+        onSettings={() => (uiVersion === "next" ? push("settings") : setSettingsOpen(true))}
         onOpenBank={openBank}
         onOpenProgress={hasShipped ? () => openProgress() : undefined}
         progressAttention={vaultSummary(state).newLeads > 0}
