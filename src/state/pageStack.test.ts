@@ -129,9 +129,7 @@ describe("routeFromHash", () => {
 
   it("keeps the root but drops a page that has no screen yet", () => {
     // A committed-but-unwired page must not hide every root and render an empty main.
-    for (const id of ["museum", "goals"] as const) {
-      expect(routeFromHash(`#/company/${id}`, "hq")).toEqual({ root: "company", frame: null });
-    }
+    expect(routeFromHash("#/company/goals", "hq")).toEqual({ root: "company", frame: null });
   });
 
   it("ignores case and stray slashes", () => {

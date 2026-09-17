@@ -42,6 +42,9 @@ const ScenariosSheet = lazy(() => import("./screens/Scenarios.tsx").then((m) => 
 // The routed Platform page (Silicon 2.0). Lazy for the same reason as the tab screens: a classic run
 // that never opens it must not pay for its chunk, and Company already splits the same module.
 const PlatformPanel = lazy(() => import("./screens/Platform.tsx").then((m) => ({ default: m.PlatformPanel })));
+// The routed Museum page (Silicon 2.0). Lazy like the rest: a classic run that never opens it must
+// not pay for its chunk, and Progress already splits the same module.
+const MuseumPanel = lazy(() => import("./screens/Museum.tsx").then((m) => ({ default: m.MuseumPanel })));
 import { enableDailyReminders, notificationsAvailable } from "./state/notifications.ts";
 import { getSettings, setSettings } from "./state/settings.ts";
 import { useUiVersion } from "./state/uiVersion.ts";
@@ -321,6 +324,13 @@ function AppShell() {
                 section={resolvePlatformSection(params.section)}
                 onSection={(s) => push("platform", { section: s }, true)}
               />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+        {page === "museum" && (
+          <ErrorBoundary fallback={<ScreenError onHome={pop} />}>
+            <Suspense fallback={<ScreenLoading title={PAGE_TITLES.museum} />}>
+              <MuseumPanel />
             </Suspense>
           </ErrorBoundary>
         )}
