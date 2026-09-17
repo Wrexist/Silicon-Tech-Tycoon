@@ -506,3 +506,44 @@ Append a "Wave 3 outcome" section: status, commit range, the determinism and sim
 - **No `PAGE_IDS`-style registry for stats.** Test Prototype reuses the existing `StatKey` union.
 - **The Company Growth chart itself is not in this wave.** It is a `DataChart` primitive task and belongs with the Company screen migration; this wave records the data it will read and proves the derivation, so the chart is a pure presentation task later.
 - **No balance-tuning on the new constants.** They are placed in `balance.ts` with the sim as the check; tuning waits for the harness's verdict and, ideally, live players.
+
+---
+
+## Wave 3 outcome (completed 2026-09-16)
+
+**Status: COMPLETE.** Tasks 0-4 batched and reviewed as one unit. Task quality: Approved, no Critical findings.
+
+**The two gates that matter, run by the controller:**
+
+- **Determinism pin - Tests 2 passed.** The reviewer independently confirmed the diff CANNOT change a do-nothing run: the tick work is a pure read (ecordFinancialWeek does no RNG and no mutation; sub/	oDollars/weeklyOutflow are pure), and no new branch gates a sim path. Note the honest caveat it raised: "byte-identical" holds between two runs of the same seed; there is no full-state frozen golden that would flag a legitimately added field.
+- **
+pm run sim (40 seeds) - Reached IPO/listed: 40/40,** era distributions unchanged (era 4 hit 23% / solid 50%; era 5 hit 17% / solid 52%), no bankruptcies.
+- 
+pm test green (1,999 tests / 185 files), 
+pm run build green, 
+pm run audit:screens CLEAN.
+
+**Delivered:**
+
+- inancialHistory - weekly revenue (the cumulativeRevenue delta, so it cannot drift from the ledger), expenses (weeklyOutflow, the exact basis of the runway readout), and a derived profit. Optional, capped at 260, backfilled [] in migrate() and in all three state constructors.
+- customerRating(scores) - a pure derivation over the outlet scores that already exist. No new state.
+- prototypeOutcome / prototypeCost - the optional Test Prototype. Salt 317, registered in CLAUDE.md. **Player-action only:** the reviewer grepped the tree and confirmed nothing in the tick or any cadence references it. The roll helper is a character-for-character copy of moonshots.ts's, not an approximation.
+- developmentStage - a pure lens over the existing draft. Confirmed it cannot gate anything: it is never passed to missingSlots/openWizard/startBuild.
+
+**A finding parked with a ruling (Important, not dismissed):**
+
+> **The Testing step renders but can never activate.** DesignLab.tsx hard-wires prototypeRun: false, so the 	esting branch is unreachable and the step renders permanently disabled.
+>
+> **Ruling:** park it. The lens gates nothing, so there is no correctness or determinism risk, and the wave deliberately shipped the lens before the Testing action. **Cost if wrong: players see a step that cannot light up.** The recommended first fix next session is a one-liner: omit Testing from the rendered list until the prototype action ships, so the visible ladder matches what the app can actually do.
+
+**Deferred minors:**
+
+1. growthDeltas returns absolute dollars, not percent - the brief's interface text and its test disagreed; the implementer followed the test. Currently unconsumed, so harmless, but rename it to make the unit obvious before a chart reads it.
+2. The quota-fallback trim in persistence.ts does not also trim inancialHistory, so a full second 260-row array survives the fallback.
+3. Recorded expenses lag the UI by one week on the late-era drag term (identical basis, pre-tick state).
+4. uilding is global, not per-draft, so an in-flight build can read an unrelated draft as inalize.
+5. prototypeOutcome rolls only (seed, week, 317) - no per-draft sub-salt, so two prototypes in one week share a roll.
+6. Two stacked .lab__tabs strips can render two lab__tab--on elements at once.
+7. CLAUDE.md's new salt line has a stray trailing ).
+
+**Process note:** the final whole-branch review was not run separately - the task review covered the whole batch, and the controller re-ran the pin, the sim, the suite, the build and the audit afterwards.
