@@ -58,6 +58,7 @@ import {
 import { totalDebt, weeklyDebtService, weeklyPaymentFor } from "../engine/financing.ts";
 import { isDisciplineLead, mentorshipXpMult } from "../engine/org.ts";
 import { useGame, useGameActions } from "../state/useGame.tsx";
+import { useUiVersion } from "../state/uiVersion.ts";
 import { Sparkline } from "../components/charts.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
@@ -118,9 +119,12 @@ const DISCIPLINE_COLOR: Record<Discipline, string> = {
   marketing: "var(--fn-mkt)",
 };
 
-export function Company() {
+/** `onOpenPlatform` is the Silicon 2.0 entry point: with the flag on and the division founded, the
+ *  Platform sub-tab routes to the Platform page instead of opening the classic inline sheet. */
+export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
   const { state, fire, assign, train, recruit, hireCandidate, dismissCandidates, giveRaise, rest, setAutomation, hireSpecialist, foundPlatform, acquireFactory } = useGame();
   const pro = useIsPro();
+  const uiVersion = useUiVersion();
   // The OS division is the Platform Era's headline system, so it travels with the Pro tier.
   const platformProLocked = isLocked("platformDivision", pro);
   const [foundedCelebrate, setFoundedCelebrate] = useState(false);
@@ -185,7 +189,14 @@ export function Company() {
             aria-controls="co-tabpanel"
             aria-selected={coTab === id}
             className={`co__subtab${coTab === id ? " co__subtab--on" : ""}`}
-            onClick={() => { haptic.light(); setCoTab(id); }}
+            onClick={() => {
+              haptic.light();
+              // Silicon 2.0 routes Platform to its own page. With the flag off, or before the
+              // division is founded (so the founding flow stays reachable), open the classic
+              // inline sheet exactly as before.
+              if (id === "platform" && uiVersion === "next" && state.platformUnlocked) { onOpenPlatform(); return; }
+              setCoTab(id);
+            }}
           >
             {id === "platform" && <Layers size={14} aria-hidden />}{label}
             {id === "platform" && navAttention(state).company && <span className="co__subtab-dot" aria-hidden />}

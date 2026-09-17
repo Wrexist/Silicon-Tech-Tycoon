@@ -305,7 +305,7 @@ function AppShell() {
                     onFocusConsumed={() => setMarketFocusId(null)}
                   />
                 )}
-                {tab === "company" && <Company />}
+                {tab === "company" && <Company onOpenPlatform={() => push("platform")} />}
               </Suspense>
             </ErrorBoundary>
           </div>
