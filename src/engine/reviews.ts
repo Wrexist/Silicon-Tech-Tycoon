@@ -136,6 +136,16 @@ export function criticReviews(inp: ReviewInputs): CriticReviews {
   return { aggregate, outlets, headline, pros: pros.slice(0, 2), cons: cons.slice(0, 2) };
 }
 
+/** A single 0-100 "how do buyers feel" number, derived from outlet scores that already exist — no new
+ *  state, no new simulation, nothing to keep in sync. Bands are deliberately coarse: a five-point
+ *  wobble should not relabel a company. */
+export function customerRating(scores: readonly number[]): { score: number; label: string } {
+  if (scores.length === 0) return { score: 0, label: "No data" };
+  const score = Math.round(scores.reduce((n, s) => n + s, 0) / scores.length);
+  const label = score >= 82 ? "Excellent" : score >= 65 ? "Good" : score >= 45 ? "Mixed" : "Poor";
+  return { score, label };
+}
+
 // --- Outlet running threads (item 2.6) — the press REMEMBERS you. --------------------------------
 // The critic reviews are deterministic per product id, so we can fold each launch's outlet scores
 // into a persistent per-outlet stance: an outlet that keeps panning you becomes a running nemesis
