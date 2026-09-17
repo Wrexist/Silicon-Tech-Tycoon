@@ -694,12 +694,12 @@ export function DesignLab({
               <div className="lab__hero-line">
                 <span className="lab__hero-line-label">Design Language</span>
                 <span className="lab__hero-line-val">
-                  <Sparkles size={14} aria-hidden /> <strong>{styleLabel}</strong>
+                  <Sparkles size={14} aria-hidden /> <strong>{styleLabel},</strong>{" "}
                   <span className="lab__hero-line-hint">
-                    {styleLabel === "Striking" ? ", lifts demand across every buyer"
-                      : styleLabel === "Clean" ? ", refine the form to lift demand further"
-                      : CATEGORIES[draft.category].slots.includes("camera") ? ", notch, cameras & layout shape desirability"
-                      : ", the screen treatment shapes desirability"}
+                    {styleLabel === "Striking" ? "lifts demand across every buyer"
+                      : styleLabel === "Clean" ? "refine the form to lift demand further"
+                      : CATEGORIES[draft.category].slots.includes("camera") ? "notch, cameras & layout shape desirability"
+                      : "the screen treatment shapes desirability"}
                   </span>
                 </span>
               </div>

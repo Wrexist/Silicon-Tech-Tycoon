@@ -18,12 +18,17 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { newGame, type GameState } from "./gameState.ts";
 import { dollars } from "../engine/money.ts";
 
 /* ───────────────────────────── 1. source invariants ───────────────────────────── */
 
-const SRC = new URL("..", import.meta.url).pathname; // repo /src
+// `fileURLToPath`, not `URL.pathname`: on Windows pathname yields `/C:/…`, which then makes
+// `join` produce `C:\C:\…` and the sweep throws before it can scan a single file. Separators are
+// normalized to `/` so the `"/state/gameState.ts"` exclusion and the reported caller list are
+// platform-independent.
+const SRC = fileURLToPath(new URL("..", import.meta.url)).replace(/\\/g, "/"); // repo /src
 
 function sourceFiles(dir: string, out: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
@@ -31,7 +36,7 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
     if (statSync(full).isDirectory()) {
       sourceFiles(full, out);
     } else if (/\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry)) {
-      out.push(full);
+      out.push(full.replace(/\\/g, "/"));
     }
   }
   return out;

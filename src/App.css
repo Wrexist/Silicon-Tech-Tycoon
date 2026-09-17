@@ -46,7 +46,9 @@
   margin: var(--sp-4) 0 var(--sp-12);
 }
 .app__spacer {
-  height: calc(96px + env(safe-area-inset-bottom));
+  /* Clears the fixed bottom chrome. 96px only cleared the tab bar, so the floating speed dial
+     (which sits ~72–140px up, bottom-left) covered the last card's text on every scroll screen. */
+  height: calc(152px + env(safe-area-inset-bottom));
 }
 
 /* Onboarding */

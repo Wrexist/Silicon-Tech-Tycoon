@@ -425,6 +425,16 @@
   background: var(--ink-3);
   width: 46px;
 }
+/* The handle is a drag affordance, not a button: the global keyboard focus ring drew a blue box
+   around its invisible 64×24 hit area, which read as a rendering bug. Keep keyboard focus visible
+   (a11y) but paint it on the pill itself. */
+.ds-sheet__grab:focus-visible {
+  outline: none;
+}
+.ds-sheet__grab:focus-visible::before {
+  background: var(--accent);
+  box-shadow: 0 0 0 var(--focus-width, 2px) var(--accent);
+}
 
 /* Toast */
 .ds-toast-host {

@@ -8,9 +8,9 @@
   justify-content: space-around;
   gap: var(--sp-2);
   padding: var(--sp-8) var(--sp-8) calc(var(--sp-8) + env(safe-area-inset-bottom));
-  background: var(--glass);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  /* Opaque on purpose: content scrolling underneath used to ghost through the 88% glass tab bar,
+     so every long screen showed a second set of labels behind the nav. */
+  background: var(--surface);
   border-top: 1px solid var(--hairline);
   max-width: 540px;
   margin: 0 auto;
