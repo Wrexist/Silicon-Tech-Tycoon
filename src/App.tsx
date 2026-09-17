@@ -175,7 +175,7 @@ function AppShell() {
   // A root tab is the BASE of the navigation model, so choosing one always closes any open page —
   // otherwise the highlighted tab and the rendered content disagree.
   const changeTab = useCallback((t: Tab) => {
-    clear();
+    clear(t);   // close any page AND point the URL at the tab being opened
     setTab(t);
   }, [clear]);
 

@@ -80,7 +80,7 @@ export function routeFromHash(hash: string, fallbackRoot: RootId): { root: RootI
   const root = parts[0] && isRootId(parts[0]) ? parts[0] : fallbackRoot;
   const id = parts[1];
   if (!id || !isWiredPage(id)) return { root, frame: null };
-  const section = parts[2];
+  const section = parts[2] ? decodeURIComponent(parts[2]) : undefined;
   return { root, frame: { id, root, params: section ? { section } : {} } };
 }
 
@@ -89,6 +89,6 @@ export function routeFromHash(hash: string, fallbackRoot: RootId): { root: RootI
  *  here as well as in `routeFromHash`, or it will silently vanish from the link. */
 export function hashForRoute(root: RootId, frame: PageFrame | null): string {
   if (!frame) return `#/${root}`;
-  const section = frame.params.section ? `/${frame.params.section}` : "";
+  const section = frame.params.section ? `/${encodeURIComponent(frame.params.section)}` : "";
   return `#/${root}/${frame.id}${section}`;
 }

@@ -122,9 +122,11 @@ describe("routeFromHash", () => {
   });
 
   it("reads a trailing section into params", () => {
-    expect(routeFromHash("#/company/platform/services", "hq")).toEqual({
+    // Uses the WIRED `settings` page: a `platform` section test cannot resolve while
+    // WIRED_PAGES is `["settings"]` (it would drop to the root), so the exercise uses `settings`.
+    expect(routeFromHash("#/company/settings/services", "hq")).toEqual({
       root: "company",
-      frame: frame("platform", "company", { section: "services" }),
+      frame: frame("settings", "company", { section: "services" }),
     });
   });
 
@@ -273,7 +275,8 @@ export function hashForRoute(root: RootId, frame: PageFrame | null): string {
 - [ ] **Step 4: Run the tests to verify they pass**
 
 Run: `npx vitest run src/state/pageStack.test.ts`
-Expected: PASS (15 tests).
+Expected: PASS (16 tests). The section case uses the wired `settings` page — a `platform` section
+test cannot resolve while `WIRED_PAGES` is `["settings"]`.
 
 - [ ] **Step 5: Commit**
 
@@ -506,7 +509,7 @@ Nothing else changes: `changeTab` still calls `clear()` then `setTab`; the heade
 - [ ] **Step 4: Verify and commit**
 
 Run: `npm run typecheck` → exit 0
-Run: `npm test` → the suite from Tasks 1–2 plus the unchanged rest. Expected total: **1,948 + 15 + 5 = 1,968 tests**. If it is lower, a suite was skipped.
+Run: `npm test` → the suite from Tasks 1–2 plus the unchanged rest. Expected total: **1,948 + 16 + 5 = 1,969 tests**. If it is lower, a suite was skipped.
 Run: `npm run build` → green
 
 ```bash
@@ -563,7 +566,7 @@ Append a short "Wave 2a outcome" section to this plan: status, commit range, the
 - [ ] Flag off → Settings still opens as the sheet; frames unchanged from the baseline.
 - [ ] Flag on → `#/market/settings` reloads with **Market** highlighted and the Settings page open.
 - [ ] The route round-trips every wired page under every root (unit-tested).
-- [ ] `tsc` 0 · 1,968 tests · build green · `verify:ui2` PASS · `audit:screens` CLEAN.
+- [ ] `tsc` 0 · 1,969 tests · build green · `verify:ui2` PASS · `audit:screens` CLEAN.
 - [ ] No engine file touched.
 
 ## Decisions this wave makes (so Wave 2b does not re-litigate them)

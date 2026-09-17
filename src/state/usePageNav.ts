@@ -26,7 +26,7 @@ export function nextStackForPopstate(stack: PageStack, hash: string, fallbackRoo
 
 export function usePageNav(
   currentRoot: RootId,
-): { root: RootId; page: PageId | null; params: RouteParams; push: (p: PageId, params?: RouteParams) => void; pop: () => void; clear: () => void } {
+): { root: RootId; page: PageId | null; params: RouteParams; push: (p: PageId, params?: RouteParams) => void; pop: () => void; clear: (nextRoot?: RootId) => void } {
   // Inert unless the flag is on. Gating HERE — the single source — keeps a stale hash from ever
   // making the CLASSIC build render a page, so every shell guard stays simple.
   const enabled = useUiVersion() === "next";
@@ -77,14 +77,14 @@ export function usePageNav(
     return () => window.removeEventListener("popstate", onPop);
   }, [enabled, currentRoot]);
 
-  /** Drop every page and return to the root. A no-op when nothing is open (so it is safe on a tab
-   *  change), and it rewrites the hash whenever a page WAS open, so a stale deep link cannot leave
-   *  the URL naming a page the player has closed. */
-  const clear = useCallback(() => {
+  /** Drop every page and return to `nextRoot` (default: the current root). A no-op when nothing is
+   *  open (so it is safe on a tab change), and it rewrites the hash whenever a page WAS open, so a
+   *  stale deep link cannot leave the URL naming a page the player has closed. */
+  const clear = useCallback((nextRoot?: RootId) => {
     if (ref.current.length === 0) return;
     ref.current = [];
     setStack([]);
-    if (typeof window !== "undefined") window.history.replaceState({}, "", hashForRoute(currentRoot, null));
+    if (typeof window !== "undefined") window.history.replaceState({}, "", hashForRoute(nextRoot ?? currentRoot, null));
   }, [currentRoot]);
 
   const top = enabled ? topPage(stack) : null;

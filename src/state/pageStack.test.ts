@@ -113,6 +113,14 @@ describe("hashForRoute", () => {
     );
   });
 
+  it("round-trips a section through encode and parse", () => {
+    const withSection = frame("settings", "company", { section: "notifications" });
+    expect(routeFromHash(hashForRoute("company", withSection), "hq")).toEqual({
+      root: "company",
+      frame: withSection,
+    });
+  });
+
   it("round-trips every wired page under every root", () => {
     const roots: RootId[] = ["hq", "design", "research", "market", "company"];
     for (const root of roots) {
