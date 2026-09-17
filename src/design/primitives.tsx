@@ -7,7 +7,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { Sparkles } from "lucide-react";
+import { ChevronLeft, Sparkles } from "lucide-react";
 import { haptic } from "./haptics.ts";
 import { sfx } from "./sound.ts";
 import { lockScroll } from "./scrollLock.ts";
@@ -426,5 +426,35 @@ export function Sheet({
       </div>
     </div>,
     document.body,
+  );
+}
+
+/** The shared page header for the Silicon 2.0 shell: an optional back chevron, the page title, an
+ *  optional subtitle and a right-hand action slot. Screens stop drawing their own `.app__title`
+ *  when the new shell is on, so there is exactly one, correctly-positioned title per page. */
+export function PageHeader({
+  title,
+  subtitle,
+  onBack,
+  actions,
+}: {
+  title: string;
+  subtitle?: string;
+  onBack?: () => void;
+  actions?: ReactNode;
+}) {
+  return (
+    <header className="pghead">
+      {onBack && (
+        <button type="button" className="pghead__back" onClick={onBack} aria-label="Back">
+          <ChevronLeft size={20} aria-hidden />
+        </button>
+      )}
+      <div className="pghead__text">
+        <h1 className="pghead__title">{title}</h1>
+        {subtitle ? <p className="pghead__subtitle">{subtitle}</p> : null}
+      </div>
+      {actions ? <div className="pghead__actions">{actions}</div> : null}
+    </header>
   );
 }
