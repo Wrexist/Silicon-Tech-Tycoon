@@ -68,6 +68,16 @@ export function topPage(stack: PageStack): PageFrame | null {
   return stack.length ? stack[stack.length - 1] : null;
 }
 
+/** `decodeURIComponent` throws on a malformed escape (`#/company/settings/%`), and a pasted URL must
+ *  never crash the app — an undecodable segment is used verbatim instead. */
+function safeDecode(v: string): string {
+  try {
+    return decodeURIComponent(v);
+  } catch {
+    return v;
+  }
+}
+
 /** `#/company/platform/services` -> { root: "company", frame: { id: "platform", params: { section:
  *  "services" } } }. An unrecognised root, or any absent value, yields the fallback root with no
  *  frame — never a guessed root, and never a page whose screen does not exist. */
@@ -80,7 +90,7 @@ export function routeFromHash(hash: string, fallbackRoot: RootId): { root: RootI
   const root = parts[0] && isRootId(parts[0]) ? parts[0] : fallbackRoot;
   const id = parts[1];
   if (!id || !isWiredPage(id)) return { root, frame: null };
-  const section = parts[2] ? decodeURIComponent(parts[2]) : undefined;
+  const section = parts[2] ? safeDecode(parts[2]) : undefined;
   return { root, frame: { id, root, params: section ? { section } : {} } };
 }
 

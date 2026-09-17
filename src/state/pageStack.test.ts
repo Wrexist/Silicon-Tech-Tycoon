@@ -100,6 +100,14 @@ describe("routeFromHash", () => {
       frame: frame("settings", "company"),
     });
   });
+
+  it("survives a malformed percent-escape instead of throwing", () => {
+    expect(() => routeFromHash("#/company/settings/%", "hq")).not.toThrow();
+    expect(routeFromHash("#/company/settings/%", "hq")).toEqual({
+      root: "company",
+      frame: frame("settings", "company", { section: "%" }),
+    });
+  });
 });
 
 describe("hashForRoute", () => {
