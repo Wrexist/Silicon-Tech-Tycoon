@@ -406,3 +406,44 @@ Append a "Wave 2b outcome" section to this plan: status, commit range, exact gat
 - **The classic sheet is kept** and delegates to the same panel body, so the flag-off path cannot drift from the new one.
 - **Section content is grouped, not rewritten.** No block is added, removed, or reworded; a block that fits no rail section stays in Overview.
 - **The other three sub-apps** (Museum, Goals, and the Progress-hub dissolve) are Wave 2c/2d, each with its own plan.
+
+---
+
+## Wave 2b outcome (completed 2026-09-16)
+
+**Status: COMPLETE.** Tasks 1-2 batched, Task 3 separately, plus one fix round; each independently reviewed.
+
+**Verification on the final HEAD:**
+
+- 
+pm run typecheck - 0 errors
+- 
+pm test - 1,981 passed / 182 files (1,971 + 5 section-resolver + 5 replace-top cases)
+- 
+pm run build - green
+- 
+pm run verify:ui2 - PASS
+- 
+pm run verify:deeplink - PASS (the Wave 2a route still restores its root - a regression check on the router this wave extended)
+- 
+pm run audit:screens - CLEAN
+- Flag-off capture taken (wave2b-off); the Company tab's Platform sub-tab still mounts the classic sheet
+- No engine file touched
+
+**A defect the controller introduced last wave, found here:** Wave 2a added the erify:deeplink npm script with a PowerShell Set-Content -Encoding utf8, which writes a UTF-8 BOM. ite-plugin-pwa does a raw JSON.parse and rejected it, so 
+pm run build was broken from that commit — and Wave 2a's verification never re-ran the build after editing package.json, so it went unnoticed. The Task 1-2 implementer caught it; fixed as its own commit. **Process rule adopted: re-run 
+pm run build after any edit to package.json.**
+
+**Fix round:** the new eplaceTop branch (the Platform rail re-pushes its own page, so the stack must not grow per tap) was untested, and the replace decision was computed independently in the hook and the pure model — a silent stack/history divergence waiting to happen. eplacesTop() is now exported and used by both, with five new cases. The controller verified the one-file fix directly from the diff rather than spending another review round.
+
+**Judgement calls:**
+
+- **Navigation:** the implementer measured unlimited growth (50 rail taps -> 51 frames) and switched to replace-style, so Back leaves the page instead of walking sections visited.
+- **Mapping:** the brief's table was internally inconsistent (it listed the App Store card under both Ecosystem and Developers). The implementer placed that single card under **Developers**. No block was added, removed or duplicated - 11 cards, 7 section headers, 3 overlays, each rendered exactly once on each path.
+
+**Deferred minors (carry into Wave 2c):**
+
+- The Platform page has **no in-app entry point yet** - it is reachable only by deep link (#/company/platform); the Company Platform sub-tab still opens the classic sheet. Wave 2c should wire the entry.
+- The Platform rail's route was not asserted by an automated check. The plan asked to extend scripts/verify-deeplink-ui2.mjs with a second route; that was not done, so the rail is verified by build/typecheck/audit plus the implementer's reading, not by a machine assertion.
+- Every block's derived data is computed on every sectioned render, even when one section shows. Negligible.
+- platformSections.test.ts loops PLATFORM_SECTIONS without pinning the exact six ids and their order.
