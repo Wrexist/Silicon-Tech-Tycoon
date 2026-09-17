@@ -75,9 +75,10 @@ export function usePageNav(): { page: PageId | null; push: (p: PageId) => void; 
     if (ref.current.length === 0) return;
     ref.current = [];
     setStack([]);
-    if (typeof window !== "undefined" && window.history.state?.page) {
-      window.history.replaceState({}, "", hashForPage(null));
-    }
+    // The URL must stop naming a page the moment we leave it, however we got here — a pushed entry
+    // carries our state, a deep-linked one does not, and leaving the stale hash behind would let a
+    // later push+pop step back onto it and re-open the page the player just closed.
+    if (typeof window !== "undefined") window.history.replaceState({}, "", hashForPage(null));
   }, []);
 
   return { page: enabled ? topPage(stack) : null, push, pop, clear };
