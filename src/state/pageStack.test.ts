@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   hashForRoute,
+  PAGE_IDS,
   popPage,
   pushPage,
   replacesTop,
@@ -9,7 +10,6 @@ import {
   topPage,
   WIRED_PAGES,
   type PageFrame,
-  type PageId,
   type PageStack,
   type RootId,
 } from "./pageStack.ts";
@@ -129,8 +129,7 @@ describe("routeFromHash", () => {
   });
 
   it("wires every declared page — a PageId with no screen would blank the main area", () => {
-    const declared: PageId[] = ["settings", "platform", "museum", "goals"];
-    expect([...WIRED_PAGES].sort()).toEqual([...declared].sort());
+    expect([...WIRED_PAGES].sort()).toEqual([...PAGE_IDS].sort());
   });
 
   it("ignores case and stray slashes", () => {

@@ -6,7 +6,10 @@
  *  root ids — a second hand-written union is how the nav and the router would drift apart. */
 export type RootId = "hq" | "design" | "research" | "market" | "company";
 
-export type PageId = "settings" | "platform" | "museum" | "goals";
+/** Every page the router can name. The `PageId` union is DERIVED from this array, and `WIRED_PAGES`
+ *  is checked against it, so a page can never be declared without a test noticing it has no screen. */
+export const PAGE_IDS = ["settings", "platform", "museum", "goals"] as const;
+export type PageId = (typeof PAGE_IDS)[number];
 
 export type RouteParams = Readonly<Record<string, string>>;
 

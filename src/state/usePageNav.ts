@@ -32,6 +32,7 @@ export function usePageNav(
   // making the CLASSIC build render a page, so every shell guard stays simple.
   const enabled = useUiVersion() === "next";
   const [stack, setStack] = useState<PageStack>(() => {
+    if (!enabled) return []; // inert with the flag off: no frame, and so no URL rewrite on a tab change
     const { frame } = routeFromHash(typeof window === "undefined" ? "" : window.location.hash, currentRoot);
     return frame ? [frame] : [];
   });
