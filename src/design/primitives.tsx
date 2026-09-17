@@ -469,3 +469,35 @@ export function PageHeader({
     </header>
   );
 }
+
+/** Sub-navigation INSIDE a page. Below 800px it is a horizontally scrollable strip; at 800px and up
+ *  it is a vertical rail beside the content. The shell owns the page HEADER, so a page that needs
+ *  sections renders this in its body — one title, one back affordance, no double-title bugs. */
+export function SectionRail({
+  items,
+  active,
+  onChange,
+  ariaLabel,
+}: {
+  items: readonly { id: string; label: string; icon?: ReactNode }[];
+  active: string;
+  onChange: (id: string) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <nav className={`ds-rail`} aria-label={ariaLabel}>
+      {items.map((it) => (
+        <button
+          key={it.id}
+          type="button"
+          className={`ds-rail__item${it.id === active ? " ds-rail__item--active" : ""}`}
+          aria-current={it.id === active ? "true" : undefined}
+          onClick={() => onChange(it.id)}
+        >
+          {it.icon ? <span className="ds-rail__glyph" aria-hidden>{it.icon}</span> : null}
+          <span className="ds-rail__label">{it.label}</span>
+        </button>
+      ))}
+    </nav>
+  );
+}

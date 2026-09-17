@@ -590,3 +590,59 @@
   gap: var(--sp-8);
   flex-shrink: 0;
 }
+
+/* Section rail — a page's own sub-navigation. Phone: a horizontal strip that scrolls. Wide
+   (>= 800px, the same breakpoint the shell uses): a vertical rail beside the section body. */
+.ds-rail {
+  display: flex;
+  gap: var(--sp-4);
+  overflow-x: auto;
+  margin-bottom: var(--sp-16);
+  padding-bottom: var(--sp-4);
+  scrollbar-width: none;
+}
+.ds-rail::-webkit-scrollbar { display: none; }
+.ds-rail__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-8);
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 var(--sp-16);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: color var(--spring-snappy), background var(--spring-snappy);
+}
+.ds-rail__item--active {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent);
+}
+.ds-rail__glyph { display: inline-flex; }
+@media (min-width: 800px) {
+  .ds-panel {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 1fr);
+    gap: var(--sp-24);
+    align-items: start;
+  }
+  .ds-rail {
+    flex-direction: column;
+    overflow-x: visible;
+    margin-bottom: 0;
+    padding-bottom: 0;
+    position: sticky;
+    top: var(--sp-16);
+  }
+  .ds-rail__item {
+    width: 100%;
+    border-radius: var(--r-button);
+    justify-content: flex-start;
+  }
+  .ds-rail__item--active { background: var(--accent-soft); }
+}
