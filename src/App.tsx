@@ -5,6 +5,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud, SpeedDial } from "./components/Hud.tsx";
 import { Bank } from "./components/Bank.tsx";
 import { BottomNav, type Tab } from "./components/BottomNav.tsx";
+import { RailNav } from "./components/RailNav.tsx";
 import { Coach } from "./components/Coach.tsx";
 import { ResultCard } from "./components/ResultCard.tsx";
 import { ToastHost, showToast } from "./design/toast.tsx";
@@ -28,6 +29,7 @@ import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
 import { registerAppOverlay } from "./design/overlayGuard.ts";
+import { railShown, useLayoutMode } from "./design/layout.ts";
 // Sheet-hosted screens. `Sheet` returns null while closed, so React never renders these and their
 // chunks are not fetched until the player actually opens the sheet — which for Settings, Progress and
 // Scenarios is rarely, and for many runs never.
@@ -36,6 +38,7 @@ const ProgressSheet = lazy(() => import("./screens/Progress.tsx").then((m) => ({
 const ScenariosSheet = lazy(() => import("./screens/Scenarios.tsx").then((m) => ({ default: m.ScenariosSheet })));
 import { enableDailyReminders, notificationsAvailable } from "./state/notifications.ts";
 import { getSettings, setSettings } from "./state/settings.ts";
+import { useUiVersion } from "./state/uiVersion.ts";
 import { challengeTeaser, dailyChallenge, dateKeyOf } from "./engine/challenges.ts";
 import { Button, Card } from "./design/primitives.tsx";
 import { format, toDollars, scale } from "./engine/money.ts";
@@ -145,6 +148,17 @@ function AppShell() {
   // one bridge so the team celebrates every win, not only launches.
   useEffect(() => onCelebrate(() => emitHqReaction("cheer")), []);
 
+  // Silicon 2.0 foundation. These hooks are called HERE, ABOVE the onboarding early return below:
+  // hooks must run unconditionally, and a new player flips `onboarded` while this component stays
+  // mounted, so calling them after that return would change the hook count between renders and crash
+  // on entering the game. With the flag off this component otherwise renders exactly what it did
+  // before: the rail is the ONLY addition, and it only mounts when both the flag is on and the
+  // viewport is wide enough. Nothing else is touched, which keeps the flag-off build pixel-identical
+  // to the shipped game.
+  const uiVersion = useUiVersion();
+  const layoutMode = useLayoutMode();
+  const showRail = uiVersion === "next" && railShown(layoutMode);
+
   // The first ship silently unlocks half the meta-game (Progress hub, stock market, financing,
   // morale, daily challenges). Item A1 — instead of a blink-and-miss toast, a persistent, dismissible
   // "what just unlocked" card renders on HQ (UnlockCard) until the player taps it, so nothing is lost.
@@ -176,13 +190,16 @@ function AppShell() {
   const showWorldTabs = state.era >= 2 || (state.ownedFactories?.length ?? 0) > 0 || hqWorld === "factory";
 
   return (
-    <div className="app">
+    <div className={`app${uiVersion === "next" ? " app--next" : ""}`}>
       <Hud
         onSettings={() => setSettingsOpen(true)}
         onOpenBank={openBank}
         onOpenProgress={hasShipped ? () => openProgress() : undefined}
         progressAttention={vaultSummary(state).newLeads > 0}
       />
+      {showRail && (
+        <RailNav active={tab} onChange={setTab} badge={navAttention(state)} visible={tabVisible} />
+      )}
       <main className="app__main">
         {/* HQ stays MOUNTED across tabs (hidden, not unmounted) so its WebGL office keeps its
             GPU context instead of tearing it down + re-creating it on every visit — that churn

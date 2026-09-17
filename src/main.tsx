@@ -5,6 +5,7 @@ import "./design/tokens.css";
 import "./index.css";
 import { App } from "./App.tsx";
 import { initSettings, resolvedTheme } from "./state/settings.ts";
+import { initUiVersion } from "./state/uiVersion.ts";
 import { initNative } from "./native.ts";
 import { hydrateFromNative } from "./state/nativeStore.ts";
 import { refreshDailyReminders } from "./state/notifications.ts";
@@ -22,6 +23,9 @@ async function boot(): Promise<void> {
   ]);
 
   initSettings();
+  // Which chrome the app renders. Must run before React mounts so the first paint is already
+  // on the correct version — flipping after mount would flash the classic shell first.
+  initUiVersion();
 
   // Stamp this device's first-ever launch (once). Used only for honest "new founder" framing —
   // there is no countdown, no expiring discount, and no fake scarcity anywhere in the app.
