@@ -805,3 +805,52 @@ git commit -m "test(ui2): capture the flag-off regression set, the wide rail, an
 - **Wave 0 does not swap the chrome.** The rail is additive; the classic HUD and bottom nav stay. Ripping out the chrome is Wave 1's first task, where it can be verified against a migrated screen.
 - **The pattern library is built just-in-time, not in Wave 0.** The spec lists ten primitives, but building them before a screen needs them would be speculative work. Each primitive gets its own task in the wave whose screen first consumes it — `PageHeader` and `StatTile` in Wave 1, `DataChart` and `KeyStatsPanel` with the Company screen, `CardGrid` and `EmptyState` with the Museum, and so on. This is the YAGNI ordering, and it keeps every task's deliverable genuinely testable.
 - **No engine work exists in this wave**, so there is nothing to gate, backfill, or salt.
+
+---
+
+## Wave 0 outcome (completed 2026-09-16)
+
+**Status: COMPLETE.** All 7 tasks plus one fix wave ran subagent-driven; every task passed an independent spec + quality review, and the whole branch passed a final review.
+
+**Flag:** silicon.ui2, default classic. URL override for QA: ?ui=next / ?ui=classic.
+
+**Verification on the final HEAD:**
+
+- 
+pm run typecheck - 0 errors
+- 
+pm test - 1,948 passed / 179 files
+- 
+pm run build - green
+- 
+ode scripts/verify-onboarding-ui2.mjs - PASS (first run, flag on, no hook or console errors, rail rendered)
+- 
+pm run audit:screens - CLEAN (5/5 nav screens, 12/12 sub-tabs, 10/10 Progress views, 4/4 Pro-gated, 1.1.0 save migrates)
+- No engine file touched; the determinism pin is untouched
+- Flag-off frames: 4/10 byte-identical, 6/10 animation-only or sub-threshold noise, no layout difference
+
+**Rulings made during execution:**
+
+1. Task 0 (baseline capture) ran in the controller session, not a subagent - it produces no diff or commit.
+2. ash is unavailable on this Windows host, so the workflow's helper scripts were replicated in PowerShell.
+3. The harness exposes no per-subagent model selection; every dispatch used the general subagent, and each brief carried complete code.
+4. Commits are local to eat/ui2-wave-0 only - no push, no PR, no merge.
+5. **Plan defect:** Task 6's hooks were specified *after* App.tsx's onboarding early return, a Rules-of-Hooks violation that would crash every new player. The implementer moved them above the return; ruled correct; the plan was amended and Task 7 gained a first-run guard.
+6. **Final review finding 1:** the rail overlapped content at tablet/wide (breakpoint 700 was too low and no gutter was reserved). Fixed: tablet breakpoint to 800, --shell-max plus a reserved gutter, rail clamped to the shell.
+7. **Final review finding 2:** the golden baseline was captured after the owner-approved quick wins, so "flag off = unchanged" is relative to that baseline. Ruled intentional and owner-approved; the spec wording was corrected and nothing was reverted.
+8. **Final review finding 3:** Wave 1's acceptance gate had no committed tool. Fixed: scripts/shots-pixel-diff.mjs, shots:pixel, erify:ui2, and the wording corrected to byte-identical for DOM frames with an animation tolerance for 3D.
+
+**Deferred minors to carry into Wave 1:**
+
+- Stale references: this plan's Task 2/3/5 text still says 700 and --content-max-tablet, and the spec's 700-1100 table, all now contradicted by the code (800).
+- This plan's embedded erify-onboarding-ui2.mjs snippet still shows /hook/i; the live script uses the broader regex.
+- src/App.tsx comment still says "pixel-identical".
+- This plan's exit criteria says 1,947 tests; the actual count is 1,948.
+- useLayoutMode's effect dereferences window unguarded while its initializer guards it.
+- RailNav's press transform is not in its transition; glyph 20px / --fs-caption versus BottomNav's 21px / --fs-nano.
+- useUiVersion's subscribe cleanup returns a boolean from listeners.delete (matches settings.ts).
+- scripts/shots-pixel-diff.mjs iterates baseline frames only and would pass on an empty baseline directory.
+- Duplicate ria-label="Primary" landmark while both navs render (flag on, tablet); Wave 1 hides one.
+- --rail-w-compact, --content-max, --content-max-wide, .app--next, setUiVersion/getUiVersion/uiNextEnabled have no consumer yet; Wave 1 wires them, and #root should consume --content-max.
+
+**Wave 1 entry points:** the chrome swap (AppShell, top bar, page stack/router), then the PageHeader and StatTile primitives, then the screens. See the ordering note above.
