@@ -624,10 +624,16 @@
   color: var(--accent);
 }
 .ds-rail__glyph { display: inline-flex; }
+.ds-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  min-width: 0;
+}
 @media (min-width: 800px) {
   .ds-panel {
     display: grid;
-    grid-template-columns: 200px minmax(0, 1fr);
+    grid-template-columns: var(--rail-w) minmax(0, 1fr);
     gap: var(--sp-24);
     align-items: start;
   }

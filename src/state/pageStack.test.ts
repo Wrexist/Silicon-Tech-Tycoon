@@ -80,6 +80,10 @@ describe("routeFromHash", () => {
       root: "company",
       frame: frame("settings", "company"),
     });
+    expect(routeFromHash("#/company/platform", "hq")).toEqual({
+      root: "company",
+      frame: frame("platform", "company"),
+    });
   });
 
   it("reads a trailing section into params", () => {
@@ -91,7 +95,9 @@ describe("routeFromHash", () => {
 
   it("keeps the root but drops a page that has no screen yet", () => {
     // A committed-but-unwired page must not hide every root and render an empty main.
-    expect(routeFromHash("#/company/museum", "hq")).toEqual({ root: "company", frame: null });
+    for (const id of ["museum", "goals"] as const) {
+      expect(routeFromHash(`#/company/${id}`, "hq")).toEqual({ root: "company", frame: null });
+    }
   });
 
   it("ignores case and stray slashes", () => {

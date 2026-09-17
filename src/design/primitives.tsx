@@ -485,7 +485,7 @@ export function SectionRail({
   ariaLabel: string;
 }) {
   return (
-    <nav className={`ds-rail`} aria-label={ariaLabel}>
+    <nav className="ds-rail" aria-label={ariaLabel}>
       {items.map((it) => (
         <button
           key={it.id}

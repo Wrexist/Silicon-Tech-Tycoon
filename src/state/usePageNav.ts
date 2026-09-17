@@ -26,7 +26,7 @@ export function nextStackForPopstate(stack: PageStack, hash: string, fallbackRoo
 
 export function usePageNav(
   currentRoot: RootId,
-): { root: RootId; page: PageId | null; params: RouteParams; push: (p: PageId, params?: RouteParams) => void; pop: () => void; clear: (nextRoot?: RootId) => void } {
+): { root: RootId; page: PageId | null; params: RouteParams; push: (p: PageId, params?: RouteParams, replaceTop?: boolean) => void; pop: () => void; clear: (nextRoot?: RootId) => void } {
   // Inert unless the flag is on. Gating HERE — the single source — keeps a stale hash from ever
   // making the CLASSIC build render a page, so every shell guard stays simple.
   const enabled = useUiVersion() === "next";
@@ -42,13 +42,20 @@ export function usePageNav(
     setStack(next);
   }, []);
 
-  const push = useCallback((p: PageId, params: RouteParams = {}) => {
+  const push = useCallback((p: PageId, params: RouteParams = {}, replaceTop = false) => {
     if (!enabled) return;
-    const next = pushPage(ref.current, { id: p, root: currentRoot, params });
+    const top = topPage(ref.current);
+    const replacing = replaceTop && top !== null && top.id === p;
+    const next = pushPage(ref.current, { id: p, root: currentRoot, params }, replaceTop);
     if (next === ref.current) return;
     commit(next);
     if (typeof window !== "undefined") {
-      window.history.pushState({ page: p }, "", hashForRoute(currentRoot, topPage(next)));
+      const url = hashForRoute(currentRoot, topPage(next));
+      // A replacement must NOT add a history entry, and it must PRESERVE the existing state: a
+      // deep-linked page is the first entry with no state, and `pop` reads that to decide whether
+      // going back would leave the app. A fresh push carries our marker so `pop` can `history.back()`.
+      if (replacing) window.history.replaceState(window.history.state, "", url);
+      else window.history.pushState({ page: p }, "", url);
     }
   }, [commit, enabled, currentRoot]);
 

@@ -29,7 +29,7 @@ export const PAGE_TITLES: Record<PageId, string> = {
 
 /** Pages that have a render block in the shell TODAY. `PageId` is deliberately wider than this set:
  *  the type names the pages the model will carry, this names the ones that can actually be shown. */
-export const WIRED_PAGES: readonly PageId[] = ["settings"];
+export const WIRED_PAGES: readonly PageId[] = ["settings", "platform"];
 
 const ROOTS: readonly RootId[] = ["hq", "design", "research", "market", "company"];
 
@@ -51,10 +51,13 @@ export function sameFrame(a: PageFrame, b: PageFrame): boolean {
   return ak.every((k) => a.params[k] === b.params[k]);
 }
 
-/** Push a frame. An identical top frame is a no-op, so a double-tap cannot deepen the stack. */
-export function pushPage(stack: PageStack, frame: PageFrame): PageStack {
+/** Push a frame. An identical top frame is a no-op, so a double-tap cannot deepen the stack. When
+ *  `replaceTop` is set and the top frame shares the id, the top is replaced in place instead — a
+ *  rail that re-pushes its own page must not grow the stack on every tap. */
+export function pushPage(stack: PageStack, frame: PageFrame, replaceTop = false): PageStack {
   const top = topPage(stack);
   if (top && sameFrame(top, frame)) return stack;
+  if (replaceTop && top && top.id === frame.id) return [...stack.slice(0, -1), frame];
   return [...stack, frame];
 }
 

@@ -32,12 +32,16 @@ import { appOverlayOpen, registerAppOverlay } from "./design/overlayGuard.ts";
 import { railShown, useLayoutMode } from "./design/layout.ts";
 import { PAGE_TITLES } from "./state/pageStack.ts";
 import { usePageNav } from "./state/usePageNav.ts";
+import { resolvePlatformSection } from "./state/platformSections.ts";
 // Sheet-hosted screens. `Sheet` returns null while closed, so React never renders these and their
 // chunks are not fetched until the player actually opens the sheet — which for Settings, Progress and
 // Scenarios is rarely, and for many runs never.
 const Settings = lazy(() => import("./screens/Settings.tsx").then((m) => ({ default: m.Settings })));
 const ProgressSheet = lazy(() => import("./screens/Progress.tsx").then((m) => ({ default: m.ProgressSheet })));
 const ScenariosSheet = lazy(() => import("./screens/Scenarios.tsx").then((m) => ({ default: m.ScenariosSheet })));
+// The routed Platform page (Silicon 2.0). Lazy for the same reason as the tab screens: a classic run
+// that never opens it must not pay for its chunk, and Company already splits the same module.
+const PlatformPanel = lazy(() => import("./screens/Platform.tsx").then((m) => ({ default: m.PlatformPanel })));
 import { enableDailyReminders, notificationsAvailable } from "./state/notifications.ts";
 import { getSettings, setSettings } from "./state/settings.ts";
 import { useUiVersion } from "./state/uiVersion.ts";
@@ -160,7 +164,7 @@ function AppShell() {
   const uiVersion = useUiVersion();
   const layoutMode = useLayoutMode();
   const showRail = uiVersion === "next" && railShown(layoutMode);
-  const { page, push, pop, clear, root: routeRoot } = usePageNav(tab);
+  const { page, params, push, pop, clear, root: routeRoot } = usePageNav(tab);
   // A deep link names the tab it was opened from; adopt it on FIRST mount so the nav highlight and
   // the URL agree. Runs once — after that the player's own tab taps own the state.
   const adoptedRoot = useRef(false);
@@ -307,6 +311,16 @@ function AppShell() {
           <ErrorBoundary fallback={<ScreenError onHome={pop} />}>
             <Suspense fallback={<ScreenLoading title={PAGE_TITLES.settings} />}>
               <Settings onClose={pop} />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+        {page === "platform" && (
+          <ErrorBoundary fallback={<ScreenError onHome={pop} />}>
+            <Suspense fallback={<ScreenLoading title={PAGE_TITLES.platform} />}>
+              <PlatformPanel
+                section={resolvePlatformSection(params.section)}
+                onSection={(s) => push("platform", { section: s }, true)}
+              />
             </Suspense>
           </ErrorBoundary>
         )}
