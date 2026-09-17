@@ -31,13 +31,9 @@ const OBJECTIVE_ICON: Record<ObjectiveIconName, LucideIcon> = {
   Rocket, UserPlus, Repeat, FlaskConical, Sparkles, TrendingUp, Wrench, Layers, Building2, Trophy, Crown, Cpu,
 };
 
+/** The classic sheet: chrome (the glyph + title head and the Done affordance) around the shared
+ *  body, so the flag-off Progress hub and the routed Silicon-2.0 page can never drift apart. */
 export function GoalsLedgerSheet({ onClose }: { onClose: () => void }) {
-  const { state, claimContract } = useGame();
-  const rows = collectGoals(state);
-  // The guided ladder ahead — the current next-move plus the couple that follow, so the player sees
-  // where the spine is taking them, not just the single immediate step.
-  const upcoming = upcomingObjectives(state, 3);
-
   return (
     <div className="gl">
       <div className="gl__head">
@@ -48,6 +44,24 @@ export function GoalsLedgerSheet({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
+      <GoalsPanel />
+
+      <Button block variant="secondary" onClick={onClose}>Done</Button>
+    </div>
+  );
+}
+
+/** The ledger's content, without any sheet chrome — used by the routed Goals page (Silicon 2.0) and
+ *  by the classic sheet above, so the two can never drift. */
+export function GoalsPanel() {
+  const { state, claimContract } = useGame();
+  const rows = collectGoals(state);
+  // The guided ladder ahead — the current next-move plus the couple that follow, so the player sees
+  // where the spine is taking them, not just the single immediate step.
+  const upcoming = upcomingObjectives(state, 3);
+
+  return (
+    <>
       {rows.length === 0 ? (
         <EmptyState title="Free play" sub="No active goals right now — chase your own empire, or wait for the next contract to land." />
       ) : (
@@ -108,8 +122,6 @@ export function GoalsLedgerSheet({ onClose }: { onClose: () => void }) {
           </ol>
         </div>
       )}
-
-      <Button block variant="secondary" onClick={onClose}>Done</Button>
-    </div>
+    </>
   );
 }

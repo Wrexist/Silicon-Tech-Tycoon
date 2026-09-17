@@ -9,6 +9,7 @@ import {
   topPage,
   WIRED_PAGES,
   type PageFrame,
+  type PageId,
   type PageStack,
   type RootId,
 } from "./pageStack.ts";
@@ -127,9 +128,9 @@ describe("routeFromHash", () => {
     });
   });
 
-  it("keeps the root but drops a page that has no screen yet", () => {
-    // A committed-but-unwired page must not hide every root and render an empty main.
-    expect(routeFromHash("#/company/goals", "hq")).toEqual({ root: "company", frame: null });
+  it("wires every declared page — a PageId with no screen would blank the main area", () => {
+    const declared: PageId[] = ["settings", "platform", "museum", "goals"];
+    expect([...WIRED_PAGES].sort()).toEqual([...declared].sort());
   });
 
   it("ignores case and stray slashes", () => {

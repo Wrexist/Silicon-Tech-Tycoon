@@ -29,7 +29,7 @@ export const PAGE_TITLES: Record<PageId, string> = {
 
 /** Pages that have a render block in the shell TODAY. `PageId` is deliberately wider than this set:
  *  the type names the pages the model will carry, this names the ones that can actually be shown. */
-export const WIRED_PAGES: readonly PageId[] = ["settings", "platform", "museum"];
+export const WIRED_PAGES: readonly PageId[] = ["settings", "platform", "museum", "goals"];
 
 const ROOTS: readonly RootId[] = ["hq", "design", "research", "market", "company"];
 
