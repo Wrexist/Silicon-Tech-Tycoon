@@ -1,5 +1,5 @@
 // The live page stack: React state plus the browser history it must agree with.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { hashForPage, pageFromHash, popPage, pushPage, topPage, type PageId, type PageStack } from "./pageStack.ts";
 
 /** A popstate event names a URL; the stack must become whatever that URL implies. Popping a single
@@ -19,33 +19,41 @@ export function usePageNav(): { page: PageId | null; push: (p: PageId) => void; 
     return fromHash ? [fromHash] : [];
   });
 
-  const push = useCallback((p: PageId) => {
-    setStack((s) => {
-      const next = pushPage(s, p);
-      if (next !== s && typeof window !== "undefined") {
-        window.history.pushState({ page: p }, "", hashForPage(p));
-      }
-      return next;
-    });
+  // The live stack, mirrored in a ref so push/pop can read it and perform their history side effect
+  // OUTSIDE the state updater. React may invoke an updater more than once (StrictMode double-invokes
+  // in development; concurrent rendering can re-run a discarded render), so an updater must stay
+  // pure — a side effect in there would push two history entries, or step back twice.
+  const ref = useRef<PageStack>(stack);
+  const commit = useCallback((next: PageStack) => {
+    ref.current = next;
+    setStack(next);
   }, []);
+
+  const push = useCallback((p: PageId) => {
+    const next = pushPage(ref.current, p);
+    if (next === ref.current) return;
+    commit(next);
+    if (typeof window !== "undefined") window.history.pushState({ page: p }, "", hashForPage(p));
+  }, [commit]);
 
   const pop = useCallback(() => {
-    setStack((s) => {
-      if (s.length === 0) return s;
-      const next = popPage(s);
-      if (typeof window !== "undefined") {
-        // Back is only correct when this entry is one WE pushed (it carries our state). A page opened
-        // by deep-link is the FIRST history entry, where history.back() would leave the site — so in
-        // that case rewrite the hash to the parent instead.
-        if (window.history.state?.page) window.history.back();
-        else window.history.replaceState({}, "", hashForPage(topPage(next)));
-      }
-      return next;
-    });
-  }, []);
+    const current = ref.current;
+    if (current.length === 0) return;
+    const next = popPage(current);
+    commit(next);
+    if (typeof window === "undefined") return;
+    // Back is only correct when this entry is one WE pushed (it carries our state). A deep-linked
+    // page is the FIRST history entry, where history.back() would leave the site.
+    if (window.history.state?.page) window.history.back();
+    else window.history.replaceState({}, "", hashForPage(topPage(next)));
+  }, [commit]);
 
   useEffect(() => {
-    const onPop = () => setStack((s) => nextStackForPopstate(s, window.location.hash));
+    const onPop = () => {
+      const next = nextStackForPopstate(ref.current, window.location.hash);
+      ref.current = next;
+      setStack(next);
+    };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);

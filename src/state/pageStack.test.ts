@@ -22,7 +22,8 @@ describe("page stack", () => {
   });
 
   it("ignores a pop on an empty stack", () => {
-    expect(popPage([])).toEqual([]);
+    const empty: PageStack = [];
+    expect(popPage(empty)).toBe(empty);
   });
 
   it("does not stack the same page twice — pushing it again returns the same stack", () => {
