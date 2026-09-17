@@ -73,6 +73,7 @@ import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { useLaunchProduct } from "../state/useLaunchProduct.ts";
 import { claimReadyLaunch, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { BuildProgress } from "../components/BuildProgress.tsx";
+import { DEVELOPMENT_STAGES, developmentStage, type DevelopmentStage } from "./developmentStage.ts";
 import { StatBars } from "../components/charts.tsx";
 import { segmentDemand, tuningSegmentBias, SEGMENTS, type SegmentDemand } from "../engine/segments.ts";
 import { styleAppeal, styleAppealLabel } from "../engine/aesthetics.ts";
@@ -173,6 +174,16 @@ const LAB_TABS: { id: LabTab; label: string }[] = [
   { id: "camera", label: "Camera" },
   { id: "launch", label: "Launch" },
 ];
+
+/** Which existing tab each stage names. `testing` has no screen yet — the lens shows the step (it is
+ *  reachable) but never strands the player on it, because Testing is never required. */
+const STAGE_TAB: Record<DevelopmentStage, LabTab | null> = {
+  concept: "components",
+  design: "style",
+  components: "components",
+  testing: null,
+  finalize: "launch",
+};
 
 function newestProduct(state: GameState): Product | null {
   if (state.building.length) return state.building[state.building.length - 1].product;
@@ -377,6 +388,16 @@ export function DesignLab({
   });
   const fit = Math.round(breakdown.demand);
   const missing = missingSlots(draft);
+  // Development Stage lens — a PURE read of where the draft sits in the pipeline. A lens, not a gate:
+  // it never blocks a build, and it reads only what the draft already carries. `prototypeRun` is wired
+  // by the Testing action in a later wave, so the step is present and supportable today.
+  const requiredSlots = CATEGORIES[draft.category].slots.length;
+  const devStage = developmentStage({
+    designStarted: missing.length < requiredSlots,
+    componentsChosen: missing.length === 0,
+    prototypeRun: false,
+    building: state.building.length > 0,
+  });
   const ceiling = designTierCeiling(state);
   // Design Budget (feature #1) — the per-project engineering-points cap (fresh runs only). The meter is
   // read-only guidance; the hard gate lives in startBuild, but openWizard mirrors it so an over-budget
@@ -840,6 +861,31 @@ export function DesignLab({
           );
         })()}
       </Card>
+
+      {/* ── Development Stage lens ─────────────────────────────
+          A five-step read of where this draft is. It is a LENS, not a gate: it never blocks a build,
+          and only stages that name an existing tab are interactive, so it can never strand you on a
+          step with no screen. Testing is the one new step, and it is never required. */}
+      <div className="lab__tabs" role="group" aria-label="Development stage">
+        {DEVELOPMENT_STAGES.map((s, i) => {
+          const on = s.stage === devStage.stage;
+          const tab = STAGE_TAB[s.stage];
+          return (
+            <button
+              key={s.stage}
+              type="button"
+              className={`lab__tab${on ? " lab__tab--on" : ""}`}
+              aria-current={on ? "step" : undefined}
+              disabled={!tab}
+              title={tab ? `${s.label} — go to ${tab}` : `${s.label} — an optional lens step`}
+              style={tab ? undefined : { opacity: 0.5 }}
+              onClick={() => { if (!tab) return; haptic.light(); setLabTab(tab); }}
+            >
+              {i + 1} · {s.label}
+            </button>
+          );
+        })}
+      </div>
 
       {/* ── Section tab strip ───────────────────────────────── */}
       <div className="lab__tabs" role="tablist" aria-label="Design sections">
