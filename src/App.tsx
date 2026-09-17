@@ -160,7 +160,7 @@ function AppShell() {
   const uiVersion = useUiVersion();
   const layoutMode = useLayoutMode();
   const showRail = uiVersion === "next" && railShown(layoutMode);
-  const { page, push, pop, clear } = usePageNav();
+  const { page, push, pop, clear } = usePageNav(tab);
 
   // A root tab is the BASE of the navigation model, so choosing one always closes any open page —
   // otherwise the highlighted tab and the rendered content disagree.
