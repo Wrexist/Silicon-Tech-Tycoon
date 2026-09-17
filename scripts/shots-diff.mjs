@@ -111,7 +111,9 @@ try {
     localStorage.setItem("silicon.save.v1", v.staged);
     // Dark + tutorials pre-seen: the app's signature look, no first-run popups in frame.
     localStorage.setItem("silicon.settings", JSON.stringify({ theme: "dark", sound: false, haptics: false, highContrast: false, decorateTutorialSeen: true, factoryTutorialSeen: true, dailyReminder: false, notifPrompted: true, ...t }));
-  }, { staged, scale: textScale });
+    // SHOTS_UI2=1 captures the Silicon 2.0 shell instead of the shipped one.
+    if (v.ui2) localStorage.setItem("silicon.ui2", "next");
+  }, { staged, scale: textScale, ui2: process.env.SHOTS_UI2 === "1" });
   const p = await ctx.newPage();
   await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 30000 });
   await p.waitForTimeout(3000); // boot + lazy chunks + 3D scene warm-up
