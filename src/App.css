@@ -10,6 +10,9 @@
 @media (min-width: 800px) {
   #root:has(.app--next) { max-width: var(--shell-max); }
   .app--next { padding-left: calc(var(--rail-w) + var(--sp-24)); }
+  /* Wave 1a: on wide screens the side rail IS the navigation — the bottom tab bar stands down so
+     there is exactly one primary nav. Scoped to .app--next: the shipped game keeps its tab bar. */
+  .app--next .bnav { display: none; }
 }
 .app__main {
   padding: var(--sp-16) var(--edge) 0;
