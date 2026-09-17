@@ -211,3 +211,45 @@ Append a "Wave 2c outcome" section to this plan: status, commit range, exact gat
 - **The Progress hub is NOT dissolved.** Its rows still exist and still open their sub-views when the flag is off. Deciding how the hub retires (rows become links to pages, or the hub becomes a page) is its own wave — it touches `Progress.tsx`, `App.tsx` and every row, and it should not be smuggled into this one.
 - **No sections on Museum or Goals.** The mockup shows category chips on the Museum, which already exist in its body; the six-section rail pattern stays Platform's until a surface needs it.
 - **The Company sub-tab layout is untouched**; only its Platform action changes, and only behind the flag.
+
+---
+
+## Wave 2c outcome (completed 2026-09-16)
+
+**Status: COMPLETE.** Tasks 1-3 batched and reviewed as one unit; one review round with no Critical or Important findings.
+
+**Verification on the final HEAD:**
+
+- 	sc - 0 errors
+- 
+pm test - 1,981 passed / 182 files (net unchanged: one test deleted, one added)
+- 
+pm run build - green
+- 
+pm run verify:ui2 - PASS
+- 
+pm run verify:deeplink - **PASS 4/4 routes**: #/market/settings (Market / Settings), #/company/platform/licensing (Company / Platform), #/company/museum (Company / Device Museum), #/hq/goals (Office / Goals)
+- 
+pm run audit:screens - CLEAN
+- Flag-off capture taken (wave2c-off)
+- No engine file touched
+
+**Deviations, all reviewed and accepted:**
+
+- MuseumPanel gained an optional onDetailChange so the sheet hides its head/Done chrome while a device detail is open.
+- The Goals page wraps GoalsPanel in .gl for the column gap.
+- **Entry point:** push is threaded into Company as an onOpenPlatform prop, gated on uiVersion === "next" && state.platformUnlocked so the founding flow stays reachable; flag-off keeps setCoTab + the classic inline sheet.
+
+**Both splits were verified as genuine moves:** MuseumSheet/MuseumPanel and GoalsLedgerSheet/GoalsPanel each render one body with two chromes - no duplicated markup, nothing dropped or reworded.
+
+**Deferred minors (NOT yet triaged by a final whole-branch review - see the note below):**
+
+1. pageStack.ts's WIRED_PAGES doc-comment still says PageId is "deliberately wider than this set"; it no longer is.
+2. The "wires every declared page" test compares against a hand-written literal, so it is self-fulfilling: adding a new PageId would leave it green while blanking the main area. A canonical PAGE_IDS array exported from pageStack.ts would make it a real guard.
+3. **Flag-off URL side effect:** with the flag off, outeFromHash now resolves #/company/museum / #/hq/goals into frames, so the initial stack is non-empty and the un-gated clear() rewrites a stale URL on the first tab change where it previously did nothing. No rendered change; the cheapest fix is to build the initial stack only when enabled.
+4. Founding Platform while already on the Platform sub-tab shows the classic sheet rather than the route until the next tap (self-reported; out of scope).
+5. erify-deeplink's DEFAULT_ROUTES fallback is unreachable because the table is a non-empty literal.
+6. App.tsx keeps .gl at the Goals call site but drops .mus for Museum; visually equivalent today, but the routed Museum page relies on block margins where the sheet used flex.
+7. Museum.tsx derives getMuseum() twice per sheet render.
+
+**Process note:** the final whole-branch review that normally triages these was NOT run - the controller session ran out of budget after the task review and the Task 4 gate. Items 2 and 3 are the two worth fixing first: 2 is a test that cannot fail, and 3 is a (cosmetic) deviation from Principle 0.
