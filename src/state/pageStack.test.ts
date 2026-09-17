@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hashForPage, pageFromHash, popPage, pushPage, topPage, type PageStack } from "./pageStack.ts";
+import { WIRED_PAGES, hashForPage, pageFromHash, popPage, pushPage, topPage, type PageStack } from "./pageStack.ts";
 
 // The page stack is the app's whole navigation model above the tab roots, so its rules are pinned
 // here rather than inferred from the UI: bounded depth, no duplicate frames, and a hash round-trip
@@ -38,10 +38,16 @@ describe("page stack", () => {
     expect(pageFromHash("#")).toBeNull();
   });
 
-  it("round-trips every known page through the hash", () => {
-    for (const page of ["settings", "platform", "museum", "goals"] as const) {
+  it("round-trips every wired page through the hash", () => {
+    for (const page of WIRED_PAGES) {
       expect(pageFromHash(hashForPage(page))).toBe(page);
     }
+  });
+
+  it("refuses a page that exists in the model but has no screen yet", () => {
+    expect(pageFromHash("#/platform")).toBeNull();
+    expect(pageFromHash("#/museum")).toBeNull();
+    expect(pageFromHash("#/goals")).toBeNull();
   });
 
   it("encodes an absent page as the bare hash", () => {

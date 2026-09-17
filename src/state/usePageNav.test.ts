@@ -14,7 +14,7 @@ describe("nextStackForPopstate", () => {
   });
 
   it("rebuilds a single-frame stack from the root for a page the stack never held", () => {
-    expect(nextStackForPopstate([], "#/museum")).toEqual(["museum"]);
+    expect(nextStackForPopstate([], "#/settings")).toEqual(["settings"]);
   });
 
   it("is a no-op when the hash already matches the top", () => {

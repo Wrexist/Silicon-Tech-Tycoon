@@ -1105,3 +1105,7 @@
 /* Wave 1a: the shell renders the page title when the new UI is on, so the per-screen heading
    stands down. Flag-off is untouched: `.app--next` never matches. */
 .app--next .app__title { display: none; }
+
+/* Wave 1a/1b: the shell owns the title when the new UI is on, so Settings' own heading stands down
+   in page mode. The classic Settings sheet portals to <body> and is unaffected. */
+.app--next .set__title { display: none; }

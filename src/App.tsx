@@ -160,7 +160,14 @@ function AppShell() {
   const uiVersion = useUiVersion();
   const layoutMode = useLayoutMode();
   const showRail = uiVersion === "next" && railShown(layoutMode);
-  const { page, push, pop } = usePageNav();
+  const { page, push, pop, clear } = usePageNav();
+
+  // A root tab is the BASE of the navigation model, so choosing one always closes any open page —
+  // otherwise the highlighted tab and the rendered content disagree.
+  const changeTab = useCallback((t: Tab) => {
+    clear();
+    setTab(t);
+  }, [clear]);
 
   // Escape closes a pushed page, matching every popup in the app — but ONLY when no top-level app
   // overlay owns the screen. Full-screen interrupts register with overlayGuard and handle their own
@@ -216,7 +223,7 @@ function AppShell() {
         progressAttention={vaultSummary(state).newLeads > 0}
       />
       {showRail && (
-        <RailNav active={tab} onChange={setTab} badge={navAttention(state)} visible={tabVisible} />
+        <RailNav active={tab} onChange={changeTab} badge={navAttention(state)} visible={tabVisible} />
       )}
       <main className="app__main">
         {/* Wave 1a: the new shell owns the page title. It lives INSIDE main so it inherits the
@@ -304,7 +311,7 @@ function AppShell() {
 
       <BottomNav
         active={tab}
-        onChange={setTab}
+        onChange={changeTab}
         badge={navAttention(state)}
         visible={tabVisible}
       />

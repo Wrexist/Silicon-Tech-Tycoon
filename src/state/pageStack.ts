@@ -17,10 +17,14 @@ export const PAGE_TITLES: Record<PageId, string> = {
   goals: "Goals",
 };
 
-const KNOWN: readonly PageId[] = ["settings", "platform", "museum", "goals"];
+/** Pages that have a render block in the shell TODAY. `PageId` is deliberately wider — the type
+ *  names the pages the model will support, while this set is the subset that can actually be shown.
+ *  A hash for a declared-but-unwired page must resolve to null, or the shell would hide every root
+ *  and render an empty main under a page header. */
+export const WIRED_PAGES: readonly PageId[] = ["settings"];
 
-function isPageId(v: string): v is PageId {
-  return (KNOWN as readonly string[]).includes(v);
+function isWiredPage(v: string): v is PageId {
+  return (WIRED_PAGES as readonly string[]).includes(v);
 }
 
 /** Push a page. Pushing the page that is already on top is a no-op, so a double-tap cannot deepen
@@ -40,11 +44,12 @@ export function topPage(stack: PageStack): PageId | null {
   return stack.length ? stack[stack.length - 1] : null;
 }
 
-/** `#/settings` -> "settings". Anything unrecognised — including a bare `#`, an empty string, or a
- *  typo a player might paste — resolves to null (the root), never to a guessed page. */
+/** `#/settings` -> "settings". Anything unrecognised — including a bare `#`, an empty string, a typo
+ *  a player might paste, or a page the model declares but no screen renders yet — resolves to null
+ *  (the root), never to a guessed page. */
 export function pageFromHash(hash: string): PageId | null {
   const raw = hash.replace(/^#\/?/, "").trim().toLowerCase();
-  return raw && isPageId(raw) ? raw : null;
+  return raw && isWiredPage(raw) ? raw : null;
 }
 
 /** The inverse, so the address bar always names the page that is actually showing. */

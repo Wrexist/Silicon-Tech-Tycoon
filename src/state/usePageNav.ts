@@ -14,7 +14,7 @@ export function nextStackForPopstate(stack: PageStack, hash: string): PageStack 
   return at >= 0 ? stack.slice(0, at + 1) : [target];
 }
 
-export function usePageNav(): { page: PageId | null; push: (p: PageId) => void; pop: () => void } {
+export function usePageNav(): { page: PageId | null; push: (p: PageId) => void; pop: () => void; clear: () => void } {
   // The page stack is a Silicon 2.0 feature, so it is inert unless the flag is on. Gating HERE — the
   // single source — means a stale `#/settings` (a bookmark, a pasted link, a URL left by a prior
   // flag-on session) can never make the CLASSIC build render a title-less page: with the flag off
@@ -56,7 +56,10 @@ export function usePageNav(): { page: PageId | null; push: (p: PageId) => void; 
     else window.history.replaceState({}, "", hashForPage(topPage(next)));
   }, [commit, enabled]);
 
+  // With the flag off there is no page to sync, so don't subscribe at all — a history event would
+  // only schedule a pointless re-render.
   useEffect(() => {
+    if (!enabled) return;
     const onPop = () => {
       const next = nextStackForPopstate(ref.current, window.location.hash);
       ref.current = next;
@@ -64,7 +67,18 @@ export function usePageNav(): { page: PageId | null; push: (p: PageId) => void; 
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
+  }, [enabled]);
+
+  /** Drop every page and return to the roots. A no-op when nothing is open, so it is safe to call
+   *  unconditionally on a tab change (and must NOT rewrite history when there is nothing to clear). */
+  const clear = useCallback(() => {
+    if (ref.current.length === 0) return;
+    ref.current = [];
+    setStack([]);
+    if (typeof window !== "undefined" && window.history.state?.page) {
+      window.history.replaceState({}, "", hashForPage(null));
+    }
   }, []);
 
-  return { page: enabled ? topPage(stack) : null, push, pop };
+  return { page: enabled ? topPage(stack) : null, push, pop, clear };
 }
