@@ -51,13 +51,21 @@ export function sameFrame(a: PageFrame, b: PageFrame): boolean {
   return ak.every((k) => a.params[k] === b.params[k]);
 }
 
+/** True when `frame` has the same PAGE as the current top — the condition that lets a push REPLACE the
+ *  top frame instead of deepening the stack (rail navigation must not grow history per tap). Exported
+ *  so the stateful hook and the pure model cannot disagree about whether a push replaced. */
+export function replacesTop(stack: PageStack, frame: PageFrame): boolean {
+  const top = topPage(stack);
+  return top !== null && top.id === frame.id;
+}
+
 /** Push a frame. An identical top frame is a no-op, so a double-tap cannot deepen the stack. When
  *  `replaceTop` is set and the top frame shares the id, the top is replaced in place instead — a
  *  rail that re-pushes its own page must not grow the stack on every tap. */
 export function pushPage(stack: PageStack, frame: PageFrame, replaceTop = false): PageStack {
   const top = topPage(stack);
   if (top && sameFrame(top, frame)) return stack;
-  if (replaceTop && top && top.id === frame.id) return [...stack.slice(0, -1), frame];
+  if (replaceTop && replacesTop(stack, frame)) return [...stack.slice(0, -1), frame];
   return [...stack, frame];
 }
 

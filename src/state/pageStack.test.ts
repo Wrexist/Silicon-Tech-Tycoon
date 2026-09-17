@@ -3,6 +3,7 @@ import {
   hashForRoute,
   popPage,
   pushPage,
+  replacesTop,
   routeFromHash,
   sameFrame,
   topPage,
@@ -47,6 +48,39 @@ describe("page stack", () => {
     const next = pushPage(s, frame("platform", "company", { section: "licensing" }));
     expect(next).toHaveLength(2);
     expect(topPage(next)?.params.section).toBe("licensing");
+  });
+
+  it("replaces the top frame when the id matches and replaceTop is set", () => {
+    const s = pushPage([], frame("platform", "company", { section: "overview" }));
+    const next = pushPage(s, frame("platform", "company", { section: "services" }), true);
+    expect(next).toHaveLength(1);
+    expect(topPage(next)?.params.section).toBe("services");
+  });
+
+  it("keeps the frames below when it replaces the top", () => {
+    let s = pushPage([], frame("settings"));
+    s = pushPage(s, frame("platform", "company", { section: "overview" }));
+    const next = pushPage(s, frame("platform", "company", { section: "ecosystem" }), true);
+    expect(next).toHaveLength(2);
+    expect(topPage(next)?.params.section).toBe("ecosystem");
+    expect(next[0].id).toBe("settings");
+  });
+
+  it("appends rather than replaces when the id differs, even with replaceTop set", () => {
+    const s = pushPage([], frame("settings"));
+    expect(pushPage(s, frame("platform"), true)).toHaveLength(2);
+  });
+
+  it("is still an identical-frame no-op with replaceTop set", () => {
+    const s = pushPage([], frame("platform", "company", { section: "overview" }));
+    expect(pushPage(s, frame("platform", "company", { section: "overview" }), true)).toBe(s);
+  });
+
+  it("reports when a push would replace the top", () => {
+    const s = pushPage([], frame("platform", "company", { section: "overview" }));
+    expect(replacesTop(s, frame("platform", "company", { section: "services" }))).toBe(true);
+    expect(replacesTop(s, frame("settings"))).toBe(false);
+    expect(replacesTop([], frame("platform"))).toBe(false);
   });
 
   it("compares frames by value, not identity", () => {

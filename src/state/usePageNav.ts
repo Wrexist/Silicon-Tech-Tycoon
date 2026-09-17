@@ -4,6 +4,7 @@ import {
   hashForRoute,
   popPage,
   pushPage,
+  replacesTop,
   routeFromHash,
   sameFrame,
   topPage,
@@ -44,9 +45,11 @@ export function usePageNav(
 
   const push = useCallback((p: PageId, params: RouteParams = {}, replaceTop = false) => {
     if (!enabled) return;
-    const top = topPage(ref.current);
-    const replacing = replaceTop && top !== null && top.id === p;
-    const next = pushPage(ref.current, { id: p, root: currentRoot, params }, replaceTop);
+    const frame = { id: p, root: currentRoot, params };
+    // Single source of truth: the hook and the pure model ask the SAME question, so the stack and
+    // history can never disagree about whether this push replaced or appended.
+    const replacing = replaceTop && replacesTop(ref.current, frame);
+    const next = pushPage(ref.current, frame, replaceTop);
     if (next === ref.current) return;
     commit(next);
     if (typeof window !== "undefined") {
