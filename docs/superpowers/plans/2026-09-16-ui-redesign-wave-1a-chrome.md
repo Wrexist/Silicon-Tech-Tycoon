@@ -331,3 +331,13 @@ Append a short "Wave 1a outcome" section to this plan: status, the commit range,
 - The phone capture shows "Silicon", which is both TAB_TITLE.hq and the save's company name, so it does not distinguish the state.companyName || ... branch.
 
 **Not done in this wave (by design):** the page stack/router and the top-bar restructure (no consumer yet), and every screen migration. Those are Wave 1b.
+
+**Fix wave 2 (from the final review, commit 15d37c4):**
+
+- **Important:** useLayoutMode read window.innerWidth (includes the desktop scrollbar) while the CSS media queries exclude it, so in a scrollbar-wide band the rail could mount while the tab bar was still visible and the gutter inactive. The hook now derives the mode from the same matchMedia queries the CSS uses; layoutModeForWidth and its tests remain the pure contract.
+- **Important:** the primitive's classes were renamed from pghead* to ds-pghead*, matching every other primitive in the file.
+- **Minor:** PageHeader gained an optional 	int, and the shell passes TAB_TINT[tab], restoring the per-tab accent the classic title had.
+- **Minor:** erify:ui2 now asserts exactly one visible page title and exactly one visible primary nav, so Wave 1b has a regression net beyond screenshots.
+- **Minor:** the mangled escape artifacts in this document were repaired and the completed checkboxes ticked.
+
+This plan's Task 2 code snippets still show the old .pghead* names (doc-only, superseded by the rename).
