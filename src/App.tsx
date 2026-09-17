@@ -30,6 +30,8 @@ import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
 import { registerAppOverlay } from "./design/overlayGuard.ts";
 import { railShown, useLayoutMode } from "./design/layout.ts";
+import { PAGE_TITLES } from "./state/pageStack.ts";
+import { usePageNav } from "./state/usePageNav.ts";
 // Sheet-hosted screens. `Sheet` returns null while closed, so React never renders these and their
 // chunks are not fetched until the player actually opens the sheet — which for Settings, Progress and
 // Scenarios is rarely, and for many runs never.
@@ -158,6 +160,16 @@ function AppShell() {
   const uiVersion = useUiVersion();
   const layoutMode = useLayoutMode();
   const showRail = uiVersion === "next" && railShown(layoutMode);
+  const { page, pop } = usePageNav();
+
+  // Escape closes a pushed page, matching every popup in the app. The sheets own their own Escape
+  // handling, so this only fires while a page is open and no sheet is up.
+  useEffect(() => {
+    if (!page) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && pop();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [page, pop]);
 
   // The first ship silently unlocks half the meta-game (Progress hub, stock market, financing,
   // morale, daily challenges). Item A1 — instead of a blink-and-miss toast, a persistent, dismissible
@@ -207,15 +219,16 @@ function AppShell() {
             drawing its own .app__title exactly as before. */}
         {uiVersion === "next" && (
           <PageHeader
-            title={tab === "hq" ? state.companyName || TAB_TITLE.hq : TAB_TITLE[tab]}
-            tint={TAB_TINT[tab]}
+            title={page ? PAGE_TITLES[page] : tab === "hq" ? state.companyName || TAB_TITLE.hq : TAB_TITLE[tab]}
+            tint={page ? undefined : TAB_TINT[tab]}
+            onBack={page ? pop : undefined}
           />
         )}
         {/* HQ stays MOUNTED across tabs (hidden, not unmounted) so its WebGL office keeps its
             GPU context instead of tearing it down + re-creating it on every visit — that churn
             is what made the 3D office fail on memory-constrained mobile browsers. Its render
             loop pauses while hidden (active={false}), so there's no battery cost off-screen. */}
-        <div className="app__screen" hidden={tab !== "hq"}>
+        <div className="app__screen" hidden={page != null || tab !== "hq"}>
           {/* World tabs beside the company name — swap the living scene between the office
               and the manufacturing floor (FACTORY_WORLD_PLAN.md P1). */}
           <div className="app__titlerow">
@@ -245,7 +258,7 @@ function AppShell() {
         </div>
         {/* The other screens are light (no WebGL), so they keep the snappy keyed remount that
             replays the `app__screen` enter animation on each navigation. */}
-        {tab !== "hq" && (
+        {!page && tab !== "hq" && (
           <div className="app__screen" key={tab}>
             <h1 className="app__title" style={TAB_TINT[tab] ? { color: TAB_TINT[tab] } : undefined}>{TAB_TITLE[tab]}</h1>
             <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
@@ -264,6 +277,15 @@ function AppShell() {
               </Suspense>
             </ErrorBoundary>
           </div>
+        )}
+        {/* A pushed page replaces the tab content. The HQ block stays MOUNTED (just hidden) so its
+            WebGL office keeps its context, exactly as it does across tab switches. */}
+        {page === "settings" && (
+          <ErrorBoundary fallback={<ScreenError onHome={pop} />}>
+            <Suspense fallback={<ScreenLoading title={PAGE_TITLES.settings} />}>
+              <Settings onClose={pop} />
+            </Suspense>
+          </ErrorBoundary>
         )}
         <div className="app__spacer" />
       </main>
