@@ -36,6 +36,16 @@ export const BALANCE = {
     historyCap: 260, // ~5 years of weeks; matches cashHistory's cap so the two stay in step
   },
 
+  // --- Test Prototype (Silicon 2.0, Design -> Testing) ---
+  prototype: {
+    baseCost: dollars(180_000),
+    costPerEra: 0.6,
+    weeks: 1,
+    flawChance: 0.45,
+    rpToCatchFlaw: 25, // below this the prototype still tightens the forecast, but cannot find a flaw
+    confidenceGain: 18,
+  },
+
   // --- Stats ---
   statMax: 100,
 

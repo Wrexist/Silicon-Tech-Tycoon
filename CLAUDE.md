@@ -66,7 +66,8 @@ celebration style — leave them as-is.
   index folded in as a per-moonshot sub-salt (3070 + index), so each (seed, week, moonshot) resolves
   deterministically. Player-action only (no cadence/interrupt) — never touches the pinned sim.;
   311 = the Vault's "a file stirred" whisper line (cosmetic feed text only — which dossier rose, and
-  when, is a pure fold over state, so this hash only picks the wording).)
+  when, is a pure fold over state, so this hash only picks the wording).;
+  317 = Test Prototype's flaw roll (Design -> Testing; optional, player-action only).)
 - **Opportunistic full-screen interrupts share a budget.** Any card that fires on its own cadence
   (strike / eureka / community / earnings / rivalry / staff moment / regional event / licensing
   contract offer) must gate on
