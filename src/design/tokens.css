@@ -104,6 +104,16 @@
                     zero padding (content bled to the card edges + jammed against the top). */
   --edge: 20px; /* screen edge margin */
 
+  /* Layout — responsive shell. design/layout.ts holds the matching JS breakpoints; keep the two
+     in sync by hand (there is a test asserting the JS side is ordered, and tokenRefs.test.ts
+     guarantees every reference below resolves). */
+  --rail-w: 208px;
+  --rail-w-compact: 76px;
+  --topbar-h: 52px;
+  --content-max: 540px;         /* the phone column, matching #root today */
+  --content-max-tablet: 760px;
+  --content-max-wide: 1200px;
+
   /* Radius */
   --r-button: 12px;
   --r-card: 16px;
