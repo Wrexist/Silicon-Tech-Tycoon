@@ -114,13 +114,13 @@ Append to `src/design/primitives.css`:
 ```css
 /* Page header — the shell's title row. Deliberately mirrors the type scale the per-screen
    `.app__title` used, so migrating a screen does not resize its heading. */
-.pghead {
+.ds-pghead {
   display: flex;
   align-items: center;
   gap: var(--sp-8);
   margin: var(--sp-4) 0 var(--sp-12);
 }
-.pghead__back {
+.ds-pghead__back {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -131,25 +131,25 @@ Append to `src/design/primitives.css`:
   color: var(--ink-2);
   transition: background var(--spring-snappy), color var(--spring-snappy);
 }
-.pghead__back:active {
+.ds-pghead__back:active {
   background: var(--surface-2);
 }
-.pghead__text {
+.ds-pghead__text {
   min-width: 0;
   flex: 1;
 }
-.pghead__title {
+.ds-pghead__title {
   font-size: var(--fs-title);
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.15;
 }
-.pghead__subtitle {
+.ds-pghead__subtitle {
   margin-top: var(--sp-4);
   font-size: var(--fs-caption);
   color: var(--ink-2);
 }
-.pghead__actions {
+.ds-pghead__actions {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-8);
@@ -337,7 +337,7 @@ Append a short "Wave 1a outcome" section to this plan: status, the commit range,
 - **Important:** useLayoutMode read window.innerWidth (includes the desktop scrollbar) while the CSS media queries exclude it, so in a scrollbar-wide band the rail could mount while the tab bar was still visible and the gutter inactive. The hook now derives the mode from the same matchMedia queries the CSS uses; layoutModeForWidth and its tests remain the pure contract.
 - **Important:** the primitive's classes were renamed from pghead* to ds-pghead*, matching every other primitive in the file.
 - **Minor:** PageHeader gained an optional 	int, and the shell passes TAB_TINT[tab], restoring the per-tab accent the classic title had.
-- **Minor:** erify:ui2 now asserts exactly one visible page title and exactly one visible primary nav, so Wave 1b has a regression net beyond screenshots.
+- **Minor:** `verify:ui2` now asserts exactly one visible page title and exactly one visible primary nav, so Wave 1b has a regression net beyond screenshots.
 - **Minor:** the mangled escape artifacts in this document were repaired and the completed checkboxes ticked.
 
-This plan's Task 2 code snippets still show the old .pghead* names (doc-only, superseded by the rename).
+This plan's Task 2 code snippets have been updated to the `ds-pghead*` names, and a follow-up moved the header inside `<main>` so it inherits the column inset instead of re-adding it.
