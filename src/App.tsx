@@ -200,15 +200,17 @@ function AppShell() {
       {showRail && (
         <RailNav active={tab} onChange={setTab} badge={navAttention(state)} visible={tabVisible} />
       )}
-      {/* Wave 1a: the new shell owns the page title. When the flag is off this renders nothing and
-          each screen keeps drawing its own .app__title exactly as before. */}
-      {uiVersion === "next" && (
-        <PageHeader
-          title={tab === "hq" ? state.companyName || TAB_TITLE.hq : TAB_TITLE[tab]}
-          tint={TAB_TINT[tab]}
-        />
-      )}
       <main className="app__main">
+        {/* Wave 1a: the new shell owns the page title. It lives INSIDE main so it inherits the
+            content column's edge inset (rather than re-adding it) and is not a second banner
+            landmark beside <Hud>. With the flag off this renders nothing and each screen keeps
+            drawing its own .app__title exactly as before. */}
+        {uiVersion === "next" && (
+          <PageHeader
+            title={tab === "hq" ? state.companyName || TAB_TITLE.hq : TAB_TITLE[tab]}
+            tint={TAB_TINT[tab]}
+          />
+        )}
         {/* HQ stays MOUNTED across tabs (hidden, not unmounted) so its WebGL office keeps its
             GPU context instead of tearing it down + re-creating it on every visit — that churn
             is what made the 3D office fail on memory-constrained mobile browsers. Its render

@@ -547,13 +547,13 @@
 }
 
 /* Page header — the shell's title row. Deliberately mirrors the type scale the per-screen
-   `.app__title` used, so migrating a screen does not resize its heading. */
+   `.app__title` used, so migrating a screen does not resize its heading. It is rendered INSIDE
+   `.app__main`, so it inherits that column's `--edge` inset and must not re-add it. */
 .ds-pghead {
   display: flex;
   align-items: center;
   gap: var(--sp-8);
   margin: var(--sp-4) 0 var(--sp-12);
-  padding-inline: var(--edge);
 }
 .ds-pghead__back {
   display: inline-flex;
