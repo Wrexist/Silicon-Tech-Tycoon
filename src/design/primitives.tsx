@@ -437,24 +437,27 @@ export function PageHeader({
   subtitle,
   onBack,
   actions,
+  tint,
 }: {
   title: string;
   subtitle?: string;
   onBack?: () => void;
   actions?: ReactNode;
+  /** Optional per-page accent for the title (the classic `.app__title` tinted itself per tab). */
+  tint?: string;
 }) {
   return (
-    <header className="pghead">
+    <header className="ds-pghead">
       {onBack && (
-        <button type="button" className="pghead__back" onClick={onBack} aria-label="Back">
+        <button type="button" className="ds-pghead__back" onClick={onBack} aria-label="Back">
           <ChevronLeft size={20} aria-hidden />
         </button>
       )}
-      <div className="pghead__text">
-        <h1 className="pghead__title">{title}</h1>
-        {subtitle ? <p className="pghead__subtitle">{subtitle}</p> : null}
+      <div className="ds-pghead__text">
+        <h1 className="ds-pghead__title" style={tint ? { color: tint } : undefined}>{title}</h1>
+        {subtitle ? <p className="ds-pghead__subtitle">{subtitle}</p> : null}
       </div>
-      {actions ? <div className="pghead__actions">{actions}</div> : null}
+      {actions ? <div className="ds-pghead__actions">{actions}</div> : null}
     </header>
   );
 }

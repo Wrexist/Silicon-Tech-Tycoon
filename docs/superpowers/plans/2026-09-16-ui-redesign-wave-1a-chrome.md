@@ -31,7 +31,7 @@
 - Consumes: `.app--next` and `.bnav` (both already exist).
 - Produces: nothing other tasks rely on.
 
-- [ ] **Step 1: Apply the rule**
+- [x] **Step 1: Apply the rule**
 
 Inside the existing `@media (min-width: 800px)` block in `src/App.css`, add:
 
@@ -41,7 +41,7 @@ Inside the existing `@media (min-width: 800px)` block in `src/App.css`, add:
   .app--next .bnav { display: none; }
 ```
 
-- [ ] **Step 2: Verify the build and the guards**
+- [x] **Step 2: Verify the build and the guards**
 
 Run: `npm run typecheck`
 Expected: exit 0.
@@ -49,7 +49,7 @@ Expected: exit 0.
 Run: `npx vitest run src/design/tokenRefs.test.ts`
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add src/App.css
@@ -71,7 +71,7 @@ git commit -m "feat(ui2): the side rail replaces the bottom nav on wide screens"
   ```
 - Produces: `PageHeader({ title, subtitle?, onBack?, actions? })` — consumed by `App.tsx` in Task 3, and by every migrated screen in Wave 1b.
 
-- [ ] **Step 1: Add the component**
+- [x] **Step 1: Add the component**
 
 Append to `src/design/primitives.tsx`:
 
@@ -107,7 +107,7 @@ export function PageHeader({
 }
 ```
 
-- [ ] **Step 2: Add the stylesheet block**
+- [x] **Step 2: Add the stylesheet block**
 
 Append to `src/design/primitives.css`:
 
@@ -157,7 +157,7 @@ Append to `src/design/primitives.css`:
 }
 ```
 
-- [ ] **Step 3: Verify**
+- [x] **Step 3: Verify**
 
 Run: `npm run typecheck`
 Expected: exit 0.
@@ -168,7 +168,7 @@ Expected: PASS (every `var(--x)` above resolves).
 Run: `npm run build`
 Expected: green.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add src/design/primitives.tsx src/design/primitives.css
@@ -189,7 +189,7 @@ git commit -m "feat(ui2): add the PageHeader primitive"
 
 The HQ tab's title is the *company name*, not the tab label — read it exactly as the HQ screen does: `state.companyName || TAB_TITLE.hq`.
 
-- [ ] **Step 1: Import the primitive**
+- [x] **Step 1: Import the primitive**
 
 Add to the existing `./design/primitives.tsx` import in `src/App.tsx`:
 
@@ -197,7 +197,7 @@ Add to the existing `./design/primitives.tsx` import in `src/App.tsx`:
 import { Button, Card, PageHeader } from "./design/primitives.tsx";
 ```
 
-- [ ] **Step 2: Render the header in the new shell**
+- [x] **Step 2: Render the header in the new shell**
 
 In `src/App.tsx`, immediately after the `{showRail && (…)}` block and before `<main className="app__main">`, add:
 
@@ -209,7 +209,7 @@ In `src/App.tsx`, immediately after the `{showRail && (…)}` block and before `
       )}
 ```
 
-- [ ] **Step 3: Suppress the in-screen title when the flag is on**
+- [x] **Step 3: Suppress the in-screen title when the flag is on**
 
 Append to `src/App.css` (outside any media query — the title moves into the shell at every width):
 
@@ -219,7 +219,7 @@ Append to `src/App.css` (outside any media query — the title moves into the sh
 .app--next .app__title { display: none; }
 ```
 
-- [ ] **Step 4: Verify**
+- [x] **Step 4: Verify**
 
 Run: `npm run typecheck`
 Expected: exit 0.
@@ -230,7 +230,7 @@ Expected: 1,948 tests across 179 files — this task adds no tests and must not 
 Run: `npm run build`
 Expected: green.
 
-- [ ] **Step 5: Verify visually, both flags**
+- [x] **Step 5: Verify visually, both flags**
 
 Run:
 
@@ -247,7 +247,7 @@ Expected and required, read with the Read tool:
 
 If the title appears twice, `.app--next .app__title { display: none }` is not applying — stop and fix before committing.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/App.tsx src/App.css
@@ -260,7 +260,7 @@ git commit -m "feat(ui2): the shell owns the page title and one primary nav"
 
 **Files:** none (produces evidence only).
 
-- [ ] **Step 1: Claim the flag-on phone layout**
+- [x] **Step 1: Claim the flag-on phone layout**
 
 Run:
 
@@ -271,17 +271,17 @@ $env:SHOTS_UI2="1"; npm run shots:diff -- wave1a-phone
 
 Expected: at 390px the bottom tab bar is present, the rail is absent, and there is exactly one title. Read `01-office-top.png`.
 
-- [ ] **Step 2: First-run guard**
+- [x] **Step 2: First-run guard**
 
 Run: `npm run verify:ui2`
 Expected: `PASS: onboarding completed with the flag on, no hook/console errors, rail rendered.`
 
-- [ ] **Step 3: Release audit**
+- [x] **Step 3: Release audit**
 
 Run: `npm run shots:stage:showcase; npm run audit:screens`
 Expected: `CLEAN`, every pass meeting its coverage floor.
 
-- [ ] **Step 4: Record the outcome**
+- [x] **Step 4: Record the outcome**
 
 Append a short "Wave 1a outcome" section to this plan: status, the commit range, the exact gate output, and any deferred minors. Do not commit the `.shots/` artifacts (gitignored).
 
@@ -289,11 +289,11 @@ Append a short "Wave 1a outcome" section to this plan: status, the commit range,
 
 ## Wave 1a exit criteria
 
-- [ ] Flag off → visually unchanged from `.shots/wave0-baseline/`.
-- [ ] Flag on, 390px → bottom tab bar, no rail, exactly one title.
-- [ ] Flag on, 1024px → rail, **no** tab bar, exactly one title.
-- [ ] `tsc` 0 · 1,948 tests · build green · `verify:ui2` PASS · `audit:screens` CLEAN.
-- [ ] No engine file touched.
+- [x] Flag off → visually unchanged from `.shots/wave0-baseline/`.
+- [x] Flag on, 390px → bottom tab bar, no rail, exactly one title.
+- [x] Flag on, 1024px → rail, **no** tab bar, exactly one title.
+- [x] `tsc` 0 · 1,948 tests · build green · `verify:ui2` PASS · `audit:screens` CLEAN.
+- [x] No engine file touched.
 
 ## Deliberate scope notes
 
@@ -309,27 +309,22 @@ Append a short "Wave 1a outcome" section to this plan: status, the commit range,
 
 **Verification on the final HEAD:**
 
-- 
-pm run typecheck - 0 errors
-- 
-pm test - 1,948 passed / 179 files (this wave adds no tests by design)
-- 
-pm run build - green
-- 
-pm run verify:ui2 - PASS
-- 
-pm run audit:screens - CLEAN
+- npm run typecheck - 0 errors
+- npm test - 1,948 passed / 179 files (this wave adds no tests by design)
+- npm run build - green
+- npm run verify:ui2 - PASS
+- npm run audit:screens - CLEAN
 - Flag off - .shots/wave1a-off/08-company.png is SHA256 byte-identical to the Wave 0 baseline
 - Flag on, 390px - bottom tab bar present, rail absent, exactly one title
 - Flag on, 1024px - rail present, no tab bar, exactly one title
 - No engine file touched
 
-**Fix round 1:** the task review found the new shell title sat ~20px left of the content column (.pghead had no horizontal inset while .app__main uses ar(--edge)). Fixed with padding-inline: var(--edge); re-measured at ~1 CSS px. Scoped re-review: addressed, no new breakage.
+**Fix round 1:** the task review found the new shell title sat ~20px left of the content column (.ds-pghead had no horizontal inset while .app__main uses var(--edge)). Fixed with padding-inline: var(--edge); re-measured at ~1 CSS px. Scoped re-review: addressed, no new breakage.
 
 **Deferred minors (carry into Wave 1b):**
 
-- .pghead* selectors are not scoped under .app--next. No flag-off element can carry the class, so there is no leakage, but this is a letter-of-the-constraint variance from the brief.
-- PageHeader's subtitle/onBack/ctions are unreachable from the current shell wiring. Wave 1b must decide whether the shell extends per-tab or screens compose their own header.
+- .ds-pghead* selectors are not scoped under .app--next. No flag-off element can carry the class, so there is no leakage, but this is a letter-of-the-constraint variance from the brief.
+- PageHeader's subtitle/onBack/actions are unreachable from the current shell wiring. Wave 1b must decide whether the shell extends per-tab or screens compose their own header.
 - The HQ world-tabs row (.app__titlerow) now left-aligns, because its sibling .app__title is hidden and the row uses space-between.
 - The back-button optic (margin-left: calc(var(--sp-8) * -1)) now pulls the chevron 8px inside the column edge rather than outside; inert until Wave 1b passes onBack.
 - A future screen nesting PageHeader inside an already-inset container would inset twice.

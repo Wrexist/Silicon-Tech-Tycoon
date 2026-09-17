@@ -203,7 +203,10 @@ function AppShell() {
       {/* Wave 1a: the new shell owns the page title. When the flag is off this renders nothing and
           each screen keeps drawing its own .app__title exactly as before. */}
       {uiVersion === "next" && (
-        <PageHeader title={tab === "hq" ? state.companyName || TAB_TITLE.hq : TAB_TITLE[tab]} />
+        <PageHeader
+          title={tab === "hq" ? state.companyName || TAB_TITLE.hq : TAB_TITLE[tab]}
+          tint={TAB_TINT[tab]}
+        />
       )}
       <main className="app__main">
         {/* HQ stays MOUNTED across tabs (hidden, not unmounted) so its WebGL office keeps its

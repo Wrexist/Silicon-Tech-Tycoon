@@ -60,6 +60,22 @@ for (let step = 0; step < 8 && !reached; step++) {
 if (!reached) reached = await p.waitForSelector(".bnav__item", { timeout: 15000 }).then(() => true).catch(() => false);
 
 const rail = await p.$(".railnav").then(Boolean);
+// Wave 1a invariant: the shell presents exactly ONE page title and exactly ONE primary nav. At
+// 1024x768 with the flag on that is one `.ds-pghead__title` and one visible `.railnav` (the `.bnav`
+// is hidden by CSS). `offsetParent` is null for position:fixed, so test geometry + computed style.
+const counts = await p.evaluate(() => {
+  const visible = (el) => {
+    const s = getComputedStyle(el);
+    if (s.display === "none" || s.visibility === "hidden" || s.opacity === "0") return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  };
+  const titles = [...document.querySelectorAll(".ds-pghead__title")].filter(visible).length
+    || [...document.querySelectorAll(".app__title")].filter(visible).length;
+  const navs = [...document.querySelectorAll(".railnav")].filter(visible).length
+    + [...document.querySelectorAll(".bnav")].filter(visible).length;
+  return { titles, navs };
+});
 await browser.close();
 server.close();
 
@@ -67,4 +83,6 @@ if (!reached) { console.error("FAIL: onboarding never reached the game."); proce
 if (errors.some((e) => /hook|minified react error #(310|321)/i.test(e))) { console.error("FAIL: hook error during first run:", errors); process.exit(1); }
 if (errors.length) { console.error("FAIL: console/page errors during first run:\n" + errors.join("\n")); process.exit(1); }
 if (!rail) { console.error("FAIL: flag on at 1024x768 but the rail never rendered."); process.exit(1); }
+if (counts.titles !== 1) { console.error(`FAIL: expected exactly one visible page title, found ${counts.titles}.`); process.exit(1); }
+if (counts.navs !== 1) { console.error(`FAIL: expected exactly one visible primary nav, found ${counts.navs}.`); process.exit(1); }
 console.log("PASS: onboarding completed with the flag on, no hook/console errors, rail rendered.");

@@ -548,14 +548,14 @@
 
 /* Page header — the shell's title row. Deliberately mirrors the type scale the per-screen
    `.app__title` used, so migrating a screen does not resize its heading. */
-.pghead {
+.ds-pghead {
   display: flex;
   align-items: center;
   gap: var(--sp-8);
   margin: var(--sp-4) 0 var(--sp-12);
   padding-inline: var(--edge);
 }
-.pghead__back {
+.ds-pghead__back {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -566,25 +566,25 @@
   color: var(--ink-2);
   transition: background var(--spring-snappy), color var(--spring-snappy);
 }
-.pghead__back:active {
+.ds-pghead__back:active {
   background: var(--surface-2);
 }
-.pghead__text {
+.ds-pghead__text {
   min-width: 0;
   flex: 1;
 }
-.pghead__title {
+.ds-pghead__title {
   font-size: var(--fs-title);
   font-weight: 700;
   letter-spacing: -0.02em;
   line-height: 1.15;
 }
-.pghead__subtitle {
+.ds-pghead__subtitle {
   margin-top: var(--sp-4);
   font-size: var(--fs-caption);
   color: var(--ink-2);
 }
-.pghead__actions {
+.ds-pghead__actions {
   display: inline-flex;
   align-items: center;
   gap: var(--sp-8);

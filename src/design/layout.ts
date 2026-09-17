@@ -23,16 +23,28 @@ export function railShown(mode: LayoutMode): boolean {
   return mode !== "phone";
 }
 
+/** Derive the mode from the SAME queries the CSS uses, so JS and the stylesheet can never
+ *  disagree (innerWidth includes the desktop scrollbar; a media query does not). */
+function modeFromQueries(tablet: MediaQueryList, wide: MediaQueryList): LayoutMode {
+  if (wide.matches) return "wide";
+  if (tablet.matches) return "tablet";
+  return "phone";
+}
+
 /** Live layout mode. Both queries only fire on a boundary crossing, so this is cheap. */
 export function useLayoutMode(): LayoutMode {
-  const [mode, setMode] = useState<LayoutMode>(() =>
-    layoutModeForWidth(typeof window === "undefined" ? 0 : window.innerWidth),
-  );
+  const [mode, setMode] = useState<LayoutMode>(() => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return "phone";
+    return modeFromQueries(
+      window.matchMedia(`(min-width: ${LAYOUT_BREAKPOINTS.tablet}px)`),
+      window.matchMedia(`(min-width: ${LAYOUT_BREAKPOINTS.wide}px)`),
+    );
+  });
   useEffect(() => {
-    const update = () => setMode(layoutModeForWidth(window.innerWidth));
-    update();
     const tablet = window.matchMedia(`(min-width: ${LAYOUT_BREAKPOINTS.tablet}px)`);
     const wide = window.matchMedia(`(min-width: ${LAYOUT_BREAKPOINTS.wide}px)`);
+    const update = () => setMode(modeFromQueries(tablet, wide));
+    update();
     tablet.addEventListener("change", update);
     wide.addEventListener("change", update);
     return () => {
