@@ -300,3 +300,39 @@ Append a short "Wave 1a outcome" section to this plan: status, the commit range,
 - **The page stack/router is deferred to Wave 1b.** A router with no page to push is speculative; it lands with its first real consumer (the Settings page), exactly as the primitives were deferred in Wave 0.
 - **Screens are not migrated here.** They keep their contents and only lose their in-screen title. Office → Dashboard, and the other four, are Wave 1b.
 - **The top bar is not yet restructured into the mockup's single row.** That is a `Hud` restructure with real regression risk to the always-visible cash/runway signal; it gets its own task once the shell is proven.
+
+---
+
+## Wave 1a outcome (completed 2026-09-16)
+
+**Status: COMPLETE.** Three batched implementation tasks plus one fix round, each independently reviewed.
+
+**Verification on the final HEAD:**
+
+- 
+pm run typecheck - 0 errors
+- 
+pm test - 1,948 passed / 179 files (this wave adds no tests by design)
+- 
+pm run build - green
+- 
+pm run verify:ui2 - PASS
+- 
+pm run audit:screens - CLEAN
+- Flag off - .shots/wave1a-off/08-company.png is SHA256 byte-identical to the Wave 0 baseline
+- Flag on, 390px - bottom tab bar present, rail absent, exactly one title
+- Flag on, 1024px - rail present, no tab bar, exactly one title
+- No engine file touched
+
+**Fix round 1:** the task review found the new shell title sat ~20px left of the content column (.pghead had no horizontal inset while .app__main uses ar(--edge)). Fixed with padding-inline: var(--edge); re-measured at ~1 CSS px. Scoped re-review: addressed, no new breakage.
+
+**Deferred minors (carry into Wave 1b):**
+
+- .pghead* selectors are not scoped under .app--next. No flag-off element can carry the class, so there is no leakage, but this is a letter-of-the-constraint variance from the brief.
+- PageHeader's subtitle/onBack/ctions are unreachable from the current shell wiring. Wave 1b must decide whether the shell extends per-tab or screens compose their own header.
+- The HQ world-tabs row (.app__titlerow) now left-aligns, because its sibling .app__title is hidden and the row uses space-between.
+- The back-button optic (margin-left: calc(var(--sp-8) * -1)) now pulls the chevron 8px inside the column edge rather than outside; inert until Wave 1b passes onBack.
+- A future screen nesting PageHeader inside an already-inset container would inset twice.
+- The phone capture shows "Silicon", which is both TAB_TITLE.hq and the save's company name, so it does not distinguish the state.companyName || ... branch.
+
+**Not done in this wave (by design):** the page stack/router and the top-bar restructure (no consumer yet), and every screen migration. Those are Wave 1b.
