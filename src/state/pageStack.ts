@@ -1,15 +1,25 @@
-// The page stack: the navigation model ABOVE the five tab roots. Pushing a page shows it in place of
-// the tab content; popping returns to the root. It is a plain array so the rules are pure and
-// testable, and the hook that owns the live instance (usePageNav) is the only stateful part.
-//
-// Deliberately NOT a general router: there are no nested stacks, no params yet, and no page that is
-// reachable only via another page. Adding those is a change to this file's contract, not a tweak.
+// The page stack: the navigation model ABOVE the five tab roots. Each frame carries the ROOT tab it
+// was opened from and its own params, so a reload restores both — a bare page id would drop the
+// player back on Office. The rules are pure and testable; usePageNav owns the live instance.
+
+/** The five tab roots. `BottomNav` re-exports this as `Tab`, so there is ONE source of truth for the
+ *  root ids — a second hand-written union is how the nav and the router would drift apart. */
+export type RootId = "hq" | "design" | "research" | "market" | "company";
 
 export type PageId = "settings" | "platform" | "museum" | "goals";
 
-export type PageStack = readonly PageId[];
+export type RouteParams = Readonly<Record<string, string>>;
 
-/** Hosted-page titles, so the shell header and the hash encoder agree on what a page is called. */
+export interface PageFrame {
+  readonly id: PageId;
+  /** The tab that was active when this page was opened; encoded so a reload can restore it. */
+  readonly root: RootId;
+  readonly params: RouteParams;
+}
+
+export type PageStack = readonly PageFrame[];
+
+/** Hosted-page titles. Replaced by richer per-page descriptors when a page needs its own actions. */
 export const PAGE_TITLES: Record<PageId, string> = {
   settings: "Settings",
   platform: "Platform",
@@ -17,42 +27,68 @@ export const PAGE_TITLES: Record<PageId, string> = {
   goals: "Goals",
 };
 
-/** Pages that have a render block in the shell TODAY. `PageId` is deliberately wider — the type
- *  names the pages the model will support, while this set is the subset that can actually be shown.
- *  A hash for a declared-but-unwired page must resolve to null, or the shell would hide every root
- *  and render an empty main under a page header. */
+/** Pages that have a render block in the shell TODAY. `PageId` is deliberately wider than this set:
+ *  the type names the pages the model will carry, this names the ones that can actually be shown. */
 export const WIRED_PAGES: readonly PageId[] = ["settings"];
+
+const ROOTS: readonly RootId[] = ["hq", "design", "research", "market", "company"];
+
+function isRootId(v: string): v is RootId {
+  return (ROOTS as readonly string[]).includes(v);
+}
 
 function isWiredPage(v: string): v is PageId {
   return (WIRED_PAGES as readonly string[]).includes(v);
 }
 
-/** Push a page. Pushing the page that is already on top is a no-op, so a double-tap cannot deepen
- *  the stack, and the caller can rely on identity to skip a re-render. */
-export function pushPage(stack: PageStack, page: PageId): PageStack {
-  if (topPage(stack) === page) return stack;
-  return [...stack, page];
+/** Frames are compared by VALUE: `push` must be a no-op for the same page at the same params, but a
+ *  different section is a genuinely different frame and must deepen the stack. */
+export function sameFrame(a: PageFrame, b: PageFrame): boolean {
+  if (a.id !== b.id || a.root !== b.root) return false;
+  const ak = Object.keys(a.params);
+  const bk = Object.keys(b.params);
+  if (ak.length !== bk.length) return false;
+  return ak.every((k) => a.params[k] === b.params[k]);
 }
 
-/** Pop the top page. Popping an empty stack is a no-op, so an Escape or back press on a root is safe. */
+/** Push a frame. An identical top frame is a no-op, so a double-tap cannot deepen the stack. */
+export function pushPage(stack: PageStack, frame: PageFrame): PageStack {
+  const top = topPage(stack);
+  if (top && sameFrame(top, frame)) return stack;
+  return [...stack, frame];
+}
+
+/** Pop the top frame. Popping an empty stack is a no-op, so Escape on a root is safe. */
 export function popPage(stack: PageStack): PageStack {
   if (stack.length === 0) return stack;
   return stack.slice(0, -1);
 }
 
-export function topPage(stack: PageStack): PageId | null {
+export function topPage(stack: PageStack): PageFrame | null {
   return stack.length ? stack[stack.length - 1] : null;
 }
 
-/** `#/settings` -> "settings". Anything unrecognised — including a bare `#`, an empty string, a typo
- *  a player might paste, or a page the model declares but no screen renders yet — resolves to null
- *  (the root), never to a guessed page. */
-export function pageFromHash(hash: string): PageId | null {
-  const raw = hash.replace(/^#\/?/, "").trim().toLowerCase();
-  return raw && isWiredPage(raw) ? raw : null;
+/** `#/company/platform/services` -> { root: "company", frame: { id: "platform", params: { section:
+ *  "services" } } }. An unrecognised root, or any absent value, yields the fallback root with no
+ *  frame — never a guessed root, and never a page whose screen does not exist. */
+export function routeFromHash(hash: string, fallbackRoot: RootId): { root: RootId; frame: PageFrame | null } {
+  const parts = hash
+    .replace(/^#\/?/, "")
+    .split("/")
+    .map((p) => p.trim().toLowerCase())
+    .filter(Boolean);
+  const root = parts[0] && isRootId(parts[0]) ? parts[0] : fallbackRoot;
+  const id = parts[1];
+  if (!id || !isWiredPage(id)) return { root, frame: null };
+  const section = parts[2];
+  return { root, frame: { id, root, params: section ? { section } : {} } };
 }
 
-/** The inverse, so the address bar always names the page that is actually showing. */
-export function hashForPage(page: PageId | null): string {
-  return page ? `#/${page}` : "#/";
+/** The inverse, so the address bar always names the root and the page that are actually showing.
+ *  Only `section` is URL-encoded today; a params key that must survive a reload has to be added
+ *  here as well as in `routeFromHash`, or it will silently vanish from the link. */
+export function hashForRoute(root: RootId, frame: PageFrame | null): string {
+  if (!frame) return `#/${root}`;
+  const section = frame.params.section ? `/${frame.params.section}` : "";
+  return `#/${root}/${frame.id}${section}`;
 }
