@@ -14,7 +14,7 @@ The shipped game is treated as flawless and load-bearing. Nothing here may break
 
 1. `main` stays the released game. All redesign work lives on a long-lived branch.
 2. The new shell ships **behind a flag**, off by default until a slice is verified. Both UIs run side by side.
-3. The current build is the **golden baseline**: 173 captured frames + the `shots:diff` harness. A slice ships only if it **matches or beats** the screen it replaces.
+3. The **golden baseline** is the tree *after* the owner-approved quick wins: 173 captured frames + the `shots:diff` harness. Wave 0's own changes are additive on top of that baseline, and a slice ships only if it **matches or beats** the screen it replaces.
 4. **No rebalancing.** The redesign re-presents existing systems; it does not change their numbers.
 5. Every new state field is **optional + backfilled**, defaults to a no-op, and old saves must load and render.
 6. **Per-slice gate (no exceptions):** `tsc` · full test suite · `build` · `audit:screens` · shots-diff vs baseline · determinism pin byte-identical.

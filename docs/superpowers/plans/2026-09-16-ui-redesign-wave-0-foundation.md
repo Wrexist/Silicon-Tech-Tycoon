@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - **Principle 0:** `main` is the released game; this work must be additive and revertable.
-- **Flag default is `classic`.** With the flag off, the build must be **pixel-identical** to today's build.
+- **Flag default is `classic`.** With the flag off, DOM-only screens must be **byte-identical** to today's build; frames containing the animated 3D office scene are compared with `npm run shots:pixel` and any difference must be proven animation-only by reading the frame.
 - **No engine changes.** Nothing in `src/engine/` may be touched in this wave. Determinism pin must stay byte-identical.
 - **Design tokens only.** No hardcoded colours, spacing, or radii. 8pt spacing scale.
 - **Tests run in the Node environment** — there is no jsdom or Testing-Library in this repo. Logic gets Vitest tests; visuals are verified with the screenshot harness.
@@ -27,7 +27,7 @@
 
 **Files:** none (produces review artifacts only — `.shots/` is gitignored).
 
-**Why this is first:** the whole wave rests on "flag off is pixel-identical", and `.shots/` is not committed, so there is no baseline in a fresh checkout. It must be captured from the **unmodified** tree, before Task 1.
+**Why this is first:** the whole wave rests on "flag off is byte-identical on DOM-only screens" (the animated 3D frames are compared with `npm run shots:pixel`), and `.shots/` is not committed, so there is no baseline in a fresh checkout. It must be captured from the **unmodified** tree, before Task 1.
 
 - [ ] **Step 1: Build and capture the current game**
 
@@ -644,10 +644,13 @@ git commit -m "feat(ui2): mount the side rail behind the UI-version flag"
 
 **Files:**
 - Modify: `scripts/shots-diff.mjs` (the `ctx.addInitScript` block, lines ~109-114)
+- Create: `scripts/verify-onboarding-ui2.mjs`
 
 **Interfaces:**
-- Consumes: the `silicon.ui2` storage key from Task 1.
-- Produces: `SHOTS_UI2=1` support in the screenshot harness, used again in every later wave.
+- Consumes: the `silicon.ui2` storage key from Task 1, and the `?ui=` URL param it also accepts.
+- Produces: `SHOTS_UI2=1` support in the screenshot harness (used again in every later wave), plus a first-run regression check that survives into later waves.
+
+> **Plan defect found in Task 6 and ruled on by the controller.** The brief originally placed Task 6's two hooks *after* `App.tsx`'s onboarding early return, which violates React's rules of hooks and crashes every new player the moment onboarding completes. The hooks were moved above the return. Step 5 below was added because Task 7's screenshot passes never exercise the first-run path, which is exactly the path that defect was on.
 
 - [ ] **Step 1: Teach the harness about the flag**
 
@@ -673,7 +676,7 @@ npm run build
 $env:SHOTS_CHROME="C:\Program Files\Google\Chrome\Application\chrome.exe"; npm run shots:diff -- wave0-classic
 ```
 
-Expected: ten frames written to `.shots/wave0-classic/`. Compare each against the same frame in `.shots/wave0-baseline/` (captured in Task 0 from the unmodified tree). **Every frame must be pixel-identical.** Confirm by reading at least `01-office-top.png` and `08-company.png` with the Read tool and comparing against the baseline. Any difference means the flag-off path is not additive and must be fixed before proceeding.
+Expected: ten frames written to `.shots/wave0-classic/`. Compare each against the same frame in `.shots/wave0-baseline/` (captured in Task 0 from the pre-flag tree). **DOM-only frames must be byte-identical.** Frames containing the animated 3D office scene are never pixel-stable, so compare them with `npm run shots:pixel -- .shots/wave0-baseline .shots/wave0-classic` and accept a non-zero diff only after reading the frame to prove it is animation, not layout. Confirm by reading at least `01-office-top.png` and `08-company.png` with the Read tool. Any layout difference means the flag-off path is not additive and must be fixed before proceeding.
 
 - [ ] **Step 3: Capture the flag-on build**
 
@@ -695,23 +698,103 @@ $env:SHOTS_CHROME="C:\Program Files\Google\Chrome\Application\chrome.exe"; $env:
 
 Expected: frames in `.shots/wave0-next-wide/` show the vertical rail on the left with all five tabs, the bottom tab bar also present, and the game rendering normally. Read `01-office-top.png` to confirm the rail is visible, clamped to the content column, and not covering the office scene.
 
-- [ ] **Step 5: Run the release audit**
+- [ ] **Step 5: Prove the first-run path does not crash (flag on)**
+
+The screenshot passes all start from a seeded save, so none of them walks onboarding — the exact path the Task 6 hook-order defect lived on. Create `scripts/verify-onboarding-ui2.mjs`:
+
+```js
+// Verify the Silicon 2.0 shell does not break FIRST RUN: complete onboarding with the flag on and
+// confirm React never throws a hook-order error. The flag is forced by the URL param, so no storage
+// seeding is needed and the run also proves the param path works.
+//   npm run build && node scripts/verify-onboarding-ui2.mjs
+import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { dirname, extname, normalize, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { chromium } from "playwright-core";
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const distDir = resolve(root, "dist");
+const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".woff2": "font/woff2", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json" };
+const indexFile = resolve(distDir, "index.html");
+if (!existsSync(indexFile)) { console.error("dist/index.html missing - run `npm run build` first."); process.exit(1); }
+
+const server = createServer(async (req, res) => {
+  const p = decodeURIComponent((req.url || "/").split("?")[0]);
+  const c = p === "/" ? indexFile : resolve(distDir, "." + normalize(p));
+  let f = c, b;
+  try { b = await readFile(c); } catch { f = indexFile; b = await readFile(indexFile); }
+  res.writeHead(200, { "content-type": MIME[extname(f)] || "text/html" });
+  res.end(b);
+});
+await new Promise((r) => server.listen(0, r));
+const URL = `http://localhost:${server.address().port}/?ui=next`;
+
+const CHROME_ARGS = ["--no-sandbox", "--use-gl=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist"];
+const PINNED = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
+const chromePath = process.env.SHOTS_CHROME || (existsSync(PINNED) ? PINNED : undefined);
+const browser = await chromium.launch({ ...(chromePath ? { executablePath: chromePath } : {}), args: CHROME_ARGS });
+const ctx = await browser.newContext({ viewport: { width: 1024, height: 768 }, deviceScaleFactor: 1 });
+await ctx.addInitScript(() => {
+  localStorage.clear();
+  localStorage.setItem("silicon.settings", JSON.stringify({ theme: "dark", sound: false, haptics: false, decorateTutorialSeen: true, factoryTutorialSeen: true, notifPrompted: true }));
+});
+const p = await ctx.newPage();
+const errors = [];
+p.on("pageerror", (e) => errors.push(e.message));
+p.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 30000 });
+await p.waitForTimeout(3000);
+
+// Same generic walk `audit:screens` uses: always take the decline/skip path, stop at the nav.
+let reached = await p.$(".bnav__item").then(Boolean);
+for (let step = 0; step < 8 && !reached; step++) {
+  const clicked = await p.evaluate(() => {
+    const vis = [...document.querySelectorAll("button")].filter((b) => b.offsetParent !== null);
+    if (!vis.length) return null;
+    const decline = vis.find((b) => /not now|maybe later|skip|^found /i.test((b.textContent || "").trim()));
+    const target = decline || vis[vis.length - 1];
+    target.click();
+    return (target.textContent || "").trim().slice(0, 40);
+  });
+  if (!clicked) break;
+  await p.waitForTimeout(900);
+  reached = await p.$(".bnav__item").then(Boolean);
+}
+if (!reached) reached = await p.waitForSelector(".bnav__item", { timeout: 15000 }).then(() => true).catch(() => false);
+
+const rail = await p.$(".railnav").then(Boolean);
+await browser.close();
+server.close();
+
+if (!reached) { console.error("FAIL: onboarding never reached the game."); process.exit(1); }
+if (errors.some((e) => /hook/i.test(e))) { console.error("FAIL: hook error during first run:\n" + errors.join("\n")); process.exit(1); }
+if (errors.length) { console.error("FAIL: console/page errors during first run:\n" + errors.join("\n")); process.exit(1); }
+if (!rail) { console.error("FAIL: flag on at 1024x768 but the rail never rendered."); process.exit(1); }
+console.log("PASS: onboarding completed with the flag on, no hook/console errors, rail rendered.");
+```
+
+Run: `npm run build; node scripts/verify-onboarding-ui2.mjs`
+Expected: `PASS: onboarding completed with the flag on, no hook/console errors, rail rendered.` A hook-order regression exits 1 with the React error text.
+
+- [ ] **Step 6: Run the release audit**
 
 Run: `npm run build; npm run shots:stage:showcase; npm run audit:screens`
 Expected: `CLEAN` — every pass meets its coverage floor, no console/page/request errors on any screen.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add scripts/shots-diff.mjs
-git commit -m "test(ui2): capture the flag-off regression set and the wide-layout rail"
+git add scripts/shots-diff.mjs scripts/verify-onboarding-ui2.mjs
+git commit -m "test(ui2): capture the flag-off regression set, the wide rail, and the first-run path"
 ```
 
 ---
 
 ## Wave 0 exit criteria
 
-- [ ] Flag off → pixel-identical to the shipped build (Task 7 Step 2).
+- [ ] Flag off → DOM-only frames byte-identical to the shipped build; 3D frames proven animation-only with `npm run shots:pixel` (Task 7 Step 2).
 - [ ] Flag on at 390px → no change to the phone layout (Task 7 Step 3).
 - [ ] Flag on at 1024px → the rail renders, uses the shared `TABS`, and respects the progressive `visible` gate (Task 7 Step 4).
 - [ ] `tsc` 0 errors · 1,947 tests pass · `build` green · `audit:screens` CLEAN.
