@@ -1,9 +1,11 @@
 import { Building2, FlaskConical, Home, PencilRuler, TrendingUp, type LucideIcon } from "lucide-react";
 import { haptic } from "../design/haptics.ts";
 import type { Attention } from "../state/gameState.ts";
+import type { RootId } from "../state/pageStack.ts";
 import "./bottomNav.css";
 
-export type Tab = "hq" | "design" | "research" | "market" | "company";
+/** The root tab ids. Aliased from the router's `RootId` so the nav and the URL can never disagree. */
+export type Tab = RootId;
 
 /** The five root tabs. Exported so RailNav (the wide-layout twin) reads the same list — a second
  *  hand-written copy is how the bottom nav and the rail would silently drift apart. */

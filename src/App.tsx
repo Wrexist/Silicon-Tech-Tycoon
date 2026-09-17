@@ -160,7 +160,17 @@ function AppShell() {
   const uiVersion = useUiVersion();
   const layoutMode = useLayoutMode();
   const showRail = uiVersion === "next" && railShown(layoutMode);
-  const { page, push, pop, clear } = usePageNav(tab);
+  const { page, push, pop, clear, root: routeRoot } = usePageNav(tab);
+  // A deep link names the tab it was opened from; adopt it on FIRST mount so the nav highlight and
+  // the URL agree. Runs once — after that the player's own tab taps own the state.
+  const adoptedRoot = useRef(false);
+  useEffect(() => {
+    if (adoptedRoot.current) return;
+    adoptedRoot.current = true;
+    if (page && routeRoot !== tab) setTab(routeRoot);
+    // Deliberately first-mount only: re-running would fight a tab tap.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // A root tab is the BASE of the navigation model, so choosing one always closes any open page —
   // otherwise the highlighted tab and the rendered content disagree.
