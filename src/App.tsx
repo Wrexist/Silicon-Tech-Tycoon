@@ -40,7 +40,7 @@ import { enableDailyReminders, notificationsAvailable } from "./state/notificati
 import { getSettings, setSettings } from "./state/settings.ts";
 import { useUiVersion } from "./state/uiVersion.ts";
 import { challengeTeaser, dailyChallenge, dateKeyOf } from "./engine/challenges.ts";
-import { Button, Card } from "./design/primitives.tsx";
+import { Button, Card, PageHeader } from "./design/primitives.tsx";
 import { format, toDollars, scale } from "./engine/money.ts";
 import { campaignEpilogue } from "./engine/epilogue.ts";
 import { rivalryEpilogueClause } from "./engine/rivalMemory.ts";
@@ -199,6 +199,11 @@ function AppShell() {
       />
       {showRail && (
         <RailNav active={tab} onChange={setTab} badge={navAttention(state)} visible={tabVisible} />
+      )}
+      {/* Wave 1a: the new shell owns the page title. When the flag is off this renders nothing and
+          each screen keeps drawing its own .app__title exactly as before. */}
+      {uiVersion === "next" && (
+        <PageHeader title={tab === "hq" ? state.companyName || TAB_TITLE.hq : TAB_TITLE[tab]} />
       )}
       <main className="app__main">
         {/* HQ stays MOUNTED across tabs (hidden, not unmounted) so its WebGL office keeps its

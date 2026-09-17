@@ -1101,3 +1101,7 @@
   cursor: pointer;
 }
 .worldtabs__tab--on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+/* Wave 1a: the shell renders the page title when the new UI is on, so the per-screen heading
+   stands down. Flag-off is untouched: `.app--next` never matches. */
+.app--next .app__title { display: none; }
