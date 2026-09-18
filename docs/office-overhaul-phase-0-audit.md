@@ -113,3 +113,28 @@ Already true today: premium isometric office exists · real state drives it · e
 ## 9. What I recommend doing first
 
 **Phase 1 is an extraction, not a build:** pull the camera rig, lighting and interaction handlers out of `Garage3D.tsx` into the four controllers, prove the captures are unchanged, and *then* start the data-driven config. That gives every later phase a place to live and makes the safety property (nothing visual moved) easy to prove.
+
+---
+
+## Phase 1 outcome - COMPLETE (2026-09-16)
+
+**Commit 7d0d43e.** Pure extraction; **no pixels and no behaviour changed.**
+
+**Garage3D.tsx: 2,259 -> 2,026 lines** (a ~233-line reduction), with four new focused modules:
+
+| Module | Lines | Concern |
+|---|---|---|
+| cameraRig.tsx | 179 | parallax/idle drift, still (Reduce Motion), settle |
+| lighting.tsx | 77 | the scene's lights and their configuration |
+| interactions.ts | 28 | tap handlers (staff -> roster, vault -> Bank, …) |
+| officeConfig.ts | 61 | **the seam** - officeConfigFor(state) returning today's exact values (facility tier, upgrades, room style, desktops, staff cap) for later phases to grow |
+
+Every module is under the 250-line cap, and Garage3D.tsx's public props and default export are unchanged, so HQ.tsx and HeroFrame.tsx are untouched.
+
+**Visual proof:** before/after captures at 1024x768 compared frame by frame. Camera, lighting, room shell, props and character geometry are identical; the only deltas are procedural robot pose/chair-swivel phase and the speed-dial fade - both animation timing, neither a real change.
+
+**Gate:** 	sc 0 - 2,014 tests / 187 files - build green - erify:ui2 PASS - udit:screens CLEAN - determinism pin green.
+
+**Deliberately left in place:** ContactShadows (live, layout-keyed) and BuildLayer's drag handlers (coupled to local drag state). Both are named for a later phase rather than forced out in a move.
+
+**Why this was the right Phase 1:** every later phase now has a home, and because the phase changed no behaviour, the safety property was provable by pixel comparison rather than argued. The next phases build on a smaller file instead of growing a 2,259-line one.
