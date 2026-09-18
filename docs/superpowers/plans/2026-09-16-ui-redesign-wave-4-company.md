@@ -384,3 +384,18 @@ Ruling "the flag gates screen content" means every in-place screen redesign need
 **Gate:** 	sc 0 - 2,004 tests / 185 files - build green - erify:ui2 PASS - udit:screens CLEAN - determinism pin green.
 
 **Flag-gating audit, now complete:** every surface that changes for flag-on players is behind the flag. The routed pages (Platform, Museum, Goals) are gated by the route itself; the Company Overview and the Development Stage lens are gated directly. Any future in-tab redesign inherits the rule: **gate it, or it ships to everyone.**
+
+---
+
+## Hero paused residual - INVESTIGATED AND DISPROVEN (2026-09-16)
+
+The R1 residual asked whether the hero should pass paused to stop its live 60fps loop. It was tried, captured, and **reverted** - the frame proved the naive fix is wrong.
+
+- With paused: .shots/hero-paused/08-company.png shows the hero panel as a **uniform dark field**. No walls, desks, robots or vault - only the scrim and the "ERA 2 / Silicon" text.
+- Without paused (control): the full office diorama renders clearly.
+
+Cause: Garage3D's VisibilityPause sets rameloop="never" when paused, and R3F with rameloop="never" from first mount does not run the initial draw. So the hero would have shipped **blank**, which is worse than live.
+
+**Outcome: the hero stays live.** The correct fix is a first forced draw before idling - rameloop="demand" plus an invalidate() on mount - but that lives in the **shared** Garage3D.tsx whose pause semantics HQ depends on, so it is its own task with its own regression risk, not a one-line prop.
+
+**Still standing:** on tablet/wide the hero is a live second WebGL context. It is gated away from phones and now handles context loss, so the remaining exposure is iPad thermals - which a device check, not a headless capture, must settle.
