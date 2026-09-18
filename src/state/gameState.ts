@@ -954,7 +954,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0, asce
     productCounter: 1,
     staffCounter: 1,
     layout: defaultLayout(),
-    furnitureCounter: 3, // starter layout uses f1 (desk) + f2 (plant)
+    furnitureCounter: 7, // starter layout uses f1–f6 (desk, plant, + attr-free dressing)
     roomStyle: { floor: 0, wall: 0 },
     factoryFloor: starterFloor(),
     factoryDecor: { wall: 0, floor: 0 },
