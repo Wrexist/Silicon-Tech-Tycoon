@@ -549,7 +549,10 @@ function OfficeOverview({ state, zones, crowded }: { state: GameState; zones: Re
 // The garage/office scene + the interactive furniture builder ("Decorate" mode).
 function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, onOpenBank }: { use3d: boolean; reducedMotion: boolean; hasProduction: boolean; active: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
   const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, applyLayoutSnapshot, setLayout, setFloorStyle, setWallStyle } = useGame();
-  const { paused: simPaused } = useGameControls();
+  // The office hold = manual HUD pause OR the ref-counted `suspended` flag an interrupt overlay takes.
+  // Using both means a decision card holds the office (and its chatter) exactly like a manual pause.
+  const { paused: manualPaused, suspended: simSuspended } = useGameControls();
+  const simPaused = manualPaused || simSuspended;
   const settings = useSettings();
   // Publish (seed, week) for the office's derived-hash scheduling (character work state + chatter).
   // A module singleton, read per-frame, so the memoized 3D scene is never re-reconciled each week.

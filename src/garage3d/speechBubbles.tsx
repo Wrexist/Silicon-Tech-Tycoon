@@ -128,21 +128,32 @@ export default function SpeechBubbles({ speakers, paused = false }: { speakers: 
   const active = useRef<ActiveBubble[]>([]);
   const slotRef = useRef(-1);
   const acc = useRef(0);
+  // Seconds of ACTIVE play only (office live AND the sim not held). This is what drives the slot.
+  // Unlike the render clock it never jumps when the office remounts from `demand`, and it stops
+  // dead while a pause/overlay holds the game — so the chatter freezes with the sim.
+  const activeTime = useRef(0);
   const scratch = useMemo(() => new THREE.Quaternion(), []);
 
   useFrame((st, dt) => {
     if (paused) {
-      // The sim is paused (or the office is off-screen): show nothing and forget the current slot, so
-      // resuming starts a fresh cadence instead of revealing a bubble frozen mid-air.
+      // Held (manual pause, an interrupt overlay, or the office off-screen): show nothing and forget
+      // the current slot. `activeTime` is deliberately left unchanged, so the schedule resumes from
+      // where it stopped instead of racing ahead behind the overlay.
       slotRef.current = -1;
       for (let i = 0; i < MAX; i++) if (meshes.current[i]) meshes.current[i]!.visible = false;
       return;
     }
+    // HONEST TRADE-OFF: bubble CONTENT (which character, which line) is a derived hash of
+    // (seed, weekIndex, index); bubble TIMING advances with active play time, because pinning it to
+    // the sim would require a sim tick counter this render layer does not receive. Exact
+    // cross-session timing is not a goal for cosmetic chatter — freezing with the sim is — so two
+    // sessions can show the chatter on different seconds.
+    activeTime.current += dt;
     // Throttle to ~20fps: flavour, not gameplay. The billboard is re-aimed at the same cadence.
     acc.current += dt;
     if (acc.current < 1 / 20) return;
     acc.current = 0;
-    const t = st.clock.elapsedTime;
+    const t = activeTime.current;
     const slot = Math.floor(t / SLOT_SECONDS);
     if (slot !== slotRef.current) {
       slotRef.current = slot;

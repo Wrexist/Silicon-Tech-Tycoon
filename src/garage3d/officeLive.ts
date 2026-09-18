@@ -34,12 +34,6 @@ export function cosmeticHash01(seed: number, week: number, salt: number): number
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-/** How many frames of the week the office has been alive. The character state only needs to change
- *  once per sim week, never per frame, so callers cache on this. */
-export function officeWeekKey(): number {
-  return liveWeek;
-}
-
 /**
  * The per-character work state for THIS week: 0 = idle (sitting back, slow look-around), 1 =
  * working (leaning in, typing). A derived hash of (seed, week, character key) — salt 401, a fresh

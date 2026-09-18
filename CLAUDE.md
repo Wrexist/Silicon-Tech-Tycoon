@@ -52,7 +52,7 @@ celebration style — leave them as-is.
   established pattern: pure engine gated on optional fields → derived-hash interrupt (`pendingX`) →
   opt-in reducer → staged overlay mounted in `App.tsx` (see nemesis / eureka / community / earnings /
   staff moments / regional events). **Pick a fresh salt** for any new derived-hash stream — in use:
-  11, 23, 37, 53, 71, 83, 91, 97, 101, 113, 127, 131, 137, 149, 151, 157, 163, 211, 223, 227, 229, 233, 239, 257, 263, 269, 271, 277, 281, 293, 307, 311.
+  11, 23, 37, 53, 71, 83, 91, 97, 101, 113, 127, 131, 137, 149, 151, 157, 163, 211, 223, 227, 229, 233, 239, 257, 263, 269, 271, 277, 281, 293, 307, 311, 317, 401, 419, 421, 433, 439.
   (91/101/113/127 = inbound licensing offers; 163 = contract negotiation outcome; 233 = staff life events
   — with 2331/2332/2333 as its target-pick/branch sub-salts;
   239 = rival-vs-rival clash — with 2391/2392/2393 as its clash-fire/pick-a/pick-b-or-priceWar sub-salts;
@@ -67,7 +67,11 @@ celebration style — leave them as-is.
   deterministically. Player-action only (no cadence/interrupt) — never touches the pinned sim.;
   311 = the Vault's "a file stirred" whisper line (cosmetic feed text only — which dossier rose, and
   when, is a pure fold over state, so this hash only picks the wording).;
-  317 = Test Prototype's flaw roll (Design -> Testing; optional, player-action only).)
+  317 = Test Prototype's flaw roll (Design -> Testing; optional, player-action only).;
+  401/419/421/433/439 = office presentation streams (Wave 7, cosmetic-only, never read by the engine):
+  401 = per-character work-target pick (idle vs working); 419 = bubble count per slot;
+  421 = bubble character pick; 433 = bubble line pick; 439 = bubble position jitter. Bubble timing
+  advances with active play time, not the sim clock, so these hashes fix the content, not the second.)
 - **Opportunistic full-screen interrupts share a budget.** Any card that fires on its own cadence
   (strike / eureka / community / earnings / rivalry / staff moment / regional event / licensing
   contract offer) must gate on
