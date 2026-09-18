@@ -403,7 +403,10 @@ function AppShell() {
           </Suspense>
         </ErrorBoundary>
       </Sheet>
-      <Sheet open={progressOpen} onClose={() => setProgressOpen(false)} label="Progress">
+      {/* Silicon 2.0 retires the hub sheet: the routed page is the only Progress surface. `progressOpen`
+          is never set on the flag-on path (both writers gate on the flag), so this gate is belt-and-
+          braces — and with the flag off the sheet opens exactly as it always did. */}
+      <Sheet open={uiVersion === "classic" && progressOpen} onClose={() => setProgressOpen(false)} label="Progress">
         <ErrorBoundary fallback={<ScreenError onHome={() => setProgressOpen(false)} />}>
           <Suspense fallback={<ScreenLoading title="Progress" />}>
             <ProgressSheet onClose={() => setProgressOpen(false)} initialView={progressView} />
