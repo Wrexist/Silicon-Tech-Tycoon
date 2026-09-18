@@ -303,3 +303,31 @@ Auto-hide only helps *while* scrolling; after ~650ms idle the dial returns to fu
 - speakers is rebuilt every Scene render; bubbles only re-seat on the next slot.
 - Pre-existing Math.random remains in RoamingRobot, Dust and BallBin - UI-only, never touching the engine, but worth knowing in a wave about ambient determinism.
 - **Perf note:** the office measured 23.8 fps in headless SwiftShader. That is a **software-render floor, not a device number** - the real figure needs a phone or iPad.
+
+---
+
+## P2 resolved - the speed dial is collapsed at rest (2026-09-16)
+
+**Commit 4cf94e3.** P2 was parked because the honest fix is a design choice, not a bug fix. Ruled and done: **the dial collapses to a single ~44px button** showing the current primary action (Play when paused, Pause when running), and expands to the three controls on tap - re-collapsing after a choice or on an outside/scroll interaction.
+
+Why this shape: a fixed control cannot avoid overlaying content that scrolls under it, so the only real fix is to shrink its **resting** footprint. The three-control pill covered a chunk of the column at all times; one 44px round button does not.
+
+**Proven by frames:**  8-company (1024x768) shows a single small round button at bottom-left with the growth chart clear;  1-office-top (390x844) shows the phone layout undisturbed.
+
+**Gate:** 	sc 0 - 2,014 tests / 187 files - build green - erify:ui2 PASS - udit:screens CLEAN - pin byte-identical.
+
+**Known, pre-existing, accepted:** on phones a toast (bottom 96px) can briefly overlap the collapsed dial (bottom 72px). The toast auto-dismisses; it predates this change and is cosmetic.
+
+## P1 - ruled, unchanged
+
+The starter room stays as it is. Furnishing it fully means adding attribute- or amenity-bearing pieces, which **moves the pinned simulation** (one chair shifted esearchPoints 95 -> 103). Changing the simulation as a side effect of an art pass is the wrong trade. The room is the player's progression: you buy and place furniture and the office fills as you do. **If a furnished new game is wanted, it is a deliberate re-baseline of the golden pin and should be its own reviewed change.**
+
+## Robot characters - nothing to wire
+
+The glTF robot path is dead because **no robot models exist**: obotModels.ts globs ./models/robot_*.glb and the directory holds only ase.glb, so every character is the parametric robot. There is no rename or glob fix that produces rigged robots - that needs a robot asset pack. Recorded as an asset task, not a bug.
+
+## Wave 7 - final state
+
+All six tasks plus two fix rounds complete. Delivered: the scrolling-dial fix and its collapse; the asset-coverage audit (23/86 ids glTF, 62 KiB tracked, already excluded from the precache); a furnished showcase room (34/34, zero collisions); procedural robot idling/working/cheering on derived salts; opt-out, Reduce-Motion-safe chat bubbles that freeze with the sim; and every popup entrance back on the shared spring tokens.
+
+**Device-only caveat that persists:** the office measured 23.8 fps in headless SwiftShader. That is a software-render floor, not a device figure. With robots and bubbles now animating, a real phone/iPad measurement is the one thing this repo cannot produce.
