@@ -194,3 +194,21 @@ oUnusedParameters; and the Museum row's Pro gate is pre-existing.
 2. In-page sub-view navigation does not write the URL, so deep-linking to #/hq/progress/challenges and tapping back leaves the URL stale until a reload. Acceptable while eight rows stay in-page.
 3. Progress.tsx's module header still describes the single-sheet model; comment-only drift.
 4. The new progress route is covered by the pageStack round-trip unit test but was **not** added to scripts/verify-deeplink-ui2.mjs's four-route table. Low value to add while the model-level round-trip already asserts it, but worth doing when the next route lands.
+
+---
+
+## Hero frameloop - RESOLVED (2026-09-16)
+
+**Commit 5968df7** (2 files, +12/-2). The last device-dependent residual is closed at the code level.
+
+**The fix:** Garage3D's VisibilityPause now sets rameloop="demand" for an idle scene instead of "never", and calls invalidate() once. "never" from first mount never runs the initial draw, which is why the earlier attempt shipped a blank hero; "demand" renders once and then idles. HeroFrame now passes paused, so the hero is a still scene rather than a second live ~60fps WebGL loop.
+
+**Proven by frames, before committing:**
+- .shots/hero-demand/08-company.png - the hero shows the 3D office (walls, floor grid, desks, staff, the arcade unit, pendant lamp) under the "ERA 2 / Silicon" overlay. **Not blank.**
+- .shots/hero-demand/01-office-top.png - the **HQ office still renders** in full, confirming the shared component's change did not disturb the primary scene.
+
+**Gate:** 	sc 0 - 2,011 tests / 186 files - build green - erify:ui2 PASS - udit:screens CLEAN - determinism pin green.
+
+**Behaviour change to know about:** a paused scene (the hidden HQ office, and now the hero) performs **one extra draw** when it pauses, then idles - previously it drew nothing while paused. That is the cost of never showing a blank canvas, and it is a single frame per pause, not a loop.
+
+**Remaining (device-only):** iPad thermals with Company open. Headless captures cannot answer it; the hero is now still and gated away from phones, so the exposure is much reduced but not measurable from here.
