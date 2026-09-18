@@ -297,3 +297,39 @@ Append a "Wave 4 outcome" section: status, commit range, gate output, the enumer
 - **The Testing action (Test Prototype's UI) is NOT in this wave.** The engine ships; the player-facing action and its affordability/feedback rules are their own task, which is why Task 5 removes the dead step rather than activating it.
 - **The hero is the existing render, framed.** No new 3D scene, no image asset, no `<canvas>` of its own.
 - **No other Company sub-tab changes.** Team and Platform are untouched; only Overview is rebuilt.
+
+---
+
+## Wave 4 outcome (2026-09-16) - TASKS COMPLETE, REVIEW FINDINGS OPEN
+
+**Status: the five tasks are implemented, committed and green, but the task review returned "Needs fixes" and the findings below were PARKED, not fixed** - the controller session ran out of budget after the review. This is a budget cap, not a judgement that the findings are acceptable. Read this section before building on the wave.
+
+**Gates (all run by the controller on the final HEAD):** 	sc 0 · 2,003 tests / 185 files · 
+pm run build green · erify:ui2 PASS · erify:deeplink PASS (4/4 routes) · udit:screens CLEAN · determinism pin green (run after Task 1 and after Task 4).
+
+**Delivered:** growthDeltaDollars + growthDeltaPct; StatTile + KeyStatsPanel; a multi-series DataChart (legend, 4W/8W/26W/All, zero-safe, ole="img", no dependency); the Company Overview rebuilt with an in-engine hero, four tiles and Key Stats; and the parked Testing step removed from the Development Stage ladder. The block enumeration confirmed nothing was dropped - the only deletions are the four stat readouts the tiles replace.
+
+## Parked findings (ruled, NOT resolved)
+
+**R1 - CRITICAL: a second concurrent WebGL context, unmitigated.**
+HeroFrame mounts a second Garage3D while the Company tab is up. HQ's office is already deliberately kept mounted to preserve its context, and this repo's own comment records that context churn is what made the office fail on memory-constrained mobile browsers. The hero passes no paused (so it renders at 60fps) and no onContextLost (so a lost context has no downgrade path - the ErrorBoundary does not catch webglcontextlost).
+**Ruling:** parked at the cap. **Cost if wrong: an iOS context-loss or jetsam regression on the Company tab.**
+**Recommended fix, in order:** pass paused so the hero is not a live 60fps scene; pass onContextLost to swap in DeviceRenderer; gate the live canvas to non-phone viewports and use DeviceRenderer on phones; ideally render the hero from HQ's existing context rather than a new Canvas.
+**Device check that would settle it:** on an older iPhone/iPad with a large save, open Company and switch tabs / background-foreground repeatedly; watch for two canvases, a blank hero, the office dropping to IsoScene, or a Safari reload.
+
+**R2 - IMPORTANT: the Cash tile's chip is the PROFIT delta** (growthChip(finPct.profit, true)), with a tooltip attributed to cash. inancialHistory has no cash series, but a real cash sparkline already exists in the Financials card, so an honest 8-week cash delta is available.
+**Ruling:** parked. **Cost if wrong: a number the player will act on, attached to the wrong metric.**
+
+**R3 - IMPORTANT: the Revenue/employee chip is the REVENUE delta**, not the per-head delta, so hiring with flat revenue moves it in the wrong direction. Same class as R2.
+**Ruling:** parked. **Cost if wrong: same - a misleading chip.**
+
+**R4 - IMPORTANT: a zero baseline fabricates a  % chip.** growthDeltaPct returns   for a zero base, and the tile renders it whenever history is long enough - so a week that earned $0 and now earns something shows "0%/flat", while the same tile's tooltip shows the true dollar change. This contradicts the wave's own hard rule ("never fabricate a number") and the function's own comment.
+**Ruling:** parked. **Cost if wrong: a fabricated delta, and the chip disagreeing with its tooltip.** Fix: return 
+ull (or a hasBase flag) per series and omit the chip when the base is 0.
+
+**R5 - a DECISION, not a bug: the new Overview content is NOT gated on silicon.ui2.** The hero/tiles/chart/key-stats sit directly under coTab === "overview". So with the flag OFF, a player still sees the redesigned Company Overview. Every prior wave gated the SHELL (rail, title, pages) but never screen CONTENT; the routed pages are flag-gated because the route is, but in-tab content is not.
+**Ruling:** surfaced for the owner. **This needs an explicit answer before more screens are migrated:** either (a) the flag gates screen content too, in which case every migrated screen needs a classic/next branch and Waves 2b/2c's in-page content needs the same treatment; or (b) the flag only ever gated the shell, and "the flag-off build is unchanged" applies to chrome alone - in which case Wave 0's Principle 0 wording is wrong and should be corrected rather than the code.
+
+**Minor (recorded):** the hero has no decorative/paused mode and its camera rig also answers global WASD; an all-zero chart forces the y-axis top to $1; DataChart's 	otal comes from series[0] only; the hero's in-scene tap labels are inert.
+
+**Process note:** the final whole-branch review was not run separately - the task review covered the batch. The wave is green but carries an unresolved Critical; do not treat it as merge-ready.
