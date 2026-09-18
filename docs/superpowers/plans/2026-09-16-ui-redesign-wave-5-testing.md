@@ -279,3 +279,30 @@ Append a "Wave 5 outcome" section: status, commit range, gate output, deferred m
 - **No new salt, no new balance knobs beyond what Wave 3 registered.** The constants already exist; this wave wires them to a button.
 - **The prototype is never required.** It stays a choice, which is what keeps the existing design→build→launch pacing intact.
 - **No Testing action on the Development Stage for other screens.** Only the Design Lab owns a draft.
+
+---
+
+## Wave 5 outcome (2026-09-16)
+
+**Status: COMPLETE.** Tasks 1-3 batched and reviewed; one fix round closed both Important findings.
+
+**The two proofs (re-run by the controller):**
+
+- **Determinism pin: Tests 2 passed**, fingerprint unchanged. The reviewer traced reachability independently and confirmed the action is **tap-only**: unPrototype is referenced only by useGame.tsx (wrapped as an action callback), the test file, and the button's onClick - nothing in engine/, no interrupt stream and not dvanceOneWeek.
+- **
+pm run sim:  /40 bankruptcies, all eras 40/40.** Unchanged, which is the expected result precisely because the harness never presses the button.
+- 	sc 0 - **2,010 tests / 186 files** - build green - erify:ui2 PASS - udit:screens CLEAN.
+
+**Delivered:** draftPrototype (optional, backfilled 
+ull) and unPrototype(); the confidence gain folded into the **existing** orecastConfidence call site (no parallel forecast); the flag-gated Testing panel with cost, disabled reasons and the outcome; the Development Stage ladder's Testing step restored and now able to light; clearPrototype wired to every fresh-draft site.
+
+**Fix round - both Important findings closed:**
+
+1. **confidenceGain: 18 was in the wrong units.** orecastConfidence returns [0, 0.85], so ase + 18 always clamped to 1.0 - one prototype pinned confidence to "High" and the mechanic strictly dominated every other confidence investment. Now  .18 (~21% of the cap): a 0.3 base lifts to 0.48, no saturation. The field's declared unit and its use now agree. **This was a Wave 3 plan bug carried forward** - the review caught it only once a consumer existed, which is exactly why Wave 4 resolved the growthDelta units before charting them.
+2. **"Spend a week" silently skipped a week of simulation.** week + 1 jumped the calendar without payroll, rent, revenue or build progress. The brief's premise was also wrong - the est precedent does **not** advance the week. The advance is now dropped entirely: the prototype is an instant lab pass costing cash, once per draft. UI copy and comments corrected so nothing claims a time cost. A real one-week job is noted as a possible future improvement.
+
+**Deferred minors:**
+
+1. Two disabled-reason branches in DesignLab.tsx are unreachable (draft is non-nullable; the button is replaced once a prototype exists). The intent is met by the outcome panel; the dead branches can be dropped.
+2. PrototypeOutcome.confidenceGain is computed but not consumed (unPrototype uses only law; the fold reads BALANCE directly) - a future-drift risk. Either consume it or drop the field.
+3. migrate()'s guard accepts any string law, so a hand-edited save can render an undefined stat label. Validating against STAT_KEYS would close it.
