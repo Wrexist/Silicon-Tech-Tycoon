@@ -206,6 +206,103 @@
 .ds-stat--tile .ds-stat__value { font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.01em; }
 .ds-stat--tile .ds-stat__label { font-size: var(--fs-caption); }
 
+/* StatTile — the dashboard tile. Width is deliberately unset: the caller's grid places it. */
+.ds-stattile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--glass-well);
+  border: 1px solid var(--glass-well-edge);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 34%, transparent);
+}
+.ds-stattile__label {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.ds-stattile__value {
+  font-size: var(--fs-headline);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+.ds-stattile__delta {
+  align-self: flex-start;
+  padding: 2px var(--sp-8);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+}
+.ds-stattile__delta--up {
+  color: var(--positive-text);
+  background: var(--positive-soft);
+}
+.ds-stattile__delta--down {
+  color: var(--negative-text);
+  background: var(--negative-soft);
+}
+.ds-stattile__delta--flat {
+  color: var(--ink-2);
+  background: var(--surface-2);
+}
+.ds-stattile__hint {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+
+/* KeyStatsPanel — icon / label / value rows. */
+.ds-keystats {
+  display: flex;
+  flex-direction: column;
+}
+.ds-keystats__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-12) 0;
+  min-width: 0;
+}
+.ds-keystats__row + .ds-keystats__row {
+  border-top: 1px solid var(--hairline);
+}
+.ds-keystats__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-button);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.ds-keystats__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.ds-keystats__label {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--ink);
+}
+.ds-keystats__hint {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+.ds-keystats__value {
+  flex: 0 0 auto;
+  font-size: var(--fs-headline);
+  font-weight: 700;
+  color: var(--ink);
+  text-align: right;
+}
+
 /* Section header */
 .ds-section {
   display: flex;

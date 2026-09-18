@@ -109,6 +109,61 @@ export function Stat({
   );
 }
 
+/* ---------- StatTile ----------
+   The dashboard stat: a muted micro label, a headline number, and an optional delta chip whose
+   tone carries the metric's MEANING (a rising burn is `down`). The tile sets no width — the caller's
+   grid decides, so the same tile sits 2-up on a phone and 4-up on the wide dashboard. */
+export type StatTileTone = "up" | "down" | "flat";
+export function StatTile({
+  label,
+  value,
+  delta,
+  deltaTone = "flat",
+  hint,
+}: {
+  label: string;
+  value: ReactNode;
+  /** Preformatted, e.g. "+12%". Omit entirely when there is not enough history — never fabricate 0%. */
+  delta?: string;
+  deltaTone?: StatTileTone;
+  hint?: string;
+}) {
+  return (
+    <div className="ds-stattile">
+      <span className="ds-stattile__label">{label}</span>
+      <span className="ds-stattile__value tnum">{value}</span>
+      {delta ? (
+        <span className={`ds-stattile__delta ds-stattile__delta--${deltaTone} tnum`}>{delta}</span>
+      ) : null}
+      {hint && <span className="ds-stattile__hint">{hint}</span>}
+    </div>
+  );
+}
+
+/* ---------- KeyStatsPanel ----------
+   A vertical list of icon / label / value rows. The icon sits in a tinted well; the value is
+   right-aligned and may be any node (the caller owns formatting). */
+export function KeyStatsPanel({
+  items,
+}: {
+  items: readonly { icon: ReactNode; label: string; value: ReactNode; hint?: string }[];
+}) {
+  return (
+    <div className="ds-keystats">
+      {items.map((it) => (
+        <div className="ds-keystats__row" key={it.label}>
+          <span className="ds-keystats__icon" aria-hidden>{it.icon}</span>
+          <span className="ds-keystats__text">
+            <span className="ds-keystats__label">{it.label}</span>
+            {it.hint && <span className="ds-keystats__hint">{it.hint}</span>}
+          </span>
+          <span className="ds-keystats__value tnum">{it.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ---------- StatPill ---------- */
 export function StatPill({
   label,
