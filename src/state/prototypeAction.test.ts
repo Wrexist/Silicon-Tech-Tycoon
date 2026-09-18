@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newGame, runPrototype, prototypeState } from "./gameState.ts";
+import { newGame, runPrototype, prototypeState, forecastConfidenceInput } from "./gameState.ts";
 import { dollars } from "../engine/money.ts";
 
 // The action is PLAYER-INITIATED ONLY. These tests pin the three things that matter: it costs cash
@@ -31,5 +31,12 @@ describe("runPrototype", () => {
   it("is a no-op on a save with no draft prototype field and no draft", () => {
     const s = newGame(4242);
     expect(prototypeState(s)).toBeNull();
+  });
+
+  it("a completed prototype tightens the forecast, and nothing else does", () => {
+    const base = { ...newGame(4242), cash: dollars(50_000_000), week: 30 };
+    const after = runPrototype(base);
+    expect(after.ok).toBe(true);
+    expect(forecastConfidenceInput(after.state)).toBeGreaterThan(forecastConfidenceInput(base));
   });
 });

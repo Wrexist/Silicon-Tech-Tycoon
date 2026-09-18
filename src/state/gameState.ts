@@ -5922,6 +5922,17 @@ export function runPrototype(s: GameState, draft?: Product | null): ActionResult
   };
 }
 
+/** The forecast confidence the Design Lab's verdict/confidence read consumes, with the active
+ *  draft's Test Prototype gain folded into the SAME `forecastConfidence` path (no parallel forecast).
+ *  A completed prototype tightens the band; an old or un-prototyped save adds nothing. Pure. */
+export function forecastConfidenceInput(s: GameState): number {
+  const base = forecastConfidence({
+    marketerSkill: marketerSkill(s),
+    demandSensing: hasProject(s.completedProjects, "demandSensing"),
+  });
+  return prototypeState(s) ? base + BALANCE.prototype.confidenceGain : base;
+}
+
 export type MoraleKind = "bonus" | "offsite";
 
 /** The cash cost of a company-wide morale spend (Track C): a multiple of weekly payroll, floored so a
