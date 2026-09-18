@@ -372,3 +372,15 @@ Ruling "the flag gates screen content" means every in-place screen redesign need
 - **Platform, Museum, Goals are already safe**: their content is reachable only through a flag-gated route, so with the flag off the hook returns no page and the classic sheet or hub sub-view renders instead.
 - **The Development Stage lens (Wave 3, DesignLab.tsx) is NOT safe.** It is in-tab content with no flag gate, so flag-off players see the new stage ladder (currently minus Testing). It needs the same classic/next treatment as the Company Overview - a small follow-up, not done here.
 - Any future in-tab redesign inherits this rule: **gate it, or it ships to everyone.**
+
+---
+
+## Follow-up closed: the Development Stage lens is gated (2026-09-16)
+
+**Commit 8d2b347.** R5's consequence is now fully discharged: the stage strip in DesignLab.tsx renders only when uiVersion === "next", so a flag-off build shows the Design Lab exactly as it was before Wave 3. The devStage derivation and developmentStage.ts are untouched - the lens is a rendering concern.
+
+**Verified by frame** at 1024x768 on the Design tab: flag-on shows the ladder (Concept / Design / Components / Finalize - Testing remains removed pending its action); flag-off shows no ladder, with the hero and Category selector unchanged.
+
+**Gate:** 	sc 0 - 2,004 tests / 185 files - build green - erify:ui2 PASS - udit:screens CLEAN - determinism pin green.
+
+**Flag-gating audit, now complete:** every surface that changes for flag-on players is behind the flag. The routed pages (Platform, Museum, Goals) are gated by the route itself; the Company Overview and the Development Stage lens are gated directly. Any future in-tab redesign inherits the rule: **gate it, or it ships to everyone.**
