@@ -43,7 +43,7 @@ export const BALANCE = {
     weeks: 1,
     flawChance: 0.45,
     rpToCatchFlaw: 25, // below this the prototype still tightens the forecast, but cannot find a flaw
-    confidenceGain: 18,
+    confidenceGain: 0.18, // confidence units (same scale as maxConfidence 0.85), ~21% of the cap
   },
 
   // --- Stats ---

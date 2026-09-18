@@ -908,14 +908,15 @@ export function DesignLab({
         </div>
       )}
 
-      {/* ── Test Prototype (Silicon 2.0) ── a PLAYER action: pay cash + one week for a tighter
-          forecast and a chance to flag the design's weakest stat. Flag-gated, so a classic build
-          renders the Design Lab exactly as before (no panel, testing step stays out of the ladder). */}
+      {/* ── Test Prototype (Silicon 2.0) ── a PLAYER action: pay cash ONCE PER DRAFT for a tighter
+          forecast and a chance to flag the design's weakest stat. It is an instant lab pass — it does
+          not advance the clock. Flag-gated, so a classic build renders the Design Lab exactly as
+          before (no panel, testing step stays out of the ladder). */}
       {uiVersion === "next" && (
         <Card className="lab__testing">
           <SectionHeader title="Testing" accessory={<span className="lab__testing-cost">{format(protoCost)}</span>} />
           <p className="lab__testing-lead">
-            <FlaskConical size={14} aria-hidden /> Run a prototype to flag the design's weakest point and tighten the launch forecast.
+            <FlaskConical size={14} aria-hidden /> One prototype per design — it flags the weakest point and tightens the launch forecast.
           </p>
           {proto ? (
             <div className={`lab__testing-outcome lab__testing-outcome--${proto.flaw ? "flaw" : "clean"}`}>

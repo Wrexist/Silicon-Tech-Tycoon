@@ -5906,11 +5906,13 @@ function weakestStatOf(stats: Stats): StatKey {
   return weak;
 }
 
-/** Run a prototype on the active design: pay `prototypeCost(era)` and spend one week, then record
- *  the outcome. PLAYER ACTION ONLY — it is never called from the tick, and its randomness is the
- *  derived hash of (seed, week, 317), so a run that never presses the button is untouched. `draft` is
- *  the Design Lab's local design; without one the roll still tightens the forecast but cannot name a
- *  flaw. Refusal returns the SAME state reference (a no-op, never a copy). */
+/** Run a prototype on the active design: pay `prototypeCost(era)` for an instant lab pass and record
+ *  the outcome. It costs cash and is usable ONCE PER DRAFT, but it does NOT advance the clock —
+ *  `advanceOneWeek` is the sole economy driver, so a calendar jump here would silently skip a week's
+ *  payroll/rent/revenue/build progress. PLAYER ACTION ONLY — never called from the tick, and its
+ *  randomness is the derived hash of (seed, week, 317), so a run that never presses the button is
+ *  untouched. `draft` is the Design Lab's local design; without one the roll still tightens the
+ *  forecast but cannot name a flaw. Refusal returns the SAME state reference (a no-op, never a copy). */
 export function runPrototype(s: GameState, draft?: Product | null): ActionResult {
   if (s.bankrupt) return { state: s, ok: false, reason: "Company is bankrupt." };
   if (prototypeState(s)) return { state: s, ok: false, reason: "A prototype has already been run for this design." };
@@ -5922,7 +5924,6 @@ export function runPrototype(s: GameState, draft?: Product | null): ActionResult
     state: {
       ...s,
       cash: sub(s.cash, cost),
-      week: s.week + 1,
       draftPrototype: { week: s.week, flaw: outcome.flaw },
     },
     ok: true,
@@ -5937,7 +5938,10 @@ export function forecastConfidenceInput(s: GameState): number {
     marketerSkill: marketerSkill(s),
     demandSensing: hasProject(s.completedProjects, "demandSensing"),
   });
-  return prototypeState(s) ? base + BALANCE.prototype.confidenceGain : base;
+  const gain = prototypeState(s) ? BALANCE.prototype.confidenceGain : 0;
+  // Clamp to the same [0, maxConfidence] range `forecastConfidence` documents, instead of leaving the
+  // overshoot for `forecastBand`/`forecastConfidenceLabel` to hide.
+  return Math.min(BALANCE.market.forecast.maxConfidence, base + gain);
 }
 
 export type MoraleKind = "bonus" | "offsite";
