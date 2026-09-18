@@ -84,6 +84,7 @@ import { KeynoteControl } from "../components/KeynoteControl.tsx";
 import { FurnitureThumb } from "../components/FurnitureThumb.tsx";
 import { isDarkTheme, useReducedMotionLive, webglSupported } from "../garage3d/support.ts";
 import type { BuildProps } from "../garage3d/Garage3D.tsx";
+import { setOfficeLiveContext } from "../garage3d/officeLive.ts";
 import { ErrorBoundary } from "../components/ErrorBoundary.tsx";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import type { Tab } from "../components/BottomNav.tsx";
@@ -548,6 +549,9 @@ function OfficeOverview({ state, zones, crowded }: { state: GameState; zones: Re
 // The garage/office scene + the interactive furniture builder ("Decorate" mode).
 function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, onOpenBank }: { use3d: boolean; reducedMotion: boolean; hasProduction: boolean; active: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
   const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, applyLayoutSnapshot, setLayout, setFloorStyle, setWallStyle } = useGame();
+  // Publish (seed, week) for the office's derived-hash scheduling (character work state). A module
+  // singleton, read per-frame, so the memoized 3D scene is never re-reconciled each week.
+  useEffect(() => { setOfficeLiveContext(state.seed, state.week); }, [state.seed, state.week]);
   const [build, setBuild] = useState(false);
   // The office no longer labels each teammate, so teach touch players ONCE that the team is tappable
   // (→ Company). Desktop already shows the WASD hint instead; both auto-fade.

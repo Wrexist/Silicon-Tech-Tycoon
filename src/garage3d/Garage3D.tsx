@@ -31,6 +31,7 @@ import { roomPalette, type RoomPalette } from "./palette.ts";
 import { ROBOT_COLORS, robotModelFor } from "./robotModels.ts";
 import { reactionIntensity, onHqReaction, HQ_REACTION_MS, type HqReaction } from "../design/hqReaction.ts";
 import { highlightIntensity } from "../design/hqHighlight.ts";
+import { officeSeed, officeWeek, workTargetFor } from "./officeLive.ts";
 
 /** Wraps an upgrade's physical office object(s); when its card is tapped (hqHighlight) it does a
  *  decaying attention hop so the player can SEE what that upgrade added. Additive y-offset only. */
@@ -824,7 +825,7 @@ function HeadAccessory({ accessory, hat }: { accessory: Accessory; hat: string }
 // lit tip, little arms + hands, rounded feet, metallic neck ring. ~1.45m tall, grounded at y=0.
 // `walking` toggles a stride swing; `sitting` folds it onto a chair; otherwise a gentle idle.
 // `accessory` (item 1.2) puts the employee's worn item on the head, so the seated robot IS them.
-function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = false, accessory = "none" }: { colorIdx: number; seed: number; moodColor?: string; walking?: boolean; sitting?: boolean; accessory?: Accessory }) {
+function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = false, accessory = "none", still = false }: { colorIdx: number; seed: number; moodColor?: string; walking?: boolean; sitting?: boolean; accessory?: Accessory; still?: boolean }) {
   const color = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
   const belly = useMemo(() => shade(color, 0.32), [color]);
   const dark = useMemo(() => shade(color, -0.5), [color]);
@@ -836,9 +837,22 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
   const armRRef = useRef<THREE.Group>(null);
   const legLRef = useRef<THREE.Group>(null);
   const legRRef = useRef<THREE.Group>(null);
+  // Work state (Wave 7): a derived hash of (seed, week, character) picks idle vs working, eased so
+  // the pose never snaps. Only re-hashed when the sim week changes, never per frame. `still`
+  // (Reduce Motion) pins it to idle so no NEW always-on motion runs.
+  const work = useRef(0);
+  const workWeek = useRef(-1);
+  const workTo = useRef(0);
 
-  useFrame((st) => {
+  useFrame((st, dt) => {
     const t = st.clock.elapsedTime + seed;
+    const wk = officeWeek();
+    if (workWeek.current !== wk) {
+      workWeek.current = wk;
+      workTo.current = still ? 0 : workTargetFor(officeSeed(), wk, Math.round(seed * 1000));
+    }
+    work.current += (workTo.current - work.current) * Math.min(1, dt * 1.6);
+    const w = work.current;
     // Living-office reactions: a bouncy hop + raised arms on a win (cheer), or a head-down droop on
     // a flop (slump). Both decay over the reaction window (hqReaction).
     const cheer = reactionIntensity("cheer");
@@ -847,7 +861,7 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
     // subtle head dip toward the screen sharing the same phase, so a bank of desks reads as busy
     // rather than frozen. Seeded (t already carries +seed; the extra +seed*3 further decorrelates)
     // so no two robots tap in lockstep. Purely additive over the folded sitting pose; zero when standing.
-    const type = sitting ? Math.sin(t * 7 + seed * 3) * 0.05 : 0;
+    const type = sitting ? Math.sin(t * 7 + seed * 3) * (0.02 + w * 0.08) : 0;
     // Seated robots are lifted onto the seat (SIT_LIFT above the floor pivot) and stay planted — no
     // standing bob — with a cheer reduced to a small in-seat bounce. SIT_LIFT lives here (not on the
     // parent) so a rigged .glb playing its own grounded "Sitting" clip isn't pushed off the chair.
@@ -858,10 +872,16 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
     if (root.current) root.current.position.y = baseY + hop - slump * 0.05; // sag a little on a flop
     if (headRef.current) {
       const calm = 1 - slump;
-      headRef.current.rotation.y = Math.sin(t * 0.6) * (walking ? 0.08 : 0.22) * calm;
+      // Working robots keep their head down on the screen; idle robots sit back and slowly look
+      // around the room (the derived work state w cross-fades the two — visible across the team).
+      const lookAround = sitting && !still ? (1 - w) * Math.sin(t * 0.45 + seed * 1.7) * 0.26 : 0;
+      headRef.current.rotation.y =
+        Math.sin(t * 0.6) * (walking ? 0.08 : 0.22) * calm * (sitting ? 0.35 + 0.65 * (1 - w) : 1) + lookAround;
       headRef.current.rotation.z = Math.sin(t * 0.95) * 0.04 * calm;
-      // hangs down on a flop; when seated, a tiny forward nod toward the screen shares the typing phase
-      headRef.current.rotation.x = slump * 0.55 + (sitting ? 0.02 * (0.5 + 0.5 * Math.sin(t * 7 + seed * 3)) : 0);
+      // hangs down on a flop; when seated, a forward nod toward the screen that deepens with work
+      headRef.current.rotation.x =
+        slump * 0.55 +
+        (sitting ? w * (0.1 + 0.03 * (0.5 + 0.5 * Math.sin(t * 7 + seed * 3))) : 0);
     }
     if (antRef.current) {
       antRef.current.rotation.z = Math.sin(t * 2.2) * (0.18 + cheer * 0.6) * (1 - slump);
@@ -871,7 +891,7 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
     // seated — and thrown overhead on a cheer.
     const arm = walking ? Math.sin(t * 6) * 0.7 : Math.sin(t * 1.6) * 0.12;
     const cheerArm = -2.0 * cheer; // raise both arms up
-    const sitArm = sitting ? -0.55 : 0; // bring hands forward onto the desk/lap
+    const sitArm = sitting ? -0.45 - w * 0.25 : 0; // working leans the hands further onto the desk
     if (armLRef.current) armLRef.current.rotation.x = -0.1 + arm + cheerArm + sitArm + type;
     if (armRRef.current) armRRef.current.rotation.x = -0.1 - arm + cheerArm + sitArm - type;
     // legs: brisk stride while walking, still when idle, folded forward at the hip when seated so
@@ -962,8 +982,8 @@ class RobotBoundary extends Component<{ fallback: ReactNode; children: ReactNode
 /** A robot by colour index: uses a dropped-in .glb model when one exists (see robotModels.ts),
  *  otherwise the hand-built parametric robot. `clip` requests an animation by name (e.g. "Idle",
  *  "Sitting") — ignored if the model doesn't ship that clip. A blob shadow grounds the model. */
-function OfficeRobot({ colorIdx, seed, moodColor, clip, walking = false, sitting = false, accessory = "none" }: { colorIdx: number; seed: number; moodColor?: string; clip?: string; walking?: boolean; sitting?: boolean; accessory?: Accessory }) {
-  const parametric = <RobotCharacter colorIdx={colorIdx} seed={seed} moodColor={moodColor} walking={walking} sitting={sitting} accessory={accessory} />;
+function OfficeRobot({ colorIdx, seed, moodColor, clip, walking = false, sitting = false, accessory = "none", still = false }: { colorIdx: number; seed: number; moodColor?: string; clip?: string; walking?: boolean; sitting?: boolean; accessory?: Accessory; still?: boolean }) {
+  const parametric = <RobotCharacter colorIdx={colorIdx} seed={seed} moodColor={moodColor} walking={walking} sitting={sitting} accessory={accessory} still={still} />;
   const model = robotModelFor(colorIdx);
   if (!model) return parametric;
   return (
@@ -994,7 +1014,7 @@ const ROAM_BOUND = 3.4; // stay on the floor slab
 
 // A robot that gently wanders within `radius` of its home, steering around furniture (simple
 // repulsion — the "physics" that keeps it out of the table) and facing its direction of travel.
-function RoamingRobot({ colorIdx, seed, home, radius = 1.1, accessory = "none" }: { colorIdx: number; seed: number; home: [number, number]; radius?: number; accessory?: Accessory }) {
+function RoamingRobot({ colorIdx, seed, home, radius = 1.1, accessory = "none", still = false }: { colorIdx: number; seed: number; home: [number, number]; radius?: number; accessory?: Accessory; still?: boolean }) {
   const grp = useRef<THREE.Group>(null);
   const s = useRef({ x: home[0], z: home[1], tx: home[0], tz: home[1], next: 0, face: 0 });
   useFrame((st, dt) => {
@@ -1035,7 +1055,7 @@ function RoamingRobot({ colorIdx, seed, home, radius = 1.1, accessory = "none" }
   });
   return (
     <group ref={grp}>
-      <OfficeRobot colorIdx={colorIdx} seed={seed} clip="Walking" walking accessory={accessory} />
+      <OfficeRobot colorIdx={colorIdx} seed={seed} clip="Walking" walking accessory={accessory} still={still} />
     </group>
   );
 }
@@ -1141,7 +1161,7 @@ function LivingMonitor({ seed, hasProduction, p }: { seed: number; hasProduction
   );
 }
 
-function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false, hasProduction = false }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId; flip?: boolean; hasProduction?: boolean }) {
+function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false, hasProduction = false, still = false }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId; flip?: boolean; hasProduction?: boolean; still?: boolean }) {
   // Item 1.2 — the seated robot is the EMPLOYEE: its shell colour + worn accessory come from their
   // Appearance (stable per person, not per seat), so the office shows your actual, distinct team.
   const personColor = staff ? staff.appearance.shirt % ROBOT_COLORS.length : colorIdx;
@@ -1186,7 +1206,7 @@ function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false
         <Chair p={p} hue={hue} />
         {staff && (
           <group position={[0, 0, -0.08]}>
-            <OfficeRobot colorIdx={personColor} seed={seed} moodColor={moodColor} clip="Sitting" sitting accessory={accessory} />
+            <OfficeRobot colorIdx={personColor} seed={seed} moodColor={moodColor} clip="Sitting" sitting accessory={accessory} still={still} />
           </group>
         )}
       </group>
@@ -1210,14 +1230,14 @@ function desktopWorlds(count: number): { x: number; z: number; rotY: number }[] 
   const n = Math.max(0, Math.min(4, count));
   return Array.from({ length: n }, (_, i) => ({ x: (i - (n - 1) / 2) * DESKTOP_SPACING, z: DESKTOP_ROW_Z, rotY: 0 }));
 }
-function DesktopPod({ p, worlds, staff, monitors, hasProduction = false, onTapStaff, startColorIdx }: { p: RoomPalette; worlds: { x: number; z: number; rotY: number }[]; staff: Staff[]; monitors: number; hasProduction?: boolean; onTapStaff?: (id: string) => void; startColorIdx: number }) {
+function DesktopPod({ p, worlds, staff, monitors, hasProduction = false, onTapStaff, startColorIdx, still = false }: { p: RoomPalette; worlds: { x: number; z: number; rotY: number }[]; staff: Staff[]; monitors: number; hasProduction?: boolean; onTapStaff?: (id: string) => void; startColorIdx: number; still?: boolean }) {
   return (
     <group>
       {worlds.map((w, i) => {
         const s = staff[i];
         return (
           <group key={i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
-            <Workstation p={p} staff={s} seed={(startColorIdx + i) * 2.1} monitors={monitors} colorIdx={(startColorIdx + i) % ROBOT_COLORS.length} hasProduction={hasProduction} powered />
+            <Workstation p={p} staff={s} seed={(startColorIdx + i) * 2.1} monitors={monitors} colorIdx={(startColorIdx + i) % ROBOT_COLORS.length} hasProduction={hasProduction} powered still={still} />
             {/* invisible tap target → opens this employee's roster card (matches the placed desks) */}
             {onTapStaff && s?.id && (
               <mesh
@@ -2048,7 +2068,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         const flip = occupiedSeatSides[seats[i].iid] ?? false;
         return (
           <group key={s.id ?? i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
-            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} flip={flip} hasProduction={hasProduction} />
+            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} flip={flip} hasProduction={hasProduction} still={still} />
             {/* invisible tap target over the desk+robot → opens this person's roster card. A
                 transparent (not visible:false) mesh so the raycaster still hits it. */}
             {onTapStaff && s.id && (
@@ -2064,11 +2084,11 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         );
       })}
       {!inBuild && roaming.map((s, i) => (
-        <RoamingRobot key={s.id ?? `roam${i}`} colorIdx={s.appearance.shirt % ROBOT_COLORS.length} seed={(seats.length + podCount + i) * 3.7} home={roamHomeFor(i)} accessory={s.appearance.accessory} />
+        <RoamingRobot key={s.id ?? `roam${i}`} colorIdx={s.appearance.shirt % ROBOT_COLORS.length} seed={(seats.length + podCount + i) * 3.7} home={roamHomeFor(i)} accessory={s.appearance.accessory} still={still} />
       ))}
       {/* Player-bought desktops — a tidy symmetric row that overflow employees sit at (so new
           hires get a desk like the founder). Hidden in Decorate mode like the live workstations. */}
-      {!inBuild && <DesktopPod p={p} worlds={podWorlds} staff={podStaff} monitors={monitors} hasProduction={hasProduction} onTapStaff={onTapStaff} startColorIdx={seats.length} />}
+      {!inBuild && <DesktopPod p={p} worlds={podWorlds} staff={podStaff} monitors={monitors} hasProduction={hasProduction} onTapStaff={onTapStaff} startColorIdx={seats.length} still={still} />}
       {/* wall-anchored fixtures scale with the room so they stay in the corners as the floor grows */}
       <group scale={sc}>
         <Props p={p} hasProduction={hasProduction} dark={dark} />

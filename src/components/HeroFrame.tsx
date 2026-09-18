@@ -2,18 +2,22 @@
 // scrim. It mounts the EXISTING Garage3D (the same scene HQ renders) rather than a second renderer,
 // and degrades to the latest product's DeviceRenderer when WebGL is unavailable or the scene throws.
 // Styles live in screens/company.css (`.co-hero`) because the hero is used only there.
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Building2 } from "lucide-react";
 import { ErrorBoundary } from "./ErrorBoundary.tsx";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { useLayoutMode } from "../design/layout.ts";
 import { isDarkTheme, useReducedMotionLive, webglSupported } from "../garage3d/support.ts";
+import { setOfficeLiveContext } from "../garage3d/officeLive.ts";
 import type { GameState } from "../state/gameState.ts";
 
 const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ default: m.Garage3D })));
 
 export function HeroFrame({ state }: { state: GameState }) {
   const reducedMotion = useReducedMotionLive();
+  // Publish (seed, week) for the office's derived-hash scheduling — even though the hero is a paused
+  // decorative scene, the same seam feeds the character state machine.
+  useEffect(() => { setOfficeLiveContext(state.seed, state.week); }, [state.seed, state.week]);
   const use3d = webglSupported();
   // The hero is DECORATIVE, and the HQ office already holds a live WebGL context (it is deliberately
   // kept mounted to preserve it). A second concurrent context is what this app's own history shows
