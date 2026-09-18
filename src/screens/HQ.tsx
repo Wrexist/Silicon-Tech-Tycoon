@@ -75,8 +75,8 @@ import { frontierCost, frontierBonuses, frontierBandName, FRONTIER_LANES, nextFr
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { useGame, useGameActions } from "../state/useGame.tsx";
-import { getSettings, setSettings } from "../state/settings.ts";
+import { useGame, useGameActions, useGameControls } from "../state/useGame.tsx";
+import { getSettings, setSettings, useSettings } from "../state/settings.ts";
 import { IsoScene } from "../components/IsoScene.tsx";
 import { DecorateTutorial } from "../components/DecorateTutorial.tsx";
 import { BuildProgress } from "../components/BuildProgress.tsx";
@@ -549,8 +549,10 @@ function OfficeOverview({ state, zones, crowded }: { state: GameState; zones: Re
 // The garage/office scene + the interactive furniture builder ("Decorate" mode).
 function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, onOpenBank }: { use3d: boolean; reducedMotion: boolean; hasProduction: boolean; active: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
   const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, applyLayoutSnapshot, setLayout, setFloorStyle, setWallStyle } = useGame();
-  // Publish (seed, week) for the office's derived-hash scheduling (character work state). A module
-  // singleton, read per-frame, so the memoized 3D scene is never re-reconciled each week.
+  const { paused: simPaused } = useGameControls();
+  const settings = useSettings();
+  // Publish (seed, week) for the office's derived-hash scheduling (character work state + chatter).
+  // A module singleton, read per-frame, so the memoized 3D scene is never re-reconciled each week.
   useEffect(() => { setOfficeLiveContext(state.seed, state.week); }, [state.seed, state.week]);
   const [build, setBuild] = useState(false);
   // The office no longer labels each teammate, so teach touch players ONCE that the team is tappable
@@ -763,6 +765,8 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
                 companyName={state.companyName}
                 dark={dark}
                 still={reducedMotion}
+                officeChatter={settings.officeChatter}
+                simPaused={simPaused}
                 onContextLost={onGlLost}
                 builder={builder}
                 roomStyle={state.roomStyle}

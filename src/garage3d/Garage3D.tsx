@@ -32,6 +32,7 @@ import { ROBOT_COLORS, robotModelFor } from "./robotModels.ts";
 import { reactionIntensity, onHqReaction, HQ_REACTION_MS, type HqReaction } from "../design/hqReaction.ts";
 import { highlightIntensity } from "../design/hqHighlight.ts";
 import { officeSeed, officeWeek, workTargetFor } from "./officeLive.ts";
+import SpeechBubbles, { type Speaker } from "./speechBubbles.tsx";
 
 /** Wraps an upgrade's physical office object(s); when its card is tapped (hqHighlight) it does a
  *  decaying attention hop so the player can SEE what that upgrade added. Additive y-offset only. */
@@ -1938,7 +1939,7 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
   );
 }
 
-function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, desktops = 0, paused = false, still = false, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; desktops?: number; paused?: boolean; still?: boolean; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
+function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, desktops = 0, paused = false, still = false, officeChatter = true, simPaused = false, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; desktops?: number; paused?: boolean; still?: boolean; officeChatter?: boolean; simPaused?: boolean; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
   const p = useMemo(() => roomPalette(dark), [dark]);
   const monitors = tierOf(upgrades, "computers") >= 2 ? 2 : 1;
   const amenityTier = tierOf(upgrades, "amenities");
@@ -1970,6 +1971,12 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   const podWorlds = desktopWorlds(podCount);
   const podStaff = overflow.slice(0, podCount);
   const roaming = overflow.slice(podCount, 16);
+  // Chatter speakers: every seated worker (placed desks + bought desktops) with their world spot, so
+  // a bubble can sit above whoever is talking. y=2.4 clears the seated robot's raised head (~1.9).
+  const speakers: Speaker[] = [
+    ...seated.map((s, i) => { const w = worldOf(seats[i], facilityTier); return { key: s.id ?? `seat${i}`, x: w.x, z: w.z, y: 2.4 }; }),
+    ...podStaff.map((s, i) => ({ key: s.id ?? `pod${i}`, x: podWorlds[i].x, z: podWorlds[i].z, y: 2.4 })),
+  ];
   // Occupied desks render as full live workstations, so hide their plain furniture models
   // (cozy view only — in Decorate mode the editable furniture pieces must stay visible).
   const occupiedIids = new Set(seated.map((_, i) => seats[i].iid));
@@ -2150,6 +2157,8 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
             // even the last emote's 2s pop still finishes inside the ~2.6s reaction window.
             return <CheerEmote key={e.key} pos={[e.w.x, LABEL_Y, e.w.z]} Icon={set[e.i % set.length]} tone={reaction === "slump" ? "slump" : "cheer"} delay={Math.min(e.i * 70, 520)} />;
           })}
+          {/* Office chatter (Wave 7) — deterministic, opt-out, and never under Reduce Motion. */}
+          {!still && officeChatter && speakers.length > 0 && <SpeechBubbles speakers={speakers} paused={paused || simPaused} />}
         </>
       )}
 
@@ -2180,6 +2189,8 @@ export const Garage3D = memo(function Garage3D({
   desktops = 0,
   paused = false,
   still = false,
+  officeChatter = true,
+  simPaused = false,
   onContextLost,
   onTapStaff,
   onTapBank,
@@ -2204,6 +2215,13 @@ export const Garage3D = memo(function Garage3D({
    *  one animation here that moves the whole viewport. Reduce Motion used to route players to the 2D
    *  scene instead, which silently hid every piece of furniture they had bought. */
   still?: boolean;
+  /** Show the team's small deterministic speech bubbles in the office (Settings → Office chatter).
+   *  Reduce Motion suppresses them regardless of this flag. */
+  officeChatter?: boolean;
+  /** The SIM's pause state (the HUD Pause button). The office render loop keeps running while the
+   *  sim is paused, so the chatter scheduler gates on this too: a paused game shows no new bubbles,
+   *  and any bubble up at the moment of pausing is cleared rather than frozen mid-air. */
+  simPaused?: boolean;
   /** Called when the WebGL context is lost so the host can downgrade to the 2D fallback. */
   onContextLost?: () => void;
   /** Tap an employee → open their roster card (host navigates to Company). */
@@ -2234,7 +2252,7 @@ export const Garage3D = memo(function Garage3D({
           );
         }}
       >
-        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} desktops={desktops} paused={paused} still={still} onTapStaff={onTapStaff} onTapBank={onTapBank} />
+        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} desktops={desktops} paused={paused} still={still} officeChatter={officeChatter} simPaused={simPaused} onTapStaff={onTapStaff} onTapBank={onTapBank} />
       </Canvas>
     </div>
   );

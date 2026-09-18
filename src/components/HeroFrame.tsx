@@ -9,14 +9,16 @@ import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { useLayoutMode } from "../design/layout.ts";
 import { isDarkTheme, useReducedMotionLive, webglSupported } from "../garage3d/support.ts";
 import { setOfficeLiveContext } from "../garage3d/officeLive.ts";
+import { useSettings } from "../state/settings.ts";
 import type { GameState } from "../state/gameState.ts";
 
 const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ default: m.Garage3D })));
 
 export function HeroFrame({ state }: { state: GameState }) {
   const reducedMotion = useReducedMotionLive();
+  const settings = useSettings();
   // Publish (seed, week) for the office's derived-hash scheduling — even though the hero is a paused
-  // decorative scene, the same seam feeds the character state machine.
+  // decorative scene, the same seam feeds the character state machine and the chatter scheduler.
   useEffect(() => { setOfficeLiveContext(state.seed, state.week); }, [state.seed, state.week]);
   const use3d = webglSupported();
   // The hero is DECORATIVE, and the HQ office already holds a live WebGL context (it is deliberately
@@ -55,6 +57,7 @@ export function HeroFrame({ state }: { state: GameState }) {
                 companyName={state.companyName}
                 dark={isDarkTheme()}
                 still={reducedMotion}
+                officeChatter={settings.officeChatter}
                 // the hero is decorative; a still scene avoids a second live WebGL loop
                 paused
                 roomStyle={state.roomStyle}
