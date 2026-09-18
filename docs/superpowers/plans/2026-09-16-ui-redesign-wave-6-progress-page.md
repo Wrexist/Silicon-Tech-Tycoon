@@ -162,3 +162,35 @@ Append a "Wave 6 outcome" section: status, commit range, gate output, the row-co
 - **Eight views stay in-page.** Converting them one per wave is the point: a single dropped view is a silent feature loss, and this session's consistent failure mode has been the plan, not the implementer.
 - **The hub does not gain a section rail.** It is an index; a rail would duplicate Platform's pattern for no benefit. Revisit only if the row list grows.
 - **No visual redesign of the rows here.** They keep their current markup; this wave is navigation only.
+
+---
+
+## Wave 6 outcome (2026-09-16)
+
+**Status: COMPLETE.** Tasks 1-3 batched and reviewed; no Critical or Important findings, so no fix round.
+
+**Gates (run by the controller):** 	sc 0 - **2,011 tests / 186 files** - build green - erify:ui2 PASS - erify:deeplink PASS (4/4) - udit:screens CLEAN - determinism pin green - no engine file touched.
+
+**What shipped:** the Progress hub is a routed **page** (PAGE_IDS/WIRED_PAGES/PAGE_TITLES all agree); the HUD trophy pushes it instead of opening a sheet; HQ's daily-challenge deep-link travels as a **path segment** (#/<root>/progress/challenges), consistent with the page-stack model; the **Goals** and **Device Museum** rows push their existing pages; and the sheet is now uiVersion === "classic" && progressOpen, so the flag-off path is provably unchanged.
+
+**Row coverage (ten before, ten after - nothing dropped):**
+
+| Row | Flag-on behaviour |
+|---|---|
+| Goals | pushes #/<root>/goals |
+| Device Museum | paywall-or-pushes #/<root>/museum (Pro gate is pre-existing) |
+| Company Roadmap, Category Mastery, The Vault, Founder Legend, Achievements, Scenarios, Challenges, Help & Guide | render in-page inside the hub (8) |
+
+The reviewer verified this against the live file rather than trusting the report, and confirmed the diff's two hunks reconcile to the stat line so no third hunk could be hiding a dropped row.
+
+**Flag-off parity:** 10-progress.png shows the classic bottom sheet (grab handle, trophy head + X, all rows); a pixel-diff against a pre-wave build showed 0.11% of bytes differing at maxDelta 2/255 - capture noise, not a layout change.
+
+**Deviations, both disclosed and accepted:** Task 2 also edited App.tsx by one line (onOpen={(p) => push(p)}) because the prop could not sit unused under 
+oUnusedParameters; and the Museum row's Pro gate is pre-existing.
+
+**Deferred minors:**
+
+1. App.tsx honours only section === "challenges"; any other path segment renders the hub while the URL claims the other section. No UI produces such a link today.
+2. In-page sub-view navigation does not write the URL, so deep-linking to #/hq/progress/challenges and tapping back leaves the URL stale until a reload. Acceptable while eight rows stay in-page.
+3. Progress.tsx's module header still describes the single-sheet model; comment-only drift.
+4. The new progress route is covered by the pageStack round-trip unit test but was **not** added to scripts/verify-deeplink-ui2.mjs's four-route table. Low value to add while the model-level round-trip already asserts it, but worth doing when the next route lands.
