@@ -22,7 +22,7 @@ export function recordFinancialWeek(
 
 /** Change from N weeks back to the latest week, per series, in whole dollars (the same units the
  *  history stores). Zero when there is not enough history — never a fabricated number. */
-export function growthDeltas(
+export function growthDeltaDollars(
   history: readonly FinancialWeek[],
   weeks: number,
 ): { revenue: number; expenses: number; profit: number } {
@@ -33,5 +33,23 @@ export function growthDeltas(
     revenue: last.revenue - past.revenue,
     expenses: last.expenses - past.expenses,
     profit: last.profit - past.profit,
+  };
+}
+
+/** Percentage change from N weeks back to the latest week, per series, rounded. A zero base yields
+ *  0, never Infinity — the chart must not draw a number it cannot justify. */
+export function growthDeltaPct(
+  history: readonly FinancialWeek[],
+  weeks: number,
+): { revenue: number; expenses: number; profit: number } {
+  const last = history[history.length - 1];
+  const past = history[history.length - 1 - weeks];
+  if (!last || !past) return { revenue: 0, expenses: 0, profit: 0 };
+  const pct = (now: number, then: number) =>
+    then === 0 ? 0 : Math.round(((now - then) / Math.abs(then)) * 100);
+  return {
+    revenue: pct(last.revenue, past.revenue),
+    expenses: pct(last.expenses, past.expenses),
+    profit: pct(last.profit, past.profit),
   };
 }

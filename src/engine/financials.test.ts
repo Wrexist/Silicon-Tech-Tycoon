@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { growthDeltas, recordFinancialWeek, type FinancialWeek } from "./financials.ts";
+import {
+  growthDeltaDollars,
+  growthDeltaPct,
+  recordFinancialWeek,
+  type FinancialWeek,
+} from "./financials.ts";
 
 const wk = (week: number, revenue: number, expenses: number): FinancialWeek =>
   ({ week, revenue, expenses, profit: revenue - expenses });
@@ -19,15 +24,35 @@ describe("financial history", () => {
   });
 
   it("returns zero deltas when there is nothing to compare", () => {
-    expect(growthDeltas([], 8)).toEqual({ revenue: 0, expenses: 0, profit: 0 });
-    expect(growthDeltas([wk(1, 10, 5)], 8)).toEqual({ revenue: 0, expenses: 0, profit: 0 });
+    expect(growthDeltaDollars([], 8)).toEqual({ revenue: 0, expenses: 0, profit: 0 });
+    expect(growthDeltaDollars([wk(1, 10, 5)], 8)).toEqual({ revenue: 0, expenses: 0, profit: 0 });
   });
 
   it("compares the latest week against the one N weeks back", () => {
     const h = [wk(1, 100, 40), wk(2, 110, 45), wk(3, 150, 50)];
-    const d = growthDeltas(h, 2);
+    const d = growthDeltaDollars(h, 2);
     expect(d.revenue).toBe(50);
     expect(d.expenses).toBe(10);
     expect(d.profit).toBe(40);
+  });
+});
+
+describe("growth deltas — units are explicit in the name", () => {
+  const h = [wk(1, 100, 40), wk(2, 110, 45), wk(3, 150, 50)];
+
+  it("reports absolute dollars", () => {
+    expect(growthDeltaDollars(h, 2).revenue).toBe(50);
+    expect(growthDeltaDollars(h, 2).expenses).toBe(10);
+  });
+
+  it("reports whole percent", () => {
+    expect(growthDeltaPct(h, 2).revenue).toBe(50);
+    expect(growthDeltaPct(h, 2).expenses).toBe(25);
+  });
+
+  it("never divides by zero when the past week was empty", () => {
+    const zero = [wk(1, 0, 0), wk(2, 0, 0), wk(3, 200, 30)];
+    expect(growthDeltaPct(zero, 2).revenue).toBe(0); // no fabricated percentage from a zero base
+    expect(growthDeltaPct(zero, 2).expenses).toBe(0);
   });
 });
