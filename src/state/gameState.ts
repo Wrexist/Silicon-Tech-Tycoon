@@ -5891,6 +5891,13 @@ export function prototypeState(s: GameState): { week: number; flaw: StatKey | nu
   return s.draftPrototype ?? null;
 }
 
+/** Forget the active draft's prototype result. Called when the Design Lab starts a fresh draft so a
+ *  new design never inherits (or displays) the previous one's outcome. No-op (same reference) when
+ *  there is nothing to clear, so it can never spur a needless re-render. */
+export function clearDraftPrototype(s: GameState): GameState {
+  return s.draftPrototype == null ? s : { ...s, draftPrototype: null };
+}
+
 /** The stat the active design is weakest in, from the SAME `productStats` the Design Lab's stat bars
  *  read, so a flagged flaw always names a stat the player can actually see. */
 function weakestStatOf(stats: Stats): StatKey {

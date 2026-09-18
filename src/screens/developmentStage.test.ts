@@ -28,6 +28,14 @@ describe("developmentStage", () => {
       .toEqual({ stage: "testing", index: 3 });
   });
 
+  it("lights the Testing step only when a prototype has actually run", () => {
+    // Wave 4 removed testing from the RENDERED ladder because it could never light up. The prototype
+    // action makes the branch reachable, so prove the signal (and only the signal) moves the lens.
+    expect(developmentStage(draft({ designStarted: true, componentsChosen: true })).stage).toBe("components");
+    expect(developmentStage(draft({ designStarted: true, componentsChosen: true, prototypeRun: true })))
+      .toEqual({ stage: "testing", index: 3 });
+  });
+
   it("reaches finalize while a build is underway", () => {
     expect(developmentStage(draft({ componentsChosen: true, prototypeRun: true, building: true })))
       .toEqual({ stage: "finalize", index: 4 });

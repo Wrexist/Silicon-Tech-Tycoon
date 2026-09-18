@@ -54,6 +54,8 @@ import {
   finishUnlockCost,
   insightFromPlan,
   marketerSkill,
+  prototypeState,
+  forecastConfidenceInput,
   planProduction,
   capacityPlan,
   contractSignFee,
@@ -68,7 +70,8 @@ import {
   type GameState,
 } from "../state/gameState.ts";
 import { runwayWeeks } from "../engine/economy.ts";
-import { forecastConfidence, forecastBand, forecastConfidenceLabel } from "../engine/forecast.ts";
+import { forecastBand, forecastConfidenceLabel } from "../engine/forecast.ts";
+import { prototypeCost } from "../engine/prototype.ts";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { useUiVersion } from "../state/uiVersion.ts";
 import { useLaunchProduct } from "../state/useLaunchProduct.ts";
@@ -267,7 +270,7 @@ export function DesignLab({
   seed?: Product | null;
   onSeedConsumed?: () => void;
 } = {}) {
-  const { state, build, launchReady, unlockLens, unlockFinish, negotiateContract } = useGame();
+  const { state, build, launchReady, unlockLens, unlockFinish, negotiateContract, runPrototype, clearPrototype } = useGame();
   const uiVersion = useUiVersion();
   const [contractSheet, setContractSheet] = useState<SupplierId | null>(null);
   const [draft, setDraft] = useState<Product>(() => (seed ? successorDraft(seed) : freshDraft(state)));
@@ -295,6 +298,7 @@ export function DesignLab({
   const franchises = useMemo(() => playerFranchises(state.launched), [state.launched]);
   const startFrom = (prev: Product | null) => {
     setDraft(prev ? successorDraft(prev) : freshDraft(state));
+    clearPrototype(); // a fresh design must not inherit the previous draft's prototype result
     setFace("front");
     setLabTab("components");
     setStartPicker(false);
@@ -321,9 +325,10 @@ export function DesignLab({
   useEffect(() => {
     if (!seed) return;
     setDraft(successorDraft(seed));
+    clearPrototype(); // the successor is a fresh draft — drop the prior prototype result
     setFace("front");
     onSeedConsumed?.();
-  }, [seed, onSeedConsumed]);
+  }, [seed, onSeedConsumed, clearPrototype]);
   const allCats = useMemo(() => Object.values(CATEGORIES), []);
   const unlockedCats = useMemo(
     () => allCats.filter((c) => isCategoryUnlocked(c.id, state.era)),
@@ -391,13 +396,23 @@ export function DesignLab({
   const fit = Math.round(breakdown.demand);
   const missing = missingSlots(draft);
   // Development Stage lens — a PURE read of where the draft sits in the pipeline. A lens, not a gate:
-  // it never blocks a build, and it reads only what the draft already carries. `prototypeRun` is wired
-  // by the Testing action in a later wave, so the step is present and supportable today.
+  // it never blocks a build, and it reads only what the draft already carries. `prototypeRun` is the
+  // real fact now that the Testing action ships, so the step can light up.
   const requiredSlots = CATEGORIES[draft.category].slots.length;
+  const proto = prototypeState(state);
+  const protoCost = prototypeCost(state.era);
+  // Why the Run-prototype button is disabled, or null when it is ready. A disabled control must
+  // always say why — no draft, already run (naming the week), bankrupt, or short of cash.
+  const protoDisabled =
+    !draft ? "No design yet."
+    : proto ? `Already run in week ${proto.week}.`
+    : state.bankrupt ? "Company is bankrupt."
+    : state.cash < protoCost ? `Need ${format(protoCost)}.`
+    : null;
   const devStage = developmentStage({
     designStarted: missing.length < requiredSlots,
     componentsChosen: missing.length === 0,
-    prototypeRun: false,
+    prototypeRun: proto !== null,
     building: state.building.length > 0,
   });
   const ceiling = designTierCeiling(state);
@@ -536,6 +551,7 @@ export function DesignLab({
     // Seed the next draft from the run that JUST started (not the stale pre-build state), so the
     // supply chain the player just chose carries into the follow-up design.
     setDraft({ ...freshDraft(state), name: suggestNextName(finished.name).slice(0, 22), supplierId: finished.supplierId, factoryId: finished.factoryId });
+    clearPrototype(); // a new design starts with a clean prototype slate
   }
 
   // Launch a finished product straight from the Lab — same premium beat HQ uses (haptics, sound,
@@ -807,6 +823,7 @@ export function DesignLab({
                   const tiers: Product["tiers"] = {};
                   for (const k of c.slots) tiers[k] = Math.min(draft.tiers[k] ?? 1, researchedTier(state, k)) || 1;
                   set({ category: c.id, tiers });
+                  clearPrototype(); // switching category rebuilds the design — drop the prior prototype result
                 }}
               >
                 <span className="lab__cat-icon" aria-hidden><CategoryIcon id={c.id} size={19} /></span>
@@ -867,11 +884,10 @@ export function DesignLab({
       {/* ── Development Stage lens ─────────────────────────────
           A read of where this draft is. It is a LENS, not a gate: it never blocks a build, and only
           stages that name an existing tab are interactive, so it can never strand you on a step with
-          no screen. Testing is omitted from the rendered ladder until the prototype action ships —
-          `prototypeRun` is hard-wired false, so it could only ever render as a dead control. */}
+          no screen. Testing lights up once a prototype has actually been run for this draft. */}
       {uiVersion === "next" && (
         <div className="lab__tabs" role="group" aria-label="Development stage">
-          {DEVELOPMENT_STAGES.filter((s) => s.stage !== "testing").map((s, i) => {
+          {DEVELOPMENT_STAGES.map((s, i) => {
             const on = s.stage === devStage.stage;
             const tab = STAGE_TAB[s.stage];
             return (
@@ -890,6 +906,57 @@ export function DesignLab({
             );
           })}
         </div>
+      )}
+
+      {/* ── Test Prototype (Silicon 2.0) ── a PLAYER action: pay cash + one week for a tighter
+          forecast and a chance to flag the design's weakest stat. Flag-gated, so a classic build
+          renders the Design Lab exactly as before (no panel, testing step stays out of the ladder). */}
+      {uiVersion === "next" && (
+        <Card className="lab__testing">
+          <SectionHeader title="Testing" accessory={<span className="lab__testing-cost">{format(protoCost)}</span>} />
+          <p className="lab__testing-lead">
+            <FlaskConical size={14} aria-hidden /> Run a prototype to flag the design's weakest point and tighten the launch forecast.
+          </p>
+          {proto ? (
+            <div className={`lab__testing-outcome lab__testing-outcome--${proto.flaw ? "flaw" : "clean"}`}>
+              <span className="lab__testing-week">Week {proto.week}</span>
+              {proto.flaw ? (
+                <>
+                  <span className="lab__testing-line">
+                    <AlertTriangle size={13} aria-hidden /> Flagged <strong>{STAT_LABEL_FULL[proto.flaw]}</strong> as this design's weak point.
+                  </span>
+                  <button className="lab__testing-link" onClick={() => { haptic.light(); setLabTab("components"); }}>
+                    Fix it in Components <ArrowRight size={13} aria-hidden />
+                  </button>
+                </>
+              ) : (
+                <span className="lab__testing-line">
+                  <Check size={13} aria-hidden /> No issues found — the forecast is tighter.
+                </span>
+              )}
+            </div>
+          ) : (
+            <>
+              <Button
+                block
+                disabled={protoDisabled !== null}
+                onClick={() => {
+                  const res = runPrototype(draft);
+                  if (!res.ok) {
+                    haptic.error();
+                    showToast(res.reason ?? "Couldn't run the prototype.", { tone: "negative", glyph: <AlertTriangle size={15} /> });
+                    return;
+                  }
+                  haptic.success();
+                  showToast("Prototype complete — the forecast is tighter", { tone: "positive", glyph: <FlaskConical size={15} /> });
+                }}
+              >
+                <FlaskConical size={16} /> Run prototype
+              </Button>
+              {protoDisabled && <p className="lab__testing-why">{protoDisabled}</p>}
+            </>
+          )}
+        </Card>
       )}
 
       {/* ── Section tab strip ───────────────────────────────── */}
@@ -2131,11 +2198,10 @@ function BuildWizard({
   const baseDemand = useMemo(() => planProduction(state, prod, units, "none").totalDemand, [state, prod, units]);
   const affordable = state.cash >= plan.totalUpfront;
   // C2 — the forecast band tightens as the player invests in market knowledge (marketer skill +
-  // Demand Sensing). The SAME confidence scales the realized launch variance, so this band is honest.
-  const forecastConf = forecastConfidence({
-    marketerSkill: marketerSkill(state),
-    demandSensing: state.completedProjects.includes("demandSensing"),
-  });
+  // Demand Sensing) AND with a completed Test Prototype. `forecastConfidenceInput` folds both in, so
+  // the wizard's confidence read is the SAME path the Lab's forecast uses (no parallel forecast). The
+  // SAME confidence scales the realized launch variance, so this band is honest.
+  const forecastConf = forecastConfidenceInput(state);
   const variancePct = forecastBand(forecastConf) * eraModifier(state.era).demandVariance; // Epic D — AI era is volatile
   const confLabel = forecastConfidenceLabel(forecastConf);
   const demandLow = Math.round(plan.totalDemand * (1 - variancePct));
