@@ -333,3 +333,18 @@ ull (or a hasBase flag) per series and omit the chip when the base is 0.
 **Minor (recorded):** the hero has no decorative/paused mode and its camera rig also answers global WASD; an all-zero chart forces the y-axis top to $1; DataChart's 	otal comes from series[0] only; the hero's in-scene tap labels are inert.
 
 **Process note:** the final whole-branch review was not run separately - the task review covered the batch. The wave is green but carries an unresolved Critical; do not treat it as merge-ready.
+
+---
+
+## R1 fix (2026-09-16)
+
+**Commit 78b6af7** - HeroFrame no longer creates an unguarded second WebGL context.
+
+- The live canvas is now gated to **tablet/wide** (useLayoutMode() !== "phone"); phones (and anything below the 800px breakpoint the shell uses) get the latest device's DeviceRenderer, or the building glyph when nothing has shipped. That removes the concurrent-context pressure on exactly the constrained devices the HQ design was built to protect.
+- The hero now passes **onContextLost**, so a lost context downgrades to the same fallback instead of leaving a dead canvas - ErrorBoundary cannot catch webglcontextlost, which is why the handler was required.
+
+**Verified:** 	sc 0 - 2,003 tests / 185 files - build green - erify:ui2 PASS - udit:screens CLEAN - determinism pin green - lazyBoundaries 11/11 - 	okenRefs 5/5.
+
+**Residual (recorded, not fixed):** on tablet/wide the hero still renders live (no paused). Deliberately left unset: Garage3D drives rameloop through VisibilityPause, and rameloop="never" from first mount risks a first paint with nothing drawn - a blank hero. The safe next step is a **device check**: if an iPad shows thermal or memory pressure with Company open, add paused and confirm the first frame still draws. Until then the wide-screen risk is moderate, not critical: the constrained-device path no longer mounts a second context at all.
+
+**Still open from Wave 4:** R2 (Cash chip shows the profit delta), R3 (Revenue/employee chip shows the revenue delta), R4 (a zero baseline fabricates a  %), R5 (the decision on whether the flag gates screen content).
