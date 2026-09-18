@@ -51,6 +51,8 @@ export function HeroFrame({ state }: { state: GameState }) {
                 companyName={state.companyName}
                 dark={isDarkTheme()}
                 still={reducedMotion}
+                // the hero is decorative; a still scene avoids a second live WebGL loop
+                paused
                 roomStyle={state.roomStyle}
                 desktops={state.desktops}
                 height="100%"

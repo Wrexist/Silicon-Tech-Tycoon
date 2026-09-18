@@ -1397,12 +1397,20 @@ function PendantLamp({ p }: { p: RoomPalette }) {
 // Factory world showing over it, another bottom tab) the instant the browser tab regains focus.
 function VisibilityPause({ paused = false }: { paused?: boolean }) {
   const setFrameloop = useThree((s) => s.setFrameloop);
+  const invalidate = useThree((s) => s.invalidate);
   useEffect(() => {
-    const apply = () => setFrameloop(paused || document.hidden ? "never" : "always");
+    const apply = () => {
+      const idle = paused || document.hidden;
+      // "demand" rather than "never": a paused scene must still draw ONCE, or a caller that mounts it
+      // already-paused (the Company hero) shows a blank canvas - "never" from first mount never runs
+      // the initial draw. An explicit invalidate guarantees that single frame.
+      setFrameloop(idle ? "demand" : "always");
+      if (idle) invalidate();
+    };
     apply();
     document.addEventListener("visibilitychange", apply);
     return () => document.removeEventListener("visibilitychange", apply);
-  }, [setFrameloop, paused]);
+  }, [setFrameloop, invalidate, paused]);
   return null;
 }
 
