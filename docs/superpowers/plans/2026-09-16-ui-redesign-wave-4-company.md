@@ -348,3 +348,27 @@ ull (or a hasBase flag) per series and omit the chip when the base is 0.
 **Residual (recorded, not fixed):** on tablet/wide the hero still renders live (no paused). Deliberately left unset: Garage3D drives rameloop through VisibilityPause, and rameloop="never" from first mount risks a first paint with nothing drawn - a blank hero. The safe next step is a **device check**: if an iPad shows thermal or memory pressure with Company open, add paused and confirm the first frame still draws. Until then the wide-screen risk is moderate, not critical: the constrained-device path no longer mounts a second context at all.
 
 **Still open from Wave 4:** R2 (Cash chip shows the profit delta), R3 (Revenue/employee chip shows the revenue delta), R4 (a zero baseline fabricates a  %), R5 (the decision on whether the flag gates screen content).
+
+---
+
+## R2-R5 resolved (2026-09-16)
+
+**Commit 3f9e17c** (plus 7e0ad0b for this record).
+
+- **R2** - the Cash tile's chip and tooltip are gone. inancialHistory has no cash series, so an absent chip is the honest answer; no other series was substituted for cash.
+- **R3** - the Revenue/employee chip and tooltip are gone. Same reasoning: a per-head delta needs both weeks' headcounts, and inventing that was more risk than the chip was worth.
+- **R4** - growthDeltaPct now returns 
+ull per series when the base week was zero, so "unknown" is distinguishable from "no change"; a null delta renders no chip and no tooltip. Tests updated, plus a case proving a non-zero base still returns a number.
+- **R5 - RULED: the flag gates screen content.** The dashboard (hero, tiles, chart, Key Stats) is now behind uiVersion === "next", and the classic path restores the **original** Overview readouts recovered from 20b8db2's diff (Cash, Weekly burn, Weekly income, Rev / headcount). Verified by reading both frames: flag-off shows the original Overview with no hero, tiles, chart or 3D.
+
+**Gate:** 	sc 0 - 2,004 tests / 185 files - build green - erify:ui2 PASS - erify:deeplink PASS (4/4) - udit:screens CLEAN - determinism pin green.
+
+**Residuals recorded:** the classic path still computes the Wave-4 strings it no longer renders (harmless waste); inPct.profit is now unused by the chips.
+
+## R5's consequence - one follow-up it implies
+
+Ruling "the flag gates screen content" means every in-place screen redesign needs a classic/next branch. Auditing that:
+
+- **Platform, Museum, Goals are already safe**: their content is reachable only through a flag-gated route, so with the flag off the hook returns no page and the classic sheet or hub sub-view renders instead.
+- **The Development Stage lens (Wave 3, DesignLab.tsx) is NOT safe.** It is in-tab content with no flag gate, so flag-off players see the new stage ladder (currently minus Testing). It needs the same classic/next treatment as the Company Overview - a small follow-up, not done here.
+- Any future in-tab redesign inherits this rule: **gate it, or it ships to everyone.**
