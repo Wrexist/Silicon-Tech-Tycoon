@@ -234,3 +234,37 @@ Append a "Wave 7 outcome" section: status, commit range, gate output, the model 
 2. **Frame rate.** Animating robots plus bubbles in a scene that is open for long stretches on phones. Throttle, cull off-screen, and measure.
 3. **The `demand` frameloop.** An idle scene now renders once. Any animation that must keep running has to keep the scene active — confirm the office is active while visible and that bubbles do not force a redraw when hidden.
 4. **The fetch may fail or be partial.** The pipeline is built for that; a partial fetch is a normal outcome, not a blocker. Report coverage rather than forcing it.
+
+---
+
+## Wave 7 pass 1 outcome (2026-09-16) - TASKS 0-2 DONE, TWO FINDINGS PARKED
+
+**Status:** Tasks 0 (speed dial), 1 (asset audit) and 2 (furnishing) are implemented and committed. The review returned **Needs fixes** with two Important findings; both are **parked with rulings** because one is a product decision and the other is a design choice, and the controller session is at its budget cap. Tasks 3-5 (robot animation, chat bubbles, popup motion) are **not started**.
+
+**Gates:** 	sc 0 - 2,011 tests / 186 files - build green - erify:ui2 PASS - udit:screens CLEAN - **determinism pin byte-identical**.
+
+### What landed
+
+- **The speed dial auto-hides while scrolling**, collapsing to a small dim pill so content is legible mid-scroll, restoring on idle.
+- **Asset audit (no blind re-fetch):** 23 of 86 catalog ids resolve to glTF, 63 fall back to parametric. public/furniture/ is 24 tracked .glb files, 262 KiB, already **excluded from the precache** with a CacheFirst runtime route - verified against ite.config.ts. Precache: 80 entries / 3,526.95 KiB.
+- **The showcase layout is now a furnished studio:** 3 desk bands with seated staff, a lounge, a meeting table, wall plants and branding - 34/34 placements, zero collisions, all in bounds.
+
+### The engine carve-out, reviewed
+
+The diff touches src/engine/furniture.ts. The reviewer examined it rather than rubber-stamping: the only behavioural change is the array defaultLayout() returns; no logic, no RNG. It traced both sim reads (officeAttrs folds ttrs, officeZoneBonus folds **category**), confirmed the new pieces are attr-free and - critically - that the one amenity-category piece (mascotStandee) sits 5 cells from the desk anchor so it contributes **zero** zone pairs. Both pins are sim-neutral. The accompanying test change **strengthens** coverage (it adds exact-set plus attrs/zone invariants) rather than deleting an assertion.
+
+### Parked findings
+
+**P1 (Important, PRODUCT DECISION) - the furnished room is showcase-only; a new player still gets a bare garage.**
+Furniture carries ttrs (comfort/focus/inspiration), and officeZoneBonus also rewards *categories* near a desk, so adding furnished pieces to the starter layout **moves the pinned simulation** (observed: esearchPoints 95 -> 103 from one chair).
+**Ruling: the starter stays bare, deliberately, and this is now documented.** The answer to "the office looks empty" is that the room is the player's own progression - you buy and place furniture, and the office fills as you do. Re-baselining the golden pin to allow a furnished starter is a **deliberate simulation change** and needs its own decision, not a side effect of an art pass. *Cost if wrong: a new player's first impression is a sparse room.*
+
+**P2 (Important, DESIGN CHOICE) - the dial still covers content at rest.**
+Auto-hide only helps *while* scrolling; after ~650ms idle the dial returns to full size over whatever is beneath it, which is the original complaint. Any fixed bottom chrome overlays content that scrolls under it - the tab bar does the same and is accepted because it reads as chrome.
+**Ruling: parked, because the honest fix is a design choice, not a bug fix.** Either the dial becomes docked chrome (one row above the tab bar, where content is expected to pass beneath) or it stays a floating control and the overlap is accepted as the price of thumb reach. Guessing would repeat the mistake of the first attempt, which "fixed" it by hiding it only half the time. *Cost if wrong: the dial can still sit over text when the player stops to read.*
+
+**P3 (Minor):** the new pin-safety comment in engine/furniture.ts says officeZoneBonus folds only ttrs. It folds **category** too - the sim is safe only because of the standee's coordinates. The comment should say the dressing is attr-free **and** kept ≥2 cells from any desk, or a future move silently shifts the pinned run.
+
+### Not started
+
+**Tasks 3-5:** robot animation clips, the chat-bubble layer, and the popup motion pass. They are the remaining half of Wave 7 and are ready as written.
