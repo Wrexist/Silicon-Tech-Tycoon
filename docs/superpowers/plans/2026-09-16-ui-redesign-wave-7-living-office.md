@@ -51,34 +51,31 @@ git commit -m "fix(ui2): reserve space for the floating speed dial so it stops c
 
 ---
 
-### Task 1: Fetch the Kenney asset set
+### Task 1: Asset coverage — what already landed, and what is actually used
 
 **Files:**
 - Runs: `scripts/fetch-furniture.mjs` (existing)
-- Adds: `public/furniture/*.glb` (committed)
-- Modifies: `src/garage3d/furnitureModels.ts` (only if the fetched set no longer matches its ids)
-- Modifies: the PWA precache config (`vite.config.*`) if models must be excluded
+- Inspects: `public/furniture/*.glb` (23 present), `src/garage3d/furnitureModels.ts`
+- Modifies: `furnitureModels.ts` only if coverage is poor; the PWA precache config only if needed
 
-- [ ] **Step 1: Run the fetch**
+**Corrected during plan self-review:** `public/furniture/` already contains **23 `.glb` models**, so the fetch has been run before. The sparse office in the capture is a **layout** problem (Task 2), not a missing-asset problem. Do not re-fetch blindly.
 
-```bash
-npm run furniture:fetch
-```
+- [ ] **Step 1: Audit coverage, do not re-fetch**
 
-It auto-discovers the download link; `KENNEY_URL=<zip>` overrides it. Report: how many models landed, their total size, and which catalog ids are still unmatched (those keep their parametric piece — that is fine, not a failure).
+Compare the 23 files against `furnitureModels.ts`'s registered ids and the catalog: how many catalog ids resolve to a glTF model, and which fall back to parametric? Report the list. Only run `npm run furniture:fetch` if coverage is genuinely poor — and if you do, report how many models landed and their total size.
 
-- [ ] **Step 2: Check the precache cost BEFORE committing**
+- [ ] **Step 2: Check what `public/furniture/` costs and whether it is tracked**
 
-Run `npm run build` and read the PWA's reported precache size. **If the models push the precache up materially, exclude `public/furniture/**` from precache** (they are lazy-loaded by `gltfFurniture.tsx`, so an offline-first player would lose them — measure and say which you chose, don't decide silently).
+Report (a) whether the `.glb` files are tracked in git, (b) their total size, and (c) the PWA's reported precache size from `npm run build` — and whether `public/furniture/**` is inside that glob. **If it is, say so and recommend exclusion**; these are lazy-loaded by `gltfFurniture.tsx`, so precaching them costs every player on first load. Do not change the config silently.
 
-- [ ] **Step 3: Verify, and commit**
+- [ ] **Step 3: Verify, and commit only if you changed something**
 
 Run: `npm run typecheck` → exit 0; `npm test` → green; `npm run build` → green
-Capture and **read** the Office tab at 1024×768 and confirm the glTF furniture renders in place of the parametric pieces (or that nothing regressed if the ids did not match).
+Capture and **read** the Office tab at 1024×768 and confirm which pieces render as glTF versus parametric, so Task 2's layout work builds on the truth.
 
 ```bash
 git add public/furniture src/garage3d/furnitureModels.ts vite.config.ts
-git commit -m "feat(office): ship the CC0 Kenney furniture models"
+git commit -m "feat(office): close the furniture asset coverage gap"
 ```
 
 ---
