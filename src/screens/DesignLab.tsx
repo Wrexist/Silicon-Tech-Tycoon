@@ -70,6 +70,7 @@ import {
 import { runwayWeeks } from "../engine/economy.ts";
 import { forecastConfidence, forecastBand, forecastConfidenceLabel } from "../engine/forecast.ts";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
+import { useUiVersion } from "../state/uiVersion.ts";
 import { useLaunchProduct } from "../state/useLaunchProduct.ts";
 import { claimReadyLaunch, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { BuildProgress } from "../components/BuildProgress.tsx";
@@ -267,6 +268,7 @@ export function DesignLab({
   onSeedConsumed?: () => void;
 } = {}) {
   const { state, build, launchReady, unlockLens, unlockFinish, negotiateContract } = useGame();
+  const uiVersion = useUiVersion();
   const [contractSheet, setContractSheet] = useState<SupplierId | null>(null);
   const [draft, setDraft] = useState<Product>(() => (seed ? successorDraft(seed) : freshDraft(state)));
   // Advanced sourcing (supplier/factory/contracts) is collapsed by default so the Components tab
@@ -867,26 +869,28 @@ export function DesignLab({
           stages that name an existing tab are interactive, so it can never strand you on a step with
           no screen. Testing is omitted from the rendered ladder until the prototype action ships —
           `prototypeRun` is hard-wired false, so it could only ever render as a dead control. */}
-      <div className="lab__tabs" role="group" aria-label="Development stage">
-        {DEVELOPMENT_STAGES.filter((s) => s.stage !== "testing").map((s, i) => {
-          const on = s.stage === devStage.stage;
-          const tab = STAGE_TAB[s.stage];
-          return (
-            <button
-              key={s.stage}
-              type="button"
-              className={`lab__tab${on ? " lab__tab--on" : ""}`}
-              aria-current={on ? "step" : undefined}
-              disabled={!tab}
-              title={tab ? `${s.label} — go to ${tab}` : `${s.label} — an optional lens step`}
-              style={tab ? undefined : { opacity: 0.5 }}
-              onClick={() => { if (!tab) return; haptic.light(); setLabTab(tab); }}
-            >
-              {i + 1} · {s.label}
-            </button>
-          );
-        })}
-      </div>
+      {uiVersion === "next" && (
+        <div className="lab__tabs" role="group" aria-label="Development stage">
+          {DEVELOPMENT_STAGES.filter((s) => s.stage !== "testing").map((s, i) => {
+            const on = s.stage === devStage.stage;
+            const tab = STAGE_TAB[s.stage];
+            return (
+              <button
+                key={s.stage}
+                type="button"
+                className={`lab__tab${on ? " lab__tab--on" : ""}`}
+                aria-current={on ? "step" : undefined}
+                disabled={!tab}
+                title={tab ? `${s.label} — go to ${tab}` : `${s.label} — an optional lens step`}
+                style={tab ? undefined : { opacity: 0.5 }}
+                onClick={() => { if (!tab) return; haptic.light(); setLabTab(tab); }}
+              >
+                {i + 1} · {s.label}
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* ── Section tab strip ───────────────────────────────── */}
       <div className="lab__tabs" role="tablist" aria-label="Design sections">
