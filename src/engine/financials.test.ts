@@ -50,9 +50,17 @@ describe("growth deltas — units are explicit in the name", () => {
     expect(growthDeltaPct(h, 2).expenses).toBe(25);
   });
 
-  it("never divides by zero when the past week was empty", () => {
+  it("reports null (not 0%) when the past week was empty", () => {
     const zero = [wk(1, 0, 0), wk(2, 0, 0), wk(3, 200, 30)];
-    expect(growthDeltaPct(zero, 2).revenue).toBe(0); // no fabricated percentage from a zero base
-    expect(growthDeltaPct(zero, 2).expenses).toBe(0);
+    // No honest percentage exists from a zero base — unknown, distinct from zero change.
+    expect(growthDeltaPct(zero, 2).revenue).toBeNull();
+    expect(growthDeltaPct(zero, 2).expenses).toBeNull();
+    expect(growthDeltaPct(zero, 2).profit).toBeNull();
+  });
+
+  it("still returns a number when the base week was non-zero", () => {
+    const h = [wk(1, 100, 40), wk(2, 110, 45), wk(3, 150, 50)];
+    expect(growthDeltaPct(h, 2).revenue).toBe(50);
+    expect(growthDeltaPct(h, 2).expenses).toBe(25);
   });
 });

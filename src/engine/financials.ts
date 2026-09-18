@@ -36,17 +36,20 @@ export function growthDeltaDollars(
   };
 }
 
-/** Percentage change from N weeks back to the latest week, per series, rounded. A zero base yields
- *  0, never Infinity — the chart must not draw a number it cannot justify. */
-export function growthDeltaPct(
-  history: readonly FinancialWeek[],
-  weeks: number,
-): { revenue: number; expenses: number; profit: number } {
+export interface GrowthPct {
+  revenue: number | null;
+  expenses: number | null;
+  profit: number | null;
+}
+
+/** Percentage change from N weeks back to the latest week, per series, rounded. A **null** means the
+ *  base week was zero, so no honest percentage exists — the caller must omit the chip rather than
+ *  print a fabricated 0%. */
+export function growthDeltaPct(history: readonly FinancialWeek[], weeks: number): GrowthPct {
   const last = history[history.length - 1];
   const past = history[history.length - 1 - weeks];
-  if (!last || !past) return { revenue: 0, expenses: 0, profit: 0 };
-  const pct = (now: number, then: number) =>
-    then === 0 ? 0 : Math.round(((now - then) / Math.abs(then)) * 100);
+  if (!last || !past) return { revenue: null, expenses: null, profit: null };
+  const pct = (now: number, then: number) => (then === 0 ? null : Math.round(((now - then) / Math.abs(then)) * 100));
   return {
     revenue: pct(last.revenue, past.revenue),
     expenses: pct(last.expenses, past.expenses),

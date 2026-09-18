@@ -188,14 +188,22 @@ export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
     }))
     .sort((a, b) => b.weeklyProfit - a.weeklyProfit);
 
-  // ── Company Overview dashboard (Wave 4) ────────────────────────────────────────────────────────
-  const finHistory = state.financialHistory ?? [];
+  // ── Company Overview dashboard (Wave 4, flag-gated) ────────────────────────────────────────────
+  // The flag gates screen content, not just chrome: with it off the Overview is the shipped
+  // readout, so the Wave 4 data is only prepared when "next" is active and never reads
+  // financialHistory on the classic path.
+  const isNext = uiVersion === "next";
+  const finHistory = isNext ? (state.financialHistory ?? []) : [];
   // A real 8-week delta needs a baseline point at index length-1-8, i.e. at least 9 rows. Short
   // history renders the tile with no chip rather than a fabricated 0%.
   const hasFinDelta = finHistory.length >= 9;
   const finPct = growthDeltaPct(finHistory, 8);
   const finDollars = growthDeltaDollars(finHistory, 8);
   const dollarsTitle = (n: number) => (hasFinDelta ? `8-week change: ${formatShortDollars(n)}` : undefined);
+  // Only the income and burn tiles carry a chip. Profit is not a cash series (capex, hiring and debt
+  // service all break the link) and revenue-per-head moves with headcount, so neither can be inferred
+  // from what financialHistory records — an absent chip is the honest answer. A null pct means the
+  // base week was zero, so no percentage exists; omit the chip there too.
   const revPerHead =
     state.staff.length > 0
       ? `${format(dollars(Math.round(toDollars(wkRev) / state.staff.length)))}/wk`
@@ -220,10 +228,8 @@ export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
     { id: "expenses", label: "Expenses", colour: "var(--negative)", points: finHistory.map((h) => h.expenses) },
     { id: "profit", label: "Profit", colour: "var(--accent)", points: finHistory.map((h) => h.profit) },
   ];
-  const cashChip = hasFinDelta ? growthChip(finPct.profit, true) : null;
-  const incomeChip = hasFinDelta ? growthChip(finPct.revenue, true) : null;
-  const burnChip = hasFinDelta ? growthChip(finPct.expenses, false) : null;
-  const revHeadChip = hasFinDelta && state.staff.length > 0 ? growthChip(finPct.revenue, true) : null;
+  const incomeChip = finPct.revenue !== null ? growthChip(finPct.revenue, true) : null;
+  const burnChip = finPct.expenses !== null ? growthChip(finPct.expenses, false) : null;
 
   return (
     <div className="co">
@@ -257,14 +263,16 @@ export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
       <div className="co__pane" role="tabpanel" id="co-tabpanel" aria-labelledby={`co-tab-${coTab}`}>
 
       {coTab === "overview" && (<>
+      {/* Wave 4 dashboard — gated on the flag so a flag-off build is the game as it was. */}
+      {isNext && (<>
       {/* Hero — the company's own office in 3D, framed with its name + era. */}
       <HeroFrame state={state} />
 
       {/* Dashboard stat tiles. These replace the financials readout that used to sit in the
           Financials card below (Cash / weekly burn / weekly income / revenue-per-head). */}
       <div className="co-tiles">
-        <div className="co-tiles__cell" title={dollarsTitle(finDollars.profit)}>
-          <StatTile label="Cash" value={<AnimatedMoney value={state.cash} />} delta={cashChip?.text} deltaTone={cashChip?.tone} />
+        <div className="co-tiles__cell">
+          <StatTile label="Cash" value={<AnimatedMoney value={state.cash} />} />
         </div>
         <div className="co-tiles__cell" title={dollarsTitle(finDollars.revenue)}>
           <StatTile label="Weekly income" value={format(wkRev)} delta={incomeChip?.text} deltaTone={incomeChip?.tone} />
@@ -272,8 +280,8 @@ export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
         <div className="co-tiles__cell" title={dollarsTitle(finDollars.expenses)}>
           <StatTile label="Weekly burn" value={format(wkBurn)} delta={burnChip?.text} deltaTone={burnChip?.tone} />
         </div>
-        <div className="co-tiles__cell" title={dollarsTitle(finDollars.revenue)}>
-          <StatTile label="Revenue / employee" value={revPerHead} delta={revHeadChip?.text} deltaTone={revHeadChip?.tone} />
+        <div className="co-tiles__cell">
+          <StatTile label="Revenue / employee" value={revPerHead} />
         </div>
       </div>
 
@@ -309,6 +317,7 @@ export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
           ]}
         />
       </Card>
+      </>)}
 
       {/* Financials */}
       <Card>
@@ -321,6 +330,15 @@ export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
           }
         />
         <div className="co__fin-grid">
+          {/* Classic readout — the four stats Wave 4 promoted into tiles, restored exactly when the
+              flag is off so a flag-off build is the game as it was. */}
+          {uiVersion === "classic" && (
+            <>
+              <Stat label="Cash" value={<AnimatedMoney value={state.cash} />} />
+              <Stat label="Weekly burn" value={format(wkBurn)} tone="negative" />
+              <Stat label="Weekly income" value={format(wkRev)} tone="positive" />
+            </>
+          )}
           <Stat label="Research" value={`+${weeklyRpGen(state).toFixed(1)} RP`} tone="neutral" />
           {toDollars(ecoRev) > 0 && (
             <Stat label="Services" value={format(ecoRev)} tone="positive" hint="/wk" />
@@ -341,6 +359,14 @@ export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
               />
             );
           })()}
+          {uiVersion === "classic" && state.staff.length > 0 && toDollars(wkRev) > 0 && (
+            <Stat
+              label="Rev / headcount"
+              value={format(dollars(Math.round(toDollars(wkRev) / state.staff.length)))}
+              tone="accent"
+              hint="/wk"
+            />
+          )}
         </div>
         <div className="co__spark">
           <Sparkline data={cashData} stroke={state.cash >= 0 ? "var(--accent)" : "var(--negative)"} />
