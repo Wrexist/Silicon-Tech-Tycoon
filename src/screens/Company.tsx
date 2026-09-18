@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowUp, BarChart3, Boxes, Building2, Coffee, Compass, Factory, FlaskConical, Gem, GraduationCap, Landmark, Layers, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, TrendingDown, Trophy, Users, Wand2, X } from "lucide-react";
-import { Button, Card, EmptyState, SectionHeader, Sheet, Slider, Stat, StatPill } from "../design/primitives.tsx";
+import { ArrowUp, BarChart3, Boxes, Building2, Coffee, Compass, Factory, FlaskConical, Gem, Globe, GraduationCap, Landmark, Layers, Package, PencilRuler, Megaphone, Rocket, Search, Smile, Sparkles, Star, TrendingDown, TrendingUp, Trophy, Users, Wand2, X } from "lucide-react";
+import { Button, Card, EmptyState, KeyStatsPanel, SectionHeader, Sheet, Slider, Stat, StatPill, StatTile } from "../design/primitives.tsx";
 import { PlatformSheet } from "./Platform.tsx";
 import { ProChip } from "../components/Paywall.tsx";
 import { openPaywall } from "../state/paywall.ts";
@@ -59,7 +59,11 @@ import { totalDebt, weeklyDebtService, weeklyPaymentFor } from "../engine/financ
 import { isDisciplineLead, mentorshipXpMult } from "../engine/org.ts";
 import { useGame, useGameActions } from "../state/useGame.tsx";
 import { useUiVersion } from "../state/uiVersion.ts";
-import { Sparkline } from "../components/charts.tsx";
+import { DataChart, Sparkline } from "../components/charts.tsx";
+import { HeroFrame } from "../components/HeroFrame.tsx";
+import { growthDeltaDollars, growthDeltaPct } from "../engine/financials.ts";
+import { customerRating, criticReviews } from "../engine/reviews.ts";
+import { worldCoverage } from "../engine/regions.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
@@ -79,6 +83,14 @@ function runwayTone(weeks: number): "positive" | "negative" | "neutral" {
   if (weeks === Infinity) return "positive";
   if (weeks < 6) return "negative";
   return "neutral";
+}
+
+/** A tile's delta chip: the raw percent keeps its true sign, while the TONE follows the metric's
+ *  meaning — a rising burn (goodWhenUp false) reads `down`/negative even though the number is +. */
+function growthChip(pct: number, goodWhenUp: boolean): { text: string; tone: "up" | "down" | "flat" } {
+  const text = `${pct > 0 ? "+" : ""}${pct}%`;
+  const tone = pct === 0 ? "flat" : (pct > 0) === goodWhenUp ? "up" : "down";
+  return { text, tone };
 }
 
 const ASSIGN_LABEL: Record<Assignment, string> = {
@@ -176,6 +188,43 @@ export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
     }))
     .sort((a, b) => b.weeklyProfit - a.weeklyProfit);
 
+  // ── Company Overview dashboard (Wave 4) ────────────────────────────────────────────────────────
+  const finHistory = state.financialHistory ?? [];
+  // A real 8-week delta needs a baseline point at index length-1-8, i.e. at least 9 rows. Short
+  // history renders the tile with no chip rather than a fabricated 0%.
+  const hasFinDelta = finHistory.length >= 9;
+  const finPct = growthDeltaPct(finHistory, 8);
+  const finDollars = growthDeltaDollars(finHistory, 8);
+  const dollarsTitle = (n: number) => (hasFinDelta ? `8-week change: ${formatShortDollars(n)}` : undefined);
+  const revPerHead =
+    state.staff.length > 0
+      ? `${format(dollars(Math.round(toDollars(wkRev) / state.staff.length)))}/wk`
+      : "—";
+  // The most recent launch (launched is newest-first) through the same criticReviews the Market
+  // screen uses, so the number matches the review the player can read there. No launches → the
+  // Wave 3 "No data" label, never a 0.
+  const lastLaunch = state.launched[0];
+  const lastReviews = lastLaunch
+    ? criticReviews({
+        productId: lastLaunch.product.id,
+        stats: lastLaunch.stats,
+        verdict: lastLaunch.verdict ?? "steady",
+        demandFit: lastLaunch.insight?.demandFit ?? 60,
+        priceFit: lastLaunch.insight?.priceFit ?? 1,
+        betterRivals: lastLaunch.insight?.betterRivals ?? 0,
+      })
+    : null;
+  const rating = customerRating(lastReviews ? lastReviews.outlets.map((o) => o.score) : []);
+  const growthSeries = [
+    { id: "revenue", label: "Revenue", colour: "var(--positive)", points: finHistory.map((h) => h.revenue) },
+    { id: "expenses", label: "Expenses", colour: "var(--negative)", points: finHistory.map((h) => h.expenses) },
+    { id: "profit", label: "Profit", colour: "var(--accent)", points: finHistory.map((h) => h.profit) },
+  ];
+  const cashChip = hasFinDelta ? growthChip(finPct.profit, true) : null;
+  const incomeChip = hasFinDelta ? growthChip(finPct.revenue, true) : null;
+  const burnChip = hasFinDelta ? growthChip(finPct.expenses, false) : null;
+  const revHeadChip = hasFinDelta && state.staff.length > 0 ? growthChip(finPct.revenue, true) : null;
+
   return (
     <div className="co">
       {/* Sub-navigation — three destinations so Company isn't one endless scroll, and Platform gets
@@ -208,6 +257,59 @@ export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
       <div className="co__pane" role="tabpanel" id="co-tabpanel" aria-labelledby={`co-tab-${coTab}`}>
 
       {coTab === "overview" && (<>
+      {/* Hero — the company's own office in 3D, framed with its name + era. */}
+      <HeroFrame state={state} />
+
+      {/* Dashboard stat tiles. These replace the financials readout that used to sit in the
+          Financials card below (Cash / weekly burn / weekly income / revenue-per-head). */}
+      <div className="co-tiles">
+        <div className="co-tiles__cell" title={dollarsTitle(finDollars.profit)}>
+          <StatTile label="Cash" value={<AnimatedMoney value={state.cash} />} delta={cashChip?.text} deltaTone={cashChip?.tone} />
+        </div>
+        <div className="co-tiles__cell" title={dollarsTitle(finDollars.revenue)}>
+          <StatTile label="Weekly income" value={format(wkRev)} delta={incomeChip?.text} deltaTone={incomeChip?.tone} />
+        </div>
+        <div className="co-tiles__cell" title={dollarsTitle(finDollars.expenses)}>
+          <StatTile label="Weekly burn" value={format(wkBurn)} delta={burnChip?.text} deltaTone={burnChip?.tone} />
+        </div>
+        <div className="co-tiles__cell" title={dollarsTitle(finDollars.revenue)}>
+          <StatTile label="Revenue / employee" value={revPerHead} delta={revHeadChip?.text} deltaTone={revHeadChip?.tone} />
+        </div>
+      </div>
+
+      {/* Company Growth — revenue, expenses and profit over the recorded weeks. */}
+      <Card>
+        <SectionHeader title="Company growth" />
+        {finHistory.length > 0 ? (
+          <DataChart
+            series={growthSeries}
+            weeks={finHistory.map((h) => h.week)}
+            xLabel="Week"
+            formatValue={formatShortDollars}
+          />
+        ) : (
+          <EmptyState
+            glyph={<TrendingUp size={36} strokeWidth={1.6} />}
+            title="No history yet"
+            sub="Revenue, expenses and profit appear here after your first week."
+          />
+        )}
+      </Card>
+
+      {/* Key stats — lifetime products, market coverage and the last launch's buyer rating. */}
+      <Card>
+        <SectionHeader title="Key stats" />
+        <KeyStatsPanel
+          items={[
+            { icon: <Package size={20} />, label: "Products shipped", value: state.launched.length },
+            { icon: <Globe size={20} />, label: "Global reach", value: `${Math.round(worldCoverage(state.unlockedRegions) * 100)}%` },
+            lastLaunch
+              ? { icon: <Star size={20} />, label: "Customer rating", value: `${rating.score}/100`, hint: rating.label }
+              : { icon: <Star size={20} />, label: "Customer rating", value: rating.label },
+          ]}
+        />
+      </Card>
+
       {/* Financials */}
       <Card>
         <SectionHeader
@@ -219,9 +321,6 @@ export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
           }
         />
         <div className="co__fin-grid">
-          <Stat label="Cash" value={<AnimatedMoney value={state.cash} />} />
-          <Stat label="Weekly burn" value={format(wkBurn)} tone="negative" />
-          <Stat label="Weekly income" value={format(wkRev)} tone="positive" />
           <Stat label="Research" value={`+${weeklyRpGen(state).toFixed(1)} RP`} tone="neutral" />
           {toDollars(ecoRev) > 0 && (
             <Stat label="Services" value={format(ecoRev)} tone="positive" hint="/wk" />
@@ -242,14 +341,6 @@ export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
               />
             );
           })()}
-          {state.staff.length > 0 && toDollars(wkRev) > 0 && (
-            <Stat
-              label="Rev / headcount"
-              value={format(dollars(Math.round(toDollars(wkRev) / state.staff.length)))}
-              tone="accent"
-              hint="/wk"
-            />
-          )}
         </div>
         <div className="co__spark">
           <Sparkline data={cashData} stroke={state.cash >= 0 ? "var(--accent)" : "var(--negative)"} />

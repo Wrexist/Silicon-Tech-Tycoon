@@ -11,6 +11,78 @@
   gap: var(--sp-12);
 }
 
+/* Overview hero — the company's own 3D office with the name + era over a gradient scrim. */
+.co-hero {
+  position: relative;
+  height: 220px;
+  overflow: hidden;
+  border-radius: var(--r-card);
+  background: var(--surface-2);
+  border: 1px solid var(--glass-stroke);
+  box-shadow: var(--glass-highlight), var(--shadow-card);
+}
+.co-hero__scene {
+  position: absolute;
+  inset: 0;
+}
+.co-hero__fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
+.co-hero__fallback--empty {
+  color: var(--ink-3);
+  background: linear-gradient(160deg, var(--accent-soft), var(--surface-2));
+}
+.co-hero__scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, transparent 32%, color-mix(in srgb, var(--bg) 80%, transparent) 100%);
+}
+.co-hero__meta {
+  position: absolute;
+  left: var(--sp-16);
+  right: var(--sp-16);
+  bottom: var(--sp-12);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: none;
+}
+.co-hero__eyebrow {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.co-hero__name {
+  font-size: var(--fs-title);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-shadow: 0 1px 8px color-mix(in srgb, var(--bg) 70%, transparent);
+}
+
+/* Dashboard stat tiles — 2-up on a phone, 4-up on the wide dashboard. */
+.co-tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-12);
+}
+.co-tiles__cell {
+  display: flex;
+  min-width: 0;
+}
+@media (min-width: 800px) {
+  .co-tiles {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
 /* Company sub-navigation — Overview · Team · Platform. A sticky segmented control so the three
    destinations stay one tap away however far the section scrolls. */
 .co__subnav {
