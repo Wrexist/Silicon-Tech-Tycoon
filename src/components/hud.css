@@ -172,7 +172,17 @@
   -webkit-backdrop-filter: saturate(180%) blur(20px);
   border: 1px solid var(--hairline);
   box-shadow: var(--shadow-floating);
-  animation: speeddial-in var(--spring-standard) both;
+  /* No fill-mode: the entrance must not pin `transform`/`opacity` after it finishes, or the
+     scroll-collapse state below could never win. */
+  animation: speeddial-in var(--spring-standard);
+  transition: opacity var(--spring-standard), scale var(--spring-standard);
+}
+/* While the page scrolls, shrink to a small, mostly-transparent pill so the chart/text passing
+   under the fixed dial stays readable. A short idle restores full size. `scale` (not `transform`)
+   so it never fights the fixed positioning or the entrance keyframe. */
+.speeddial--scrolling {
+  opacity: 0.3;
+  scale: 0.62;
 }
 .speeddial__btn {
   width: 48px;

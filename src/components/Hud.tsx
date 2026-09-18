@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Calendar, FastForward, FlaskConical, Pause, Play, Settings as SettingsIcon, SkipForward, Star, Trophy } from "lucide-react";
 import { AnimatedInt, AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { format } from "../engine/money.ts";
@@ -119,13 +120,37 @@ export function Hud({ onSettings, onOpenBank, onOpenProgress, progressAttention 
 /** Thumb-reachable floating simulation-speed control (Pause/Resume + Fast-forward). Rendered after
  *  the tutorial, when the time controls leave the top HUD; hidden on the Design tab where the build
  *  wizard owns the bottom band. Sits just above the tab bar at the bottom-right (App gates it). */
+/** True while the page is actively scrolling (with a short idle tail), so a fixed control can
+ *  fade out of the way of the text passing underneath it and snap back when the player stops. */
+function useScrolling(idleMs = 650): boolean {
+  const [scrolling, setScrolling] = useState(false);
+  const timer = useRef<number | null>(null);
+  useEffect(() => {
+    const onScroll = () => {
+      setScrolling(true);
+      if (timer.current != null) window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => setScrolling(false), idleMs);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (timer.current != null) window.clearTimeout(timer.current);
+    };
+  }, [idleMs]);
+  return scrolling;
+}
+
 export function SpeedDial() {
   // Controls + actions only — never the game state — so the dial doesn't re-render on the weekly
   // tick (F36). It reads pacing flags, which change only when the player taps.
   const { paused, fast, skipping } = useGameControls();
   const { setPaused, setFast, setSkipping } = useGameActions();
+  // The dial is `position: fixed` for thumb reach, so it sits OVER whatever scrolls beneath it.
+  // While the player is scrolling it shrinks to a small, mostly-transparent pill; a short idle
+  // restores it. Reach is kept, mid-read coverage is not.
+  const scrolling = useScrolling();
   return (
-    <div className="speeddial" role="group" aria-label="Simulation speed">
+    <div className={`speeddial${scrolling ? " speeddial--scrolling" : ""}`} role="group" aria-label="Simulation speed">
       <button
         className="speeddial__btn"
         onClick={() => { if (!paused) setSkipping(false); setPaused(!paused); }}
