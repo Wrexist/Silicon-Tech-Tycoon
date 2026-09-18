@@ -463,7 +463,7 @@
   align-items: flex-end;
   justify-content: center;
   z-index: 50;
-  animation: ds-fade var(--spring-snappy);
+  animation: ds-fade var(--spring-standard);
 }
 .ds-sheet {
   width: 100%;
@@ -480,7 +480,10 @@
   border-radius: var(--r-sheet) var(--r-sheet) 0 0;
   box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), var(--shadow-floating);
   padding: var(--sp-24) var(--edge) calc(var(--sp-32) + env(safe-area-inset-bottom));
-  animation: ds-rise var(--spring-standard);
+  /* The gentler spring settles the sheet softly as it rises — the scrim uses the standard spring so
+     the card and its dim finish together. Both are the shared motion tokens (never a raw duration). */
+  animation: ds-rise var(--spring-gentle);
+  will-change: transform, opacity;
   /* drag-to-dismiss snaps back to here when released short of the threshold */
   transition: transform var(--spring-standard);
 }
