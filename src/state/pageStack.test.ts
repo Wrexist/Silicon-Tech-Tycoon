@@ -121,6 +121,15 @@ describe("routeFromHash", () => {
     });
   });
 
+  it("reads the Progress hub's deep-linked section from the path", () => {
+    // HQ's daily-challenge card links straight to challenges: the view travels as the PATH SEGMENT,
+    // not a query string, so `hashForRoute` and `routeFromHash` must agree on this shape.
+    expect(routeFromHash("#/hq/progress/challenges", "hq")).toEqual({
+      root: "hq",
+      frame: frame("progress", "hq", { section: "challenges" }),
+    });
+  });
+
   it("reads a trailing section into params", () => {
     expect(routeFromHash("#/company/settings/services", "hq")).toEqual({
       root: "company",

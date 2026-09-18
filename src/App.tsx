@@ -47,6 +47,9 @@ const PlatformPanel = lazy(() => import("./screens/Platform.tsx").then((m) => ({
 const MuseumPanel = lazy(() => import("./screens/Museum.tsx").then((m) => ({ default: m.MuseumPanel })));
 // The routed Goals page (Silicon 2.0). Lazy for the same reason, and Progress already splits it.
 const GoalsPanel = lazy(() => import("./screens/GoalsLedger.tsx").then((m) => ({ default: m.GoalsPanel })));
+// The routed Progress hub page (Silicon 2.0). Lazy for the same reason, and the classic sheet above
+// already splits the same module.
+const ProgressPanel = lazy(() => import("./screens/Progress.tsx").then((m) => ({ default: m.ProgressPanel })));
 import { enableDailyReminders, notificationsAvailable } from "./state/notifications.ts";
 import { getSettings, setSettings } from "./state/settings.ts";
 import { useUiVersion } from "./state/uiVersion.ts";
@@ -238,7 +241,7 @@ function AppShell() {
       <Hud
         onSettings={() => (uiVersion === "next" ? push("settings") : setSettingsOpen(true))}
         onOpenBank={openBank}
-        onOpenProgress={hasShipped ? () => openProgress() : undefined}
+        onOpenProgress={hasShipped ? () => (uiVersion === "next" ? push("progress") : openProgress()) : undefined}
         progressAttention={vaultSummary(state).newLeads > 0}
       />
       {showRail && (
@@ -285,7 +288,7 @@ function AppShell() {
             )}
           </div>
           <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
-            <HQ onNavigate={setTab} onOpenBank={openBank} onOpenChallenges={() => openProgress("challenges")} onViewFactory={() => { setHqWorld("factory"); haptic.light(); }} active={tab === "hq" && page == null} world={hqWorld} />
+            <HQ onNavigate={setTab} onOpenBank={openBank} onOpenChallenges={() => (uiVersion === "next" ? push("progress", { section: "challenges" }) : openProgress("challenges"))} onViewFactory={() => { setHqWorld("factory"); haptic.light(); }} active={tab === "hq" && page == null} world={hqWorld} />
           </ErrorBoundary>
         </div>
         {/* The other screens are light (no WebGL), so they keep the snappy keyed remount that
@@ -341,6 +344,18 @@ function AppShell() {
             <Suspense fallback={<ScreenLoading title={PAGE_TITLES.goals} />}>
               {/* The sheet's own container class supplies the column gap; the panel is just the body. */}
               <div className="gl"><GoalsPanel /></div>
+            </Suspense>
+          </ErrorBoundary>
+        )}
+        {page === "progress" && (
+          <ErrorBoundary fallback={<ScreenError onHome={pop} />}>
+            <Suspense fallback={<ScreenLoading title={PAGE_TITLES.progress} />}>
+              {/* HQ's daily-challenge card deep-links to the challenge view; like Platform's section,
+                  the view travels as the URL's path segment so a reload restores it. */}
+              <ProgressPanel
+                key={params.section ?? "hub"}
+                initialView={params.section === "challenges" ? "challenges" : "hub"}
+              />
             </Suspense>
           </ErrorBoundary>
         )}

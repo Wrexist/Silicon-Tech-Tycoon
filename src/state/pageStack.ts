@@ -8,7 +8,7 @@ export type RootId = "hq" | "design" | "research" | "market" | "company";
 
 /** Every page the router can name. The `PageId` union is DERIVED from this array, and `WIRED_PAGES`
  *  is checked against it, so a page can never be declared without a test noticing it has no screen. */
-export const PAGE_IDS = ["settings", "platform", "museum", "goals"] as const;
+export const PAGE_IDS = ["settings", "platform", "museum", "goals", "progress"] as const;
 export type PageId = (typeof PAGE_IDS)[number];
 
 export type RouteParams = Readonly<Record<string, string>>;
@@ -28,11 +28,12 @@ export const PAGE_TITLES: Record<PageId, string> = {
   platform: "Platform",
   museum: "Device Museum",
   goals: "Goals",
+  progress: "Progress",
 };
 
 /** Pages that have a render block in the shell TODAY. `PageId` is deliberately wider than this set:
  *  the type names the pages the model will carry, this names the ones that can actually be shown. */
-export const WIRED_PAGES: readonly PageId[] = ["settings", "platform", "museum", "goals"];
+export const WIRED_PAGES: readonly PageId[] = ["settings", "platform", "museum", "goals", "progress"];
 
 const ROOTS: readonly RootId[] = ["hq", "design", "research", "market", "company"];
 

@@ -37,11 +37,23 @@ import "./progress.css";
 
 type View = "hub" | "achievements" | "scenarios" | "challenges" | "museum" | "legend" | "goals" | "roadmap" | "help" | "mastery" | "vault";
 
+/** The classic sheet: chrome (the hub's trophy head and close affordance) around the shared body,
+ *  so the flag-off sheet and the routed Silicon-2.0 page can never drift apart. */
 export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () => void; initialView?: View }) {
+  return <ProgressPanel onClose={onClose} initialView={initialView} />;
+}
+
+/** The hub's content, without the routed page header — used by the routed Progress page (Silicon 2.0)
+ *  and by the classic sheet above, so the two can never drift. It owns the internal sub-view state and
+ *  every row. `onClose` supplies the sheet's close chrome (absent on the routed page). */
+export function ProgressPanel({ initialView = "hub", onClose }: {
+  initialView?: View;
+  onClose?: () => void;
+}) {
   const { state } = useGame();
   const pro = useIsPro();
-  // The sheet unmounts when closed, so the initial view is honoured fresh on every open — this is
-  // how HQ's daily-challenge card deep-links straight to Challenges.
+  // The sheet unmounts when closed, so the initial view is honoured fresh on every open. The routed
+  // page passes a fresh `initialView` and a `key` for each URL section, so every push re-mounts clean.
   const [view, setView] = useState<View>(initialView);
   const toHub = () => setView("hub");
 
@@ -84,7 +96,8 @@ export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () =>
   // The Vault — counts only; the hub must never leak what any file contains.
   const vault = vaultSummary(state);
 
-  // Sub-views render their content directly inside App's single Sheet (back-arrow returns to the hub).
+  // Sub-views render their content directly in the host (the classic Sheet, or the routed page); the
+  // back arrow returns to the hub.
   if (view === "achievements") return <AchievementsSheet unlocked={earnedAchievements} onClose={toHub} />;
   if (view === "scenarios") return <ScenariosSheet onClose={toHub} />;
   if (view === "challenges") return <ChallengesSheet onClose={toHub} />;
@@ -98,14 +111,18 @@ export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () =>
 
   return (
     <div className="prog">
-      <div className="prog__head">
-        <span className="prog__head-glyph" aria-hidden><Trophy size={22} /></span>
-        <div className="prog__head-info">
-          <h2 className="prog__title">Progress</h2>
-          <p className="prog__subtitle">Milestones, challenges and the devices you've shipped.</p>
+      {/* Sheet-only chrome: the routed page gets its title and back affordance from the shell's
+          PageHeader, so this head (and its Close button) renders only for the classic sheet. */}
+      {onClose && (
+        <div className="prog__head">
+          <span className="prog__head-glyph" aria-hidden><Trophy size={22} /></span>
+          <div className="prog__head-info">
+            <h2 className="prog__title">Progress</h2>
+            <p className="prog__subtitle">Milestones, challenges and the devices you've shipped.</p>
+          </div>
+          <button className="prog__close" onClick={onClose} aria-label="Close"><X size={18} /></button>
         </div>
-        <button className="prog__close" onClick={onClose} aria-label="Close"><X size={18} /></button>
-      </div>
+      )}
 
       <button className="prog__row" onClick={() => setView("goals")}>
         <span className="prog__row-glyph" aria-hidden><ListChecks size={20} /></span>
