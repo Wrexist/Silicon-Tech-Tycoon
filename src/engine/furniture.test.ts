@@ -84,12 +84,15 @@ describe("furniture grid model", () => {
     expect(solids).toBeGreaterThan(0);
   });
 
-  it("the starter garage is exactly the founder's desk + a plant (one seat for the founder)", () => {
+  it("the starter garage is the founder's desk + a plant + attr-free dressing (one seat for the founder)", () => {
     const l = defaultLayout();
-    expect(l.map((i) => i.type).sort()).toEqual(["dualDesk", "plantPot"]);
+    expect(l.map((i) => i.type).sort()).toEqual(["crates", "dualDesk", "ladder", "mascotStandee", "plantPot", "tireStack"]);
     // the one desk-category item is the founder's seat
     expect(deskItems(l)).toHaveLength(1);
     expect(deskItems(l)[0].type).toBe("dualDesk");
+    // PIN-SAFETY: the dressing must be attr-free, or the office buffs (and the pinned run) move.
+    expect(officeAttrs(l)).toEqual({ comfort: 2, focus: 5, inspiration: 0 });
+    expect(officeZoneBonus(l)).toEqual({ comfort: 0, focus: 0, inspiration: 0 });
   });
 
   it("default layout seats the founder (≥1 desk) and deskItems keeps a stable placement order", () => {

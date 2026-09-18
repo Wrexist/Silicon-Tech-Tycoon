@@ -766,14 +766,25 @@ export function removeItem(layout: PlacedItem[], iid: string): PlacedItem[] {
   return layout.filter((x) => x.iid !== iid);
 }
 
-/** The starting garage is deliberately BARE — just the founder's desk and a single plant.
- *  Everything else is bought from the office shop (Decorate), which is the whole point: the
- *  player builds the office up. The one desk is the founder's seat; hiring needs another desk.
- *  Collision-checked by the defaultLayout test. (Existing saves keep their own layout.) */
+/** The starting garage is deliberately BARE — the founder's desk, a plant, and a few purely
+ *  cosmetic garage props. Everything that CARRIES A BUFF is still bought from the office shop
+ *  (Decorate), which is the whole point: the player builds the office up. The one desk is the
+ *  founder's seat; hiring needs another desk, so every added prop here has NO office attrs.
+ *
+ *  PIN-SAFE BY CONSTRUCTION: `officeAttrs`/`officeZoneBonus` fold only `attrs`, and the props below
+ *  have none, so the per-week RP/mood/design buffs — and therefore the pinned 120-week run — are
+ *  byte-identical to the old two-piece starter. The founder's desk and plant stay exactly where they
+ *  were, and the props sit in the far corners so the seat planner's first-fit desks never land
+ *  beside the one amenity (the plant). Collision-checked by the defaultLayout test. */
 export function defaultLayout(): PlacedItem[] {
   const mk = (i: number, type: FurnitureId, c: number, r: number, rot: Rot = 0): PlacedItem => ({ iid: `f${i}`, type, c, r, rot });
   return [
     mk(1, "dualDesk", 3, 4, 0), // the founder's desk, centred — a proper dual-screen computer setup
     mk(2, "plantPot", 7, 6, 0), // a single touch of green
+    // Cosmetic-only dressing (attrs-free) so the bare garage reads lived-in, not empty.
+    mk(3, "crates", 0, 8, 0), // stacked boxes by the door
+    mk(4, "tireStack", 2, 8, 0), // garage flavour
+    mk(5, "ladder", 4, 8, 0), // propped against the front wall
+    mk(6, "mascotStandee", 8, 8, 0), // the fledgling brand's standee, front-right corner
   ];
 }
