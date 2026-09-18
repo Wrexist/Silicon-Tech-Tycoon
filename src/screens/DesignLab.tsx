@@ -175,8 +175,8 @@ const LAB_TABS: { id: LabTab; label: string }[] = [
   { id: "launch", label: "Launch" },
 ];
 
-/** Which existing tab each stage names. `testing` has no screen yet — the lens shows the step (it is
- *  reachable) but never strands the player on it, because Testing is never required. */
+/** Which existing tab each stage names. `testing` has no screen yet, and its action does not ship —
+ *  the lens omits it from the rendered ladder entirely until that action exists. */
 const STAGE_TAB: Record<DevelopmentStage, LabTab | null> = {
   concept: "components",
   design: "style",
@@ -863,11 +863,12 @@ export function DesignLab({
       </Card>
 
       {/* ── Development Stage lens ─────────────────────────────
-          A five-step read of where this draft is. It is a LENS, not a gate: it never blocks a build,
-          and only stages that name an existing tab are interactive, so it can never strand you on a
-          step with no screen. Testing is the one new step, and it is never required. */}
+          A read of where this draft is. It is a LENS, not a gate: it never blocks a build, and only
+          stages that name an existing tab are interactive, so it can never strand you on a step with
+          no screen. Testing is omitted from the rendered ladder until the prototype action ships —
+          `prototypeRun` is hard-wired false, so it could only ever render as a dead control. */}
       <div className="lab__tabs" role="group" aria-label="Development stage">
-        {DEVELOPMENT_STAGES.map((s, i) => {
+        {DEVELOPMENT_STAGES.filter((s) => s.stage !== "testing").map((s, i) => {
           const on = s.stage === devStage.stage;
           const tab = STAGE_TAB[s.stage];
           return (
