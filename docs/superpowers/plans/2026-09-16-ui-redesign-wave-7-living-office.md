@@ -268,3 +268,38 @@ Auto-hide only helps *while* scrolling; after ~650ms idle the dial returns to fu
 ### Not started
 
 **Tasks 3-5:** robot animation clips, the chat-bubble layer, and the popup motion pass. They are the remaining half of Wave 7 and are ready as written.
+
+---
+
+## Wave 7 pass 2 outcome (2026-09-16) - COMPLETE
+
+**Status:** Tasks 3-5 implemented, reviewed, and the review's two Important findings fixed. Wave 7 is done.
+
+**Gates:** 	sc 0 - **2,014 tests / 187 files** - build green - erify:ui2 PASS - udit:screens CLEAN - **determinism pin byte-identical** - no engine file touched.
+
+### Delivered
+
+- **Robots idle, work and cheer** on a derived schedule (a bespoke cosmeticHash01, salts 401/419/421/433/439 - now registered in CLAUDE.md). Two frames a few weeks apart show different poses.
+- **Chat bubbles**: small rounded panels with runtime-drawn text (no image or font asset), capped at 2, billboarded above the speaker, on by default, absent when officeChatter is off, absent under Reduce Motion (the layer is not mounted), and **frozen while the sim is held** - proven by two captures taken ~2.6s apart with the sim paused, both showing no bubbles.
+- **Every popup entrance is on the shared --spring-* tokens.** The pass diagnosed a real bug: the tokens embed a duration, so the old shorthand had become an invalid declaration or a 350ms delay.
+- The officeChatter preference lives in the UI-only settings store, so it survives a new company and never enters the save.
+
+### The finding worth carrying forward
+
+**The glTF robot path is dead, and it predates this wave.** obotModels.ts globs ./models/robot_*.glb, but that directory contains only ase.glb, so every character has always rendered as the **parametric** robot and the animation here is procedural. This also explains why the report could not claim clip-driven animation.
+
+**Latent trap:** if someone renames ase.glb to obot_shared.glb, the characters become the rigged sample and gltfRobot.tsx plays a fixed clip while ignoring still and the work target - the new idle/working distinction would silently vanish. **Follow-up, not a Wave 7 defect.**
+
+### Review findings, fixed
+
+1. **Bubble timing was render-wall-clock.** It now accumulates **active-only** time, so a held sim produces nothing new and captures are stable. The comment states the honest trade-off: content is a derived hash; timing advances with active play, because pinning timing to the sim would need a tick counter this layer does not receive, and exact cross-session timing is not a goal for cosmetic chatter.
+2. **Bubbles did not pause under an interrupt overlay.** The hold is now paused || suspended (the real key on useGameControls()), so a decision card holds the office exactly like a manual pause.
+3. Cleanups: deleted the dead officeWeekKey(), and added officeLive.test.ts (3 tests) to lock the derived helpers.
+
+### Deferred minors
+
+- The work-target key is the **seat** seed, not staffId, so a character's state does not follow them if seating changes.
+- speechBubbles.tsx's module-level texture cache is never disposed (bounded, but it lives for the page lifetime).
+- speakers is rebuilt every Scene render; bubbles only re-seat on the next slot.
+- Pre-existing Math.random remains in RoamingRobot, Dust and BallBin - UI-only, never touching the engine, but worth knowing in a wave about ambient determinism.
+- **Perf note:** the office measured 23.8 fps in headless SwiftShader. That is a **software-render floor, not a device number** - the real figure needs a phone or iPad.
