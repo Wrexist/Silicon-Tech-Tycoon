@@ -45,10 +45,12 @@ export function ProgressSheet({ onClose, initialView = "hub" }: { onClose: () =>
 
 /** The hub's content, without the routed page header — used by the routed Progress page (Silicon 2.0)
  *  and by the classic sheet above, so the two can never drift. It owns the internal sub-view state and
- *  every row. `onClose` supplies the sheet's close chrome (absent on the routed page). */
-export function ProgressPanel({ initialView = "hub", onClose }: {
+ *  every row. `onClose` supplies the sheet's close chrome (absent on the routed page); `onOpen` routes
+ *  the rows that already have their own page instead of swapping the view in place. */
+export function ProgressPanel({ initialView = "hub", onClose, onOpen }: {
   initialView?: View;
   onClose?: () => void;
+  onOpen?: (page: "goals" | "museum") => void;
 }) {
   const { state } = useGame();
   const pro = useIsPro();
@@ -57,15 +59,25 @@ export function ProgressPanel({ initialView = "hub", onClose }: {
   const [view, setView] = useState<View>(initialView);
   const toHub = () => setView("hub");
 
-  /** Open a hub row, or the offer that unlocks it. The rows stay TAPPABLE when locked rather than
-   *  greying out — a lock you can't press teaches nothing about what's behind it, and a row that
-   *  answers "what is this?" converts far better than one that just refuses. */
-  const openView = (target: View, feature: ProFeature) => () => {
-    if (isLocked(feature, pro)) {
-      openPaywall({ reason: feature, onUnlocked: () => setView(target) });
+  /** Goals and Device Museum already have routed pages: on the routed hub their rows push instead of
+   *  swapping the internal view. The other eight rows stay in-page until each earns its own page. */
+  const routeView = (target: View) => {
+    if (onOpen && (target === "goals" || target === "museum")) {
+      onOpen(target);
       return;
     }
     setView(target);
+  };
+
+  /** Open a hub row, or the offer that unlocks it. The rows stay TAPPABLE when locked rather than
+   *  greying out — a lock you can't press teaches nothing about what's behind it, and a row that
+   *  answers "what is this?" converts far better than one that just refuses. */
+  const openView = (target: View, feature?: ProFeature) => () => {
+    if (feature && isLocked(feature, pro)) {
+      openPaywall({ reason: feature, onUnlocked: () => routeView(target) });
+      return;
+    }
+    routeView(target);
   };
 
   const museumCount = getMuseum().length;
@@ -97,7 +109,7 @@ export function ProgressPanel({ initialView = "hub", onClose }: {
   const vault = vaultSummary(state);
 
   // Sub-views render their content directly in the host (the classic Sheet, or the routed page); the
-  // back arrow returns to the hub.
+  // back arrow returns to the hub. Goals and Museum never reach here on the routed page — they push.
   if (view === "achievements") return <AchievementsSheet unlocked={earnedAchievements} onClose={toHub} />;
   if (view === "scenarios") return <ScenariosSheet onClose={toHub} />;
   if (view === "challenges") return <ChallengesSheet onClose={toHub} />;
@@ -124,7 +136,7 @@ export function ProgressPanel({ initialView = "hub", onClose }: {
         </div>
       )}
 
-      <button className="prog__row" onClick={() => setView("goals")}>
+      <button className="prog__row" onClick={openView("goals")}>
         <span className="prog__row-glyph" aria-hidden><ListChecks size={20} /></span>
         <span className="prog__row-info">
           <span className="prog__row-title">Goals</span>

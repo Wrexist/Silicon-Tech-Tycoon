@@ -355,6 +355,7 @@ function AppShell() {
               <ProgressPanel
                 key={params.section ?? "hub"}
                 initialView={params.section === "challenges" ? "challenges" : "hub"}
+                onOpen={(p) => push(p)}
               />
             </Suspense>
           </ErrorBoundary>
