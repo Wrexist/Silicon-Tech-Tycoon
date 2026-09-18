@@ -151,8 +151,10 @@
   color: var(--accent-ink);
 }
 
-/* Floating, thumb-reachable simulation-speed control (post-tutorial). Docked bottom-right, just
-   above the tab bar; hidden on the Design tab (App gates it) so it never fights the build wizard. */
+/* Floating, thumb-reachable simulation-speed control (post-tutorial). Docked bottom-left, just
+   above the tab bar; hidden on the Design tab (App gates it) so it never fights the build wizard.
+   RESTING state is collapsed: one small glass button, so a fixed control that can't dodge the
+   content scrolling under it covers as little as possible. Tapping discloses the full pill. */
 .speeddial {
   position: fixed;
   /* Bottom-LEFT: card CTAs (Advance / Unlock / IPO) are right-aligned, so the left gutter is the
@@ -165,7 +167,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--sp-6);
-  padding: var(--sp-6);
+  padding: 0; /* collapsed footprint is exactly the button */
   border-radius: var(--r-pill);
   background: var(--glass);
   backdrop-filter: saturate(180%) blur(20px);
@@ -175,11 +177,15 @@
   /* No fill-mode: the entrance must not pin `transform`/`opacity` after it finishes, or the
      scroll-collapse state below could never win. */
   animation: speeddial-in var(--spring-standard);
-  transition: opacity var(--spring-standard), scale var(--spring-standard);
+  transition: opacity var(--spring-standard), scale var(--spring-standard), padding var(--spring-standard);
+}
+.speeddial--open {
+  padding: var(--sp-6);
 }
 /* While the page scrolls, shrink to a small, mostly-transparent pill so the chart/text passing
-   under the fixed dial stays readable. A short idle restores full size. `scale` (not `transform`)
-   so it never fights the fixed positioning or the entrance keyframe. */
+   under the fixed dial stays readable. A short idle restores the collapsed button. `scale` (not
+   `transform`) so it never fights the fixed positioning or the entrance keyframe; the dial is
+   already collapsed while scrolling (the component closes it), so this is only extra subtlety. */
 .speeddial--scrolling {
   opacity: 0.3;
   scale: 0.62;
@@ -194,10 +200,23 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: transform var(--spring-snappy), background var(--spring-snappy);
+  transition: transform var(--spring-snappy), background var(--spring-snappy), width var(--spring-snappy), height var(--spring-snappy);
 }
 .speeddial__btn:active {
   transform: scale(0.94);
+}
+/* Collapsed: the container's own glass + border IS this button's chrome, so strip the inner one
+   and shrink to a ~44px thumb target. Expanded it becomes the pause/resume control like its peers. */
+.speeddial:not(.speeddial--open) .speeddial__btn--primary {
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  border-color: transparent;
+}
+/* The two disclosed controls slide out of the collapsed button. Reduced Motion shortens the token,
+   so the reveal still happens, just without travel. */
+.speeddial--open .speeddial__btn:not(.speeddial__btn--primary) {
+  animation: speeddial-reveal var(--spring-snappy);
 }
 .speeddial__btn--on {
   background: var(--accent);
@@ -207,6 +226,10 @@
 @keyframes speeddial-in {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+@keyframes speeddial-reveal {
+  from { opacity: 0; transform: translateX(-6px) scale(0.9); }
+  to { opacity: 1; transform: none; }
 }
 /* Decorate is a full-screen editor that owns the bottom band: its category strip and the
    selected-item toolbar live exactly where this floating dial sits (bottom-left), so the dial
