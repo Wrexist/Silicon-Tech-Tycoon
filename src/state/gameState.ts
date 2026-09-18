@@ -175,6 +175,7 @@ import { REGIONS, regionById, regionReach, regionTasteLabel } from "../engine/re
 import { regionalEventDue, generateRegionalEvent, REGIONAL_EVENT_COPY, type RegionalEvent } from "../engine/regionalEvents.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
 import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
+import { prototypeCost, prototypeOutcome } from "../engine/prototype.ts";
 import { noveltyFor } from "../engine/novelty.ts";
 import { styleAppeal } from "../engine/aesthetics.ts";
 import { brandEquity, franchiseStem, equityPreorderBonus, equityHypeBonus, type BrandEquity } from "../engine/franchise.ts";
@@ -215,6 +216,7 @@ import type {
   RegionId,
   Staff,
   StaffRole,
+  StatKey,
   Stats,
 } from "../engine/types.ts";
 import { FINISH_ORDER, STAT_KEYS } from "../engine/types.ts";
@@ -377,6 +379,10 @@ export interface GameState {
   supplierContracts?: Partial<Record<SupplierId, { discount: number; weeksLeft: number }>>;
   building: BuildJob[];
   ready: Product[]; // built, awaiting launch
+  /** The active design's Test Prototype result, if one has been run. Optional and backfilled null,
+   *  so an old save loads unchanged, and a run that never prototypes stays byte-identical. Cleared
+   *  when a new draft starts, so a fresh design never inherits the previous result. */
+  draftPrototype?: { week: number; flaw: StatKey | null } | null;
   launched: LaunchedProduct[];
   cashHistory: { week: number; cash: number }[];
   /** One row per simulated week (revenue, expenses, profit) for the growth chart. Optional and
@@ -5877,6 +5883,42 @@ export function restStaff(state: GameState, id: string): GameState {
         ? { ...s, mood: Math.min(100, s.mood + BALANCE.churn.restMoodBoost), moodLowWeeks: 0 }
         : s,
     ),
+  };
+}
+
+/** The prototype result for the active draft, or null. Tolerant of a missing field (old saves). */
+export function prototypeState(s: GameState): { week: number; flaw: StatKey | null } | null {
+  return s.draftPrototype ?? null;
+}
+
+/** The stat the active design is weakest in, from the SAME `productStats` the Design Lab's stat bars
+ *  read, so a flagged flaw always names a stat the player can actually see. */
+function weakestStatOf(stats: Stats): StatKey {
+  let weak = STAT_KEYS[0];
+  for (const k of STAT_KEYS) if (stats[k] < stats[weak]) weak = k;
+  return weak;
+}
+
+/** Run a prototype on the active design: pay `prototypeCost(era)` and spend one week, then record
+ *  the outcome. PLAYER ACTION ONLY — it is never called from the tick, and its randomness is the
+ *  derived hash of (seed, week, 317), so a run that never presses the button is untouched. `draft` is
+ *  the Design Lab's local design; without one the roll still tightens the forecast but cannot name a
+ *  flaw. Refusal returns the SAME state reference (a no-op, never a copy). */
+export function runPrototype(s: GameState, draft?: Product | null): ActionResult {
+  if (s.bankrupt) return { state: s, ok: false, reason: "Company is bankrupt." };
+  if (prototypeState(s)) return { state: s, ok: false, reason: "A prototype has already been run for this design." };
+  const cost = prototypeCost(s.era);
+  if (s.cash < cost) return { state: s, ok: false, reason: `Need ${format(cost)} to run a prototype.` };
+  const weakestStat = draft ? weakestStatOf(productStats(s, draft)) : null;
+  const outcome = prototypeOutcome(s.seed, s.week, { era: s.era, weakestStat, rp: s.researchPoints });
+  return {
+    state: {
+      ...s,
+      cash: sub(s.cash, cost),
+      week: s.week + 1,
+      draftPrototype: { week: s.week, flaw: outcome.flaw },
+    },
+    ok: true,
   };
 }
 

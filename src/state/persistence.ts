@@ -443,6 +443,16 @@ function migrate(state: GameState): GameState | null {
   if (!Array.isArray(s.unlockedAchievements)) s.unlockedAchievements = [];
   if (!Array.isArray(s.completedObjectives)) s.completedObjectives = [];
   if (s.pendingChoice === undefined) s.pendingChoice = null;
+  // Test Prototype result (added later) — default null so an old save loads unchanged. Drop a
+  // malformed value (a hand-edited import) rather than letting it reach the Design Lab's reads.
+  if (s.draftPrototype === undefined || s.draftPrototype === null) s.draftPrototype = null;
+  else if (
+    typeof s.draftPrototype !== "object" ||
+    !Number.isFinite(s.draftPrototype.week) ||
+    !(s.draftPrototype.flaw === null || typeof s.draftPrototype.flaw === "string")
+  ) {
+    s.draftPrototype = null;
+  }
   if (!Array.isArray(s.resolvedChoices)) s.resolvedChoices = [];
   // Lifetime "seen" set (carried across New Game+). Old saves seed it from this run's resolved set
   // so dilemmas already decided don't re-surface as "fresh" after the upgrade.
