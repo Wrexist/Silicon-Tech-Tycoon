@@ -5,6 +5,7 @@ import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud, SpeedDial } from "./components/Hud.tsx";
 import { Bank } from "./components/Bank.tsx";
 import { BottomNav, type Tab } from "./components/BottomNav.tsx";
+import { RailNav } from "./components/RailNav.tsx";
 import { Coach } from "./components/Coach.tsx";
 import { ResultCard } from "./components/ResultCard.tsx";
 import { ToastHost, showToast } from "./design/toast.tsx";
@@ -27,17 +28,33 @@ import { useIsPro } from "./state/usePro.ts";
 import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
-import { registerAppOverlay } from "./design/overlayGuard.ts";
+import { appOverlayOpen, registerAppOverlay } from "./design/overlayGuard.ts";
+import { railShown, useLayoutMode } from "./design/layout.ts";
+import { PAGE_TITLES } from "./state/pageStack.ts";
+import { usePageNav } from "./state/usePageNav.ts";
+import { resolvePlatformSection } from "./state/platformSections.ts";
 // Sheet-hosted screens. `Sheet` returns null while closed, so React never renders these and their
 // chunks are not fetched until the player actually opens the sheet — which for Settings, Progress and
 // Scenarios is rarely, and for many runs never.
 const Settings = lazy(() => import("./screens/Settings.tsx").then((m) => ({ default: m.Settings })));
 const ProgressSheet = lazy(() => import("./screens/Progress.tsx").then((m) => ({ default: m.ProgressSheet })));
 const ScenariosSheet = lazy(() => import("./screens/Scenarios.tsx").then((m) => ({ default: m.ScenariosSheet })));
+// The routed Platform page (Silicon 2.0). Lazy for the same reason as the tab screens: a classic run
+// that never opens it must not pay for its chunk, and Company already splits the same module.
+const PlatformPanel = lazy(() => import("./screens/Platform.tsx").then((m) => ({ default: m.PlatformPanel })));
+// The routed Museum page (Silicon 2.0). Lazy like the rest: a classic run that never opens it must
+// not pay for its chunk, and Progress already splits the same module.
+const MuseumPanel = lazy(() => import("./screens/Museum.tsx").then((m) => ({ default: m.MuseumPanel })));
+// The routed Goals page (Silicon 2.0). Lazy for the same reason, and Progress already splits it.
+const GoalsPanel = lazy(() => import("./screens/GoalsLedger.tsx").then((m) => ({ default: m.GoalsPanel })));
+// The routed Progress hub page (Silicon 2.0). Lazy for the same reason, and the classic sheet above
+// already splits the same module.
+const ProgressPanel = lazy(() => import("./screens/Progress.tsx").then((m) => ({ default: m.ProgressPanel })));
 import { enableDailyReminders, notificationsAvailable } from "./state/notifications.ts";
 import { getSettings, setSettings } from "./state/settings.ts";
+import { useUiVersion } from "./state/uiVersion.ts";
 import { challengeTeaser, dailyChallenge, dateKeyOf } from "./engine/challenges.ts";
-import { Button, Card } from "./design/primitives.tsx";
+import { Button, Card, PageHeader } from "./design/primitives.tsx";
 import { format, toDollars, scale } from "./engine/money.ts";
 import { campaignEpilogue } from "./engine/epilogue.ts";
 import { rivalryEpilogueClause } from "./engine/rivalMemory.ts";
@@ -145,6 +162,50 @@ function AppShell() {
   // one bridge so the team celebrates every win, not only launches.
   useEffect(() => onCelebrate(() => emitHqReaction("cheer")), []);
 
+  // Silicon 2.0 foundation. These hooks are called HERE, ABOVE the onboarding early return below:
+  // hooks must run unconditionally, and a new player flips `onboarded` while this component stays
+  // mounted, so calling them after that return would change the hook count between renders and crash
+  // on entering the game. With the flag off this component otherwise renders exactly what it did
+  // before: the rail is the ONLY addition, and it only mounts when both the flag is on and the
+  // viewport is wide enough. Nothing else is touched, which keeps the flag-off build pixel-identical
+  // to the shipped game.
+  const uiVersion = useUiVersion();
+  const layoutMode = useLayoutMode();
+  const showRail = uiVersion === "next" && railShown(layoutMode);
+  const { page, params, push, pop, clear, root: routeRoot } = usePageNav(tab);
+  // A deep link names the tab it was opened from; adopt it on FIRST mount so the nav highlight and
+  // the URL agree. Runs once — after that the player's own tab taps own the state.
+  const adoptedRoot = useRef(false);
+  useEffect(() => {
+    if (adoptedRoot.current) return;
+    adoptedRoot.current = true;
+    if (page && routeRoot !== tab) setTab(routeRoot);
+    // Deliberately first-mount only: re-running would fight a tab tap.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // A root tab is the BASE of the navigation model, so choosing one always closes any open page —
+  // otherwise the highlighted tab and the rendered content disagree.
+  const changeTab = useCallback((t: Tab) => {
+    clear(t);   // close any page AND point the URL at the tab being opened
+    setTab(t);
+  }, [clear]);
+
+  // Escape closes a pushed page, matching every popup in the app — but ONLY when no top-level app
+  // overlay owns the screen. Full-screen interrupts register with overlayGuard and handle their own
+  // Escape; without this guard one press would dismiss the card AND pop the page beneath it (the
+  // same reason FactoryMode checks `appOverlayOpen()` before peeling itself).
+  useEffect(() => {
+    if (!page) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      if (appOverlayOpen()) return; // the modal owns this Escape
+      pop();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [page, pop]);
+
   // The first ship silently unlocks half the meta-game (Progress hub, stock market, financing,
   // morale, daily challenges). Item A1 — instead of a blink-and-miss toast, a persistent, dismissible
   // "what just unlocked" card renders on HQ (UnlockCard) until the player taps it, so nothing is lost.
@@ -176,19 +237,33 @@ function AppShell() {
   const showWorldTabs = state.era >= 2 || (state.ownedFactories?.length ?? 0) > 0 || hqWorld === "factory";
 
   return (
-    <div className="app">
+    <div className={`app${uiVersion === "next" ? " app--next" : ""}`}>
       <Hud
-        onSettings={() => setSettingsOpen(true)}
+        onSettings={() => (uiVersion === "next" ? push("settings") : setSettingsOpen(true))}
         onOpenBank={openBank}
-        onOpenProgress={hasShipped ? () => openProgress() : undefined}
+        onOpenProgress={hasShipped ? () => (uiVersion === "next" ? push("progress") : openProgress()) : undefined}
         progressAttention={vaultSummary(state).newLeads > 0}
       />
+      {showRail && (
+        <RailNav active={tab} onChange={changeTab} badge={navAttention(state)} visible={tabVisible} />
+      )}
       <main className="app__main">
+        {/* Wave 1a: the new shell owns the page title. It lives INSIDE main so it inherits the
+            content column's edge inset (rather than re-adding it) and is not a second banner
+            landmark beside <Hud>. With the flag off this renders nothing and each screen keeps
+            drawing its own .app__title exactly as before. */}
+        {uiVersion === "next" && (
+          <PageHeader
+            title={page ? PAGE_TITLES[page] : tab === "hq" ? state.companyName || TAB_TITLE.hq : TAB_TITLE[tab]}
+            tint={page ? undefined : TAB_TINT[tab]}
+            onBack={page ? pop : undefined}
+          />
+        )}
         {/* HQ stays MOUNTED across tabs (hidden, not unmounted) so its WebGL office keeps its
             GPU context instead of tearing it down + re-creating it on every visit — that churn
             is what made the 3D office fail on memory-constrained mobile browsers. Its render
             loop pauses while hidden (active={false}), so there's no battery cost off-screen. */}
-        <div className="app__screen" hidden={tab !== "hq"}>
+        <div className="app__screen" hidden={page != null || tab !== "hq"}>
           {/* World tabs beside the company name — swap the living scene between the office
               and the manufacturing floor (FACTORY_WORLD_PLAN.md P1). */}
           <div className="app__titlerow">
@@ -213,12 +288,12 @@ function AppShell() {
             )}
           </div>
           <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
-            <HQ onNavigate={setTab} onOpenBank={openBank} onOpenChallenges={() => openProgress("challenges")} onViewFactory={() => { setHqWorld("factory"); haptic.light(); }} active={tab === "hq"} world={hqWorld} />
+            <HQ onNavigate={setTab} onOpenBank={openBank} onOpenChallenges={() => (uiVersion === "next" ? push("progress", { section: "challenges" }) : openProgress("challenges"))} onViewFactory={() => { setHqWorld("factory"); haptic.light(); }} active={tab === "hq" && page == null} world={hqWorld} />
           </ErrorBoundary>
         </div>
         {/* The other screens are light (no WebGL), so they keep the snappy keyed remount that
             replays the `app__screen` enter animation on each navigation. */}
-        {tab !== "hq" && (
+        {!page && tab !== "hq" && (
           <div className="app__screen" key={tab}>
             <h1 className="app__title" style={TAB_TINT[tab] ? { color: TAB_TINT[tab] } : undefined}>{TAB_TITLE[tab]}</h1>
             <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
@@ -233,10 +308,57 @@ function AppShell() {
                     onFocusConsumed={() => setMarketFocusId(null)}
                   />
                 )}
-                {tab === "company" && <Company />}
+                {tab === "company" && <Company onOpenPlatform={() => push("platform")} />}
               </Suspense>
             </ErrorBoundary>
           </div>
+        )}
+        {/* A pushed page replaces the tab content. The HQ block stays MOUNTED (just hidden) so its
+            WebGL office keeps its context, exactly as it does across tab switches. */}
+        {page === "settings" && (
+          <ErrorBoundary fallback={<ScreenError onHome={pop} />}>
+            <Suspense fallback={<ScreenLoading title={PAGE_TITLES.settings} />}>
+              <Settings onClose={pop} />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+        {page === "platform" && (
+          <ErrorBoundary fallback={<ScreenError onHome={pop} />}>
+            <Suspense fallback={<ScreenLoading title={PAGE_TITLES.platform} />}>
+              <PlatformPanel
+                section={resolvePlatformSection(params.section)}
+                onSection={(s) => push("platform", { section: s }, true)}
+              />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+        {page === "museum" && (
+          <ErrorBoundary fallback={<ScreenError onHome={pop} />}>
+            <Suspense fallback={<ScreenLoading title={PAGE_TITLES.museum} />}>
+              <MuseumPanel />
+            </Suspense>
+          </ErrorBoundary>
+        )}
+        {page === "goals" && (
+          <ErrorBoundary fallback={<ScreenError onHome={pop} />}>
+            <Suspense fallback={<ScreenLoading title={PAGE_TITLES.goals} />}>
+              {/* The sheet's own container class supplies the column gap; the panel is just the body. */}
+              <div className="gl"><GoalsPanel /></div>
+            </Suspense>
+          </ErrorBoundary>
+        )}
+        {page === "progress" && (
+          <ErrorBoundary fallback={<ScreenError onHome={pop} />}>
+            <Suspense fallback={<ScreenLoading title={PAGE_TITLES.progress} />}>
+              {/* HQ's daily-challenge card deep-links to the challenge view; like Platform's section,
+                  the view travels as the URL's path segment so a reload restores it. */}
+              <ProgressPanel
+                key={params.section ?? "hub"}
+                initialView={params.section === "challenges" ? "challenges" : "hub"}
+                onOpen={(p) => push(p)}
+              />
+            </Suspense>
+          </ErrorBoundary>
         )}
         <div className="app__spacer" />
       </main>
@@ -249,7 +371,7 @@ function AppShell() {
 
       <BottomNav
         active={tab}
-        onChange={setTab}
+        onChange={changeTab}
         badge={navAttention(state)}
         visible={tabVisible}
       />
@@ -281,7 +403,10 @@ function AppShell() {
           </Suspense>
         </ErrorBoundary>
       </Sheet>
-      <Sheet open={progressOpen} onClose={() => setProgressOpen(false)} label="Progress">
+      {/* Silicon 2.0 retires the hub sheet: the routed page is the only Progress surface. `progressOpen`
+          is never set on the flag-on path (both writers gate on the flag), so this gate is belt-and-
+          braces — and with the flag off the sheet opens exactly as it always did. */}
+      <Sheet open={uiVersion === "classic" && progressOpen} onClose={() => setProgressOpen(false)} label="Progress">
         <ErrorBoundary fallback={<ScreenError onHome={() => setProgressOpen(false)} />}>
           <Suspense fallback={<ScreenLoading title="Progress" />}>
             <ProgressSheet onClose={() => setProgressOpen(false)} initialView={progressView} />

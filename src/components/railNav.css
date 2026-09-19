@@ -1,0 +1,60 @@
+/* The wide-layout side rail. Fixed like the bottom nav, but clamped to the shell's left edge so it
+   never drifts to the viewport edge on a 13" iPad. Only mounts at tablet/wide (App gates it). */
+.railnav {
+  position: fixed;
+  left: max(var(--edge), calc(50% - var(--shell-max) / 2));
+  top: calc(var(--topbar-h) + var(--sp-16));
+  z-index: 28;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  width: var(--rail-w);
+  padding: var(--sp-8);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-card);
+}
+.railnav__item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  min-height: 44px;
+  padding: 0 var(--sp-12);
+  border-radius: var(--r-button);
+  color: var(--ink-3);
+  transition: color var(--spring-snappy), background var(--spring-snappy);
+}
+.railnav__item--active {
+  background: var(--accent-soft);
+}
+.railnav__item:active {
+  transform: scale(0.98);
+}
+.railnav__glyph {
+  position: relative;
+  display: inline-flex;
+}
+/* Same two attention weights as the bottom nav — act (urgent, expiring) vs opportunity. */
+.railnav__badge {
+  position: absolute;
+  top: -2px;
+  right: -5px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--surface);
+  background: var(--negative);
+}
+.railnav__badge--opportunity {
+  top: -1px;
+  right: -4px;
+  width: 5px;
+  height: 5px;
+  background: var(--accent);
+  opacity: 0.75;
+}
+.railnav__label {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+}

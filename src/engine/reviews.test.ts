@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { criticReviews, foldOutletThreads, OUTLETS, REVIEW_THREAD, type CriticReviews, type ReviewInputs, type ReviewVerdict } from "./reviews.ts";
+import { criticReviews, customerRating, foldOutletThreads, OUTLETS, REVIEW_THREAD, type CriticReviews, type ReviewInputs, type ReviewVerdict } from "./reviews.ts";
 import type { Stats } from "./types.ts";
 
 const stats = (over: Partial<Stats> = {}): Stats => ({
@@ -78,6 +78,25 @@ describe("criticReviews", () => {
     const r = criticReviews(base({ verdict: "hit", stats: stats({ design: 90, battery: 20 }) }));
     expect(r.pros.join(" ")).toMatch(/design/);
     expect(r.cons.join(" ")).toMatch(/battery/);
+  });
+});
+
+describe("customerRating", () => {
+  it("is the outlet average, rounded, with a band label", () => {
+    expect(customerRating([80, 90, 70])).toEqual({ score: 80, label: "Good" });
+    expect(customerRating([85, 90])).toEqual({ score: 88, label: "Excellent" });
+  });
+
+  it("never invents a rating when there are no outlets yet", () => {
+    expect(customerRating([])).toEqual({ score: 0, label: "No data" });
+  });
+
+  it("stays inside 0-100 for extreme inputs", () => {
+    for (const s of [[0], [100], [0, 100], [100, 100, 100]]) {
+      const r = customerRating(s);
+      expect(r.score).toBeGreaterThanOrEqual(0);
+      expect(r.score).toBeLessThanOrEqual(100);
+    }
   });
 });
 

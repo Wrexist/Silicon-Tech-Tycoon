@@ -136,17 +136,48 @@ function MuseumDetail({ e, live, onBack }: { e: MuseumEntry; live: LaunchedProdu
   );
 }
 
+/** The classic sheet: chrome (title + the Done close affordance) around the shared body, so the
+ *  flag-off Progress hub and the routed Silicon-2.0 page can never drift apart. The head is held
+ *  back while a device detail is open, exactly as the pre-split sheet did. */
 export function MuseumSheet({ onClose }: { onClose: () => void }) {
+  const all = getMuseum();
+  const [detailOpen, setDetailOpen] = useState(false);
+  return (
+    <div className="mus">
+      {!detailOpen && (
+        <div className="mus__head">
+          <div>
+            <h2 className="mus__title">Device Museum</h2>
+            <p className="mus__sub">Every device you've shipped, across every company you've built.</p>
+          </div>
+          <span className="mus__count tnum" aria-label={`${all.length} devices`}>{all.length}</span>
+        </div>
+      )}
+
+      <MuseumPanel onDetailChange={setDetailOpen} />
+
+      {!detailOpen && <Button block variant="secondary" onClick={onClose}>Done</Button>}
+    </div>
+  );
+}
+
+/** The gallery's content, without any sheet chrome — used by the routed Museum page (Silicon 2.0)
+ *  and by the classic sheet above, so the two can never drift. It owns its own filter and
+ *  device-detail state; `onDetailChange` lets the sheet hide its chrome while the detail is open. */
+export function MuseumPanel({ onDetailChange }: { onDetailChange?: (open: boolean) => void }) {
   const { state } = useGame();
   const all = getMuseum();
   const [filter, setFilter] = useState<CategoryId | "all">("all");
   const [selected, setSelected] = useState<MuseumEntry | null>(null);
 
+  const openDetail = (e: MuseumEntry) => { setSelected(e); onDetailChange?.(true); };
+  const closeDetail = () => { setSelected(null); onDetailChange?.(false); };
+
   if (selected) {
     // Devices from the CURRENT run are matched live in the save for real sales/revenue; cross-run
     // devices fall back to their launch-moment snapshot.
     const live = state.launched.find((l) => l.product.id === selected.product.id) ?? null;
-    return <MuseumDetail e={selected} live={live} onBack={() => setSelected(null)} />;
+    return <MuseumDetail e={selected} live={live} onBack={closeDetail} />;
   }
   // Collection goals (item 5.2) — long-tail "collect them all" objectives over the whole museum.
   const facts = collectionFacts(all.map((e) => ({ category: e.category, era: e.era, verdict: e.verdict, name: e.name })));
@@ -161,15 +192,7 @@ export function MuseumSheet({ onClose }: { onClose: () => void }) {
     .filter(([, items]) => items.length > 0);
 
   return (
-    <div className="mus">
-      <div className="mus__head">
-        <div>
-          <h2 className="mus__title">Device Museum</h2>
-          <p className="mus__sub">Every device you've shipped, across every company you've built.</p>
-        </div>
-        <span className="mus__count tnum" aria-label={`${all.length} devices`}>{all.length}</span>
-      </div>
-
+    <>
       {present.length > 1 && (
         <div className="mus__filters">
           <button className={`mus__filter${filter === "all" ? " mus__filter--on" : ""}`} aria-pressed={filter === "all"} onClick={() => setFilter("all")}>All</button>
@@ -222,14 +245,12 @@ export function MuseumSheet({ onClose }: { onClose: () => void }) {
                 <span className="mus__group-count tnum">{items.length}</span>
               </div>
               <ul className="mus__grid">
-                {items.map((e) => <MuseumCard key={e.key} e={e} onSelect={setSelected} />)}
+                {items.map((e) => <MuseumCard key={e.key} e={e} onSelect={openDetail} />)}
               </ul>
             </section>
           ))}
         </div>
       )}
-
-      <Button block variant="secondary" onClick={onClose}>Done</Button>
-    </div>
+    </>
   );
 }

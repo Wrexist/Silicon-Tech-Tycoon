@@ -150,6 +150,7 @@ import {
   type SecretProgress,
   type SecretStage,
 } from "../engine/secrets.ts";
+import { recordFinancialWeek, type FinancialWeek } from "../engine/financials.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { supplierLeadWeeks, supplierLoyaltyDiscount, supplierCrunchMult, supplierEthicsRepDelta, contractTerm, contractDiscount, supplierFor, DEFAULT_SUPPLIER_ID, type ContractTerm } from "../engine/suppliers.ts";
 import { factoryToolingMult, factoryUnitMult, factorySpeedMult, factoryCapacityPerWeek, resolveCapacity, totalFactoryUpkeep, factoryFor, isFactoryUnlocked, type CapacityOutcome, type CapacityStrategy } from "../engine/factories.ts";
@@ -174,6 +175,7 @@ import { REGIONS, regionById, regionReach, regionTasteLabel } from "../engine/re
 import { regionalEventDue, generateRegionalEvent, REGIONAL_EVENT_COPY, type RegionalEvent } from "../engine/regionalEvents.ts";
 import { generateRivalProduct, type RivalRelease } from "../engine/rivalAI.ts";
 import { forecastConfidence, forecastBand } from "../engine/forecast.ts";
+import { prototypeCost, prototypeOutcome } from "../engine/prototype.ts";
 import { noveltyFor } from "../engine/novelty.ts";
 import { styleAppeal } from "../engine/aesthetics.ts";
 import { brandEquity, franchiseStem, equityPreorderBonus, equityHypeBonus, type BrandEquity } from "../engine/franchise.ts";
@@ -214,6 +216,7 @@ import type {
   RegionId,
   Staff,
   StaffRole,
+  StatKey,
   Stats,
 } from "../engine/types.ts";
 import { FINISH_ORDER, STAT_KEYS } from "../engine/types.ts";
@@ -376,8 +379,15 @@ export interface GameState {
   supplierContracts?: Partial<Record<SupplierId, { discount: number; weeksLeft: number }>>;
   building: BuildJob[];
   ready: Product[]; // built, awaiting launch
+  /** The active design's Test Prototype result, if one has been run. Optional and backfilled null,
+   *  so an old save loads unchanged, and a run that never prototypes stays byte-identical. Cleared
+   *  when a new draft starts, so a fresh design never inherits the previous result. */
+  draftPrototype?: { week: number; flaw: StatKey | null } | null;
   launched: LaunchedProduct[];
   cashHistory: { week: number; cash: number }[];
+  /** One row per simulated week (revenue, expenses, profit) for the growth chart. Optional and
+   *  backfilled to [] → absent on old saves, so a run that never records one is byte-identical. */
+  financialHistory?: FinancialWeek[];
   feed: FeedItem[];
   nextEventWeek: number;
   lastEvent: { text: string; tone: FeedTone; week: number } | null;
@@ -935,6 +945,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0, asce
     ready: [],
     launched: [],
     cashHistory: [{ week: 0, cash: toDollars(BALANCE.startingCash) }],
+    financialHistory: [],
     feed: [feedItem(0, "Company founded. Time to design something great.", "accent")],
     nextEventWeek: BALANCE.events.firstWeek,
     lastEvent: null,
@@ -943,7 +954,7 @@ export function newGame(seed = (Math.random() * 2 ** 31) >>> 0, legacy = 0, asce
     productCounter: 1,
     staffCounter: 1,
     layout: defaultLayout(),
-    furnitureCounter: 3, // starter layout uses f1 (desk) + f2 (plant)
+    furnitureCounter: 7, // starter layout uses f1–f6 (desk, plant, + attr-free dressing)
     roomStyle: { floor: 0, wall: 0 },
     factoryFloor: starterFloor(),
     factoryDecor: { wall: 0, floor: 0 },
@@ -1100,6 +1111,7 @@ export function newChallengeGame(kind: ChallengeKind, dateKey: string): GameStat
     activeChallenge: { kind: ch.kind, dateKey: ch.dateKey, scoreMetric: ch.scoreMetric, scoreWeek: ch.scoreWeek },
     challengeScore: null,
     cashHistory: [{ week: 0, cash: toDollars(cash) }],
+    financialHistory: [],
     feed: [feedItem(0, `${kind === "weekly" ? "Weekly" : "Daily"} challenge, ${ch.mutators.map((m) => m.name).join(" + ")}. Score: best ${ch.scoreMetric} by week ${ch.scoreWeek}.`, "accent")],
   };
 }
@@ -1215,6 +1227,7 @@ export function newScenarioGame(scenarioId: string, seed = (Math.random() * 2 **
     onboarded: true,
     tutorialDone: true,
     cashHistory: [{ week: 0, cash: toDollars(startCash) }],
+    financialHistory: [],
     feed: [feedItem(0, `Scenario started, ${scn.name}. ${scn.tagline}`, "accent")],
   };
 }
@@ -2633,6 +2646,17 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   const cashHistory = [...state.cashHistory, { week, cash: toDollars(cash) }];
   if (cashHistory.length > 260) cashHistory.shift();
 
+  // Weekly financial history (Silicon 2.0 growth chart) — the same week's revenue and expenses,
+  // recorded unconditionally as SAVE data so a flag-on build can chart a run that began earlier.
+  // Revenue is the product gross this tick booked into cumulativeRevenue (its only writer), read as
+  // the delta so it can never drift from the ledger; expenses use the SAME `weeklyOutflow` the
+  // runway / burn readout shows. Whole dollars, matching cashHistory.
+  const financialHistory = recordFinancialWeek(state.financialHistory ?? [], {
+    week,
+    revenue: toDollars(sub(cumulativeRevenue, state.cumulativeRevenue)),
+    expenses: toDollars(weeklyOutflow(state)),
+  });
+
   // Installed-base history for the Platform "OS reach" sparkline — one sample per week while the
   // division exists, capped to a sparkline-friendly window.
   let osBaseHistory = state.osBaseHistory;
@@ -2813,6 +2837,7 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
     sideOrdersCompleted,
     sideOrderClients,
     cashHistory,
+    financialHistory,
     osBaseHistory,
     osApps,
     osThreat,
@@ -5859,6 +5884,64 @@ export function restStaff(state: GameState, id: string): GameState {
         : s,
     ),
   };
+}
+
+/** The prototype result for the active draft, or null. Tolerant of a missing field (old saves). */
+export function prototypeState(s: GameState): { week: number; flaw: StatKey | null } | null {
+  return s.draftPrototype ?? null;
+}
+
+/** Forget the active draft's prototype result. Called when the Design Lab starts a fresh draft so a
+ *  new design never inherits (or displays) the previous one's outcome. No-op (same reference) when
+ *  there is nothing to clear, so it can never spur a needless re-render. */
+export function clearDraftPrototype(s: GameState): GameState {
+  return s.draftPrototype == null ? s : { ...s, draftPrototype: null };
+}
+
+/** The stat the active design is weakest in, from the SAME `productStats` the Design Lab's stat bars
+ *  read, so a flagged flaw always names a stat the player can actually see. */
+function weakestStatOf(stats: Stats): StatKey {
+  let weak = STAT_KEYS[0];
+  for (const k of STAT_KEYS) if (stats[k] < stats[weak]) weak = k;
+  return weak;
+}
+
+/** Run a prototype on the active design: pay `prototypeCost(era)` for an instant lab pass and record
+ *  the outcome. It costs cash and is usable ONCE PER DRAFT, but it does NOT advance the clock —
+ *  `advanceOneWeek` is the sole economy driver, so a calendar jump here would silently skip a week's
+ *  payroll/rent/revenue/build progress. PLAYER ACTION ONLY — never called from the tick, and its
+ *  randomness is the derived hash of (seed, week, 317), so a run that never presses the button is
+ *  untouched. `draft` is the Design Lab's local design; without one the roll still tightens the
+ *  forecast but cannot name a flaw. Refusal returns the SAME state reference (a no-op, never a copy). */
+export function runPrototype(s: GameState, draft?: Product | null): ActionResult {
+  if (s.bankrupt) return { state: s, ok: false, reason: "Company is bankrupt." };
+  if (prototypeState(s)) return { state: s, ok: false, reason: "A prototype has already been run for this design." };
+  const cost = prototypeCost(s.era);
+  if (s.cash < cost) return { state: s, ok: false, reason: `Need ${format(cost)} to run a prototype.` };
+  const weakestStat = draft ? weakestStatOf(productStats(s, draft)) : null;
+  const outcome = prototypeOutcome(s.seed, s.week, { era: s.era, weakestStat, rp: s.researchPoints });
+  return {
+    state: {
+      ...s,
+      cash: sub(s.cash, cost),
+      draftPrototype: { week: s.week, flaw: outcome.flaw },
+    },
+    ok: true,
+  };
+}
+
+/** The forecast confidence the Design Lab's verdict/confidence read consumes, with the active
+ *  draft's Test Prototype gain folded into the SAME `forecastConfidence` path (no parallel forecast).
+ *  A completed prototype tightens the band; an old or un-prototyped save adds nothing. Pure. */
+export function forecastConfidenceInput(s: GameState): number {
+  const base = forecastConfidence({
+    marketerSkill: marketerSkill(s),
+    demandSensing: hasProject(s.completedProjects, "demandSensing"),
+  });
+  const gain = prototypeState(s) ? BALANCE.prototype.confidenceGain : 0;
+  // Clamp to the same [0, maxConfidence] range `forecastConfidence` documents, instead of leaving the
+  // overshoot for `forecastBand`/`forecastConfidenceLabel` to hide.
+  return Math.min(BALANCE.market.forecast.maxConfidence, base + gain);
 }
 
 export type MoraleKind = "bonus" | "offsite";

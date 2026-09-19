@@ -31,6 +31,21 @@ export const BALANCE = {
   weeksPerTick: 1,
   quartersWeeks: 13,
 
+  // --- Weekly financial history (Silicon 2.0 growth chart) ---
+  financials: {
+    historyCap: 260, // ~5 years of weeks; matches cashHistory's cap so the two stay in step
+  },
+
+  // --- Test Prototype (Silicon 2.0, Design -> Testing) ---
+  prototype: {
+    baseCost: dollars(180_000),
+    costPerEra: 0.6,
+    weeks: 1,
+    flawChance: 0.45,
+    rpToCatchFlaw: 25, // below this the prototype still tightens the forecast, but cannot find a flaw
+    confidenceGain: 0.18, // confidence units (same scale as maxConfidence 0.85), ~21% of the cap
+  },
+
   // --- Stats ---
   statMax: 100,
 

@@ -54,6 +54,7 @@ describe("lazy-loaded components are bounded", () => {
     expect(lazyModules.map((f) => f.path).sort()).toEqual([
       "App.tsx",
       "components/FactoryMode.tsx",
+      "components/HeroFrame.tsx",
       "components/Interrupts.tsx",
       "garage3d/Garage3D.tsx",
       "garage3d/furniture3d.tsx",
@@ -64,6 +65,7 @@ describe("lazy-loaded components are bounded", () => {
   it.each([
     "App.tsx",
     "components/FactoryMode.tsx",
+    "components/HeroFrame.tsx",
     "components/Interrupts.tsx",
     "garage3d/Garage3D.tsx",
     "garage3d/furniture3d.tsx",

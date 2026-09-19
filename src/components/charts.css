@@ -73,3 +73,109 @@
   font-weight: 600;
   color: var(--ink-3);
 }
+
+/* DataChart — multi-series growth chart with legend + range control. */
+.ds-chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-8);
+}
+.ds-chart__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--sp-8);
+}
+.ds-chart__legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-12);
+}
+.ds-chart__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.ds-chart__swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+.ds-chart__ranges {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+}
+.ds-chart__range {
+  min-height: 28px;
+  padding: 0 var(--sp-8);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-2);
+  transition: background var(--spring-snappy), color var(--spring-snappy);
+}
+.ds-chart__range--active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.ds-chart__plot {
+  position: relative;
+  height: 200px;
+  padding-left: 44px;
+}
+.ds-chart__svg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 44px;
+  width: calc(100% - 44px);
+  height: 100%;
+  overflow: visible;
+}
+.ds-chart__ymax,
+.ds-chart__yzero {
+  position: absolute;
+  left: 0;
+  width: 40px;
+  padding-right: var(--sp-4);
+  text-align: right;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.ds-chart__ymax {
+  top: 0;
+  transform: none;
+}
+.ds-chart__xaxis {
+  display: flex;
+  justify-content: space-between;
+  margin-left: 44px;
+}
+.ds-chart__xtick {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-3);
+}
+.ds-chart__xlabel {
+  margin-left: 44px;
+  text-align: center;
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}

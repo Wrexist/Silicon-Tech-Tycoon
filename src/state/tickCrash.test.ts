@@ -17,7 +17,10 @@ import { describe, expect, it } from "vitest";
 //
 // Source-invariant: the interval body has no seam to call, and a timing test on a real interval would
 // be flaky. What must not regress is structural.
-const SRC = readFileSync(resolve(__dirname, "./useGame.tsx"), "utf8");
+// Normalize line endings: a Windows checkout (`core.autocrlf=true`) has CRLF, and the literal
+// `"return (\n    <StoreContext.Provider"` search below then never matches — a false failure on a
+// machine where the invariant is intact.
+const SRC = readFileSync(resolve(__dirname, "./useGame.tsx"), "utf8").replace(/\r\n?/g, "\n");
 
 /** The tick's setInterval body, from the interval that advances the week. */
 const TICK = (() => {

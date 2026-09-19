@@ -24,6 +24,9 @@
     "shots:store": "node scripts/shots-refresh.mjs",
     "shots:store:legacy": "node scripts/shots-store.mjs",
     "shots:ipad": "node scripts/shots-ipad.mjs",
+    "shots:pixel": "node scripts/shots-pixel-diff.mjs",
+    "verify:ui2": "npm run build && node scripts/verify-onboarding-ui2.mjs",
+    "verify:deeplink": "node scripts/verify-deeplink-ui2.mjs",
     "promo:stage": "esbuild scripts/stage-promo-video.mjs --bundle --platform=node --format=cjs --outfile=scripts/.promo-stage.cjs --log-level=error && node scripts/.promo-stage.cjs",
     "promo:video": "npm run promo:stage && node scripts/promo-video.mjs"
   },
@@ -57,3 +60,4 @@
     "vitest": "^4.1.8"
   }
 }
+

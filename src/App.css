@@ -4,6 +4,16 @@
      glass surfaces; the base color lives on body. */
   background: transparent;
 }
+/* Silicon 2.0 shell: once the rail is shown (>= 800px), widen the root so the rail sits in its
+   own left gutter instead of over the content, and pad the content past it. Flag-gated, so the
+   shipped game's 540px column is untouched. */
+@media (min-width: 800px) {
+  #root:has(.app--next) { max-width: var(--shell-max); }
+  .app--next { padding-left: calc(var(--rail-w) + var(--sp-24)); }
+  /* Wave 1a: on wide screens the side rail IS the navigation — the bottom tab bar stands down so
+     there is exactly one primary nav. Scoped to .app--next: the shipped game keeps its tab bar. */
+  .app--next .bnav { display: none; }
+}
 .app__main {
   padding: var(--sp-16) var(--edge) 0;
 }
@@ -46,7 +56,9 @@
   margin: var(--sp-4) 0 var(--sp-12);
 }
 .app__spacer {
-  height: calc(96px + env(safe-area-inset-bottom));
+  /* Clears the fixed bottom chrome. 96px only cleared the tab bar, so the floating speed dial
+     (which sits ~72–140px up, bottom-left) covered the last card's text on every scroll screen. */
+  height: calc(152px + env(safe-area-inset-bottom));
 }
 
 /* Onboarding */
@@ -1089,3 +1101,11 @@
   cursor: pointer;
 }
 .worldtabs__tab--on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+/* Wave 1a: the shell renders the page title when the new UI is on, so the per-screen heading
+   stands down. Flag-off is untouched: `.app--next` never matches. */
+.app--next .app__title { display: none; }
+
+/* Wave 1a/1b: the shell owns the title when the new UI is on, so Settings' own heading stands down
+   in page mode. The classic Settings sheet portals to <body> and is unaffected. */
+.app--next .set__title { display: none; }

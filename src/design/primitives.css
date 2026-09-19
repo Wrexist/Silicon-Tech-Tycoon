@@ -206,6 +206,103 @@
 .ds-stat--tile .ds-stat__value { font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.01em; }
 .ds-stat--tile .ds-stat__label { font-size: var(--fs-caption); }
 
+/* StatTile — the dashboard tile. Width is deliberately unset: the caller's grid places it. */
+.ds-stattile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--glass-well);
+  border: 1px solid var(--glass-well-edge);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 34%, transparent);
+}
+.ds-stattile__label {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--ink-2);
+}
+.ds-stattile__value {
+  font-size: var(--fs-headline);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.1;
+}
+.ds-stattile__delta {
+  align-self: flex-start;
+  padding: 2px var(--sp-8);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+}
+.ds-stattile__delta--up {
+  color: var(--positive-text);
+  background: var(--positive-soft);
+}
+.ds-stattile__delta--down {
+  color: var(--negative-text);
+  background: var(--negative-soft);
+}
+.ds-stattile__delta--flat {
+  color: var(--ink-2);
+  background: var(--surface-2);
+}
+.ds-stattile__hint {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+
+/* KeyStatsPanel — icon / label / value rows. */
+.ds-keystats {
+  display: flex;
+  flex-direction: column;
+}
+.ds-keystats__row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  padding: var(--sp-12) 0;
+  min-width: 0;
+}
+.ds-keystats__row + .ds-keystats__row {
+  border-top: 1px solid var(--hairline);
+}
+.ds-keystats__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r-button);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.ds-keystats__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+.ds-keystats__label {
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--ink);
+}
+.ds-keystats__hint {
+  font-size: var(--fs-micro);
+  color: var(--ink-3);
+}
+.ds-keystats__value {
+  flex: 0 0 auto;
+  font-size: var(--fs-headline);
+  font-weight: 700;
+  color: var(--ink);
+  text-align: right;
+}
+
 /* Section header */
 .ds-section {
   display: flex;
@@ -366,7 +463,7 @@
   align-items: flex-end;
   justify-content: center;
   z-index: 50;
-  animation: ds-fade var(--spring-snappy);
+  animation: ds-fade var(--spring-standard);
 }
 .ds-sheet {
   width: 100%;
@@ -383,7 +480,10 @@
   border-radius: var(--r-sheet) var(--r-sheet) 0 0;
   box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), var(--shadow-floating);
   padding: var(--sp-24) var(--edge) calc(var(--sp-32) + env(safe-area-inset-bottom));
-  animation: ds-rise var(--spring-standard);
+  /* The gentler spring settles the sheet softly as it rises — the scrim uses the standard spring so
+     the card and its dim finish together. Both are the shared motion tokens (never a raw duration). */
+  animation: ds-rise var(--spring-gentle);
+  will-change: transform, opacity;
   /* drag-to-dismiss snaps back to here when released short of the threshold */
   transition: transform var(--spring-standard);
 }
@@ -424,6 +524,16 @@
 .ds-sheet__grab:active::before {
   background: var(--ink-3);
   width: 46px;
+}
+/* The handle is a drag affordance, not a button: the global keyboard focus ring drew a blue box
+   around its invisible 64×24 hit area, which read as a rendering bug. Keep keyboard focus visible
+   (a11y) but paint it on the pill itself. */
+.ds-sheet__grab:focus-visible {
+  outline: none;
+}
+.ds-sheet__grab:focus-visible::before {
+  background: var(--accent);
+  box-shadow: 0 0 0 var(--focus-width, 2px) var(--accent);
 }
 
 /* Toast */
@@ -534,4 +644,111 @@
   mask-composite: exclude;
   pointer-events: none;
   z-index: 4;
+}
+
+/* Page header — the shell's title row. Deliberately mirrors the type scale the per-screen
+   `.app__title` used, so migrating a screen does not resize its heading. It is rendered INSIDE
+   `.app__main`, so it inherits that column's `--edge` inset and must not re-add it. */
+.ds-pghead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin: var(--sp-4) 0 var(--sp-12);
+}
+.ds-pghead__back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  margin-left: calc(var(--sp-8) * -1);
+  border-radius: var(--r-pill);
+  color: var(--ink-2);
+  transition: background var(--spring-snappy), color var(--spring-snappy);
+}
+.ds-pghead__back:active {
+  background: var(--surface-2);
+}
+.ds-pghead__text {
+  min-width: 0;
+  flex: 1;
+}
+.ds-pghead__title {
+  font-size: var(--fs-title);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+.ds-pghead__subtitle {
+  margin-top: var(--sp-4);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+.ds-pghead__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-8);
+  flex-shrink: 0;
+}
+
+/* Section rail — a page's own sub-navigation. Phone: a horizontal strip that scrolls. Wide
+   (>= 800px, the same breakpoint the shell uses): a vertical rail beside the section body. */
+.ds-rail {
+  display: flex;
+  gap: var(--sp-4);
+  overflow-x: auto;
+  margin-bottom: var(--sp-16);
+  padding-bottom: var(--sp-4);
+  scrollbar-width: none;
+}
+.ds-rail::-webkit-scrollbar { display: none; }
+.ds-rail__item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-8);
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 0 var(--sp-16);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  white-space: nowrap;
+  transition: color var(--spring-snappy), background var(--spring-snappy);
+}
+.ds-rail__item--active {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent);
+}
+.ds-rail__glyph { display: inline-flex; }
+.ds-panel__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  min-width: 0;
+}
+@media (min-width: 800px) {
+  .ds-panel {
+    display: grid;
+    grid-template-columns: var(--rail-w) minmax(0, 1fr);
+    gap: var(--sp-24);
+    align-items: start;
+  }
+  .ds-rail {
+    flex-direction: column;
+    overflow-x: visible;
+    margin-bottom: 0;
+    padding-bottom: 0;
+    position: sticky;
+    top: var(--sp-16);
+  }
+  .ds-rail__item {
+    width: 100%;
+    border-radius: var(--r-button);
+    justify-content: flex-start;
+  }
+  .ds-rail__item--active { background: var(--accent-soft); }
 }

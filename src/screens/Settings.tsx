@@ -7,6 +7,7 @@ import {
   Download,
   Layers,
   Lock,
+  MessageCircle,
   Monitor,
   Moon,
   RotateCcw,
@@ -124,6 +125,11 @@ export function Settings({ onClose }: { onClose: () => void }) {
               </button>
             ))}
           </div>
+        </Row>
+        {/* Office chatter — the 3D team's small speech bubbles. A UI preference, not save data, so it
+            survives a new company; Reduce Motion always suppresses the bubbles regardless. */}
+        <Row icon={<MessageCircle size={18} />} label="Office chatter" sub="Short lines above your team's desks in the office.">
+          <Switch label="Office chatter" on={settings.officeChatter} onChange={(v) => { setSettings({ officeChatter: v }); sfx("toggle"); }} />
         </Row>
       </div>
 

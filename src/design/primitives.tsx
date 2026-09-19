@@ -7,10 +7,11 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { Sparkles } from "lucide-react";
+import { ChevronLeft, Sparkles } from "lucide-react";
 import { haptic } from "./haptics.ts";
 import { sfx } from "./sound.ts";
 import { lockScroll } from "./scrollLock.ts";
+import { registerAppOverlay } from "./overlayGuard.ts";
 import "./primitives.css";
 
 /* ---------- Card ---------- */
@@ -104,6 +105,61 @@ export function Stat({
       <span className="ds-stat__label">{label}</span>
       <span className="ds-stat__value tnum" style={{ color: STAT_TONE_COLOR[tone] }}>{value}</span>
       {hint && <span className="ds-stat__hint">{hint}</span>}
+    </div>
+  );
+}
+
+/* ---------- StatTile ----------
+   The dashboard stat: a muted micro label, a headline number, and an optional delta chip whose
+   tone carries the metric's MEANING (a rising burn is `down`). The tile sets no width — the caller's
+   grid decides, so the same tile sits 2-up on a phone and 4-up on the wide dashboard. */
+export type StatTileTone = "up" | "down" | "flat";
+export function StatTile({
+  label,
+  value,
+  delta,
+  deltaTone = "flat",
+  hint,
+}: {
+  label: string;
+  value: ReactNode;
+  /** Preformatted, e.g. "+12%". Omit entirely when there is not enough history — never fabricate 0%. */
+  delta?: string;
+  deltaTone?: StatTileTone;
+  hint?: string;
+}) {
+  return (
+    <div className="ds-stattile">
+      <span className="ds-stattile__label">{label}</span>
+      <span className="ds-stattile__value tnum">{value}</span>
+      {delta ? (
+        <span className={`ds-stattile__delta ds-stattile__delta--${deltaTone} tnum`}>{delta}</span>
+      ) : null}
+      {hint && <span className="ds-stattile__hint">{hint}</span>}
+    </div>
+  );
+}
+
+/* ---------- KeyStatsPanel ----------
+   A vertical list of icon / label / value rows. The icon sits in a tinted well; the value is
+   right-aligned and may be any node (the caller owns formatting). */
+export function KeyStatsPanel({
+  items,
+}: {
+  items: readonly { icon: ReactNode; label: string; value: ReactNode; hint?: string }[];
+}) {
+  return (
+    <div className="ds-keystats">
+      {items.map((it) => (
+        <div className="ds-keystats__row" key={it.label}>
+          <span className="ds-keystats__icon" aria-hidden>{it.icon}</span>
+          <span className="ds-keystats__text">
+            <span className="ds-keystats__label">{it.label}</span>
+            {it.hint && <span className="ds-keystats__hint">{it.hint}</span>}
+          </span>
+          <span className="ds-keystats__value tnum">{it.value}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -293,6 +349,13 @@ export function Sheet({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
+  // Register as a top-level app overlay (like every interrupt): the sheet owns Escape while it's up,
+  // so a lower full-screen layer — Factory mode, or the shell's page-level Escape — stands down
+  // instead of one press closing the sheet AND peeling the layer beneath it.
+  useEffect(() => {
+    if (!open) return;
+    return registerAppOverlay();
+  }, [open]);
   useEffect(() => { if (open) setOffset(0); }, [open]);
   // Touch swipe-to-dismiss across the whole sheet. We claim the gesture as a dismiss only when the
   // content is scrolled to the very top AND the finger is moving down — so scrolling the content
@@ -426,5 +489,70 @@ export function Sheet({
       </div>
     </div>,
     document.body,
+  );
+}
+
+/** The shared page header for the Silicon 2.0 shell: an optional back chevron, the page title, an
+ *  optional subtitle and a right-hand action slot. Screens stop drawing their own `.app__title`
+ *  when the new shell is on, so there is exactly one, correctly-positioned title per page. */
+export function PageHeader({
+  title,
+  subtitle,
+  onBack,
+  actions,
+  tint,
+}: {
+  title: string;
+  subtitle?: string;
+  onBack?: () => void;
+  actions?: ReactNode;
+  /** Optional per-page accent for the title (the classic `.app__title` tinted itself per tab). */
+  tint?: string;
+}) {
+  return (
+    <header className="ds-pghead">
+      {onBack && (
+        <button type="button" className="ds-pghead__back" onClick={onBack} aria-label="Back">
+          <ChevronLeft size={20} aria-hidden />
+        </button>
+      )}
+      <div className="ds-pghead__text">
+        <h1 className="ds-pghead__title" style={tint ? { color: tint } : undefined}>{title}</h1>
+        {subtitle ? <p className="ds-pghead__subtitle">{subtitle}</p> : null}
+      </div>
+      {actions ? <div className="ds-pghead__actions">{actions}</div> : null}
+    </header>
+  );
+}
+
+/** Sub-navigation INSIDE a page. Below 800px it is a horizontally scrollable strip; at 800px and up
+ *  it is a vertical rail beside the content. The shell owns the page HEADER, so a page that needs
+ *  sections renders this in its body — one title, one back affordance, no double-title bugs. */
+export function SectionRail({
+  items,
+  active,
+  onChange,
+  ariaLabel,
+}: {
+  items: readonly { id: string; label: string; icon?: ReactNode }[];
+  active: string;
+  onChange: (id: string) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <nav className="ds-rail" aria-label={ariaLabel}>
+      {items.map((it) => (
+        <button
+          key={it.id}
+          type="button"
+          className={`ds-rail__item${it.id === active ? " ds-rail__item--active" : ""}`}
+          aria-current={it.id === active ? "true" : undefined}
+          onClick={() => onChange(it.id)}
+        >
+          {it.icon ? <span className="ds-rail__glyph" aria-hidden>{it.icon}</span> : null}
+          <span className="ds-rail__label">{it.label}</span>
+        </button>
+      ))}
+    </nav>
   );
 }

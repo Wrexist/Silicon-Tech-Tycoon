@@ -83,6 +83,73 @@
   50% { opacity: 0.4; }
 }
 
+/* Test Prototype panel (Silicon 2.0) — a player spend in the Design Lab. */
+.lab__testing {
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.lab__testing-cost {
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.lab__testing-lead {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  margin: var(--sp-4) 0 var(--sp-12);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+.lab__testing-why {
+  margin-top: var(--sp-8);
+  font-size: var(--fs-caption);
+  color: var(--ink-3);
+  text-align: center;
+}
+.lab__testing-outcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  padding: var(--sp-12) var(--sp-14);
+  border-radius: var(--r-card);
+  border: 1px solid var(--glass-well-edge);
+  background: var(--glass-well);
+  font-size: var(--fs-caption);
+  color: var(--ink-2);
+}
+.lab__testing-outcome--flaw {
+  border-color: color-mix(in srgb, var(--warning) 30%, transparent);
+  background: color-mix(in srgb, var(--warning) 7%, var(--glass-well));
+}
+.lab__testing-outcome--clean {
+  border-color: color-mix(in srgb, var(--positive) 30%, transparent);
+  background: color-mix(in srgb, var(--positive) 7%, var(--glass-well));
+}
+.lab__testing-week {
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.lab__testing-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.lab__testing-line strong { color: var(--ink); font-weight: 700; }
+.lab__testing-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  align-self: flex-start;
+  font-size: var(--fs-caption);
+  font-weight: 700;
+  color: var(--accent);
+}
+
 /* Trend shift countdown — shown when a retarget is within 5 weeks */
 .lab__trend-shift {
   display: flex;

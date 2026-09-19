@@ -28,7 +28,7 @@
   background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 88%, white), var(--accent));
   color: var(--accent-ink);
   box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 45%, transparent);
-  animation: cele-disc 600ms var(--spring-snappy) both;
+  animation: cele-disc var(--spring-gentle) both;
 }
 .cele--positive .cele__disc {
   background: linear-gradient(160deg, color-mix(in srgb, var(--positive) 86%, white), var(--positive));
@@ -41,7 +41,7 @@
   background: var(--positive); color: #fff;
   border: 3px solid var(--surface);
   box-shadow: var(--shadow-subtle);
-  animation: cele-seal 420ms 320ms var(--spring-snappy) both;
+  animation: cele-seal var(--spring-bounce) 320ms both;
 }
 .cele__rays { position: absolute; inset: 0; }
 .cele__rays i {
@@ -51,7 +51,7 @@
   transform: rotate(var(--a)) translateY(-44px) scaleY(0);
   transform-origin: center;
   opacity: 0;
-  animation: cele-ray 520ms var(--d) cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  animation: cele-ray var(--spring-gentle) var(--d) both;
 }
 .cele__rays i:nth-child(3n) { background: var(--positive); }
 .cele__rays i:nth-child(3n + 1) { background: var(--warning); }

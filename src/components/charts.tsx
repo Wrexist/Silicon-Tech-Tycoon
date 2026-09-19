@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, useState } from "react";
 import { STAT_KEYS, type Stats } from "../engine/types.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import "./charts.css";
@@ -143,5 +143,162 @@ export function SalesCurveChart({
         );
       })}
     </svg>
+  );
+}
+
+const CHART_RANGES = [
+  { id: "4w", label: "4W", weeks: 4 },
+  { id: "8w", label: "8W", weeks: 8 },
+  { id: "26w", label: "26W", weeks: 26 },
+  { id: "all", label: "All", weeks: Number.POSITIVE_INFINITY },
+] as const;
+type ChartRangeId = (typeof CHART_RANGES)[number]["id"];
+
+const CHART_W = 560;
+const CHART_H = 200;
+
+/** Maps a value to the SVG y axis. Returns the mid-line for a zero-height domain so a flat series
+ *  still draws a line instead of an unexpected baseline. */
+function scaleY(value: number, min: number, span: number, height: number): number {
+  if (span === 0) return height / 2;
+  return height - ((value - min) / span) * height;
+}
+
+/** Multi-series line chart. The caller owns the semantic colours (this never hardcodes
+ *  `--positive` / `--negative`); the component owns only geometry, the legend and the 4W/8W/26W/All
+ *  range control (a local view preference, not route state). Zero-safe: a flat, single-point or
+ *  all-zero series still draws an axis and a line, never a NaN path or a blank SVG. */
+export function DataChart({
+  series,
+  weeks,
+  xLabel = "Week",
+  formatValue = (n) => String(n),
+}: {
+  series: readonly { id: string; label: string; colour: string; points: readonly number[] }[];
+  /** One x tick label per point, aligned with every series' `points`. Sliced with the range. */
+  weeks: readonly (string | number)[];
+  xLabel?: string;
+  formatValue?: (n: number) => string;
+}) {
+  const [range, setRange] = useState<ChartRangeId>("8w");
+  const rangeWeeks = CHART_RANGES.find((r) => r.id === range)?.weeks ?? 8;
+
+  const total = Math.max(series[0]?.points.length ?? 0, weeks.length);
+  const windowLen = Number.isFinite(rangeWeeks) ? Math.min(rangeWeeks, total) : total;
+  const start = Math.max(0, total - windowLen);
+  const visibleLen = Math.max(0, total - start);
+
+  const visible = series.map((s) => ({
+    ...s,
+    points: s.points.slice(start, total),
+  }));
+
+  const allValues = visible.flatMap((s) => s.points);
+  const min = Math.min(0, ...allValues);
+  const max = Math.max(0, ...allValues, 1);
+  const span = max - min || 1;
+
+  // Up to 5 evenly-spaced ticks including the first and last, so labels never collide on 390px.
+  const tickCount = Math.max(1, Math.min(5, visibleLen));
+  const ticks =
+    visibleLen <= 1
+      ? [0]
+      : Array.from({ length: tickCount }, (_, i) =>
+          Math.round((i * (visibleLen - 1)) / (tickCount - 1)),
+        );
+  const labelAt = (i: number) => weeks[start + i] ?? start + i + 1;
+
+  const x = (i: number) =>
+    visibleLen <= 1 ? CHART_W / 2 : (i / (visibleLen - 1)) * CHART_W;
+
+  const seriesNames = series.map((s) => s.label).join(", ");
+  const ariaLabel = `Growth chart, ${range === "all" ? "all weeks" : CHART_RANGES.find((r) => r.id === range)?.label}: ${seriesNames}`;
+
+  return (
+    <div className="ds-chart">
+      <div className="ds-chart__top">
+        <div className="ds-chart__legend">
+          {series.map((s) => (
+            <span className="ds-chart__legend-item" key={s.id}>
+              <span className="ds-chart__swatch" style={{ background: s.colour }} aria-hidden />
+              {s.label}
+            </span>
+          ))}
+        </div>
+        <div className="ds-chart__ranges" role="group" aria-label="Chart range">
+          {CHART_RANGES.map((r) => (
+            <button
+              key={r.id}
+              type="button"
+              className={`ds-chart__range${r.id === range ? " ds-chart__range--active" : ""}`}
+              aria-pressed={r.id === range}
+              onClick={() => setRange(r.id)}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="ds-chart__plot">
+        <span className="ds-chart__ymax tnum">{formatValue(max)}</span>
+        <span
+          className="ds-chart__yzero tnum"
+          style={{ top: `${(scaleY(0, min, span, CHART_H) / CHART_H) * 100}%` }}
+        >
+          0
+        </span>
+        <svg
+          className="ds-chart__svg"
+          viewBox={`0 0 ${CHART_W} ${CHART_H}`}
+          preserveAspectRatio="none"
+          role="img"
+          aria-label={ariaLabel}
+        >
+          <line
+            x1={0}
+            y1={scaleY(0, min, span, CHART_H)}
+            x2={CHART_W}
+            y2={scaleY(0, min, span, CHART_H)}
+            stroke="var(--hairline)"
+            strokeWidth="1"
+            strokeDasharray="3 3"
+          />
+          {visible.map((s) => {
+            if (s.points.length === 0) return null;
+            const path =
+              s.points.length === 1
+                ? `M 0 ${scaleY(s.points[0], min, span, CHART_H)} L ${CHART_W} ${scaleY(s.points[0], min, span, CHART_H)}`
+                : s.points
+                    .map(
+                      (p, i) =>
+                        `${i === 0 ? "M" : "L"} ${x(i).toFixed(1)} ${scaleY(p, min, span, CHART_H).toFixed(1)}`,
+                    )
+                    .join(" ");
+            return (
+              <path
+                key={s.id}
+                d={path}
+                fill="none"
+                stroke={s.colour}
+                strokeWidth="2.5"
+                strokeLinejoin="round"
+                strokeLinecap="round"
+                vectorEffect="non-scaling-stroke"
+              />
+            );
+          })}
+        </svg>
+      </div>
+
+      <div className="ds-chart__xaxis">
+        {ticks.map((i) => (
+          <span className="ds-chart__xtick tnum" key={i}>
+            {labelAt(i)}
+          </span>
+        ))}
+      </div>
+      <span className="ds-chart__xlabel">{xLabel}</span>
+    </div>
   );
 }

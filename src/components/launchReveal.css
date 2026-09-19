@@ -123,8 +123,8 @@
 .lreveal__score-den { font-size: var(--fs-caption); color: var(--ink-3); font-weight: 700; }
 .lreveal__score--pending .lreveal__score-val { color: var(--ink-3); }
 
-.lreveal__score-val { animation: lreveal-score-in 0.5s var(--spring-standard) both; }
-.lreveal__outlets { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-6); animation: lreveal-rise 0.4s var(--spring-standard) both; }
+.lreveal__score-val { animation: lreveal-score-in var(--spring-standard) both; }
+.lreveal__outlets { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-6); animation: lreveal-rise var(--spring-standard) both; }
 .lreveal__outlet {
   display: inline-flex; align-items: center; gap: var(--sp-6);
   padding: 5px 10px; border-radius: var(--r-pill);
@@ -140,7 +140,7 @@
 .lreveal__quote {
   font-size: var(--fs-body); font-style: italic; color: var(--ink); line-height: 1.4;
   margin: 0 var(--sp-4);
-  animation: lreveal-rise 0.45s var(--spring-standard) 0.05s both;
+  animation: lreveal-rise var(--spring-standard) 0.05s both;
 }
 
 .lreveal__verdict {
@@ -162,7 +162,7 @@
   font-weight: 700;
   animation: lreveal-pop var(--spring-bounce) both;
 }
-.lreveal__units { display: flex; flex-direction: column; gap: 1px; animation: lreveal-rise 0.4s var(--spring-standard) 0.08s both; }
+.lreveal__units { display: flex; flex-direction: column; gap: 1px; animation: lreveal-rise var(--spring-standard) 0.08s both; }
 .lreveal__units-val { font-size: var(--fs-headline); font-weight: 800; }
 .lreveal__units-label { font-size: var(--fs-caption); color: var(--ink-2); }
 
@@ -173,7 +173,7 @@
   padding: var(--sp-8) var(--sp-12);
   border-radius: var(--r-button);
   background: var(--lreveal-accent-soft);
-  animation: lreveal-rise 0.4s var(--spring-standard) 0.11s both;
+  animation: lreveal-rise var(--spring-standard) 0.11s both;
 }
 .lreveal__why-label {
   font-size: var(--fs-micro); font-weight: 700;
@@ -192,7 +192,7 @@
   font-size: var(--fs-caption); font-weight: 700;
   color: var(--lreveal-accent);
   border-radius: var(--r-button);
-  animation: lreveal-rise 0.4s var(--spring-standard) 0.18s both;
+  animation: lreveal-rise var(--spring-standard) 0.18s both;
 }
 
 /* Continue CTA — themed to the verdict accent (green hit / blue steady / muted flop), rounded with a
@@ -206,7 +206,7 @@
   letter-spacing: 0.01em;
   border-radius: var(--r-card);
   box-shadow: 0 10px 26px -8px color-mix(in srgb, var(--lreveal-accent) 60%, transparent);
-  animation: lreveal-rise 0.4s var(--spring-standard) 0.14s both;
+  animation: lreveal-rise var(--spring-standard) 0.14s both;
 }
 .lreveal__card .ds-btn--primary:active {
   transform: translateY(1px) scale(0.99);

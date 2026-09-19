@@ -2,7 +2,7 @@
 // from primitives + materials + real lights. Scoped to the garage only; devices stay SVG.
 import { Component, Suspense, lazy, memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { ContactShadows, RoundedBox, Html, Environment, Lightformer } from "@react-three/drei";
+import { ContactShadows, RoundedBox, Html } from "@react-three/drei";
 import { PartyPopper, Sparkles, Star, ThumbsUp, Rocket, Frown, CloudRain, BatteryLow, Meh, ThumbsDown } from "lucide-react";
 import * as THREE from "three";
 import { moodBand, type MoodBand } from "../engine/staff.ts";
@@ -26,11 +26,17 @@ import {
 } from "../engine/furniture.ts";
 import { FurniturePiece } from "./furniture3d.tsx";
 import { sharedBox, sharedCapsule, sharedCylinder, sharedRounded, sharedSphere, sharedStandard, sharedTorus } from "./sharedGpu.ts";
-import { floorFinish, wallStyle, type FloorFinish, type WallStyle } from "../engine/roomStyle.ts";
+import type { FloorFinish, WallStyle } from "../engine/roomStyle.ts";
 import { roomPalette, type RoomPalette } from "./palette.ts";
 import { ROBOT_COLORS, robotModelFor } from "./robotModels.ts";
 import { reactionIntensity, onHqReaction, HQ_REACTION_MS, type HqReaction } from "../design/hqReaction.ts";
 import { highlightIntensity } from "../design/hqHighlight.ts";
+import { officeSeed, officeWeek, workTargetFor } from "./officeLive.ts";
+import SpeechBubbles, { type Speaker } from "./speechBubbles.tsx";
+import { CameraRig, PinchZoom } from "./cameraRig.tsx";
+import { Lighting, EnableShadows } from "./lighting.tsx";
+import { useHqInteractions } from "./interactions.ts";
+import { officeConfigFor } from "./officeConfig.ts";
 
 /** Wraps an upgrade's physical office object(s); when its card is tapped (hqHighlight) it does a
  *  decaying attention hop so the player can SEE what that upgrade added. Additive y-offset only. */
@@ -45,11 +51,6 @@ function Pulse({ feature, children }: { feature: UpgradeId; children: ReactNode 
 
 type Upgrades = Partial<Record<UpgradeId, number>>;
 const tierOf = (u: Upgrades, id: UpgradeId) => u[id] ?? 0;
-
-// The office footprint scales with the facility tier (bigger building = more desks + open floor).
-// The room shell + its fixtures render inside a group scaled by this factor, while the furniture
-// grid uses the tier-aware worldOf/gridOrigin so desks fill the larger CENTRED grid at real size.
-const roomScaleFor = (facilityTier: number) => gridN(facilityTier) / GRID.n;
 
 // The room's floor footprint. Sized to the walls (which sit at ±4.2) so the floor ends AT the
 // room instead of sprawling far past it — an oversized 18×18 floor was why furniture/desks near
@@ -116,179 +117,6 @@ function roamHomeFor(i: number): [number, number] {
   const r = 0.85 * ring;
   const cl = (v: number) => Math.max(-ROAM_BOUND, Math.min(ROAM_BOUND, v));
   return [cl(base[0] + Math.cos(a) * r), cl(base[1] + Math.sin(a) * r)];
-}
-
-// Build mode lifts the camera to a higher, more overhead angle so the whole floor grid is
-// readable; otherwise it's the cozy parallax view. WASD lets the player drive the view:
-// A/D orbit around the room, W/S zoom in/out, Q/E (or R/F) raise/lower the eye height.
-// Shared camera dolly offset (in the same units as baseR): written by both the W/S keys and the
-// pinch-to-zoom handler, read by CameraRig every frame. A plain module singleton (no React state) so
-// the render loop stays allocation-free and the DOM touch handler can drive it without re-renders.
-// Mirrors the hqReaction event-bus pattern used elsewhere in this scene.
-const CAM_ZOOM_MIN = -6;
-const CAM_ZOOM_MAX = 13;
-// Seconds of no input (no movement key, no pointer travel) before the idle "breathing" camera drift
-// ramps in. Kept generous so it never fights an active viewer — it's a screensaver for an office
-// left alone, and collapses back to zero the instant the controls are touched (so `settled` fires).
-const IDLE_DRIFT_DELAY = 6;
-let camZoomOffset = 0;
-function getCamZoom(): number { return camZoomOffset; }
-function setCamZoom(v: number): void { camZoomOffset = Math.max(CAM_ZOOM_MIN, Math.min(CAM_ZOOM_MAX, v)); }
-
-function CameraRig({ build = false, facilityTier = 1, still = false }: { build?: boolean; facilityTier?: number; still?: boolean }) {
-  const { camera, pointer } = useThree();
-  const target = useMemo(() => new THREE.Vector3(0, 1.5, 0), []);
-  const keys = useRef<Set<string>>(new Set());
-  const orbit = useRef({ yaw: 0, lift: 0 }); // player camera offsets (zoom lives in the shared singleton)
-  const lastPointer = useRef({ x: 0, y: 0 }); // for the settle check
-  const idleT = useRef(0); // seconds since the last input — drives the idle breathing drift
-
-  // Each mode (decorate vs. normal) has its own default framing, so reset the dolly when the mode
-  // flips, otherwise a big pinch-out in Decorate would leave the normal office zoomed out too.
-  useEffect(() => { setCamZoom(0); }, [build]);
-
-  useEffect(() => {
-    const MOVE = new Set(["w", "a", "s", "d", "q", "e", "r", "f"]);
-    const typing = () => {
-      const el = document.activeElement;
-      return !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || (el as HTMLElement).isContentEditable);
-    };
-    const down = (ev: KeyboardEvent) => {
-      const key = ev.key.toLowerCase();
-      if (!MOVE.has(key) || typing()) return;
-      keys.current.add(key);
-    };
-    const up = (ev: KeyboardEvent) => keys.current.delete(ev.key.toLowerCase());
-    const blur = () => keys.current.clear();
-    window.addEventListener("keydown", down);
-    window.addEventListener("keyup", up);
-    window.addEventListener("blur", blur);
-    return () => {
-      window.removeEventListener("keydown", down);
-      window.removeEventListener("keyup", up);
-      window.removeEventListener("blur", blur);
-    };
-  }, []);
-
-  useFrame((st, dt) => {
-    // Apply held keys to the orbit offsets (frame-rate independent).
-    const ks = keys.current;
-    const o = orbit.current;
-    const rotSpd = dt * 1.5;
-    const zoomSpd = dt * 6;
-    const liftSpd = dt * 5;
-    if (ks.has("a")) o.yaw -= rotSpd;
-    if (ks.has("d")) o.yaw += rotSpd;
-    if (ks.has("w")) setCamZoom(getCamZoom() - zoomSpd); // closer
-    if (ks.has("s")) setCamZoom(getCamZoom() + zoomSpd); // farther
-    if (ks.has("q") || ks.has("r")) o.lift = Math.min(7, o.lift + liftSpd); // higher
-    if (ks.has("e") || ks.has("f")) o.lift = Math.max(-3, o.lift - liftSpd); // lower
-
-    // Input detection (also drives the settle saver below). Any held movement key or pointer travel
-    // counts as active use and zeroes the idle timer. (`pointer` is the live object from useThree.)
-    const keyHeld = ks.size > 0;
-    const pointerStill =
-      Math.abs(pointer.x - lastPointer.current.x) < 1e-4 && Math.abs(pointer.y - lastPointer.current.y) < 1e-4;
-    lastPointer.current.x = pointer.x;
-    lastPointer.current.y = pointer.y;
-    if (keyHeld || !pointerStill) idleT.current = 0; else idleT.current += dt;
-
-    // Idle breathing drift: after IDLE_DRIFT_DELAY of no input, add a very slow yaw/height sway so an
-    // unattended office feels alive. The offset is EXACTLY zero until then (ramped in over ~3s), so the
-    // `settled` early-return below still fires the instant the camera reaches its resting pose after any
-    // interaction — the drift only spends frames once the viewer has truly walked away, and collapses
-    // back to zero (letting the camera re-settle) the moment the controls are touched again.
-    // `still` (Reduce Motion) pins the drift OFF. This is the one animation in the office that moves
-    // the whole viewport, which is what prefers-reduced-motion is actually about — the rest of the
-    // scene's life is small, object-scale fidgeting that stays. Zeroing driftK here (rather than
-    // skipping the block) keeps the `settled` early-return below working exactly as it did.
-    const driftK = still ? 0 : Math.max(0, Math.min(1, (idleT.current - IDLE_DRIFT_DELAY) / 3));
-    let driftYaw = 0, driftLift = 0;
-    if (driftK > 0) {
-      const e = st.clock.elapsedTime;
-      driftYaw = Math.sin(e * 0.13) * 0.018 * driftK;
-      driftLift = Math.sin(e * 0.09) * 0.14 * driftK;
-    }
-
-    const k = Math.min(1, dt * 2.5);
-    // Decorate view was framed close (baseR ≈ 10.6) for precise placement, but that cropped the
-    // room's edges off-screen (and the shop panel hides the front row), so furniture near the walls
-    // was unreachable. Pull back + raise the angle so the WHOLE grid sits in the visible area above
-    // the panel; W/S (or a pinch, if added) still let you dolly in for fine placement.
-    const px = build ? 9.5 : 15.5;
-    const py = build ? 13.6 : 13.0;
-    const pz = build ? 12.5 : 17.5;
-    const ty = build ? 0.5 : 0.7;
-
-    // Convert the base offset to an orbit (radius + azimuth) so A/D rotates around the room
-    // and W/S dollies in/out, while pointer parallax + smoothing are preserved. The radius scales
-    // with the facility so a bigger office (Studio/Campus) is framed whole, not cropped.
-    const baseR = Math.hypot(px, pz) * roomScaleFor(facilityTier);
-    const r = Math.max(4, baseR + getCamZoom());
-    const ang = Math.atan2(px, pz) + o.yaw + driftYaw;
-    const desiredX = Math.sin(ang) * r + pointer.x * (build ? 0.5 : 1.3);
-    const desiredZ = Math.cos(ang) * r;
-    const desiredY = Math.max(1.2, py + o.lift + driftLift - pointer.y * (build ? 0.3 : 0.9));
-
-    // Settle: if no movement key is held, the pointer hasn't moved, and we're already within
-    // epsilon of where we want to be, stop writing camera.position/lookAt to save battery. When the
-    // idle drift is active `desired` keeps moving, so this naturally stays awake to animate it; the
-    // moment input resumes, driftYaw/driftLift return to 0 and the camera settles as before.
-    const dx = desiredX - camera.position.x;
-    const dy = desiredY - camera.position.y;
-    const dz = desiredZ - camera.position.z;
-    const settled = dx * dx + dy * dy + dz * dz < 1e-6 && Math.abs(ty - target.y) < 1e-3;
-    if (!keyHeld && pointerStill && settled) return;
-
-    camera.position.x += dx * k;
-    camera.position.y += dy * k;
-    camera.position.z += dz * k;
-    target.y += (ty - target.y) * k;
-    camera.lookAt(target);
-  });
-  return null;
-}
-
-// Pinch-to-zoom: a two-finger gesture on the canvas dollies the camera in/out via the shared zoom
-// offset. Single-finger gestures are untouched (they still pan / drag furniture). Listeners are
-// non-passive so the pinch can preventDefault the browser's native page zoom; only acts on exactly
-// two active touches, so it never fights a one-finger drag.
-function PinchZoom() {
-  const gl = useThree((s) => s.gl);
-  useEffect(() => {
-    const el = gl.domElement;
-    let active = false;
-    let startDist = 0;
-    let startZoom = 0;
-    const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
-    const start = (e: TouchEvent) => {
-      if (e.touches.length === 2) {
-        active = true;
-        startDist = dist(e.touches);
-        startZoom = getCamZoom();
-      }
-    };
-    const move = (e: TouchEvent) => {
-      if (!active || e.touches.length !== 2) return;
-      e.preventDefault(); // own the pinch, stop the page's native zoom/scroll under it
-      const d = dist(e.touches);
-      // Spreading the fingers (d > startDist) reduces the offset → camera dollies closer (zoom in);
-      // pinching together pushes it farther (zoom out). 0.04 maps finger travel to a comfortable range.
-      setCamZoom(startZoom + (startDist - d) * 0.04);
-    };
-    const end = (e: TouchEvent) => { if (e.touches.length < 2) active = false; };
-    el.addEventListener("touchstart", start, { passive: false });
-    el.addEventListener("touchmove", move, { passive: false });
-    el.addEventListener("touchend", end);
-    el.addEventListener("touchcancel", end);
-    return () => {
-      el.removeEventListener("touchstart", start);
-      el.removeEventListener("touchmove", move);
-      el.removeEventListener("touchend", end);
-      el.removeEventListener("touchcancel", end);
-    };
-  }, [gl]);
-  return null;
 }
 
 // Floor with a player-chosen finish (concrete/wood/tile/carpet/polished). The seam pattern +
@@ -824,7 +652,7 @@ function HeadAccessory({ accessory, hat }: { accessory: Accessory; hat: string }
 // lit tip, little arms + hands, rounded feet, metallic neck ring. ~1.45m tall, grounded at y=0.
 // `walking` toggles a stride swing; `sitting` folds it onto a chair; otherwise a gentle idle.
 // `accessory` (item 1.2) puts the employee's worn item on the head, so the seated robot IS them.
-function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = false, accessory = "none" }: { colorIdx: number; seed: number; moodColor?: string; walking?: boolean; sitting?: boolean; accessory?: Accessory }) {
+function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = false, accessory = "none", still = false }: { colorIdx: number; seed: number; moodColor?: string; walking?: boolean; sitting?: boolean; accessory?: Accessory; still?: boolean }) {
   const color = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
   const belly = useMemo(() => shade(color, 0.32), [color]);
   const dark = useMemo(() => shade(color, -0.5), [color]);
@@ -836,9 +664,22 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
   const armRRef = useRef<THREE.Group>(null);
   const legLRef = useRef<THREE.Group>(null);
   const legRRef = useRef<THREE.Group>(null);
+  // Work state (Wave 7): a derived hash of (seed, week, character) picks idle vs working, eased so
+  // the pose never snaps. Only re-hashed when the sim week changes, never per frame. `still`
+  // (Reduce Motion) pins it to idle so no NEW always-on motion runs.
+  const work = useRef(0);
+  const workWeek = useRef(-1);
+  const workTo = useRef(0);
 
-  useFrame((st) => {
+  useFrame((st, dt) => {
     const t = st.clock.elapsedTime + seed;
+    const wk = officeWeek();
+    if (workWeek.current !== wk) {
+      workWeek.current = wk;
+      workTo.current = still ? 0 : workTargetFor(officeSeed(), wk, Math.round(seed * 1000));
+    }
+    work.current += (workTo.current - work.current) * Math.min(1, dt * 1.6);
+    const w = work.current;
     // Living-office reactions: a bouncy hop + raised arms on a win (cheer), or a head-down droop on
     // a flop (slump). Both decay over the reaction window (hqReaction).
     const cheer = reactionIntensity("cheer");
@@ -847,7 +688,7 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
     // subtle head dip toward the screen sharing the same phase, so a bank of desks reads as busy
     // rather than frozen. Seeded (t already carries +seed; the extra +seed*3 further decorrelates)
     // so no two robots tap in lockstep. Purely additive over the folded sitting pose; zero when standing.
-    const type = sitting ? Math.sin(t * 7 + seed * 3) * 0.05 : 0;
+    const type = sitting ? Math.sin(t * 7 + seed * 3) * (0.02 + w * 0.08) : 0;
     // Seated robots are lifted onto the seat (SIT_LIFT above the floor pivot) and stay planted — no
     // standing bob — with a cheer reduced to a small in-seat bounce. SIT_LIFT lives here (not on the
     // parent) so a rigged .glb playing its own grounded "Sitting" clip isn't pushed off the chair.
@@ -858,10 +699,16 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
     if (root.current) root.current.position.y = baseY + hop - slump * 0.05; // sag a little on a flop
     if (headRef.current) {
       const calm = 1 - slump;
-      headRef.current.rotation.y = Math.sin(t * 0.6) * (walking ? 0.08 : 0.22) * calm;
+      // Working robots keep their head down on the screen; idle robots sit back and slowly look
+      // around the room (the derived work state w cross-fades the two — visible across the team).
+      const lookAround = sitting && !still ? (1 - w) * Math.sin(t * 0.45 + seed * 1.7) * 0.26 : 0;
+      headRef.current.rotation.y =
+        Math.sin(t * 0.6) * (walking ? 0.08 : 0.22) * calm * (sitting ? 0.35 + 0.65 * (1 - w) : 1) + lookAround;
       headRef.current.rotation.z = Math.sin(t * 0.95) * 0.04 * calm;
-      // hangs down on a flop; when seated, a tiny forward nod toward the screen shares the typing phase
-      headRef.current.rotation.x = slump * 0.55 + (sitting ? 0.02 * (0.5 + 0.5 * Math.sin(t * 7 + seed * 3)) : 0);
+      // hangs down on a flop; when seated, a forward nod toward the screen that deepens with work
+      headRef.current.rotation.x =
+        slump * 0.55 +
+        (sitting ? w * (0.1 + 0.03 * (0.5 + 0.5 * Math.sin(t * 7 + seed * 3))) : 0);
     }
     if (antRef.current) {
       antRef.current.rotation.z = Math.sin(t * 2.2) * (0.18 + cheer * 0.6) * (1 - slump);
@@ -871,7 +718,7 @@ function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = 
     // seated — and thrown overhead on a cheer.
     const arm = walking ? Math.sin(t * 6) * 0.7 : Math.sin(t * 1.6) * 0.12;
     const cheerArm = -2.0 * cheer; // raise both arms up
-    const sitArm = sitting ? -0.55 : 0; // bring hands forward onto the desk/lap
+    const sitArm = sitting ? -0.45 - w * 0.25 : 0; // working leans the hands further onto the desk
     if (armLRef.current) armLRef.current.rotation.x = -0.1 + arm + cheerArm + sitArm + type;
     if (armRRef.current) armRRef.current.rotation.x = -0.1 - arm + cheerArm + sitArm - type;
     // legs: brisk stride while walking, still when idle, folded forward at the hip when seated so
@@ -962,8 +809,8 @@ class RobotBoundary extends Component<{ fallback: ReactNode; children: ReactNode
 /** A robot by colour index: uses a dropped-in .glb model when one exists (see robotModels.ts),
  *  otherwise the hand-built parametric robot. `clip` requests an animation by name (e.g. "Idle",
  *  "Sitting") — ignored if the model doesn't ship that clip. A blob shadow grounds the model. */
-function OfficeRobot({ colorIdx, seed, moodColor, clip, walking = false, sitting = false, accessory = "none" }: { colorIdx: number; seed: number; moodColor?: string; clip?: string; walking?: boolean; sitting?: boolean; accessory?: Accessory }) {
-  const parametric = <RobotCharacter colorIdx={colorIdx} seed={seed} moodColor={moodColor} walking={walking} sitting={sitting} accessory={accessory} />;
+function OfficeRobot({ colorIdx, seed, moodColor, clip, walking = false, sitting = false, accessory = "none", still = false }: { colorIdx: number; seed: number; moodColor?: string; clip?: string; walking?: boolean; sitting?: boolean; accessory?: Accessory; still?: boolean }) {
+  const parametric = <RobotCharacter colorIdx={colorIdx} seed={seed} moodColor={moodColor} walking={walking} sitting={sitting} accessory={accessory} still={still} />;
   const model = robotModelFor(colorIdx);
   if (!model) return parametric;
   return (
@@ -994,7 +841,7 @@ const ROAM_BOUND = 3.4; // stay on the floor slab
 
 // A robot that gently wanders within `radius` of its home, steering around furniture (simple
 // repulsion — the "physics" that keeps it out of the table) and facing its direction of travel.
-function RoamingRobot({ colorIdx, seed, home, radius = 1.1, accessory = "none" }: { colorIdx: number; seed: number; home: [number, number]; radius?: number; accessory?: Accessory }) {
+function RoamingRobot({ colorIdx, seed, home, radius = 1.1, accessory = "none", still = false }: { colorIdx: number; seed: number; home: [number, number]; radius?: number; accessory?: Accessory; still?: boolean }) {
   const grp = useRef<THREE.Group>(null);
   const s = useRef({ x: home[0], z: home[1], tx: home[0], tz: home[1], next: 0, face: 0 });
   useFrame((st, dt) => {
@@ -1035,7 +882,7 @@ function RoamingRobot({ colorIdx, seed, home, radius = 1.1, accessory = "none" }
   });
   return (
     <group ref={grp}>
-      <OfficeRobot colorIdx={colorIdx} seed={seed} clip="Walking" walking accessory={accessory} />
+      <OfficeRobot colorIdx={colorIdx} seed={seed} clip="Walking" walking accessory={accessory} still={still} />
     </group>
   );
 }
@@ -1141,7 +988,7 @@ function LivingMonitor({ seed, hasProduction, p }: { seed: number; hasProduction
   );
 }
 
-function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false, hasProduction = false }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId; flip?: boolean; hasProduction?: boolean }) {
+function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false, hasProduction = false, still = false }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId; flip?: boolean; hasProduction?: boolean; still?: boolean }) {
   // Item 1.2 — the seated robot is the EMPLOYEE: its shell colour + worn accessory come from their
   // Appearance (stable per person, not per seat), so the office shows your actual, distinct team.
   const personColor = staff ? staff.appearance.shirt % ROBOT_COLORS.length : colorIdx;
@@ -1186,7 +1033,7 @@ function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false
         <Chair p={p} hue={hue} />
         {staff && (
           <group position={[0, 0, -0.08]}>
-            <OfficeRobot colorIdx={personColor} seed={seed} moodColor={moodColor} clip="Sitting" sitting accessory={accessory} />
+            <OfficeRobot colorIdx={personColor} seed={seed} moodColor={moodColor} clip="Sitting" sitting accessory={accessory} still={still} />
           </group>
         )}
       </group>
@@ -1210,19 +1057,20 @@ function desktopWorlds(count: number): { x: number; z: number; rotY: number }[] 
   const n = Math.max(0, Math.min(4, count));
   return Array.from({ length: n }, (_, i) => ({ x: (i - (n - 1) / 2) * DESKTOP_SPACING, z: DESKTOP_ROW_Z, rotY: 0 }));
 }
-function DesktopPod({ p, worlds, staff, monitors, hasProduction = false, onTapStaff, startColorIdx }: { p: RoomPalette; worlds: { x: number; z: number; rotY: number }[]; staff: Staff[]; monitors: number; hasProduction?: boolean; onTapStaff?: (id: string) => void; startColorIdx: number }) {
+function DesktopPod({ p, worlds, staff, monitors, hasProduction = false, onTapStaff, startColorIdx, still = false }: { p: RoomPalette; worlds: { x: number; z: number; rotY: number }[]; staff: Staff[]; monitors: number; hasProduction?: boolean; onTapStaff?: (id: string) => void; startColorIdx: number; still?: boolean }) {
+  const { staffTap } = useHqInteractions({ onTapStaff });
   return (
     <group>
       {worlds.map((w, i) => {
         const s = staff[i];
         return (
           <group key={i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
-            <Workstation p={p} staff={s} seed={(startColorIdx + i) * 2.1} monitors={monitors} colorIdx={(startColorIdx + i) % ROBOT_COLORS.length} hasProduction={hasProduction} powered />
+            <Workstation p={p} staff={s} seed={(startColorIdx + i) * 2.1} monitors={monitors} colorIdx={(startColorIdx + i) % ROBOT_COLORS.length} hasProduction={hasProduction} powered still={still} />
             {/* invisible tap target → opens this employee's roster card (matches the placed desks) */}
             {onTapStaff && s?.id && (
               <mesh
                 position={[0, 0.95, 0]}
-                onClick={(e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); onTapStaff(s.id!); }}
+                onClick={staffTap(s.id!)}
               >
                 <boxGeometry args={[1.3, 1.9, 1.3]} />
                 <meshBasicMaterial transparent opacity={0} depthWrite={false} />
@@ -1397,33 +1245,20 @@ function PendantLamp({ p }: { p: RoomPalette }) {
 // Factory world showing over it, another bottom tab) the instant the browser tab regains focus.
 function VisibilityPause({ paused = false }: { paused?: boolean }) {
   const setFrameloop = useThree((s) => s.setFrameloop);
+  const invalidate = useThree((s) => s.invalidate);
   useEffect(() => {
-    const apply = () => setFrameloop(paused || document.hidden ? "never" : "always");
+    const apply = () => {
+      const idle = paused || document.hidden;
+      // "demand" rather than "never": a paused scene must still draw ONCE, or a caller that mounts it
+      // already-paused (the Company hero) shows a blank canvas - "never" from first mount never runs
+      // the initial draw. An explicit invalidate guarantees that single frame.
+      setFrameloop(idle ? "demand" : "always");
+      if (idle) invalidate();
+    };
     apply();
     document.addEventListener("visibilitychange", apply);
     return () => document.removeEventListener("visibilitychange", apply);
-  }, [setFrameloop, paused]);
-  return null;
-}
-
-// Turns on cast/receive shadows for every mesh in the scene so the key light grounds objects
-// with soft contact shadows (the floor slab receives them). Re-runs on a short delay to catch
-// lazily-mounted pieces. Cheap one-shot traversal.
-function EnableShadows() {
-  const scene = useThree((s) => s.scene);
-  useEffect(() => {
-    const apply = () =>
-      scene.traverse((o) => {
-        const m = o as THREE.Mesh;
-        if ((m as THREE.Mesh).isMesh) {
-          m.castShadow = true;
-          m.receiveShadow = true;
-        }
-      });
-    apply();
-    const t = setTimeout(apply, 600);
-    return () => clearTimeout(t);
-  }, [scene]);
+  }, [setFrameloop, invalidate, paused]);
   return null;
 }
 
@@ -1910,12 +1745,14 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
   );
 }
 
-function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, desktops = 0, paused = false, still = false, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; desktops?: number; paused?: boolean; still?: boolean; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
+function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, desktops = 0, paused = false, still = false, officeChatter = true, simPaused = false, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; desktops?: number; paused?: boolean; still?: boolean; officeChatter?: boolean; simPaused?: boolean; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
   const p = useMemo(() => roomPalette(dark), [dark]);
-  const monitors = tierOf(upgrades, "computers") >= 2 ? 2 : 1;
-  const amenityTier = tierOf(upgrades, "amenities");
-  const finish = floorFinish(roomStyle.floor);
-  const wall = wallStyle(roomStyle.wall);
+  const cfg = officeConfigFor({ facilityTier, upgrades, roomStyle, desktops });
+  const { staffTap, bankTap } = useHqInteractions({ onTapStaff, onTapBank });
+  const monitors = cfg.monitors;
+  const amenityTier = cfg.amenityTier;
+  const finish = cfg.finish;
+  const wall = cfg.wall;
   const cull = useWallCull();
   // Desks ARE the seats: each employee works at a desk (placed furniture desks first, then the
   // player-bought desktops), so a new hire's robot sits at a real desk instead of milling around.
@@ -1938,72 +1775,37 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   // chair is on the moment someone is hired into it.
   const occupiedSeatSides = seatSides(builder?.layout ?? [], facilityTier);
   const overflow = staff.slice(seats.length);
-  const podCount = Math.max(0, Math.min(4, desktops));
+  const podCount = cfg.podCount;
   const podWorlds = desktopWorlds(podCount);
   const podStaff = overflow.slice(0, podCount);
-  const roaming = overflow.slice(podCount, 16);
+  const roaming = overflow.slice(podCount, cfg.staffCap);
+  // Chatter speakers: every seated worker (placed desks + bought desktops) with their world spot, so
+  // a bubble can sit above whoever is talking. y=2.4 clears the seated robot's raised head (~1.9).
+  const speakers: Speaker[] = [
+    ...seated.map((s, i) => { const w = worldOf(seats[i], facilityTier); return { key: s.id ?? `seat${i}`, x: w.x, z: w.z, y: 2.4 }; }),
+    ...podStaff.map((s, i) => ({ key: s.id ?? `pod${i}`, x: podWorlds[i].x, z: podWorlds[i].z, y: 2.4 })),
+  ];
   // Occupied desks render as full live workstations, so hide their plain furniture models
   // (cozy view only — in Decorate mode the editable furniture pieces must stay visible).
   const occupiedIids = new Set(seated.map((_, i) => seats[i].iid));
   // Facility footprint: the room shell + its wall-anchored fixtures render inside a group scaled by
   // `sc`, so a bigger building (Studio/Campus) grows the walls, floor and props together, while the
   // furniture grid below fills the larger CENTRED grid at real desk size (tier-aware worldOf).
-  const roomK = roomScaleFor(facilityTier);
+  const roomK = cfg.roomScale;
   const sc: [number, number, number] = [roomK, 1, roomK];
-  // Procedural studio IBL (no HDR assets): a few soft area-light rects baked into an environment map
-  // so every metalness surface (vault, coffee machine, robot neck rings, printer) reflects a real
-  // soft-box rig instead of a flat colour. Memoized with a stable element identity + frames={1} so the
-  // PMREM bakes ONCE and never re-bakes on a Scene re-render (the house battery/GPU rule). Kept
-  // theme-independent — the ambient/directional lights already carry the dark-vs-light mood — so a
-  // theme flip never dirties it. Each Lightformer defaults to looking at the origin, so I only place them.
-  const studioEnv = useMemo(() => (
-    <Environment resolution={64} frames={1}>
-      <Lightformer form="rect" intensity={1.1} color="#ffffff" position={[0, 6, 1]} scale={[9, 4, 1]} />
-      <Lightformer form="rect" intensity={0.7} color="#cfe0ff" position={[-6, 3, -2]} scale={[3, 5, 1]} />
-      <Lightformer form="rect" intensity={0.6} color="#ffe6c2" position={[6, 3, 2]} scale={[3, 5, 1]} />
-      <Lightformer form="rect" intensity={0.5} color="#ffffff" position={[0, 2, -6]} scale={[6, 3, 1]} />
-    </Environment>
-  ), []);
   return (
     <>
       <VisibilityPause paused={paused} />
       {!dark && <EnableShadows />}
       <CameraRig build={!!builder?.build} facilityTier={facilityTier} still={still} />
       <PinchZoom />
-      {studioEnv}
-      <ambientLight intensity={dark ? 0.55 : 0.62} color={dark ? "#ffffff" : "#f6f8ff"} />
-      {/* soft sky/ground fill — gives the clean diorama an ambient-occlusion-like gradient */}
-      {!dark && <hemisphereLight args={["#ffffff", "#dfe4ec", 0.85]} />}
-      {/* key light — casts soft shadows in the open diorama for that premium grounded look */}
-      <directionalLight
-        position={[8, 13, 7]}
-        intensity={dark ? 0.7 : 1.15}
-        color={dark ? "#fff4e0" : "#ffffff"}
-        castShadow={!dark}
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
-        shadow-camera-left={-7}
-        shadow-camera-right={7}
-        shadow-camera-top={7}
-        shadow-camera-bottom={-7}
-        shadow-camera-near={0.5}
-        shadow-camera-far={40}
-        shadow-radius={5}
-        shadow-bias={-0.0006}
-      />
-      <directionalLight position={[-5, 8, 4]} intensity={dark ? 0.15 : 0.4} color={dark ? "#c0d4ff" : "#e8f0ff"} />
-      {/* cool rim from behind-above the desk bank — the third point of a three-point rig, so the
-          seated robots read as separated silhouettes against the back wall instead of flat cutouts.
-          No shadows (rim/accent only). */}
-      <directionalLight position={[-4, 7, -6]} intensity={dark ? 0.35 : 0.5} color="#bcd4ff" />
-      <pointLight position={[0, 3.4, 0]} intensity={dark ? 14 : 4} distance={12} decay={2} color={p.lamp} />
-      <pointLight position={[0, 1.3, 0.5]} intensity={dark ? 3 : 1.2} distance={7} decay={2} color={p.screen} />
+      <Lighting p={p} dark={dark} />
 
       {/* Whiteboard is earned: it appears once the team has real Workstations (computers ≥ 1),
           so a fresh garage starts bare and upgrading visibly adds the planning board. The room shell
           scales with the facility so Studio/Campus give a visibly bigger floor to fill. */}
       <group scale={sc}>
-        <Room p={p} dark={dark} finish={finish} wall={wall} cull={cull} showWhiteboard={tierOf(upgrades, "computers") >= 1} />
+        <Room p={p} dark={dark} finish={finish} wall={wall} cull={cull} showWhiteboard={cfg.showWhiteboard} />
       </group>
       {/* distant skyline behind the windows — garage (dark) only; the light diorama floats in
           a clean white void, so no exterior scenery. */}
@@ -2040,13 +1842,13 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         const flip = occupiedSeatSides[seats[i].iid] ?? false;
         return (
           <group key={s.id ?? i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
-            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} flip={flip} hasProduction={hasProduction} />
+            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} flip={flip} hasProduction={hasProduction} still={still} />
             {/* invisible tap target over the desk+robot → opens this person's roster card. A
                 transparent (not visible:false) mesh so the raycaster still hits it. */}
             {onTapStaff && s.id && (
               <mesh
                 position={[0, 0.95, 0]}
-                onClick={(e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); onTapStaff(s.id!); }}
+                onClick={staffTap(s.id)}
               >
                 <boxGeometry args={[1.3, 1.9, 1.3]} />
                 <meshBasicMaterial transparent opacity={0} depthWrite={false} />
@@ -2056,11 +1858,11 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         );
       })}
       {!inBuild && roaming.map((s, i) => (
-        <RoamingRobot key={s.id ?? `roam${i}`} colorIdx={s.appearance.shirt % ROBOT_COLORS.length} seed={(seats.length + podCount + i) * 3.7} home={roamHomeFor(i)} accessory={s.appearance.accessory} />
+        <RoamingRobot key={s.id ?? `roam${i}`} colorIdx={s.appearance.shirt % ROBOT_COLORS.length} seed={(seats.length + podCount + i) * 3.7} home={roamHomeFor(i)} accessory={s.appearance.accessory} still={still} />
       ))}
       {/* Player-bought desktops — a tidy symmetric row that overflow employees sit at (so new
           hires get a desk like the founder). Hidden in Decorate mode like the live workstations. */}
-      {!inBuild && <DesktopPod p={p} worlds={podWorlds} staff={podStaff} monitors={monitors} hasProduction={hasProduction} onTapStaff={onTapStaff} startColorIdx={seats.length} />}
+      {!inBuild && <DesktopPod p={p} worlds={podWorlds} staff={podStaff} monitors={monitors} hasProduction={hasProduction} onTapStaff={onTapStaff} startColorIdx={seats.length} still={still} />}
       {/* wall-anchored fixtures scale with the room so they stay in the corners as the floor grows */}
       <group scale={sc}>
         <Props p={p} hasProduction={hasProduction} dark={dark} />
@@ -2100,7 +1902,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {/* The Vault is the company BANK — your money lives here; tapping it opens the finances
           popup. Kept from the start; the Kanban wall + security gate were starter clutter and
           were removed so a fresh garage reads as a real, empty garage. */}
-      <group onClick={onTapBank && !inBuild ? (e: ThreeEvent<MouseEvent>) => { e.stopPropagation(); onTapBank(); } : undefined}>
+      <group onClick={onTapBank && !inBuild ? bankTap : undefined}>
         <Vault />
       </group>
       </group>
@@ -2122,6 +1924,8 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
             // even the last emote's 2s pop still finishes inside the ~2.6s reaction window.
             return <CheerEmote key={e.key} pos={[e.w.x, LABEL_Y, e.w.z]} Icon={set[e.i % set.length]} tone={reaction === "slump" ? "slump" : "cheer"} delay={Math.min(e.i * 70, 520)} />;
           })}
+          {/* Office chatter (Wave 7) — deterministic, opt-out, and never under Reduce Motion. */}
+          {!still && officeChatter && speakers.length > 0 && <SpeechBubbles speakers={speakers} paused={paused || simPaused} />}
         </>
       )}
 
@@ -2152,6 +1956,8 @@ export const Garage3D = memo(function Garage3D({
   desktops = 0,
   paused = false,
   still = false,
+  officeChatter = true,
+  simPaused = false,
   onContextLost,
   onTapStaff,
   onTapBank,
@@ -2176,6 +1982,13 @@ export const Garage3D = memo(function Garage3D({
    *  one animation here that moves the whole viewport. Reduce Motion used to route players to the 2D
    *  scene instead, which silently hid every piece of furniture they had bought. */
   still?: boolean;
+  /** Show the team's small deterministic speech bubbles in the office (Settings → Office chatter).
+   *  Reduce Motion suppresses them regardless of this flag. */
+  officeChatter?: boolean;
+  /** The SIM's pause state (the HUD Pause button). The office render loop keeps running while the
+   *  sim is paused, so the chatter scheduler gates on this too: a paused game shows no new bubbles,
+   *  and any bubble up at the moment of pausing is cleared rather than frozen mid-air. */
+  simPaused?: boolean;
   /** Called when the WebGL context is lost so the host can downgrade to the 2D fallback. */
   onContextLost?: () => void;
   /** Tap an employee → open their roster card (host navigates to Company). */
@@ -2206,7 +2019,7 @@ export const Garage3D = memo(function Garage3D({
           );
         }}
       >
-        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} desktops={desktops} paused={paused} still={still} onTapStaff={onTapStaff} onTapBank={onTapBank} />
+        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} desktops={desktops} paused={paused} still={still} officeChatter={officeChatter} simPaused={simPaused} onTapStaff={onTapStaff} onTapBank={onTapBank} />
       </Canvas>
     </div>
   );

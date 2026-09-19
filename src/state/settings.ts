@@ -31,10 +31,13 @@ export interface Settings {
    *  type scale is rem-based (tokens.css), so this one number resizes every label in the app. Persisted
    *  here so it survives a new company. */
   textScale: number;
+  /** Office chatter — whether the 3D office shows small deterministic speech bubbles above the team.
+   *  A UI preference (default on), so it survives a new company; Reduce Motion always suppresses them. */
+  officeChatter: boolean;
 }
 
 const KEY = "silicon.settings";
-const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, highContrast: false, decorateTutorialSeen: false, factoryTutorialSeen: false, dailyReminder: false, notifPrompted: false, interruptPace: "standard", textScale: 100 };
+const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, highContrast: false, decorateTutorialSeen: false, factoryTutorialSeen: false, dailyReminder: false, notifPrompted: false, interruptPace: "standard", textScale: 100, officeChatter: true };
 /** Legal text-scale steps (percent). Anything else read from storage snaps to the nearest step. */
 export const TEXT_SCALES = [85, 100, 115, 130] as const;
 

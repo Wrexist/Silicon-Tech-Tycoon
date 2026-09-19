@@ -20,31 +20,36 @@ s = { ...s, onboarded: true, tutorialDone: true, factoryFloor: demoFloor(), comp
   reputation: 78, researched: { chip: 5, display: 5, battery: 4, materials: 4, software: 4, camera: 4 } };
 for (let i = 0; i < 3; i++) { const n = upgradeFacility(s); if (n !== s) s = n; }
 
-// Office: a LAVISH Campus — the facility is tier 3, so the office grid is a roomy 13×13. Lay the
-// team out as an OPEN-PLAN floor (three tidy desk bands across the back half) with distinct front
-// zones — a sectional lounge, a meeting corner, a games/amenities nook and greenery along the walls —
-// leaving real open floor between them so it reads as a spacious studio, never a cramped huddle.
-// A fresh layout (not the starter desk) gives full control; placeFurniture no-ops on collision/OOB.
+// Office: a FURNISHED Campus — the facility is tier 3, so the office grid is a roomy 13×13. Three
+// open-plan desk bands (every seat gets its chair from the seat planner, so the desks alone are the
+// seating), a proper lounge (round rug + sectional + coffee table + side table + lamp), a meeting
+// corner (table + chairs), and greenery / storage / branding along the walls. Walkways stay clear by
+// construction: desk bands sit on rows 1/4/7 and everything else hugs the perimeter or the front
+// half. A fresh layout (not the starter desk) gives full control; placeFurniture no-ops on
+// collision/OOB, so the log below reports anything that did NOT fit.
 s = { ...s, layout: [] };
-// Deliberately SPARE — a clean, real office is desks + open floor, not a pile of furniture. A single
-// tidy lounge, one meeting table, a couple of plants along the walls; everything else stays open.
 const layout = [
-  // ── Engineering: three desk bands, one seat per employee. Off the back wall (rows 1/4/7) so every
-  //    employee faces the camera. This is the ROOM — desks in clean rows with walkways between. ──
-  ["executiveDesk", 0, 1], ["dualDesk", 5, 1], ["dualDesk", 9, 1],
-  ["deskL", 0, 4], ["dualDesk", 4, 4], ["dualDesk", 8, 4], ["desk", 11, 4],
-  ["dualDesk", 1, 7], ["dualDesk", 5, 7], ["desk", 9, 7],
-  // ── One tidy lounge in the front-left corner: a sectional on a rug + a coffee table beside it. ──
-  ["rugRound", 0, 10], ["sofaL", 0, 10], ["coffeeTable", 2, 10],
-  // ── One meeting table, centre-front, with open floor all around it. ──
-  ["meetingTable", 6, 10],
-  // ── Restraint: just the brand sign on the back wall + a few tall plants in the corners / by the
-  //    windows. No fridge / vending / benches / shelves cluttering the floor. ──
-  ["neonSign", 6, 0],
-  ["plantTall", 12, 2], ["plantTall", 12, 11], ["plantTall", 10, 12], ["plantTall", 0, 8],
+  // ── Engineering: three desk bands, one seat per employee. Row 1 sits off the back wall so every
+  //    occupant faces the camera; rows 4 and 7 leave walkways at 3 and 6. ──
+  ["executiveDesk", 0, 1], ["dualDesk", 4, 1], ["dualDesk", 7, 1], ["dualDesk", 10, 1],
+  ["deskL", 0, 4], ["dualDesk", 3, 4], ["dualDesk", 6, 4], ["dualDesk", 9, 4], ["desk", 11, 4],
+  ["dualDesk", 1, 7], ["dualDesk", 4, 7], ["dualDesk", 7, 7], ["desk", 10, 7],
+  // ── Lounge, front-left: a sectional on a round rug, a coffee table, a side table, a reading
+  //    armchair and a floor lamp — a real "zone", not one lonely sofa. ──
+  ["rugRound", 0, 10], ["sofaL", 0, 10], ["coffeeTable", 2, 10], ["armchair", 2, 11],
+  ["sideTable", 4, 10], ["floorLamp", 4, 11],
+  // ── Meeting corner, front-centre-right: table with chairs on the camera side. ──
+  ["meetingTable", 7, 10], ["armchair", 7, 9], ["armchair", 9, 9],
+  // ── Branding + storage along the walls, greenery in the corners. ──
+  ["neonSign", 6, 0], ["ideaWall", 0, 8], ["bookshelf", 0, 9],
+  ["shelfUnit", 12, 0], ["bookshelf", 12, 1], ["plantTall", 12, 2],
+  ["plantTall", 12, 8], ["plantTall", 12, 11], ["plantTall", 6, 12], ["plantPot", 12, 12],
+  ["cabinet", 0, 12], ["plantPot", 2, 12],
 ];
 let placed = 0;
-for (const [type, c, r] of layout) { const n = placeFurniture(s, type, c, r, 0); if (n !== s) { s = n; placed++; } }
+const skipped = [];
+for (const [type, c, r] of layout) { const n = placeFurniture(s, type, c, r, 0); if (n !== s) { s = n; placed++; } else skipped.push(`${type}@${c},${r}`); }
+console.error(`office layout: placed ${placed}/${layout.length}${skipped.length ? ` — SKIPPED (collision/OOB): ${skipped.join(", ")}` : ""}`);
 s = { ...s, desktops: 0 }; // no standalone pods — every employee has a real desk in the open plan
 
 const hires = [

@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { Calendar, FastForward, FlaskConical, Pause, Play, Settings as SettingsIcon, SkipForward, Star, Trophy } from "lucide-react";
 import { AnimatedInt, AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { format } from "../engine/money.ts";
@@ -119,40 +120,110 @@ export function Hud({ onSettings, onOpenBank, onOpenProgress, progressAttention 
 /** Thumb-reachable floating simulation-speed control (Pause/Resume + Fast-forward). Rendered after
  *  the tutorial, when the time controls leave the top HUD; hidden on the Design tab where the build
  *  wizard owns the bottom band. Sits just above the tab bar at the bottom-right (App gates it). */
+/** True while the page is actively scrolling (with a short idle tail), so a fixed control can
+ *  fade out of the way of the text passing underneath it and snap back when the player stops. */
+function useScrolling(idleMs = 650): boolean {
+  const [scrolling, setScrolling] = useState(false);
+  const timer = useRef<number | null>(null);
+  useEffect(() => {
+    const onScroll = () => {
+      setScrolling(true);
+      if (timer.current != null) window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => setScrolling(false), idleMs);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (timer.current != null) window.clearTimeout(timer.current);
+    };
+  }, [idleMs]);
+  return scrolling;
+}
+
 export function SpeedDial() {
   // Controls + actions only — never the game state — so the dial doesn't re-render on the weekly
   // tick (F36). It reads pacing flags, which change only when the player taps.
   const { paused, fast, skipping } = useGameControls();
   const { setPaused, setFast, setSkipping } = useGameActions();
+  // A fixed control cannot dodge the content scrolling under it, so the real fix is its RESTING
+  // footprint: collapsed by default to one small button showing the current primary action. The
+  // first tap discloses the three controls (no sim state changes); choosing one commits and
+  // collapses again, as does scrolling or tapping away. Reach is kept, mid-read coverage is not.
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement | null>(null);
+  const scrolling = useScrolling();
+
+  // Scroll collapses the open dial so it never lingers over the text; the scrolling dim still
+  // fades the collapsed button further out of the way while the page moves.
+  useEffect(() => {
+    if (scrolling) setOpen(false);
+  }, [scrolling]);
+
+  // Tap/click outside (pointerdown, so it closes before the tap lands on content) or Escape
+  // collapses it too.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (root.current && !root.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("pointerdown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("pointerdown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
   return (
-    <div className="speeddial" role="group" aria-label="Simulation speed">
+    <div
+      ref={root}
+      className={`speeddial${open ? " speeddial--open" : ""}${scrolling ? " speeddial--scrolling" : ""}`}
+      role="group"
+      aria-label="Simulation speed"
+    >
+      {/* Collapsed this is the disclosure trigger: it shows the current primary action and opens
+          the dial without touching the sim. Expanded it IS pause/resume — choosing it commits the
+          action and collapses. */}
       <button
-        className="speeddial__btn"
-        onClick={() => { if (!paused) setSkipping(false); setPaused(!paused); }}
+        className="speeddial__btn speeddial__btn--primary"
+        onClick={() => {
+          if (!open) { setOpen(true); return; }
+          if (!paused) setSkipping(false);
+          setPaused(!paused);
+          setOpen(false);
+        }}
         aria-label={paused ? "Resume" : "Pause"}
-        aria-pressed={paused}
+        aria-expanded={open}
+        aria-pressed={open ? paused : undefined}
       >
         {paused ? <Play size={18} fill="currentColor" /> : <Pause size={18} fill="currentColor" />}
       </button>
-      <button
-        className={`speeddial__btn${fast && !paused ? " speeddial__btn--on" : ""}`}
-        onClick={() => { setFast(!fast); if (!fast) { setPaused(false); setSkipping(false); } }}
-        aria-label={fast ? "Normal speed" : "Fast forward"}
-        aria-pressed={fast}
-      >
-        <FastForward size={18} fill="currentColor" />
-      </button>
-      {/* Skip to next decision — run fast until the sim produces something that needs input
-          (build ready, event, era goal, finished run, low cash), then auto-pause with the
-          reason. Time becomes decision-paced instead of clock-watching. */}
-      <button
-        className={`speeddial__btn${skipping && !paused ? " speeddial__btn--on" : ""}`}
-        onClick={() => { setSkipping(!skipping); if (!skipping) { setPaused(false); setFast(false); } }}
-        aria-label={skipping ? "Stop skipping" : "Skip to next event"}
-        aria-pressed={skipping}
-      >
-        <SkipForward size={18} fill="currentColor" />
-      </button>
+      {open && (
+        <>
+          <button
+            className={`speeddial__btn${fast && !paused ? " speeddial__btn--on" : ""}`}
+            onClick={() => { setFast(!fast); if (!fast) { setPaused(false); setSkipping(false); } setOpen(false); }}
+            aria-label={fast ? "Normal speed" : "Fast forward"}
+            aria-pressed={fast}
+          >
+            <FastForward size={18} fill="currentColor" />
+          </button>
+          {/* Skip to next decision — run fast until the sim produces something that needs input
+              (build ready, event, era goal, finished run, low cash), then auto-pause with the
+              reason. Time becomes decision-paced instead of clock-watching. */}
+          <button
+            className={`speeddial__btn${skipping && !paused ? " speeddial__btn--on" : ""}`}
+            onClick={() => { setSkipping(!skipping); if (!skipping) { setPaused(false); setFast(false); } setOpen(false); }}
+            aria-label={skipping ? "Stop skipping" : "Skip to next event"}
+            aria-pressed={skipping}
+          >
+            <SkipForward size={18} fill="currentColor" />
+          </button>
+        </>
+      )}
     </div>
   );
 }
