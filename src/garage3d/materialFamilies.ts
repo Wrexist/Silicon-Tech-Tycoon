@@ -18,8 +18,11 @@
 export type MaterialFamily = "wood" | "metal" | "fabric" | "foliage" | "glow" | "neutral";
 
 export interface MaterialFamilySpec {
-  /** Fraction of the source colour's saturation that survives (hue + lightness are preserved). */
+  /** Fraction of the source colour's saturation that survives (hue is preserved). */
   keep: number;
+  /** Optional lightness multiplier, so a family can sit darker than its source paint instead of
+   *  keeping the model's bright shipped value. Defaults to 1 (lightness preserved). */
+  value?: number;
   roughness: number;
   metalness: number;
   /** Self-lit families (lamp glass, screens) keep their warm/cool glow. */
@@ -29,9 +32,12 @@ export interface MaterialFamilySpec {
 }
 
 /** The family palette. Distinct roughness/metalness is the point: a wood surface and a metal frame
- *  must not respond to light identically even when their tones are close. */
+ *  must not respond to light identically even when their tones are close. `wood` sits at a lower
+ *  saturation AND a slightly lower value than the ship paint: the Kenney timber is a bright tan,
+ *  and left at 0.5 keep it out-glowed the room's own dark-walnut parametric furniture — the open
+ *  shelving especially read as the brightest thing in a nighttime office. */
 export const MATERIAL_FAMILIES: Readonly<Record<MaterialFamily, MaterialFamilySpec>> = {
-  wood: { keep: 0.5, roughness: 0.62, metalness: 0, role: "work surfaces + solid wood bodies" },
+  wood: { keep: 0.32, value: 0.8, roughness: 0.66, metalness: 0, role: "work surfaces + solid wood bodies" },
   metal: { keep: 0.12, roughness: 0.34, metalness: 0.72, role: "frames, legs, hardware, painted metal" },
   fabric: { keep: 0.35, roughness: 0.88, metalness: 0, role: "seating, rugs and woven textiles" },
   foliage: { keep: 0.85, roughness: 0.85, metalness: 0, role: "the one plant green" },
@@ -93,7 +99,14 @@ export function applyMaterialFamily(
   family: MaterialFamily = familyForMaterial(mat.name ?? ""),
 ): MaterialFamily {
   const spec = MATERIAL_FAMILIES[family];
-  if (mat.color) desaturate(mat.color, spec.keep);
+  if (mat.color) {
+    desaturate(mat.color, spec.keep);
+    if (spec.value !== undefined && spec.value !== 1) {
+      const hsl = { h: 0, s: 0, l: 0 };
+      mat.color.getHSL(hsl);
+      mat.color.setHSL(hsl.h, hsl.s, Math.min(1, hsl.l * spec.value));
+    }
+  }
   mat.roughness = spec.roughness;
   mat.metalness = spec.metalness;
   if (spec.emissive && mat.emissive && mat.color) {

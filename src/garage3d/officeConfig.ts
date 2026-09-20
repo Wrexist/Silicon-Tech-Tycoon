@@ -46,6 +46,21 @@ export function roomScaleFor(facilityTier: number): number {
   return gridN(facilityTier) / GRID.n;
 }
 
+/** Strength of the floor's painted work-zone outline: the garage's own workshop marking at tier 1,
+ *  a token one in a Studio, a faint memory at Campus — a Growth-Era office must not read as a
+ *  workshop. Pure, and never applied to a player-chosen floor finish's own material. */
+export function zonePaintOpacity(facilityTier: number): number {
+  const t = Math.max(1, Math.floor(facilityTier));
+  return t <= 1 ? 0.5 : t === 2 ? 0.28 : 0.12;
+}
+
+/** Strength of the concrete finish's expansion-joint seams: grounded in the garage, restrained
+ *  once the company outgrows it, so the floor grounds the furniture instead of reading as a grid. */
+export function seamOpacity(facilityTier: number): number {
+  const t = Math.max(1, Math.floor(facilityTier));
+  return t <= 1 ? 1 : t === 2 ? 0.7 : 0.45;
+}
+
 export function officeConfigFor(s: OfficeState): OfficeConfig {
   const u = s.upgrades;
   return {

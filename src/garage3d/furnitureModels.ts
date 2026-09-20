@@ -16,11 +16,17 @@
 // Licensing note: only CC0 / permissively-licensed packs may ship in a web/Capacitor app.
 // Do NOT use paid Synty / Unity-Store packs — their license forbids redistributing extractable assets.
 import type { FurnitureId } from "../engine/furniture.ts";
+import type { MaterialFamily } from "./materialFamilies.ts";
 
 export interface ModelAsset {
   url: string; // relative to the app public root, e.g. "furniture/sofa.glb"
   scale?: number; // uniform scale to fit the grid cell (default 1)
   yaw?: number; // extra Y rotation in radians to orient it (default 0)
+  /** Runtime finish override, applied AFTER the material-family pass: the listed families blend
+   *  `amount` of the way toward `color`. The Kenney kit ships one bright tan timber for every
+   *  wooden object, so a piece that should sit back (the open shelving) can be finished in a darker
+   *  neutral without touching the GLB or dulling every desk and table alongside it. */
+  tint?: { color: string; amount: number; families?: readonly MaterialFamily[] };
   /** The piece's REAL height in metres. When set, the model is scaled to stand this tall instead of
    *  to fill its tile — the difference between furniture in human proportion and furniture inflated
    *  to whatever footprint it happens to occupy. The footprint fit still caps it. */
@@ -53,9 +59,12 @@ export const MODEL_ASSETS: Partial<Record<FurnitureId, ModelAsset>> = {
   coffeeTable: { url: u("coffeeTable"), scale: 1, realHeight: 0.42 },
   meetingTable: { url: u("meetingTable"), scale: 1, realHeight: 0.74 },
   sideTable: { url: u("sideTable"), scale: 1, realHeight: 0.55 },
-  bookshelf: { url: u("bookshelf"), scale: 1, realHeight: 1.8, shelfRows: [0.15, 0.425, 0.7] },
+  // The two open shelving units get the darkest finish in the catalog: they are tall, pale and
+  // large, and in a nighttime office a bright frame out-shouts the team. Dark neutral frame, warm
+  // shelves — storage reads as storage, not as the brightest object on the floor.
+  bookshelf: { url: u("bookshelf"), scale: 1, realHeight: 1.8, shelfRows: [0.15, 0.425, 0.7], tint: { color: "#4b4038", amount: 0.6, families: ["wood"] } },
   cabinet: { url: u("cabinet"), scale: 1, realHeight: 0.9 },
-  shelfUnit: { url: u("shelfUnit"), scale: 1, realHeight: 1.8, shelfRows: [0.325] },
+  shelfUnit: { url: u("shelfUnit"), scale: 1, realHeight: 1.8, shelfRows: [0.325], tint: { color: "#4b4038", amount: 0.55, families: ["wood"] } },
   crates: { url: u("crates"), scale: 1, realHeight: 0.6 },
   plantTall: { url: u("plantTall"), scale: 1, realHeight: 1.45 },
   plantPot: { url: u("plantPot"), scale: 1, realHeight: 0.5 },

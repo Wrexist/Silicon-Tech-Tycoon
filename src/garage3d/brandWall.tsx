@@ -35,23 +35,27 @@ function signTexture(name: string, ink: string): THREE.CanvasTexture {
   const textW = ctx.measureText(label).width;
   const markW = 132;
   const gap = 44;
+  // The lockup is centred in the panel with one spacing rule: the mark's diamond spans MID ± 68,
+  // the wordmark keeps a fixed 44px gap after the mark, and both are vertically centred on the
+  // same axis (MID) so the name never sits a few pixels low against the mark.
+  const MID = SIGN_H / 2;
   const startX = Math.max(20, (SIGN_W - (markW + gap + textW)) / 2);
   // Diamond mark + core dot, matching the marketing screen's brand lockup.
   const cx = startX + markW / 2;
   ctx.lineWidth = 20;
   ctx.beginPath();
-  ctx.moveTo(cx, 44);
-  ctx.lineTo(cx + 66, 112);
-  ctx.lineTo(cx, 180);
-  ctx.lineTo(cx - 66, 112);
+  ctx.moveTo(cx, MID - 68);
+  ctx.lineTo(cx + 66, MID);
+  ctx.lineTo(cx, MID + 68);
+  ctx.lineTo(cx - 66, MID);
   ctx.closePath();
   ctx.stroke();
   ctx.beginPath();
-  ctx.arc(cx, 112, 20, 0, Math.PI * 2);
+  ctx.arc(cx, MID, 20, 0, Math.PI * 2);
   ctx.fill();
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
-  ctx.fillText(label, startX + markW + gap, 120);
+  ctx.fillText(label, startX + markW + gap, MID);
   const tex = new THREE.CanvasTexture(c);
   tex.anisotropy = 4;
   return tex;
@@ -90,17 +94,19 @@ export function BrandWall({ name, p, mode }: { name: string; p: RoomPalette; mod
       <instancedMesh ref={slats} args={[undefined, undefined, slatN]} material={slat}>
         <boxGeometry args={[slatW, h - 0.1, 0.06]} />
       </instancedMesh>
-      {/* cove strips: the backlight that makes the panel read as an installation, not a poster */}
-      {[h / 2 - 0.028, -h / 2 + 0.028].map((y, i) => (
-        <mesh key={i} position={[0, y, 0.055]}>
-          <boxGeometry args={[w - 0.14, 0.032, 0.028]} />
-          <meshStandardMaterial color={p.signGlow} emissive={p.signGlow} emissiveIntensity={1.25} toneMapped={false} />
+      {/* Cove light: the warm strip sits BEHIND the panel and spills onto the wall, top and bottom,
+          so the installation reads as lit architecture instead of wearing two neon tubes. Additive
+          gradient quads only — same pooled texture as every pool in the room, no extra light. */}
+      {[1, -1].map((s) => (
+        <mesh key={s} position={[0, s * (h / 2 + 0.12), 0.03]}>
+          <planeGeometry args={[w + 0.45, 0.95]} />
+          <meshBasicMaterial map={glowTexture()} color={p.signGlow} transparent opacity={0.3} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
         </mesh>
       ))}
-      {/* warm halo behind the mark */}
+      {/* a low, tight warm bloom right behind the mark so the ink sits in its own light */}
       <mesh position={[0, 0, 0.079]}>
         <planeGeometry args={[w - 0.2, h * 1.3]} />
-        <meshBasicMaterial map={glowTexture()} color={p.signGlow} transparent opacity={0.3} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
+        <meshBasicMaterial map={glowTexture()} color={p.signGlow} transparent opacity={0.24} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
       </mesh>
       <mesh position={[0, 0, 0.082]} renderOrder={1}>
         <planeGeometry args={[w - 0.4, h - 0.22]} />

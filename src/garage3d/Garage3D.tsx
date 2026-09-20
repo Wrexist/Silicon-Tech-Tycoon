@@ -35,7 +35,7 @@ import { OfficeRobot, RoamingRobot } from "./robotCharacter.tsx";
 import SpeechBubbles, { type Speaker } from "./speechBubbles.tsx";
 import { CameraRig, PinchZoom, CAM_REST_POSITION } from "./cameraRig.tsx";
 import { Lighting, EnableShadows } from "./lighting.tsx";
-import { Room, useWallCull, CHEER_GREEN } from "./room.tsx";
+import { Room, useWallCull, CHEER_GREEN, Props, Plant, BallBin } from "./room.tsx";
 import { useHqInteractions } from "./interactions.ts";
 import { TargetPrompt } from "./interactionPrompt.tsx";
 import { officeConfigFor } from "./officeConfig.ts";
@@ -370,26 +370,6 @@ function DesktopPod({ p, worlds, staff, monitors, hasProduction = false, onTapSt
   );
 }
 
-function Printer({ p, active }: { p: RoomPalette; active: boolean }) {
-  const head = useRef<THREE.Mesh>(null);
-  useFrame((st) => {
-    if (head.current && active) head.current.position.x = Math.sin(st.clock.elapsedTime * 2.2) * 0.18;
-  });
-  return (
-    <group position={[-3.0, 0, 2.9]}>
-      <RoundedBox args={[0.9, 1.0, 0.9]} radius={0.06} smoothness={3} position={[0, 0.5, 0]}>
-        <meshStandardMaterial color={p.metal} roughness={0.6} metalness={0.2} />
-      </RoundedBox>
-      {active && (
-        <mesh ref={head} position={[0, 0.85, 0]}>
-          <boxGeometry args={[0.18, 0.06, 0.5]} />
-          <meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={0.8} toneMapped={false} />
-        </mesh>
-      )}
-    </group>
-  );
-}
-
 // Floating label overlay — white pill badge with a coloured dot indicator.
 // Scene-constant colours (like RoomPalette's intrinsic object colours): the pill must stay
 // dark-on-white over the 3D room in BOTH app themes, so it can't ride the theme ink tokens.
@@ -442,70 +422,6 @@ function Vault() {
       <mesh position={[-0.17, 0.95, 0.375]} rotation-x={-Math.PI / 2}>
         <planeGeometry args={[0.01, 0.09]} />
         <meshBasicMaterial color="#ffffff" />
-      </mesh>
-    </group>
-  );
-}
-
-function Props({ p, hasProduction, back = 0, dark = true }: { p: RoomPalette; hasProduction: boolean; back?: number; dark?: boolean }) {
-  return (
-    <group>
-      {/* garage clutter (boxes + tool chest) — dark/garage mode only; the clean diorama stays tidy */}
-      {dark && (
-        <>
-          <RoundedBox args={[0.9, 0.9, 0.9]} radius={0.04} smoothness={2} position={[-3.2, 0.45, -3.0 - back]}>
-            <meshStandardMaterial color={p.box} roughness={0.85} />
-          </RoundedBox>
-          <RoundedBox args={[0.7, 0.7, 0.7]} radius={0.04} smoothness={2} position={[-3.2, 1.25, -3.0 - back]}>
-            <meshStandardMaterial color={p.box} roughness={0.85} />
-          </RoundedBox>
-          <RoundedBox args={[1.0, 1.3, 0.9]} radius={0.05} smoothness={3} position={[3.1, 0.65, -3.0 - back]}>
-            <meshStandardMaterial color={p.chest} roughness={0.5} metalness={0.1} />
-          </RoundedBox>
-        </>
-      )}
-      {/* plant (front-right). `sc` stretches x/z with the facility but not y, so a full-size Plant
-          here inflates into a 1.4m topiary ball at Campus scale — the room's nearest object to the
-          camera. Scaling the whole group down keeps the pot and canopy in human proportion. */}
-      <group position={[3.1, 0, 3.0]} scale={0.5}>
-        <mesh position={[0, 0.25, 0]}>
-          <cylinderGeometry args={[0.28, 0.34, 0.5, 12]} />
-          <meshStandardMaterial color={p.pot} roughness={0.8} />
-        </mesh>
-        <mesh position={[0, 0.75, 0]}>
-          <sphereGeometry args={[0.5, 14, 14]} />
-          <meshStandardMaterial color={p.plant} roughness={0.85} />
-        </mesh>
-      </group>
-      <Printer p={p} active={hasProduction} />
-      {/* pendant lamp hangs from the ceiling — only in the enclosed garage (dark), not the open diorama */}
-      {dark && <PendantLamp p={p} />}
-    </group>
-  );
-}
-
-// Pendant lamp that gently swings (pivot at the ceiling).
-function PendantLamp({ p }: { p: RoomPalette }) {
-  const ref = useRef<THREE.Group>(null);
-  useFrame((st) => {
-    if (!ref.current) return;
-    const t = st.clock.elapsedTime;
-    ref.current.rotation.z = Math.sin(t * 0.8) * 0.05;
-    ref.current.rotation.x = Math.cos(t * 0.62) * 0.04;
-  });
-  return (
-    <group ref={ref} position={[0, 5, 0]}>
-      <mesh position={[0, -0.7, 0]}>
-        <cylinderGeometry args={[0.03, 0.03, 1.4, 6]} />
-        <meshStandardMaterial color={p.metalDark} />
-      </mesh>
-      <mesh position={[0, -1.45, 0]}>
-        <coneGeometry args={[0.45, 0.5, 18, 1, true]} />
-        <meshStandardMaterial color={p.lamp} emissive={p.lamp} emissiveIntensity={0.45} side={THREE.DoubleSide} />
-      </mesh>
-      <mesh position={[0, -1.6, 0]}>
-        <sphereGeometry args={[0.1, 12, 12]} />
-        <meshStandardMaterial color="#fff6df" emissive="#fff2cc" emissiveIntensity={1.4} toneMapped={false} />
       </mesh>
     </group>
   );
@@ -604,95 +520,6 @@ function Mug({ hue }: { hue: string }) {
           </mesh>
         ))}
       </group>
-    </group>
-  );
-}
-
-// A real-physics desk toy — a glass bin of balls with gravity, wall + ball collisions and
-// damping, integrated each frame (no WASM, tiny cost). Nudged now and then to stay lively.
-const BIN_R = 0.072;
-const BIN_HALF = 0.22;
-function BallBin({ p, pos }: { p: RoomPalette; pos: [number, number, number] }) {
-  const N = 5;
-  const refs = useRef<(THREE.Mesh | null)[]>([]);
-  const balls = useMemo(
-    () =>
-      Array.from({ length: N }, (_, i) => ({
-        p: new THREE.Vector3((i - 2) * 0.085, 0.45 + i * 0.06, Math.sin(i) * 0.06),
-        v: new THREE.Vector3(),
-      })),
-    [],
-  );
-  useEffect(() => {
-    const id = setInterval(() => {
-      const b = balls[Math.floor(Math.random() * N)];
-      b.v.y += 0.7;
-      b.v.x += (Math.random() - 0.5) * 0.5;
-      b.v.z += (Math.random() - 0.5) * 0.5;
-    }, 3000);
-    return () => clearInterval(id);
-  }, [balls]);
-  useFrame((_, delta) => {
-    // Pause physics when the tab/canvas is hidden — no point integrating an unseen scene.
-    if (typeof document !== "undefined" && document.hidden) return;
-    const dt = Math.min(delta, 0.033);
-    for (const b of balls) {
-      b.v.y -= 2.4 * dt; // gravity
-      b.p.addScaledVector(b.v, dt);
-      (["x", "z"] as const).forEach((ax) => {
-        if (b.p[ax] > BIN_HALF - BIN_R) { b.p[ax] = BIN_HALF - BIN_R; b.v[ax] *= -0.5; }
-        if (b.p[ax] < -BIN_HALF + BIN_R) { b.p[ax] = -BIN_HALF + BIN_R; b.v[ax] *= -0.5; }
-      });
-      if (b.p.y < BIN_R) { b.p.y = BIN_R; b.v.y *= -0.45; b.v.x *= 0.9; b.v.z *= 0.9; }
-      b.v.multiplyScalar(0.992);
-    }
-    for (let i = 0; i < N; i++)
-      for (let j = i + 1; j < N; j++) {
-        const a = balls[i].p, c = balls[j].p;
-        const dx = a.x - c.x, dy = a.y - c.y, dz = a.z - c.z;
-        const dist = Math.hypot(dx, dy, dz);
-        if (dist > 0.0001 && dist < BIN_R * 2) {
-          const push = (BIN_R * 2 - dist) / dist * 0.5;
-          a.x += dx * push; a.y += dy * push; a.z += dz * push;
-          c.x -= dx * push; c.y -= dy * push; c.z -= dz * push;
-          balls[i].v.x += dx * push * 3; balls[j].v.x -= dx * push * 3;
-          balls[i].v.z += dz * push * 3; balls[j].v.z -= dz * push * 3;
-        }
-      }
-    balls.forEach((b, i) => refs.current[i]?.position.copy(b.p));
-  });
-  const colors = [p.screen, CATALOG.ledOk, CATALOG.ledWarn, CATALOG.ledAlert, CATALOG.slate];
-  return (
-    <group position={pos}>
-      <mesh position={[0, 0.18, 0]}>
-        <boxGeometry args={[0.5, 0.36, 0.5]} />
-        <meshStandardMaterial color="#cfe6ff" transparent opacity={0.12} roughness={0.05} metalness={0.1} />
-      </mesh>
-      <mesh position={[0, 0.01, 0]}>
-        <boxGeometry args={[0.5, 0.04, 0.5]} />
-        <meshStandardMaterial color={p.metalDark} />
-      </mesh>
-      {colors.map((c, i) => (
-        <mesh key={i} ref={(el) => { refs.current[i] = el; }} castShadow>
-          <sphereGeometry args={[BIN_R, 16, 16]} />
-          <meshStandardMaterial color={c} roughness={0.4} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-function Plant({ p, pos, scale = 1 }: { p: RoomPalette; pos: [number, number, number]; scale?: number }) {
-  return (
-    <group position={pos} scale={scale}>
-      <mesh position={[0, 0.25, 0]}>
-        <cylinderGeometry args={[0.28, 0.34, 0.5, 12]} />
-        <meshStandardMaterial color={p.pot} roughness={0.8} />
-      </mesh>
-      <mesh position={[0, 0.75, 0]}>
-        <sphereGeometry args={[0.5, 14, 14]} />
-        <meshStandardMaterial color={p.plant} roughness={0.85} />
-      </mesh>
     </group>
   );
 }
@@ -1139,7 +966,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           so a fresh garage starts bare and upgrading visibly adds the planning board. The room shell
           scales with the facility so Studio/Campus give a visibly bigger floor to fill. */}
       <group scale={sc}>
-        <Room p={p} dark={dark} finish={finish} wall={wall} cull={cull} showWhiteboard={cfg.showWhiteboard} name={companyName} />
+        <Room p={p} dark={dark} finish={finish} wall={wall} cull={cull} showWhiteboard={cfg.showWhiteboard} name={companyName} tier={facilityTier} />
       </group>
       {/* distant skyline behind the windows — garage (dark) only; the light diorama floats in
           a clean white void, so no exterior scenery. */}

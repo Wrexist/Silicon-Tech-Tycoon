@@ -41,16 +41,16 @@ export function EnableShadows() {
 }
 
 // ---- Zone pools ---------------------------------------------------------------------------------
-// One quad per focal zone. Positions/radii are in room units and scale with the facility, so a
-// Campus lights the same corners a Garage does. `warm` is the room's architectural key colour,
-// `cool` the monitor/server counterpoint, `amber` the culture accent.
-interface Pool { x: number; z: number; r: number; tone: "warm" | "cool" | "amber"; strength: number }
+// One quad per focal ZONE — never per prop. Three pools carry the hierarchy: the warm key over the
+// work banks (primary), the brand wall's wash (secondary), the lounge nook (tertiary). The culture
+// and server pools were removed with the hierarchy pass: a floor glow under every small prop made
+// each of them look important, and a server's own status LEDs already say "tech" better than a
+// light disc on the floor. Positions/radii are in room units and scale with the facility.
+interface Pool { x: number; z: number; r: number; tone: "warm" | "cool"; strength: number }
 const POOLS: Pool[] = [
   { x: 0, z: -2.35, r: 1.95, tone: "warm", strength: 1 },    // the desk bank / pod field — the key pool
   { x: 0.3, z: -3.05, r: 1.35, tone: "warm", strength: 0.75 },// the entrance + brand wall wash
   { x: -3.15, z: 0.5, r: 1.35, tone: "warm", strength: 0.9 }, // the lounge / coffee nook
-  { x: 1.75, z: -1.6, r: 1.05, tone: "amber", strength: 0.65 },// the culture corner (arcade)
-  { x: 1.8, z: 0.95, r: 1.2, tone: "cool", strength: 0.8 },  // the server / research corner
 ];
 
 function FloorPools({ p, dark, roomScale }: { p: RoomPalette; dark: boolean; roomScale: number }) {
@@ -63,7 +63,8 @@ function FloorPools({ p, dark, roomScale }: { p: RoomPalette; dark: boolean; roo
   const disc = useMemo(() => new THREE.CircleGeometry(1, 24), []);
   const pool = (color: string, op: number) =>
     sharedBasic({ color, map: tex, transparent: true, opacity: strength * op, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending });
-  const tint = { warm: p.poolWarm, cool: p.poolCool, amber: p.signGlow };
+  // `cool` stays available to the pool map (a future zone may want it) even though no pool uses it now.
+  const tint: Record<Pool["tone"], string> = { warm: p.poolWarm, cool: p.poolCool };
   return (
     <group scale={roomScale}>
       {POOLS.map((z, i) => (

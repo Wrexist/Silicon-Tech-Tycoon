@@ -24,7 +24,9 @@ const C = GRID.cell; // ≈0.86m per cell
 const FABRIC = CATALOG.fabric;
 const FABRIC_2 = CATALOG.fabric2;
 const WOOD = CATALOG.woodMid;
-const BOOKS = [CATALOG.graphite, CATALOG.warmGrey, CATALOG.fabric, CATALOG.aluminium, CATALOG.wood];
+// Book spines are dressing, not a colour chart: the neutral/warm families only. `aluminium` (near
+// white) used to sit in this list and made every open shelf the highest-contrast thing on the wall.
+const BOOKS = [CATALOG.graphite, CATALOG.wood, CATALOG.fabric, CATALOG.warmGrey, CATALOG.slate];
 
 /** What sits ON a desk: the monitor, a keyboard and a mug. The Kenney desk models are bare boards —
  *  they ship with no computer at all, which is why the most common desk in the office read as an
@@ -1461,17 +1463,18 @@ function renderParametric(type: FurnitureId, p: RoomPalette) {
  *  geometry/material like every other piece. */
 export function ShelfBooks({ rows, height }: { rows: readonly number[]; height: number }) {
   const W = 0.05, D = 0.15, PITCH = 0.082;
+  const COUNT = 5; // fewer, calmer spines: a stocked shelf, not a full bookcase
   return (
     <group>
       {rows.map((f, r) => (
         <group key={r} position={[0, f * height, -0.03]}>
-          {Array.from({ length: 8 }).map((_, i) => {
-            if ((i * 3 + r) % 8 === 6) return null; // a gap every shelf or two
-            const h = 0.19 + ((i + r * 2) % 3) * 0.035;
+          {Array.from({ length: COUNT }).map((_, i) => {
+            if ((i + r) % 5 === 3) return null; // one gap per shelf, in a different spot each row
+            const h = 0.19 + ((i + r * 2) % 3) * 0.03;
             return (
               <mesh
                 key={i}
-                position={[-0.27 + i * PITCH, h / 2, 0]}
+                position={[(i - (COUNT - 1) / 2) * PITCH, h / 2, 0]}
                 geometry={sharedBox(W, h, D)}
                 material={sharedStandard({ color: BOOKS[(i + r) % BOOKS.length], roughness: 0.75 })}
               />

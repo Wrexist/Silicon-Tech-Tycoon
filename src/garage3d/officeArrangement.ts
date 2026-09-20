@@ -17,11 +17,27 @@
 //      • everything else keeps the rotation its owner gave it.
 //
 // 2. `arrangeOffice` — the GAME-OWNED DRESSING plan. Given the facility tier and headcount it lays
-//    out the room's zone furniture (work desks, a lounge, a research/storage run, a culture accent)
-//    around the player's own furniture. The player's layout is immovable INPUT: every piece in it is
-//    an obstacle, and a zone the player has already furnished is left exactly as they arranged it.
-//    The room shell's fixed fixtures (vault, coffee station, printer, plants, easel, test chamber)
-//    are reserved cells, mirrored from the world positions the Scene renders.
+//    out the room's zone furniture around the player's own furniture. The player's layout is
+//    immovable INPUT: every piece in it is an obstacle, and a zone the player has already furnished
+//    is left exactly as they arranged it. The room shell's fixed fixtures (vault, coffee station,
+//    printer, plants, easel, test chamber, the dark theme's garage clutter) are reserved cells,
+//    mirrored from the world positions the Scene renders.
+//
+//    The plan is composed as three zones, because a room reads as one environment when its
+//    automatic furniture forms groups instead of filling free cells:
+//
+//      • WORK (Zone A) — the back desk banks, seating only, so the camera line to the team stays
+//        clear. Nothing the arranger adds ever lands in a desk's chair row.
+//      • TECH/STORAGE (Zone B) — one contiguous run against the right wall: servers, the technical
+//        cabinet and filing, back to front, with the work area across a clear aisle. One cluster,
+//        never towers scattered through the room.
+//      • LOUNGE/CULTURE (Zone C) — a small front-corner group (rug + seat + coffee table) with the
+//        room's single culture accent (the arcade) attached to it. No floor lamp: every extra
+//        vertical thing in the front band is one more floor glow competing with the team.
+//
+//    Height hierarchy: the automatic layer never puts a tall piece between the camera and a work
+//    desk (`standsInFrontOfWork`), and the lounge anchor keeps the room's camera-closest row clear,
+//    so the front band stays low. Player furniture is exempt — it is never moved or re-judged.
 //
 // Determinism: no Math.random, no clock. The few free choices (which row the culture accent lands
 // on) come from a derived cosmetic hash of (seed, week, era) — salt 467, registered in CLAUDE.md.
@@ -165,7 +181,8 @@ export function rotForYaw(yaw: number): Rot {
 /** The live room-shell dressing, so reservations mirror what the Scene actually renders. A fixture
  *  the player has not unlocked (or the theme does not draw) must not eat arranger cells. */
 export interface FixtureOptions {
-  /** Dark theme draws the garage clutter + tool chest; the light diorama does not. */
+  /** Dark theme draws the garage clutter + tool chest; the light diorama does not (and draws the
+   *  front greenery the dark room does not). */
   dark?: boolean;
   /** Amenities upgrade tier: 1 counter + nook rug, 2/3/4 add a plant each. */
   amenities?: number;
@@ -178,13 +195,14 @@ export interface FixtureOptions {
 const ALL_FIXTURES: Required<FixtureOptions> = { dark: true, amenities: 4, designSuite: true, testLab: true };
 
 /** World position + footprint (metres, roomScale 1) of the room shell's own fixtures. Mirrors the
- *  positions `Garage3D.tsx` renders: Vault, CoffeeStation (counter + nook rug), Printer, Props
- *  plant, the amenities plants, DesignEasel, TestChamber and the dark theme's garage clutter.
- *  The arrival of an upgrade that moves one of these must move it here too. */
+ *  positions `Garage3D.tsx` renders: Vault, CoffeeStation (counter + nook rug), Printer, the
+ *  theme's greenery, the amenities plants, DesignEasel, TestChamber and the dark theme's garage
+ *  clutter corner (chest + ball bin + box stack). The arrival of an upgrade that moves one of
+ *  these must move it here too. */
 const FIXTURES: readonly ({ x: number; z: number; w: number; d: number } & { when?: (o: Required<FixtureOptions>) => boolean })[] = [
   { x: -3.5, z: 1.6, w: 1.0, d: 0.7 },                                                     // vault
   { x: -3.0, z: 2.9, w: 1.0, d: 1.0 },                                                     // printer
-  { x: 3.1, z: 3.0, w: 0.8, d: 0.8 },                                                      // front-right shell plant
+  { x: 3.1, z: 3.0, w: 0.8, d: 0.8, when: (o) => !o.dark },                                // front greenery (light diorama only)
   { x: -3.6, z: 0.5, w: 1.0, d: 0.6, when: (o) => o.amenities >= 1 },                      // coffee counter
   { x: -2.9, z: 0.62, w: 2.1, d: 1.5, when: (o) => o.amenities >= 1 },                     // coffee nook rug
   { x: -3.3, z: 3.1, w: 0.9, d: 0.9, when: (o) => o.amenities >= 2 },                      // amenities plant (tier 2)
@@ -192,8 +210,8 @@ const FIXTURES: readonly ({ x: number; z: number; w: number; d: number } & { whe
   { x: 3.5, z: 0.0, w: 0.8, d: 0.8, when: (o) => o.amenities >= 4 },                       // amenities plant (tier 4)
   { x: 3.5, z: 0.9, w: 1.1, d: 0.9, when: (o) => o.designSuite },                          // design easel
   { x: 3.6, z: -1.5, w: 1.0, d: 0.8, when: (o) => o.testLab },                             // test chamber
-  { x: -3.2, z: -3.0, w: 1.0, d: 1.0, when: (o) => o.dark },                               // garage clutter (left)
-  { x: 3.1, z: -3.0, w: 1.1, d: 0.9, when: (o) => o.dark },                                // tool chest + ball bin (right)
+  { x: 3.1, z: -3.0, w: 1.0, d: 1.3, when: (o) => o.dark },                                // tool chest + ball bin
+  { x: 3.1, z: -3.75, w: 0.9, d: 0.9, when: (o) => o.dark },                               // garage box stack (dark)
 ];
 
 // ---- Negative space: the circulation lane and the density caps ----------------------------------
@@ -221,12 +239,65 @@ export function laneObstacles(facilityTier: number): PlacedItem[] {
 
 /** Max game-owned dressing pieces per zone, indexed by facility tier (tier 1 = garage: none). */
 const DRESSING_CAP: Record<Exclude<ArrangementZone, "work">, readonly number[]> = {
-  lounge: [0, 0, 4, 4],
+  lounge: [0, 0, 3, 3],
   storage: [0, 0, 2, 3],
   culture: [0, 0, 1, 1],
 };
 /** Max game-owned dressing pieces in the whole room, indexed by facility tier. */
-const DRESSING_TOTAL_CAP = [0, 0, 7, 8];
+const DRESSING_TOTAL_CAP = [0, 0, 6, 7];
+
+// ---- Height hierarchy ---------------------------------------------------------------------------
+// Rough isometric sightline rule: the front of the room stays low, the middle may be medium, the
+// back and the walls may be tall. A tall automatic piece in front of a work desk would stand
+// between the camera and the team, which is the one case that reads as wrong at every tier. The
+// rule is enforced for the arranger's own pieces only — the player's furniture is never re-judged.
+
+/** Rendered height (metres) of the pieces the arranger can place. Only a deck-shuffle aid for the
+ *  height rule, not a physical model; anything unlisted counts as low. */
+export const DRESSING_HEIGHT: Readonly<Partial<Record<FurnitureId, number>>> = {
+  rug: 0,
+  rugRound: 0,
+  coffeeTable: 0.42,
+  plantPot: 0.5,
+  crates: 0.6,
+  loungeChair: 0.8,
+  sofaL: 0.82,
+  cabinet: 0.9,
+  filingCabinet: 1.0,
+  arcade: 1.5,
+  floorLamp: 1.6,
+  serverRack: 1.7,
+  shelfUnit: 1.8,
+};
+
+/** At or above this the piece counts as tall for the front-of-staff rule. */
+export const TALL_DRESSING_M = 1.05;
+
+export function dressingHeight(id: FurnitureId): number {
+  return DRESSING_HEIGHT[id] ?? 0.6;
+}
+
+/** True when `piece` stands on the camera line to one of `work`'s desks. The isometric camera sits
+ *  at +x/+z, so a screen column is `c - r` and "closer to the camera" is a larger `c + r`: a piece
+ *  blocks a desk when they share a screen column and the piece is nearer. Pure and conservative —
+ *  it only refuses the one arrangement that reads as wrong, standing between the camera and staff. */
+export function standsInFrontOfWork(piece: Pick<PlacedItem, "c" | "r" | "type" | "rot">, work: readonly PlacedItem[]): boolean {
+  const self = piece as PlacedItem;
+  const { w, d } = footprint(furnitureDef(self.type), self.rot);
+  const cols = new Set<number>();
+  let depth = -Infinity;
+  for (let dc = 0; dc < w; dc++) for (let dr = 0; dr < d; dr++) {
+    cols.add(self.c + dc - (self.r + dr));
+    depth = Math.max(depth, self.c + dc + self.r + dr);
+  }
+  for (const desk of work) {
+    const fp = footprint(furnitureDef(desk.type), desk.rot);
+    for (let dc = 0; dc < fp.w; dc++) for (let dr = 0; dr < fp.d; dr++) {
+      if (cols.has(desk.c + dc - (desk.r + dr)) && desk.c + dc + desk.r + dr < depth) return true;
+    }
+  }
+  return false;
+}
 
 const tierIndex = (facilityTier: number) => Math.max(0, Math.min(3, Math.floor(facilityTier)));
 
@@ -352,14 +423,16 @@ const CULTURE_OWNED: ReadonlySet<FurnitureId> = new Set<FurnitureId>([
   "kombuchaTap", "espressoRobot", "microKitchen", "coffeeBar",
 ]);
 
-/** Region each zone may use. Work owns the back banks; the lounge the front; storage and the culture
- *  accent the right wall. Exported so the tests can pin "dressing stays in its zone". */
+/** Region each zone may use. Work owns the back banks; the lounge the front corner; storage the
+ *  right wall's back half; the culture accent sits inside the lounge's own corner, not on a wall
+ *  by itself. Exported so the tests can pin "dressing stays in its zone". */
 export function dressingAnchors(facilityTier: number): Record<Exclude<ArrangementZone, "work">, CellRect> {
   const n = gridN(Math.max(1, Math.floor(facilityTier)));
+  const front = { c0: 0, c1: Math.max(0, n - 2), r0: Math.max(0, n - 4), r1: n - 1 };
   return {
-    lounge: { c0: 0, c1: Math.max(0, n - 2), r0: Math.max(0, n - 4), r1: n - 1 },
+    lounge: front,
     storage: { c0: Math.max(0, n - 2), c1: n - 1, r0: 0, r1: Math.max(0, n - 5) },
-    culture: { c0: Math.max(0, n - 2), c1: n - 1, r0: 0, r1: Math.max(0, n - 3) },
+    culture: front,
   };
 }
 
@@ -408,6 +481,9 @@ export function arrangeOffice(input: ArrangeInput): Arrangement {
   };
 
   const put = (type: FurnitureId, c: number, r: number, rot: Rot, zone: ArrangementZone): boolean => {
+    // Height rule: a tall automatic piece never lands on the camera line to a work desk. The work
+    // banks are placed before any dressing, so this is exact by the time it matters.
+    if (dressingHeight(type) >= TALL_DRESSING_M && standsInFrontOfWork({ type, c, r, rot }, pieces.filter((p) => p.zone === "work"))) return false;
     if (!withinCap(zone) || !canPlace(room(), type, c, r, rot, undefined, tier)) return false;
     const item: ArrangedPiece = { iid: nextIid(), type, c, r, rot, zone };
     if (zone === "work") item.module = workstationModuleFor(stationKey(item), seed, input.monitors ?? 2);
@@ -443,12 +519,18 @@ export function arrangeOffice(input: ArrangeInput): Arrangement {
     }
   }
 
-  // 2. Lounge — front-left, anchored by a rug clear of the printer and the coffee nook. The rug
-  //    anchor is scanned: the first spot whose cells are free of solid furniture wins.
+  // 2. Lounge + culture — one small group in the front corner, anchored by a rug clear of the
+  //    printer and the coffee nook. The rug anchor is scanned: the first spot whose cells are free
+  //    of solid furniture wins. Only the two rows that keep the room's camera-closest row clear are
+  //    candidates, so no tall automatic piece ever lands in the very front band.
   const owned = new Set(occupied.map((it) => it.type));
   const ownsAny = (set: ReadonlySet<FurnitureId>) => [...owned].some((t) => set.has(t));
+  // The work banks are placed first, so the culture accent can be kept out of their sightline.
+  const work = pieces.filter((p) => p.zone === "work");
   if (tier >= 2 && !ownsAny(LOUNGE_OWNED)) {
-    const rugRows = [n - 3, n - 4, n - 2];
+    // The two rows nearest the front, minus any row a desk could not sit in without its chair
+    // band crossing the rug (desk rows are r ≡ 1 mod 3, their bands r ≡ 0).
+    const rugRows = [n - 3, n - 4].filter((r) => r % 3 === 1 && r >= 0);
     let anchor: { c: number; r: number } | null = null;
     for (const r of rugRows) {
       for (const c of [0, 3, 2, 1, 4]) {
@@ -460,42 +542,49 @@ export function arrangeOffice(input: ArrangeInput): Arrangement {
       if (anchor) break;
     }
     if (anchor) {
-      // The cluster is laid out inside the rug's own 3×2 footprint, so it can never be pushed into
-      // the front wall: the sectional takes the west half of the rug, the table the east and the
-      // lamp stands just off its edge. Four pieces, per the lounge cap — the rug, a seat, a table
-      // and one light. The room's own shell plants already give the corner its green.
+      // The cluster is laid out on the rug's own 3×2 footprint: the seat takes the west half, the
+      // table the east. No floor lamp — the front band stays low and the lounge's warm light comes
+      // from the rig, not from one more glowing prop.
       const { c: lc, r: lr } = anchor;
       putFlat("rug", lc, lr, "lounge");
       if (tier >= 3) put("sofaL", lc, lr, 0, "lounge");
       else put("loungeChair", lc, lr + 1, 0, "lounge");
       put("coffeeTable", lc + 2, lr + 1, 0, "lounge");
-      put("floorLamp", lc + 3, lr, 0, "lounge");
-    }
-  }
 
-  // 3. Research / storage — a run against the right wall, fronts into the room. Each piece takes the
-  //    first free row from where the run left off, so a fixture at the back corner shifts the run
-  //    rather than erasing it.
-  if (tier >= 2 && !ownsAny(STORAGE_OWNED)) {
-    const storageTypes: FurnitureId[] = tier >= 3 ? ["shelfUnit", "serverRack", "bookshelf"] : ["shelfUnit", "serverRack"];
-    let row = 0;
-    for (const type of storageTypes) {
-      for (let r = row; r < n; r++) {
-        if (put(type, n - 1, r, 3, "storage")) { row = r + 1; break; }
+      // The room's one culture accent belongs to this group, never to a wall on its own: the arcade
+      // sits on the rug's outer edge / just past it. Which of those cells it takes comes from the
+      // derived cosmetic stream, so the same (seed, week) always gives the same room. A cell that
+      // would stand between the camera and a desk is refused (height rule), and if none is left
+      // the accent is skipped rather than exiled.
+      if (!ownsAny(CULTURE_OWNED)) {
+        const spots: { c: number; r: number }[] = [{ c: lc + 2, r: lr }, { c: lc + 3, r: lr }, { c: lc + 3, r: lr + 1 }];
+        const start = Math.floor(roll * spots.length) % spots.length;
+        for (let i = 0; i < spots.length; i++) {
+          const spot = spots[(start + i) % spots.length];
+          if (standsInFrontOfWork({ type: "arcade", c: spot.c, r: spot.r, rot: 0 }, work)) continue;
+          if (put("arcade", spot.c, spot.r, 0, "culture")) break;
+        }
       }
     }
   }
 
-  // 4. Culture — one arcade accent on the right wall, below the storage run and above the lounge.
-  //    The first free row is tried; which row the scan STARTS at comes from the derived cosmetic
-  //    stream, so the same (seed, week, era, tier) always gives the same room.
-  if (tier >= 2 && !ownsAny(CULTURE_OWNED)) {
-    const lo = 3;
-    const hi = Math.max(lo, n - 5);
-    const start = lo + Math.floor(roll * (hi - lo + 1));
-    for (let i = 0; i <= hi - lo; i++) {
-      const r = lo + ((start - lo + i) % (hi - lo + 1));
-      if (put("arcade", n - 1, r, 3, "culture")) break;
+  // 3. Tech / storage — ONE contiguous run against the right wall, fronts into the room:
+  //    servers → filing → technical cabinet, back to front, with the work banks across a clear
+  //    aisle. Shallow pieces go first and each piece may only take the next free row: a piece that
+  //    cannot hug the run ends it, so the cluster never scatters down the wall (the dark theme's
+  //    garage corner and the circulation lane both shift the run without breaking it apart).
+  if (tier >= 2 && !ownsAny(STORAGE_OWNED)) {
+    const storageTypes: FurnitureId[] = tier >= 3 ? ["serverRack", "filingCabinet", "cabinet"] : ["serverRack", "filingCabinet"];
+    let row: number | null = null; // the row the run must continue from; null until its first piece lands
+    for (const type of storageTypes) {
+      let spot: number | undefined;
+      if (row === null) {
+        for (let r = 0; r < n && spot === undefined; r++) if (put(type, n - 1, r, 3, "storage")) spot = r;
+      } else {
+        spot = [row, row + 1].find((r) => r < n && put(type, n - 1, r, 3, "storage"));
+      }
+      if (spot === undefined) break; // the next free row is no longer part of this run
+      row = spot + footprint(furnitureDef(type), 3).d;
     }
   }
 
