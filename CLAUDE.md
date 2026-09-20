@@ -75,7 +75,10 @@ celebration style — leave them as-is.
   443/449/457/461/463 = office ROAMING presentation (cosmetic-only, never read by the engine):
   443 = who steps away from a desk this week; 449 = which break spot they claim; 457 = away priority
   when more characters want a break than the room allows; 461/463 = overflow drifter heading/radius.
-  The plan is a pure fold over (seed, week, character), so a week always leaves the same desks.)
+  The plan is a pure fold over (seed, week, character), so a week always leaves the same desks.;
+  467 = the office ARRANGER's cosmetic pick (which free right-wall row the culture arcade lands on).
+  The arrangement is a pure fold of (tier, headcount, player layout, seed, week, era) — the player's
+  layout is never written, and the engine never reads it.)
 - **Opportunistic full-screen interrupts share a budget.** Any card that fires on its own cadence
   (strike / eureka / community / earnings / rivalry / staff moment / regional event / licensing
   contract offer) must gate on

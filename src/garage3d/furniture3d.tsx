@@ -838,8 +838,13 @@ function LoungeChair({ hue = FABRIC_2 }: { hue?: string }) {
 
 function SofaL({ hue = FABRIC }: { hue?: string }) {
   const a = 2 * C;
+  // The house convention is rot 0 → front +z (backs at −z). This section was authored the other
+  // way round — backs at +z/−x, opening −z/+x — which put it 180° from its glTF sibling
+  // (`loungeSofaCorner.glb`, backs at −z/+x) and from every other seat. The shape is turned here
+  // rather than per instance so placement, rotation and the derived-orientation rules all agree.
+  // A save that owns one shows the sofa flipped once: the only correct reading of the same model.
   return (
-    <group>
+    <group rotation-y={Math.PI}>
       {/* main run */}
       <mesh position={[0, 0.26, C / 2 - 0.02]} geometry={sharedRounded(a - 0.1, 0.26, C - 0.06, 4, 0.08)} material={sharedStandard({ color: hue, roughness: 0.85 })} />
       <mesh position={[0, 0.48, C - 0.06]} geometry={sharedRounded(a - 0.1, 0.44, 0.16, 4, 0.08)} material={sharedStandard({ color: hue, roughness: 0.85 })} />

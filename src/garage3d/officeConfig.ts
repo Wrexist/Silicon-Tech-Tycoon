@@ -31,6 +31,10 @@ export interface OfficeConfig {
   finish: FloorFinish;
   wall: WallStyle;
   showWhiteboard: boolean;
+  /** Scene-owned fixtures an upgrade unlocks. The arranger reserves their cells only when they are
+   *  actually drawn, so a light room without the upgrade keeps the space. */
+  showEasel: boolean;
+  showTestChamber: boolean;
 }
 
 // Ceiling on how many overflow employees roam the floor (the seated desks are added on top).
@@ -57,5 +61,7 @@ export function officeConfigFor(s: OfficeState): OfficeConfig {
     finish: floorFinish(s.roomStyle.floor),
     wall: wallStyle(s.roomStyle.wall),
     showWhiteboard: tierOf(u, "computers") >= 1,
+    showEasel: tierOf(u, "designSuite") >= 1,
+    showTestChamber: tierOf(u, "testLab") >= 1,
   };
 }

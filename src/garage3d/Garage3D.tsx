@@ -38,6 +38,8 @@ import { Lighting, EnableShadows } from "./lighting.tsx";
 import { Room, useWallCull, CHEER_GREEN } from "./room.tsx";
 import { useHqInteractions } from "./interactions.ts";
 import { officeConfigFor } from "./officeConfig.ts";
+import { derivedYawFor } from "./officeArrangement.ts";
+import { OfficeDressing } from "./officeDressing.tsx";
 
 /** Wraps an upgrade's physical office object(s); when its card is tapped (hqHighlight) it does a
  *  decaying attention hop so the player can SEE what that upgrade added. Additive y-offset only. */
@@ -930,9 +932,14 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
         if (hideIids?.has(it.iid)) return null; // occupied desk → live workstation renders instead
         const isDrag = it.iid === dragIid;
         const cell = isDrag && dragCell ? dragCell : { c: it.c, r: it.r };
-        const { x, z, rotY } = worldOf({ ...it, c: cell.c, r: cell.r }, facilityTier);
+        const renderItem = { ...it, c: cell.c, r: cell.r };
+        const { x, z, rotY } = worldOf(renderItem, facilityTier);
         const def = furnitureDef(it.type);
         const selected = b.build && b.selectedIid === it.iid;
+        // Facing is DERIVED for the pieces where the relationship is unambiguous (a chair to its
+        // table, a wall unit flat to its wall). Desks keep the engine's seat plan: their model is
+        // turned inside the group so the monitor faces the chair planSeats chose for them.
+        const yaw = isDeskType(it.type) ? rotY : derivedYawFor(renderItem, b.layout, facilityTier);
         // Which side this desk's occupant sits on, from the whole-room plan (drag-adjusted, so both
         // the chair AND the desk's facing preview correctly while it's dragged toward a wall).
         const deskFlip = isDeskType(it.type) && (seatPlan[it.iid] ?? false);
@@ -940,7 +947,7 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
           <group
             key={it.iid}
             position={[x, isDrag ? 0.2 : 0, z]}
-            rotation-y={rotY}
+            rotation-y={yaw}
             onPointerDown={
               b.build
                 ? (e: ThreeEvent<PointerEvent>) => {
@@ -1214,6 +1221,8 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {/* player-arranged furniture + the drag-to-move builder. Occupied desks are rendered as
           live workstations above, so their plain models are suppressed outside Decorate mode. */}
       {builder && <BuildLayer p={p} b={builder} hideIids={inBuild ? undefined : occupiedIids} facilityTier={facilityTier} />}
+      {/* The room's own dressing — arranged around the player's furniture, never written to it. */}
+      <OfficeDressing p={p} cfg={cfg} dark={dark} headcount={staff.length} layout={builder?.layout} />
 
       {/* ---- Upgrades made physical: each company upgrade adds real furniture. Wall-anchored, so
              they scale with the room to stay against the walls as the facility grows. ---- */}
@@ -1277,7 +1286,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           (it used to be 16× the room scale, which spread 1024 px of shadow over a 23 m plane and
           smeared the whole floor into one soft grey blot). */}
       <ContactShadows
-        key={`${(builder?.layout ?? []).map((it) => `${it.iid}${it.c},${it.r},${it.rot}`).join("|")}·${staff.length}·${Object.values(upgrades).join("")}`}
+        key={`${(builder?.layout ?? []).map((it) => `${it.iid}${it.c},${it.r},${it.rot}`).join("|")}·${staff.length}·${facilityTier}·${Object.values(upgrades).join("")}`}
         position={[0, 0.02, 0]} scale={9.8 * roomK} blur={2.5} far={6} opacity={dark ? 0.62 : 0.42} color={p.shadow} resolution={1024} frames={1} />
     </>
   );
