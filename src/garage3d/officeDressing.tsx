@@ -41,10 +41,11 @@ export const OfficeDressing = memo(function OfficeDressing({
         amenities: cfg.amenityTier,
         designSuite: cfg.showEasel,
         testLab: cfg.showTestChamber,
+        monitors: cfg.monitors,
         seed: officeSeed(),
         week: officeWeek(),
       }),
-    [cfg.facilityTier, cfg.amenityTier, cfg.showEasel, cfg.showTestChamber, headcount, layout, dark],
+    [cfg.facilityTier, cfg.amenityTier, cfg.showEasel, cfg.showTestChamber, cfg.monitors, headcount, layout, dark],
   );
 
   return (

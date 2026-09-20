@@ -110,10 +110,11 @@ try {
     const t = Number(v.scale) === 100 ? {} : { textScale: Number(v.scale) };
     localStorage.setItem("silicon.save.v1", v.staged);
     // Dark + tutorials pre-seen: the app's signature look, no first-run popups in frame.
-    localStorage.setItem("silicon.settings", JSON.stringify({ theme: "dark", sound: false, haptics: false, highContrast: false, decorateTutorialSeen: true, factoryTutorialSeen: true, dailyReminder: false, notifPrompted: true, ...t }));
+    // SHOTS_THEME=light captures the light theme (e.g. to check a 3D change in both).
+    localStorage.setItem("silicon.settings", JSON.stringify({ theme: v.theme || "dark", sound: false, haptics: false, highContrast: false, decorateTutorialSeen: true, factoryTutorialSeen: true, dailyReminder: false, notifPrompted: true, ...t }));
     // SHOTS_UI2=1 captures the Silicon 2.0 shell instead of the shipped one.
     if (v.ui2) localStorage.setItem("silicon.ui2", "next");
-  }, { staged, scale: textScale, ui2: process.env.SHOTS_UI2 === "1" });
+  }, { staged, scale: textScale, theme: process.env.SHOTS_THEME, ui2: process.env.SHOTS_UI2 === "1" });
   const p = await ctx.newPage();
   await p.goto(URL, { waitUntil: "domcontentloaded", timeout: 30000 });
   await p.waitForTimeout(3000); // boot + lazy chunks + 3D scene warm-up
@@ -123,18 +124,29 @@ try {
   for (let i = 0; i < 8; i++) { const sk = await p.$(".coach__skip"); if (!sk) break; await sk.click().catch(() => {}); await p.waitForTimeout(220); }
   // Dismiss any full-screen interrupt the staged save raised on boot (Vault reveal, awards, …):
   // Escape first (every house card handles it), then the card's primary button as a fallback.
-  for (let i = 0; i < 6; i++) {
-    const dialog = await p.$('[role="dialog"]');
-    if (!dialog) break;
-    await p.keyboard.press("Escape").catch(() => {});
-    await p.waitForTimeout(350);
-    if (await p.$('[role="dialog"]')) {
-      await dialog.locator("button").first().click({ timeout: 1200 }).catch(() => {});
-      await p.waitForTimeout(450);
+  const dismissInterrupts = async (passes) => {
+    for (let i = 0; i < passes; i++) {
+      const find = async () => (await p.$('[role="dialog"]')) ?? (await p.$(".ds-sheet"));
+      const dialog = await find();
+      if (!dialog) break;
+      await p.keyboard.press("Escape").catch(() => {});
+      await p.waitForTimeout(350);
+      const still = await find();
+      if (still) {
+        // Some sheets (Ready to launch) offer a quiet "Later" instead of a primary button.
+        const quiet = still.locator('button:has-text("Later"), button:has-text("Continue")').first();
+        if ((await quiet.count()) > 0) await quiet.click({ timeout: 1200 }).catch(() => {});
+        else await still.locator("button").first().click({ timeout: 1200 }).catch(() => {});
+        await p.waitForTimeout(450);
+      }
     }
-  }
+  };
+  await dismissInterrupts(6);
   // Freeze the sim so every frame of the session shows the same week.
   await p.click('button[aria-label="Pause"]', { timeout: 4000 }).catch(() => {});
+  // One boot tick can land between the first pass and the pause (a staged in-progress build
+  // completes and raises "Ready to launch"), so sweep again now that the sim is frozen.
+  await dismissInterrupts(4);
   // Let transient toasts/GainFX fade so frames show steady state, not mid-flight celebration.
   await p.waitForTimeout(2600);
 

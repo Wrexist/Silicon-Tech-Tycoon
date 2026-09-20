@@ -24,20 +24,23 @@ import {
   type PlacedItem,
   type Rot,
 } from "../engine/furniture.ts";
-import { FurniturePiece } from "./furniture3d.tsx";
+import { FurniturePiece, Monitor } from "./furniture3d.tsx";
 import { sharedBox, sharedCylinder, sharedRounded, sharedSphere, sharedStandard } from "./sharedGpu.ts";
-import { roomPalette, type RoomPalette } from "./palette.ts";
+import { CATALOG, roomPalette, type RoomPalette } from "./palette.ts";
 import { ROBOT_COLORS } from "./robotModels.ts";
 import { reactionIntensity, onHqReaction, HQ_REACTION_MS, type HqReaction } from "../design/hqReaction.ts";
 import { highlightIntensity } from "../design/hqHighlight.ts";
 import { officeDestinations, ROAM_BOUND, scaledObstacles, type Destination, type RoamAgent } from "./employeeController.ts";
 import { OfficeRobot, RoamingRobot } from "./robotCharacter.tsx";
 import SpeechBubbles, { type Speaker } from "./speechBubbles.tsx";
-import { CameraRig, PinchZoom } from "./cameraRig.tsx";
+import { CameraRig, PinchZoom, CAM_REST_POSITION } from "./cameraRig.tsx";
 import { Lighting, EnableShadows } from "./lighting.tsx";
 import { Room, useWallCull, CHEER_GREEN } from "./room.tsx";
 import { useHqInteractions } from "./interactions.ts";
+import { TargetPrompt } from "./interactionPrompt.tsx";
 import { officeConfigFor } from "./officeConfig.ts";
+import { workstationModuleFor, type WorkstationProp } from "./workstationModule.ts";
+import { officeSeed } from "./officeLive.ts";
 import { derivedYawFor } from "./officeArrangement.ts";
 import { OfficeDressing } from "./officeDressing.tsx";
 
@@ -184,33 +187,28 @@ function seatSides(layout: PlacedItem[], facilityTier: number): Record<string, b
 // robot, rendered at the local origin facing +z. Callers position/rotate it (via the SAME worldOf
 // transform the Decorate editor uses), so an occupied desk is identical in the office and the editor.
 // Each hired employee gets exactly one.
-// Per-worker desk clutter — a small seed-varied prop (papers / a desk plant / books, or a tidy desk)
-// so a row of occupied desks reads as lived-in and individual, not identical. Cosmetic; sits on the
-// right of the desktop, clear of the monitor + keyboard.
-function DeskClutter({ seed, p }: { seed: number; p: RoomPalette }) {
-  // A sin-hash decorrelates adjacent desks (seed = i * 2.1); a plain floor/mod produced long runs
-  // of the same clutter type, the opposite of the lived-in variety we want.
-  const h = Math.sin(seed * 78.233) * 43758.5453;
-  const k = Math.floor((h - Math.floor(h)) * 4);
-  if (k === 3) return null; // some folks keep a clean desk
+// The workstation module's small prop (papers / desk plant / books), so a row of desks reads as
+// lived-in and individual, not identical. Cosmetic; sits on the right of the desktop, clear of the
+// monitor + keyboard. Which prop it is comes from the module spec, not a second local hash.
+function DeskClutter({ prop, p }: { prop: WorkstationProp; p: RoomPalette }) {
   return (
     <group position={[0.44, 0.785, 0.08]}>
-      {k === 0 && (
+      {prop === "papers" && (
         <>
           <mesh position={[0, 0.012, 0]} rotation-y={0.22} geometry={sharedBox(0.16, 0.02, 0.2)} material={sharedStandard({ color: "#e8e6df", roughness: 0.9 })} />
           <mesh position={[0.02, 0.032, 0.01]} rotation-y={-0.16} geometry={sharedBox(0.16, 0.02, 0.2)} material={sharedStandard({ color: "#f3f1ea", roughness: 0.9 })} />
         </>
       )}
-      {k === 1 && (
+      {prop === "plant" && (
         <>
           <mesh position={[0, 0.05, 0]} geometry={sharedCylinder(0.052, 0.046, 0.1, 10)} material={sharedStandard({ color: "#8a6b4a", roughness: 0.8 })} />
           <mesh position={[0, 0.14, 0]} geometry={sharedSphere(0.08, 10, 10)} material={sharedStandard({ color: p.plant, roughness: 0.85 })} />
         </>
       )}
-      {k === 2 && (
+      {prop === "books" && (
         <>
-          <mesh position={[0, 0.03, 0]} geometry={sharedBox(0.1, 0.06, 0.16)} material={sharedStandard({ color: "#3b6ea5", roughness: 0.7 })} />
-          <mesh position={[0.005, 0.085, 0.01]} geometry={sharedBox(0.1, 0.05, 0.15)} material={sharedStandard({ color: "#b4694a", roughness: 0.7 })} />
+          <mesh position={[0, 0.03, 0]} geometry={sharedBox(0.1, 0.06, 0.16)} material={sharedStandard({ color: CATALOG.fabric2, roughness: 0.7 })} />
+          <mesh position={[0.005, 0.085, 0.01]} geometry={sharedBox(0.1, 0.05, 0.15)} material={sharedStandard({ color: CATALOG.tan, roughness: 0.7 })} />
         </>
       )}
     </group>
@@ -267,7 +265,11 @@ function LivingMonitor({ seed, hasProduction, p }: { seed: number; hasProduction
   );
 }
 
-function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false, hasProduction = false, still = false }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId; flip?: boolean; hasProduction?: boolean; still?: boolean }) {
+function Workstation({ p, staff, seed, monitors, colorIdx, deskType = "desk", flip = false, hasProduction = false, still = false }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId; flip?: boolean; hasProduction?: boolean; still?: boolean }) {
+  // Item 5: the workstation module. The desk's own transform is the anchor — the unit mounts on it
+  // and nothing about the placement changes. One definition (`workstationModuleFor`) also drives the
+  // arranger's work pieces, so a band of desks reads authored rather than assembled.
+  const module = workstationModuleFor(Math.round(seed * 1000), officeSeed(), monitors);
   // The seated robot is the EMPLOYEE: its shell colour comes from their Appearance (stable per
   // person, not per seat), so the office shows your actual, distinct team.
   const personColor = staff ? staff.appearance.shirt % ROBOT_COLORS.length : colorIdx;
@@ -297,9 +299,15 @@ function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false
           workstation, not one facing backwards. Matches whichever side the employee occupies. */}
       <group rotation-y={deskRotY}>
         <FurniturePiece type={deskType} p={p} />
-        {/* lived-in touch: a small, per-worker prop on an occupied plain desk (fancier desks carry
-            their own detailing, so clutter is scoped to the common "desk" to avoid overlaps). */}
-        {staff && deskType === "desk" && <DeskClutter seed={seed} p={p} />}
+        {/* the module's second panel, toed in beside the desk's own screen (computers upgrade) */}
+        {deskType === "desk" && module.screenLayout !== "single" && (
+          <group position={[module.screenLayout === "duo-left" ? -0.44 : 0.5, 0.78, -0.16]} rotation-y={module.screenLayout === "duo-left" ? 0.24 : -0.24}>
+            <Monitor p={p} w={0.5} h={0.3} y={0.32} />
+          </group>
+        )}
+        {/* the module's one small prop (papers / desk plant / books) — always present, never the same
+            on every desk. Fancier desks carry their own detailing, so it is scoped to the plain desk. */}
+        {deskType === "desk" && <DeskClutter prop={module.prop} p={p} />}
         {/* the screen comes alive on an occupied plain desk (breathing / notifications / ship-day pulse) */}
         {staff && deskType === "desk" && <LivingMonitor seed={seed} hasProduction={hasProduction} p={p} />}
       </group>
@@ -336,7 +344,7 @@ function desktopWorlds(count: number): { x: number; z: number; rotY: number }[] 
   return Array.from({ length: n }, (_, i) => ({ x: (i - (n - 1) / 2) * DESKTOP_SPACING, z: DESKTOP_ROW_Z, rotY: 0 }));
 }
 function DesktopPod({ p, worlds, staff, monitors, hasProduction = false, onTapStaff, startColorIdx, still = false }: { p: RoomPalette; worlds: { x: number; z: number; rotY: number }[]; staff: Staff[]; monitors: number; hasProduction?: boolean; onTapStaff?: (id: string) => void; startColorIdx: number; still?: boolean }) {
-  const { staffTap } = useHqInteractions({ onTapStaff });
+  const { staffTap, hoverProps, activeId, selectedId } = useHqInteractions({ onTapStaff });
   return (
     <group>
       {worlds.map((w, i) => {
@@ -346,13 +354,13 @@ function DesktopPod({ p, worlds, staff, monitors, hasProduction = false, onTapSt
             <Workstation p={p} staff={s} seed={(startColorIdx + i) * 2.1} monitors={monitors} colorIdx={(startColorIdx + i) % ROBOT_COLORS.length} hasProduction={hasProduction} powered still={still} />
             {/* invisible tap target → opens this employee's roster card (matches the placed desks) */}
             {onTapStaff && s?.id && (
-              <mesh
-                position={[0, 0.95, 0]}
-                onClick={staffTap(s.id!)}
-              >
+              <mesh position={[0, 0.95, 0]} onClick={staffTap(s.id!)} {...hoverProps(s.id!)}>
                 <boxGeometry args={[1.3, 1.9, 1.3]} />
                 <meshBasicMaterial transparent opacity={0} depthWrite={false} />
               </mesh>
+            )}
+            {onTapStaff && s?.id && (
+              <TargetPrompt pos={[0, 1.6, 0]} target={{ id: s.id, title: s.name, actionLabel: "Tap for roster" }} activeId={activeId} selectedId={selectedId} r={0.72} />
             )}
           </group>
         );
@@ -385,8 +393,6 @@ function Printer({ p, active }: { p: RoomPalette; active: boolean }) {
 // Scene-constant colours (like RoomPalette's intrinsic object colours): the pill must stay
 // dark-on-white over the 3D room in BOTH app themes, so it can't ride the theme ink tokens.
 const LABEL_BG = "rgba(255,255,255,0.94)";
-const LABEL_INK = "#1a1d23";
-const LABEL_INK_SOFT = "#6b7280";
 // Team reaction emotes that pop over a worker's head — a burst on a win, a sigh on a flop. Premium,
 // Lucide-only (the app forbids emoji): a small white chip with a tinted glyph, matching the OfficeLabel
 // pill aesthetic. Colours are scene-constant (like the label pill) so they read in both app themes.
@@ -405,21 +411,6 @@ function CheerEmote({ pos, Icon, tone, delay = 0 }: { pos: [number, number, numb
         animation: `hq-emote-pop 2s ${delay}ms ease-out both`,
       }}>
         <Icon size={17} strokeWidth={2.5} aria-hidden />
-      </div>
-    </Html>
-  );
-}
-
-function OfficeLabel({ pos, label, sub, dot }: { pos: [number, number, number]; label: string; sub: string; dot: string }) {
-  // Fixed screen-size UI chip (no distanceFactor → constant size), always rendered on top. Kept to
-  // ONE compact line — dot · Name · role — so a full team of pills stays narrow and short, laddering
-  // cleanly instead of piling into tall two-line badges that clip the card and each other.
-  return (
-    <Html position={pos} center zIndexRange={[20, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "3px 8px", background: LABEL_BG, borderRadius: 999, boxShadow: "0 1px 6px rgba(40,60,90,0.18)", whiteSpace: "nowrap", backdropFilter: "blur(4px)", transform: "translateY(-140%)", fontFamily: "system-ui,-apple-system,sans-serif" }}>
-        <div style={{ width: 6, height: 6, borderRadius: "50%", background: dot, flexShrink: 0 }} />
-        <span style={{ fontSize: "var(--fs-micro)", fontWeight: 700, color: LABEL_INK, lineHeight: 1.2 }}>{label}</span>
-        <span style={{ fontSize: "var(--fs-nano)", fontWeight: 600, color: LABEL_INK_SOFT, lineHeight: 1.2 }}>{sub}</span>
       </div>
     </Html>
   );
@@ -669,7 +660,7 @@ function BallBin({ p, pos }: { p: RoomPalette; pos: [number, number, number] }) 
       }
     balls.forEach((b, i) => refs.current[i]?.position.copy(b.p));
   });
-  const colors = [p.screen, "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
+  const colors = [p.screen, CATALOG.ledOk, CATALOG.ledWarn, CATALOG.ledAlert, CATALOG.slate];
   return (
     <group position={pos}>
       <mesh position={[0, 0.18, 0]}>
@@ -814,7 +805,7 @@ function CoffeeStation({ p }: { p: RoomPalette }) {
       {/* power light */}
       <mesh position={[0.16, 1.22, 0.14]}>
         <sphereGeometry args={[0.025, 8, 8]} />
-        <meshStandardMaterial color="#10b981" emissive="#10b981" emissiveIntensity={1.2} toneMapped={false} />
+        <meshStandardMaterial color={CATALOG.ledOk} emissive={CATALOG.ledOk} emissiveIntensity={1.2} toneMapped={false} />
       </mesh>
       {/* cup with steam */}
       <group position={[0, 0.92, 0.18]} scale={0.7}>
@@ -842,7 +833,7 @@ function DesignEasel({ p }: { p: RoomPalette }) {
         </RoundedBox>
         <mesh position={[0, 0, 0.03]}>
           <planeGeometry args={[0.82, 1.08]} />
-          <meshStandardMaterial color="#1eb877" emissive="#1eb877" emissiveIntensity={0.55} toneMapped={false} />
+          <meshStandardMaterial color={p.screen} emissive={p.screen} emissiveIntensity={0.55} toneMapped={false} />
         </mesh>
       </group>
     </group>
@@ -873,7 +864,7 @@ function TestChamber({ p }: { p: RoomPalette }) {
       {/* sweeping scan plane */}
       <mesh ref={scan} position={[0, 1.2, 0]} rotation-x={-Math.PI / 2}>
         <planeGeometry args={[0.58, 0.58]} />
-        <meshBasicMaterial color="#f97316" transparent opacity={0.28} depthWrite={false} />
+        <meshBasicMaterial color={p.screen} transparent opacity={0.28} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -1055,7 +1046,7 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
 function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, desktops = 0, paused = false, still = false, officeChatter = true, simPaused = false, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; desktops?: number; paused?: boolean; still?: boolean; officeChatter?: boolean; simPaused?: boolean; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
   const p = useMemo(() => roomPalette(dark), [dark]);
   const cfg = officeConfigFor({ facilityTier, upgrades, roomStyle, desktops });
-  const { staffTap, bankTap } = useHqInteractions({ onTapStaff, onTapBank });
+  const { staffTap, bankTap, hoverProps, activeId, selectedId } = useHqInteractions({ onTapStaff, onTapBank });
   const monitors = cfg.monitors;
   const amenityTier = cfg.amenityTier;
   const finish = cfg.finish;
@@ -1179,13 +1170,13 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
             {/* invisible tap target over the desk+robot → opens this person's roster card. A
                 transparent (not visible:false) mesh so the raycaster still hits it. */}
             {onTapStaff && s.id && (
-              <mesh
-                position={[0, 0.95, 0]}
-                onClick={staffTap(s.id)}
-              >
+              <mesh position={[0, 0.95, 0]} onClick={staffTap(s.id)} {...hoverProps(s.id)}>
                 <boxGeometry args={[1.3, 1.9, 1.3]} />
                 <meshBasicMaterial transparent opacity={0} depthWrite={false} />
               </mesh>
+            )}
+            {onTapStaff && s.id && (
+              <TargetPrompt pos={[0, 1.7, 0]} target={{ id: s.id, title: s.name, actionLabel: "Tap for roster" }} activeId={activeId} selectedId={selectedId} r={0.72} />
             )}
           </group>
         );
@@ -1252,18 +1243,17 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {/* The Vault is the company BANK — your money lives here; tapping it opens the finances
           popup. Kept from the start; the Kanban wall + security gate were starter clutter and
           were removed so a fresh garage reads as a real, empty garage. */}
-      <group onClick={onTapBank && !inBuild ? bankTap : undefined}>
+      <group onClick={onTapBank && !inBuild ? bankTap : undefined} {...(onTapBank && !inBuild ? hoverProps("bank") : {})}>
         <Vault />
+        {!inBuild && <TargetPrompt pos={[BANK_LABEL_POS[0] * roomK, BANK_LABEL_POS[1], BANK_LABEL_POS[2] * roomK]} target={{ id: "bank", title: "Bank", actionLabel: "Tap for finances" }} activeId={activeId} selectedId={selectedId} r={0.62} />}
       </group>
       </group>
 
-      {/* The office keeps ONE floating hint — the interactive Bank pill (your money; tap for
-          finances). The old per-employee name pills were removed: a full team piled 7+ overlapping
-          white bubbles over the scene. The robots are directly tappable (→ the Company team roster,
-          which already lists every name, role and skill), so the labels were pure clutter. */}
+      {/* The office's floating chips are player-triggered only: interaction prompts (hover/tap) and
+          the team's reaction emotes. The old always-on Bank pill and per-employee name pills were
+          removed — the robots are directly tappable (→ the Company roster, which lists every name). */}
       {!builder?.build && (
         <>
-          <OfficeLabel pos={[BANK_LABEL_POS[0] * roomK, BANK_LABEL_POS[1], BANK_LABEL_POS[2] * roomK]} label="Bank" sub="Tap for finances" dot="#34c759" />
           {/* Team reaction — an emote pops right over every worker's head: a burst on a win, a sigh on a flop. */}
           {reaction && [
             ...seated.map((s, i) => ({ w: worldOf(seats[i], facilityTier), key: s.id ?? `react-seat${i}`, i })),
@@ -1357,7 +1347,7 @@ export const Garage3D = memo(function Garage3D({
         dpr={[1, 1.75]}
         shadows={dark ? false : { type: THREE.VSMShadowMap }}
         gl={{ alpha: true, antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}
-        camera={{ position: [15.5, 13.0, 17.5], fov: 25 }}
+        camera={{ position: CAM_REST_POSITION, fov: 25 }}
         style={{ touchAction: builder?.build ? "none" : "pan-y" }}
         onCreated={({ gl }) => {
           // Context-loss recovery: downgrade to the 2D IsoScene instead of going black.

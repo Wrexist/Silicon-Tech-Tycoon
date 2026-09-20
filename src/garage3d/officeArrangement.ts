@@ -39,6 +39,7 @@ import {
   type Rot,
 } from "../engine/furniture.ts";
 import { cosmeticHash01 } from "./officeLive.ts";
+import { stationKey, workstationModuleFor, type WorkstationModule } from "./workstationModule.ts";
 
 /** Cosmetic stream for the arrangement's free choices (see CLAUDE.md's salt registry). */
 const ARRANGEMENT_SALT = 467;
@@ -195,6 +196,48 @@ const FIXTURES: readonly ({ x: number; z: number; w: number; d: number } & { whe
   { x: 3.1, z: -3.0, w: 1.1, d: 0.9, when: (o) => o.dark },                                // tool chest + ball bin (right)
 ];
 
+// ---- Negative space: the circulation lane and the density caps ----------------------------------
+// A room reads as designed when it is not full. Two budgets enforce that:
+//
+//   1. The LANE. One full row across the middle of the room is kept empty. Row 5 is the row nearest
+//      the centre that is never a desk row (1, 4, 7, …) or one of their chair bands (0, 3, 6, …) at
+//      any tier, so an avenue always crosses the room between two desk banks. Every game-owned
+//      piece — desks included — has to keep out of it; a piece that would land there skips instead.
+//   2. The CAPS. Per-zone and per-tier limits on game-owned DRESSING (work desks are seating, not
+//      dressing; headcount governs them). Fewer, better pieces: the lounge budget buys a rug, a
+//      seat, a table and a lamp, not a rug plus every chair, plant and lamp that fits.
+
+/** The cells of the central circulation lane at a tier. */
+export function circulationLane(facilityTier: number): { c: number; r: number }[] {
+  const n = gridN(Math.max(1, Math.floor(facilityTier)));
+  const row = 5;
+  return Array.from({ length: n }, (_, c) => ({ c, r: row }));
+}
+
+/** The lane as solid obstacles, so the same `canPlace` maths that guards fixtures guards it too. */
+export function laneObstacles(facilityTier: number): PlacedItem[] {
+  return circulationLane(facilityTier).map(({ c, r }, i) => ({ iid: `lane${i}`, type: "crates" as const, c, r, rot: 0 as const }));
+}
+
+/** Max game-owned dressing pieces per zone, indexed by facility tier (tier 1 = garage: none). */
+const DRESSING_CAP: Record<Exclude<ArrangementZone, "work">, readonly number[]> = {
+  lounge: [0, 0, 4, 4],
+  storage: [0, 0, 2, 3],
+  culture: [0, 0, 1, 1],
+};
+/** Max game-owned dressing pieces in the whole room, indexed by facility tier. */
+const DRESSING_TOTAL_CAP = [0, 0, 7, 8];
+
+const tierIndex = (facilityTier: number) => Math.max(0, Math.min(3, Math.floor(facilityTier)));
+
+export function dressingCap(zone: Exclude<ArrangementZone, "work">, facilityTier: number): number {
+  return DRESSING_CAP[zone][tierIndex(facilityTier)];
+}
+
+export function dressingTotalCap(facilityTier: number): number {
+  return DRESSING_TOTAL_CAP[tierIndex(facilityTier)];
+}
+
 function cellsInRect(
   x0: number, x1: number, z0: number, z1: number, origin: number, cellSize: number, n: number,
 ): { c: number; r: number }[] {
@@ -241,6 +284,9 @@ export type ArrangementZone = "work" | "lounge" | "storage" | "culture";
 
 export interface ArrangedPiece extends PlacedItem {
   zone: ArrangementZone;
+  /** Work pieces only: the workstation module (screen layout + prop) the unit was authored with.
+   *  The chair is the engine's derived seat, so it is never a grid item — see workstationModule.ts. */
+  module?: WorkstationModule;
 }
 
 export interface ArrangeInput {
@@ -259,6 +305,8 @@ export interface ArrangeInput {
   amenities?: number;
   designSuite?: boolean;
   testLab?: boolean;
+  /** The computers upgrade's panel budget per desk (1 or 2) — the module's screen cap. */
+  monitors?: number;
 }
 
 export interface Arrangement {
@@ -329,11 +377,24 @@ export function arrangeOffice(input: ArrangeInput): Arrangement {
   const week = input.week ?? 0;
   const roll = cosmeticHash01((seed ^ Math.imul((era + 1) >>> 0, 0x9e3779b1)) >>> 0, week, ARRANGEMENT_SALT);
 
-  const fixtures = fixtureObstacles(tier, { dark: input.dark, amenities: input.amenities, designSuite: input.designSuite, testLab: input.testLab });
+  const reserved = [
+    ...fixtureObstacles(tier, { dark: input.dark, amenities: input.amenities, designSuite: input.designSuite, testLab: input.testLab }),
+    ...laneObstacles(tier),
+  ];
   const pieces: ArrangedPiece[] = [];
   let counter = 0;
   const nextIid = () => `a${++counter}`;
-  const room = (): PlacedItem[] => [...occupied, ...fixtures, ...pieces];
+  const room = (): PlacedItem[] => [...occupied, ...reserved, ...pieces];
+
+  /** Density guard: a dressing piece is refused once its zone — or the room's dressing total — is
+   *  at the cap. The authored clusters already fit; this keeps a future edit from quietly filling
+   *  the room back up. */
+  const withinCap = (zone: ArrangementZone): boolean => {
+    if (zone === "work") return true;
+    const inZone = pieces.filter((p) => p.zone === zone).length;
+    const totalDressing = pieces.filter((p) => p.zone !== "work").length;
+    return inZone < dressingCap(zone, tier) && totalDressing < dressingTotalCap(tier);
+  };
 
   /** Solid cells currently spoken for (occupied layout, fixtures, and any non-flat placed piece). */
   const cellsTaken = (): Set<string> => {
@@ -347,14 +408,17 @@ export function arrangeOffice(input: ArrangeInput): Arrangement {
   };
 
   const put = (type: FurnitureId, c: number, r: number, rot: Rot, zone: ArrangementZone): boolean => {
-    if (!canPlace(room(), type, c, r, rot, undefined, tier)) return false;
-    pieces.push({ iid: nextIid(), type, c, r, rot, zone });
+    if (!withinCap(zone) || !canPlace(room(), type, c, r, rot, undefined, tier)) return false;
+    const item: ArrangedPiece = { iid: nextIid(), type, c, r, rot, zone };
+    if (zone === "work") item.module = workstationModuleFor(stationKey(item), seed, input.monitors ?? 2);
+    pieces.push(item);
     return true;
   };
 
   /** Flats (rugs) are always "placeable" to the engine, so they need their own clearance check:
    *  a dressing rug must not run under solid furniture the player already placed. */
   const putFlat = (type: FurnitureId, c: number, r: number, zone: ArrangementZone): boolean => {
+    if (!withinCap(zone)) return false;
     const { w, d } = footprint(furnitureDef(type), 0);
     if (c < 0 || r < 0 || c + w > n || r + d > n) return false;
     const taken = cellsTaken();
@@ -397,16 +461,15 @@ export function arrangeOffice(input: ArrangeInput): Arrangement {
     }
     if (anchor) {
       // The cluster is laid out inside the rug's own 3×2 footprint, so it can never be pushed into
-      // the front wall: the sectional takes the west half of the rug, the table the east, the chair
-      // fills the remaining corner and the lamp/plant stand just off its edge.
+      // the front wall: the sectional takes the west half of the rug, the table the east and the
+      // lamp stands just off its edge. Four pieces, per the lounge cap — the rug, a seat, a table
+      // and one light. The room's own shell plants already give the corner its green.
       const { c: lc, r: lr } = anchor;
       putFlat("rug", lc, lr, "lounge");
       if (tier >= 3) put("sofaL", lc, lr, 0, "lounge");
       else put("loungeChair", lc, lr + 1, 0, "lounge");
       put("coffeeTable", lc + 2, lr + 1, 0, "lounge");
-      if (tier >= 3) put("loungeChair", lc + 2, lr, 0, "lounge");
       put("floorLamp", lc + 3, lr, 0, "lounge");
-      put("plantPot", lc + 4, lr + 1, 0, "lounge");
     }
   }
 

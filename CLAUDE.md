@@ -78,7 +78,10 @@ celebration style — leave them as-is.
   The plan is a pure fold over (seed, week, character), so a week always leaves the same desks.;
   467 = the office ARRANGER's cosmetic pick (which free right-wall row the culture arcade lands on).
   The arrangement is a pure fold of (tier, headcount, player layout, seed, week, era) — the player's
-  layout is never written, and the engine never reads it.)
+  layout is never written, and the engine never reads it.;
+  479 = the workstation MODULE's cosmetic variation (item 5): screen layout + the one small desk
+  prop, a pure fold over (seed, per-desk station key). Presentation-only; the module adds no grid
+  cells and the engine never reads it.)
 - **Opportunistic full-screen interrupts share a budget.** Any card that fires on its own cadence
   (strike / eureka / community / earnings / rivalry / staff moment / regional event / licensing
   contract offer) must gate on

@@ -4,7 +4,7 @@
 // except where an unambiguous relationship says otherwise.
 import { describe, expect, it } from "vitest";
 import { footprint, furnitureDef, gridN, type FurnitureId, type PlacedItem, type Rot } from "../engine/furniture.ts";
-import { arrangeOffice, derivedYawFor, dressingAnchors, fixtureObstacles } from "./officeArrangement.ts";
+import { arrangeOffice, circulationLane, derivedYawFor, dressingAnchors, dressingCap, dressingTotalCap, fixtureObstacles } from "./officeArrangement.ts";
 
 const item = (iid: string, type: FurnitureId, c: number, r: number, rot: Rot = 0): PlacedItem => ({ iid, type, c, r, rot });
 
@@ -93,13 +93,51 @@ describe("officeArrangement — placement invariants", () => {
     }
   });
 
-  it("shifts the storage run around the dark theme's tool chest instead of erasing it", () => {
+  it("shifts the storage run around the dark theme's tool chest and the lane instead of erasing it", () => {
     const light = arrangeOffice({ facilityTier: 3, headcount: 6, ...BARE });
     const dark = arrangeOffice({ facilityTier: 3, headcount: 6, ...BARE, dark: true });
     const lightRows = light.dressing.filter((p) => p.zone === "storage").map((p) => p.r);
     const darkRows = dark.dressing.filter((p) => p.zone === "storage").map((p) => p.r);
     expect(lightRows).toEqual([0, 1, 2]);
-    expect(darkRows).toEqual([3, 4, 5]); // rows 0–2 are the tool chest
+    expect(darkRows).toEqual([3, 4, 6]); // rows 0–2 are the tool chest; row 5 is the lane
+  });
+
+  it("keeps the central circulation lane completely empty", () => {
+    for (const facilityTier of TIERS) {
+      const lane = circulationLane(facilityTier);
+      expect(lane.length, `tier ${facilityTier} lane spans the room`).toBe(gridN(facilityTier));
+      // The lane is one full row, and never a desk row or a chair band.
+      expect(new Set(lane.map((s) => s.r)).size).toBe(1);
+      const row = lane[0].r;
+      expect((row - 1) % 3).not.toBe(0); // not a desk row
+      expect(row % 3).not.toBe(0); // not the chair band behind one
+      const laneCells = new Set(lane.map(({ c, r }) => `${c},${r}`));
+      for (const headcount of HEADS) {
+        const arrangement = arrangeOffice({ facilityTier, headcount, ...BARE });
+        for (const p of arrangement.pieces) {
+          for (const cell of cellsOf(p)) {
+            expect(laneCells.has(cell), `tier ${facilityTier}, head ${headcount}: ${p.type}@${p.c},${p.r} sits in the lane`).toBe(false);
+          }
+        }
+      }
+    }
+  });
+
+  it("never exceeds the per-zone or total dressing caps for its tier", () => {
+    for (const facilityTier of TIERS) {
+      for (const headcount of HEADS) {
+        const arrangement = arrangeOffice({ facilityTier, headcount, ...BARE });
+        const counts = { lounge: 0, storage: 0, culture: 0 };
+        for (const p of arrangement.dressing) counts[p.zone as keyof typeof counts]++;
+        for (const zone of ["lounge", "storage", "culture"] as const) {
+          expect(counts[zone], `tier ${facilityTier}: ${zone} over cap`).toBeLessThanOrEqual(dressingCap(zone, facilityTier));
+        }
+        expect(arrangement.dressing.length, `tier ${facilityTier}: total dressing over cap`).toBeLessThanOrEqual(dressingTotalCap(facilityTier));
+      }
+    }
+    // The authored clusters actually use the budget: a Studio lounge is four pieces, not one.
+    const studio = arrangeOffice({ facilityTier: 2, headcount: 6, ...BARE });
+    expect(studio.dressing.filter((p) => p.zone === "lounge").length).toBe(4);
   });
 
   it("keeps every dressing piece inside its zone's anchor region", () => {
@@ -131,6 +169,22 @@ describe("officeArrangement — placement invariants", () => {
         if (furnitureDef(p.type).flat) continue;
         for (const cell of cellsOf(p)) expect(bands.has(cell), `${p.type}@${p.c},${p.r}`).toBe(false);
       }
+    }
+  });
+
+  it("composes every work desk as a workstation module unit", () => {
+    for (const facilityTier of TIERS) {
+      const arrangement = arrangeOffice({ facilityTier, headcount: 9, monitors: 2, ...BARE });
+      const work = arrangement.pieces.filter((p) => p.zone === "work");
+      expect(work.length).toBe(arrangement.seats);
+      for (const p of work) {
+        expect(p.module, `${p.iid} has no module`).toBeDefined();
+        expect([1, 2]).toContain(p.module!.screens);
+        expect(["papers", "plant", "books"]).toContain(p.module!.prop);
+      }
+      // The unit adds no grid cells beyond the desk itself: the lane and density tests above stay
+      // true because the chair is the engine's derived seat, not a placed piece.
+      expect(new Set(work.map((p) => p.iid)).size).toBe(work.length);
     }
   });
 

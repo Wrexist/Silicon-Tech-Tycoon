@@ -10,6 +10,30 @@ import { useMemo, type ReactNode } from "react";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import type { ModelAsset } from "./furnitureModels.ts";
+import { desaturatedColor } from "./palette.ts";
+
+// ---- Item 2 for the fitted glTF catalog ---------------------------------------------------------
+// The Kenney models ship with baked, saturated paint (a salmon sofa, a blue-grey desk) that lands
+// outside the office palette. Recolour them IN PLACE: every material's colour is pulled most of the
+// way to its own luminance (saturation ×0.22 via `desaturatedColor` in palette.ts), which keeps the
+// model's value structure — the thing that makes a chair read as a chair — while removing the hue.
+// Materials are shared between clones, and a WeakSet keeps the pass from compounding on models that
+// mount more than once. No new materials, no per-frame work, textures untouched.
+const neutralized = new WeakSet<THREE.Material>();
+
+function neutralizeMaterials(root: THREE.Object3D): void {
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const mat of mats) {
+      if (!mat || neutralized.has(mat)) continue;
+      neutralized.add(mat);
+      const m = mat as THREE.MeshStandardMaterial;
+      if (m.color?.isColor) desaturatedColor(m.color);
+    }
+  });
+}
 
 function resolveUrl(url: string): string {
   if (/^(https?:)?\/\//.test(url) || url.startsWith("data:")) return url;
@@ -46,6 +70,7 @@ export default function GltfFurniture({
   // when the asset or its placement size changes.
   const object = useMemo(() => {
     const clone = scene.clone(true);
+    neutralizeMaterials(clone);
 
     // Measure the raw model.
     const box = new THREE.Box3().setFromObject(clone);
