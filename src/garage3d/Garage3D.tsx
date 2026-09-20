@@ -470,8 +470,10 @@ function Props({ p, hasProduction, back = 0, dark = true }: { p: RoomPalette; ha
           </RoundedBox>
         </>
       )}
-      {/* plant (front-right) */}
-      <group position={[3.1, 0, 3.0]}>
+      {/* plant (front-right). `sc` stretches x/z with the facility but not y, so a full-size Plant
+          here inflates into a 1.4m topiary ball at Campus scale — the room's nearest object to the
+          camera. Scaling the whole group down keeps the pot and canopy in human proportion. */}
+      <group position={[3.1, 0, 3.0]} scale={0.5}>
         <mesh position={[0, 0.25, 0]}>
           <cylinderGeometry args={[0.28, 0.34, 0.5, 12]} />
           <meshStandardMaterial color={p.pot} roughness={0.8} />

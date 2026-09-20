@@ -1018,8 +1018,9 @@ function QuantumRig() {
 function EspressoRobot() {
   return (
     <group>
-      {/* chrome cylinder body */}
-      <mesh position={[0, 0.5, 0]} geometry={sharedCylinder(0.22, 0.24, 1.0, 24)} material={sharedStandard({ color: "#c7ccd4", metalness: 0.85, roughness: 0.18 })} />
+      {/* chrome cylinder body — metalness kept moderate: with no environment map a near-mirror
+          metal renders black, which turned the barista bot into a dark bin in the light office. */}
+      <mesh position={[0, 0.5, 0]} geometry={sharedCylinder(0.22, 0.24, 1.0, 24)} material={sharedStandard({ color: "#c7ccd4", metalness: 0.35, roughness: 0.32 })} />
       <mesh position={[0, 1.0, 0]} geometry={sharedCylinder(0.2, 0.22, 0.12, 24)} material={sharedStandard({ color: "#9aa1ab", metalness: 0.7, roughness: 0.3 })} />
       {/* green status LED */}
       <mesh position={[0, 0.72, 0.23]} geometry={sharedSphere(0.03, 10, 10)} material={sharedStandard({ color: "#10b981", emissive: "#10b981", emissiveIntensity: 1.3, toneMapped: false })} />
@@ -1448,6 +1449,35 @@ function renderParametric(type: FurnitureId, p: RoomPalette) {
   }
 }
 
+/** Books for the OPEN SHELVES of a fitted glTF bookcase (see `shelfRows` in furnitureModels.ts).
+ *  The Kenney bookcases ship empty — an open frame on a wall reads as scaffolding next to the
+ *  parametric case's tidy row of books — so each shelf surface gets a short run of books, sized in
+ *  metres off the model's fitted height. Deterministic (index arithmetic, no randomness), pooled
+ *  geometry/material like every other piece. */
+export function ShelfBooks({ rows, height }: { rows: readonly number[]; height: number }) {
+  const W = 0.05, D = 0.15, PITCH = 0.082;
+  return (
+    <group>
+      {rows.map((f, r) => (
+        <group key={r} position={[0, f * height, -0.03]}>
+          {Array.from({ length: 8 }).map((_, i) => {
+            if ((i * 3 + r) % 8 === 6) return null; // a gap every shelf or two
+            const h = 0.19 + ((i + r * 2) % 3) * 0.035;
+            return (
+              <mesh
+                key={i}
+                position={[-0.27 + i * PITCH, h / 2, 0]}
+                geometry={sharedBox(W, h, D)}
+                material={sharedStandard({ color: BOOKS[(i + r) % BOOKS.length], roughness: 0.75 })}
+              />
+            );
+          })}
+        </group>
+      ))}
+    </group>
+  );
+}
+
 const LazyGltf = lazy(() => import("./gltfFurniture.tsx"));
 
 /** Falls back to the parametric piece if a registered glTF model fails to load. Tiny + asset-only. */
@@ -1470,6 +1500,7 @@ export const FurniturePiece = memo(function FurniturePiece({ type, p }: { type: 
   if (!model) return parametric;
   const def = FURNITURE.find((f) => f.id === type);
   const desk = def?.category === "desks";
+  const shelves = model.shelfRows;
   return (
     <ModelBoundary fallback={parametric}>
       <Suspense fallback={parametric}>
@@ -1477,6 +1508,7 @@ export const FurniturePiece = memo(function FurniturePiece({ type, p }: { type: 
           asset={model}
           footprintW={(def?.w ?? 1) * C}
           footprintD={(def?.d ?? 1) * C}
+          dressing={shelves ? (h) => <ShelfBooks rows={shelves} height={h} /> : undefined}
         >
           {/* the modelled desks ship bare — give them the computer they're supposed to have */}
           {desk && <DeskTopKit p={p} w={def?.w ?? 2} />}

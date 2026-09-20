@@ -27,6 +27,7 @@ export default function GltfFurniture({
   footprintW,
   footprintD,
   children,
+  dressing,
 }: {
   asset: ModelAsset;
   // grid footprint of the item in metres (w*GRID.cell, d*GRID.cell)
@@ -35,6 +36,9 @@ export default function GltfFurniture({
   /** Rendered at the model's fitted TOP surface — for desk-top kit (monitor, keyboard) that has to
    *  sit on a model whose real height is only known once it's measured and scaled. */
   children?: ReactNode;
+  /** Rendered at the model's fitted LOCAL origin with the fitted height in metres — for dressing
+   *  that lives at heights INSIDE the model (books on a bookcase's shelves). */
+  dressing?: (height: number) => ReactNode;
 }) {
   const { scene } = useGLTF(resolveUrl(asset.url));
 
@@ -88,6 +92,7 @@ export default function GltfFurniture({
   return (
     <group position={[ox, oy, oz]} rotation-y={asset.yaw ?? 0} scale={asset.scale ?? 1}>
       <primitive object={object} />
+      {dressing != null && <group>{dressing(topY)}</group>}
       {children != null && <group position={[0, topY, 0]}>{children}</group>}
     </group>
   );

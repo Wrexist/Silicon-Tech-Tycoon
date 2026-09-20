@@ -26,6 +26,11 @@ export interface ModelAsset {
    *  to whatever footprint it happens to occupy. The footprint fit still caps it. */
   realHeight?: number;
   offset?: [number, number, number]; // re-centre on the tile (default [0,0,0])
+  /** The TOP surface of each open shelf, as a fraction of the model's own height (measure it from
+   *  the geometry — see the shelf probe in the phase 3/4 audit). Presence means "this piece is an
+   *  open shelf and should be stocked": the renderer dresses those surfaces with books. Omit for
+   *  closed/other pieces. */
+  shelfRows?: number[];
 }
 
 const u = (id: string): string => `furniture/${id}.glb`;
@@ -43,9 +48,9 @@ export const MODEL_ASSETS: Partial<Record<FurnitureId, ModelAsset>> = {
   coffeeTable: { url: u("coffeeTable"), scale: 1, realHeight: 0.42 },
   meetingTable: { url: u("meetingTable"), scale: 1, realHeight: 0.74 },
   sideTable: { url: u("sideTable"), scale: 1, realHeight: 0.55 },
-  bookshelf: { url: u("bookshelf"), scale: 1, realHeight: 1.8 },
+  bookshelf: { url: u("bookshelf"), scale: 1, realHeight: 1.8, shelfRows: [0.15, 0.425, 0.7] },
   cabinet: { url: u("cabinet"), scale: 1, realHeight: 0.9 },
-  shelfUnit: { url: u("shelfUnit"), scale: 1, realHeight: 1.8 },
+  shelfUnit: { url: u("shelfUnit"), scale: 1, realHeight: 1.8, shelfRows: [0.325] },
   crates: { url: u("crates"), scale: 1, realHeight: 0.6 },
   plantTall: { url: u("plantTall"), scale: 1, realHeight: 1.45 },
   plantPot: { url: u("plantPot"), scale: 1, realHeight: 0.5 },

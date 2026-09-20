@@ -20,35 +20,44 @@ s = { ...s, onboarded: true, tutorialDone: true, factoryFloor: demoFloor(), comp
   reputation: 78, researched: { chip: 5, display: 5, battery: 4, materials: 4, software: 4, camera: 4 } };
 for (let i = 0; i < 3; i++) { const n = upgradeFacility(s); if (n !== s) s = n; }
 
-// Office: a FURNISHED Campus — the facility is tier 3, so the office grid is a roomy 13×13. Three
-// open-plan desk bands (every seat gets its chair from the seat planner, so the desks alone are the
-// seating), a proper lounge (round rug + sectional + coffee table + side table + lamp), a meeting
-// corner (table + chairs), and greenery / storage / branding along the walls. Walkways stay clear by
-// construction: desk bands sit on rows 1/4/7 and everything else hugs the perimeter or the front
-// half. A fresh layout (not the starter desk) gives full control; placeFurniture no-ops on
-// collision/OOB, so the log below reports anything that did NOT fit.
+// Office: a FURNISHED Campus — the facility is tier 3, so the office grid is a roomy 13×13. Four
+// zones with clear walkways between them: three open-plan desk bands across the back (rows 1, 4 and
+// 7 — every seat gets its chair from the seat planner, so the desks alone are the seating), a
+// storage/research run on the right wall, a culture accent mid-right, and a front social half — a
+// lounge in the front-left (rug + sectional + coffee table + coffee bot + lamp) and a meeting nook
+// beside it. Row 8 is left completely empty as the cross-room aisle.
+//
+// Orientation: every desk sits at rot 0, so its chair band is the row BEHIND it and the worker faces
+// the camera — the same look as the founder's pod desks. Pieces that are not symmetric get an
+// explicit rot: the sectional (2) opens into the room from the front-left corner, the wall run and
+// the arcade (3) present their fronts to the room instead of the wall, and the meeting chairs (1/2/3)
+// face the table they belong to. A fresh layout (not the starter desk) gives full control;
+// placeFurniture no-ops on collision/OOB, so the log below reports anything that did NOT fit.
+//
+// Fixtures the layout must dodge (they live in the room shell, not the layout): the Vault (~c0,r8-9),
+// the Printer + amenity plant (c0-1,r10-11) and the front-right corner plant (~c10-12,r10-12).
 s = { ...s, layout: [] };
 const layout = [
-  // ── Engineering: three desk bands, one seat per employee. Row 1 sits off the back wall so every
-  //    occupant faces the camera; rows 4 and 7 leave walkways at 3 and 6. ──
-  ["executiveDesk", 0, 1], ["dualDesk", 4, 1], ["dualDesk", 7, 1], ["dualDesk", 10, 1],
-  ["deskL", 0, 4], ["dualDesk", 3, 4], ["dualDesk", 6, 4], ["dualDesk", 9, 4], ["desk", 11, 4],
-  ["dualDesk", 1, 7], ["dualDesk", 4, 7], ["dualDesk", 7, 7], ["desk", 10, 7],
-  // ── Lounge, front-left: a sectional on a round rug, a coffee table, a side table, a reading
-  //    armchair and a floor lamp — a real "zone", not one lonely sofa. ──
-  ["rugRound", 0, 10], ["sofaL", 0, 10], ["coffeeTable", 2, 10], ["armchair", 2, 11],
-  ["sideTable", 4, 10], ["floorLamp", 4, 11],
-  // ── Meeting corner, front-centre-right: table with chairs on the camera side. ──
-  ["meetingTable", 7, 10], ["armchair", 7, 9], ["armchair", 9, 9],
-  // ── Branding + storage along the walls, greenery in the corners. ──
-  ["neonSign", 6, 0], ["ideaWall", 0, 8], ["bookshelf", 0, 9],
-  ["shelfUnit", 12, 0], ["bookshelf", 12, 1], ["plantTall", 12, 2],
-  ["plantTall", 12, 8], ["plantTall", 12, 11], ["plantTall", 6, 12], ["plantPot", 12, 12],
-  ["cabinet", 0, 12], ["plantPot", 2, 12],
+  // ── Work area: three desk bands (rows 1, 4, 7) so the aisles at 2-3, 5-6 and 8 stay open. ──
+  ["executiveDesk", 0, 1, 0], ["dualDesk", 4, 1, 0], ["dualDesk", 7, 1, 0], ["dualDesk", 10, 1, 0],
+  ["deskL", 0, 4, 0], ["dualDesk", 3, 4, 0], ["dualDesk", 6, 4, 0], ["desk", 9, 4, 0],
+  ["dualDesk", 1, 7, 0], ["dualDesk", 4, 7, 0], ["dualDesk", 7, 7, 0], ["desk", 10, 7, 0],
+  // ── Storage / research, right wall: fronts turned into the room (rot 3), plus a niche of green
+  //    between the back desks and a tall plant on the left wall. ──
+  ["shelfUnit", 12, 0, 3], ["serverRack", 12, 1, 3], ["bookshelf", 12, 2, 3],
+  ["plantTall", 6, 0, 0], ["plantTall", 0, 6, 0],
+  // ── Culture: one arcade against the right wall, screen facing the room. ──
+  ["arcade", 12, 5, 3],
+  // ── Lounge, front-left: the rug anchors a sectional that opens into the room, its coffee table in
+  //    the opening, a lounge chair across it, the coffee bot at the edge and a lamp behind. ──
+  ["rug", 2, 9, 0], ["sofaL", 2, 10, 2], ["coffeeTable", 3, 9, 0], ["loungeChair", 4, 10, 3],
+  ["espressoRobot", 5, 9, 3], ["floorLamp", 5, 10, 0], ["plantPot", 5, 11, 0],
+  // ── Meeting nook, front-centre: a table with four chairs, every chair turned to face it. ──
+  ["meetingTable", 7, 9, 0], ["chair", 7, 11, 2], ["chair", 9, 11, 2], ["chair", 6, 9, 1], ["chair", 10, 9, 3],
 ];
 let placed = 0;
 const skipped = [];
-for (const [type, c, r] of layout) { const n = placeFurniture(s, type, c, r, 0); if (n !== s) { s = n; placed++; } else skipped.push(`${type}@${c},${r}`); }
+for (const [type, c, r, rot] of layout) { const n = placeFurniture(s, type, c, r, rot); if (n !== s) { s = n; placed++; } else skipped.push(`${type}@${c},${r}:${rot}`); }
 console.error(`office layout: placed ${placed}/${layout.length}${skipped.length ? ` — SKIPPED (collision/OOB): ${skipped.join(", ")}` : ""}`);
 s = { ...s, desktops: 0 }; // no standalone pods — every employee has a real desk in the open plan
 
