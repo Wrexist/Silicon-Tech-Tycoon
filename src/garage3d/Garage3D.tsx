@@ -43,6 +43,7 @@ import { workstationModuleFor, type WorkstationProp } from "./workstationModule.
 import { officeSeed } from "./officeLive.ts";
 import { derivedYawFor } from "./officeArrangement.ts";
 import { OfficeDressing } from "./officeDressing.tsx";
+import { skylinePlacement, SKYLINE_COLOR } from "./skyline.ts";
 
 /** Wraps an upgrade's physical office object(s); when its card is tapped (hqHighlight) it does a
  *  decaying attention hop so the player can SEE what that upgrade added. Additive y-offset only. */
@@ -1123,6 +1124,9 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   // furniture grid below fills the larger CENTRED grid at real desk size (tier-aware worldOf).
   const roomK = cfg.roomScale;
   const sc: [number, number, number] = [roomK, 1, roomK];
+  // Exterior scenery shares the room's x/z space but NOT its scale: positions scale with `roomK`,
+  // mesh sizes do not. Kept out of the scaled group above so a bigger building can't inflate it.
+  const skyline = skylinePlacement(roomK);
   return (
     <>
       <VisibilityPause paused={paused} />
@@ -1141,18 +1145,18 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           a clean white void, so no exterior scenery. */}
       {dark && (
         <group>
-          {/* outside wall B (−x), seen through the side window */}
-          {[[-1.8, 2.6], [-0.9, 4.0], [0.0, 2.0], [0.9, 3.2]].map((b, i) => (
-            <mesh key={`bx${i}`} position={[-5.3, b[1] / 2, b[0]]}>
-              <boxGeometry args={[0.7, b[1], 0.9]} />
-              <meshStandardMaterial color="#2a3550" roughness={0.9} />
+          {/* outside wall B (−x), seen past the left wall when the dollhouse culls it */}
+          {skyline.wallB.map((b) => (
+            <mesh key={b.key} position={b.position}>
+              <boxGeometry args={b.size} />
+              <meshStandardMaterial color={SKYLINE_COLOR} roughness={0.9} />
             </mesh>
           ))}
-          {/* outside wall A (−z), seen through the door windows */}
-          {[[-1.6, 3.0], [0.2, 4.4], [1.8, 2.4], [3.0, 3.6]].map((b, i) => (
-            <mesh key={`bz${i}`} position={[b[0], b[1] / 2, -5.3]}>
-              <boxGeometry args={[0.9, b[1], 0.7]} />
-              <meshStandardMaterial color="#2a3550" roughness={0.9} />
+          {/* outside wall A (−z), seen past the back wall when the dollhouse culls it */}
+          {skyline.wallA.map((b) => (
+            <mesh key={b.key} position={b.position}>
+              <boxGeometry args={b.size} />
+              <meshStandardMaterial color={SKYLINE_COLOR} roughness={0.9} />
             </mesh>
           ))}
         </group>
