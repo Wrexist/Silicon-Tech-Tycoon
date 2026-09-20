@@ -25,6 +25,11 @@ export interface ModelAsset {
    *  to fill its tile — the difference between furniture in human proportion and furniture inflated
    *  to whatever footprint it happens to occupy. The footprint fit still caps it. */
   realHeight?: number;
+  /** The piece's usable TOP SURFACE height in metres (final scale), for resting desk-top kit on it.
+   *  Set this whenever the model's bounding-box top is NOT the surface you'd put a monitor on — a
+   *  screen, back rail or shelf on the same model makes bbox-max wrong. Omit only when the top IS
+   *  the surface. */
+  surfaceHeight?: number;
   offset?: [number, number, number]; // re-centre on the tile (default [0,0,0])
   /** The TOP surface of each open shelf, as a fraction of the model's own height (measure it from
    *  the geometry — see the shelf probe in the phase 3/4 audit). Presence means "this piece is an
@@ -37,8 +42,8 @@ const u = (id: string): string => `furniture/${id}.glb`;
 
 // Registered to match what `scripts/fetch-furniture.mjs` places. Kenney-only for a cohesive look.
 export const MODEL_ASSETS: Partial<Record<FurnitureId, ModelAsset>> = {
-  desk: { url: u("desk"), scale: 1, realHeight: 0.74 },
-  deskL: { url: u("deskL"), scale: 1, realHeight: 0.74 },
+  desk: { url: u("desk"), scale: 1, realHeight: 0.74, surfaceHeight: 0.74 },
+  deskL: { url: u("deskL"), scale: 1, realHeight: 0.74, surfaceHeight: 0.74 },
   chair: { url: u("chair"), scale: 1, realHeight: 0.95 },
   armchair: { url: u("armchair"), scale: 1, realHeight: 0.78 },
   loungeChair: { url: u("loungeChair"), scale: 1, realHeight: 0.8 },
@@ -64,4 +69,12 @@ export const MODEL_ASSETS: Partial<Record<FurnitureId, ModelAsset>> = {
 
 export function modelFor(id: FurnitureId): ModelAsset | undefined {
   return MODEL_ASSETS[id];
+}
+
+/** Where desk-top kit (monitor, keyboard, mug) rests on a fitted model. Uses the asset's declared
+ *  `surfaceHeight` when it has one — the measured bbox top is the whole model's top and is wrong for
+ *  a piece with a taller part (a screen or shelf). Falls back to the measured top for bare pieces.
+ *  Pure, so the anchor rule is pinned by furnitureModels.test.ts. */
+export function surfaceAnchorY(asset: Pick<ModelAsset, "surfaceHeight">, measuredTop: number): number {
+  return asset.surfaceHeight ?? measuredTop;
 }

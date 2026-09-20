@@ -5,6 +5,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { Color } from "three";
 import { CATALOG, desaturatedColor, SATURATED_ALLOWED } from "./palette.ts";
+import {
+  applyMaterialFamily,
+  MATERIAL_FAMILIES,
+  MATERIAL_FAMILY_BY_NAME,
+  familyForMaterial,
+  UNMAPPED_FAMILY,
+} from "./materialFamilies.ts";
 
 // Item 2's source invariant: the room is neutral, and colour is a signal.
 //
@@ -125,5 +132,55 @@ describe("office palette discipline", () => {
     // lights and pools — no employee colours and no interactive-blue paints sneak in here.
     expect(hexLiterals("palette.ts").length).toBeGreaterThan(20);
     expect(Object.values(CATALOG)).toContain(CATALOG.ledOk);
+  });
+});
+
+// Material identity for the fitted glTF catalog. The policy is now expressed as FAMILIES with
+// distinct physical responses rather than one flat desaturation (materialFamilies.ts), so these
+// pin the intentional rules: every shipped source material is mapped, the families do not collapse
+// to one tone, and no family smuggles a pigment back in except the allowlisted purpose families.
+describe("fitted-catalog material families", () => {
+  /** The material names authored into the shipped Kenney GLBs (public/furniture/*.glb). A new
+   *  material must be added to MATERIAL_FAMILY_BY_NAME and to this list together. */
+  const SOURCE_MATERIALS = [
+    "wood", "woodDark", "metal", "metalMedium",
+    "carpet", "carpetBlue", "carpetDarker", "plant", "lamp", "_defaultMat",
+  ];
+
+  it("every source material in the shipped catalog maps to a listed family", () => {
+    for (const name of SOURCE_MATERIALS) {
+      expect(MATERIAL_FAMILY_BY_NAME[name], `${name} is unmapped`).toBeDefined();
+      expect(MATERIAL_FAMILIES[familyForMaterial(name)], `${name} → unknown family`).toBeDefined();
+    }
+    // Unmapped names fall back to the documented family — visibly, not silently to a grey tone.
+    expect(familyForMaterial("brand-new-material")).toBe(UNMAPPED_FAMILY);
+    expect(familyForMaterial("wood#e59964")).toBe("wood"); // a loader-appended hex suffix is stripped
+  });
+
+  it("families are physically distinct: wood ≠ painted metal ≠ fabric", () => {
+    expect(MATERIAL_FAMILIES.wood.metalness).toBe(0);
+    expect(MATERIAL_FAMILIES.metal.metalness).toBeGreaterThan(0.5);
+    expect(MATERIAL_FAMILIES.fabric.roughness).toBeGreaterThan(MATERIAL_FAMILIES.metal.roughness);
+    expect(MATERIAL_FAMILIES.wood.roughness).not.toBeCloseTo(MATERIAL_FAMILIES.metal.roughness, 2);
+  });
+
+  it("no family reintroduces a pigment beyond the allowlisted purpose families", () => {
+    for (const [name, spec] of Object.entries(MATERIAL_FAMILIES)) {
+      if (name === "glow" || name === "foliage") continue; // lamp light + the one plant green
+      expect(spec.keep, `${name} keeps too much saturation for a neutral family`).toBeLessThanOrEqual(0.5);
+    }
+  });
+
+  it("applyMaterialFamily mutates in place and sets the family's response", () => {
+    const c = new Color("#e59964"); // Kenney wood
+    const mat = { name: "wood", color: c, roughness: 0.9, metalness: 0.5 };
+    applyMaterialFamily(mat, desaturatedColor);
+    expect(mat.color).toBe(c); // same colour object — nothing allocated
+    expect(mat.roughness).toBe(MATERIAL_FAMILIES.wood.roughness);
+    expect(mat.metalness).toBe(MATERIAL_FAMILIES.wood.metalness);
+    const hsl = { h: 0, s: 0, l: 0 };
+    c.getHSL(hsl);
+    expect(hsl.s).toBeGreaterThan(0.2); // wood keeps a recognisable warm tone…
+    expect(hsl.s).toBeLessThan(0.5); // …without becoming a pigment
   });
 });

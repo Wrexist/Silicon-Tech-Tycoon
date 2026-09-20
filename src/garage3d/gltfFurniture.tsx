@@ -10,27 +10,27 @@ import { useMemo, type ReactNode } from "react";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import type { ModelAsset } from "./furnitureModels.ts";
+import { surfaceAnchorY } from "./furnitureModels.ts";
 import { desaturatedColor } from "./palette.ts";
+import { applyMaterialFamily } from "./materialFamilies.ts";
 
-// ---- Item 2 for the fitted glTF catalog ---------------------------------------------------------
-// The Kenney models ship with baked, saturated paint (a salmon sofa, a blue-grey desk) that lands
-// outside the office palette. Recolour them IN PLACE: every material's colour is pulled most of the
-// way to its own luminance (saturation ×0.22 via `desaturatedColor` in palette.ts), which keeps the
-// model's value structure — the thing that makes a chair read as a chair — while removing the hue.
-// Materials are shared between clones, and a WeakSet keeps the pass from compounding on models that
-// mount more than once. No new materials, no per-frame work, textures untouched.
-const neutralized = new WeakSet<THREE.Material>();
+// ---- Material identity for the fitted glTF catalog --------------------------------------------------
+// The Kenney models ship with baked, saturated paint. Instead of one blanket desaturation, each
+// material is mapped BY NAME to a MATERIAL FAMILY (see materialFamilies.ts) that keeps the source
+// hue/value at the family's saturation budget and sets its roughness/metalness — so wood, painted
+// metal, fabric and foliage stay distinguishable by touch as well as tone. Shared between clones, and
+// a WeakSet stops the pass compounding on models that mount more than once. No new materials.
+const familyApplied = new WeakSet<THREE.Material>();
 
-function neutralizeMaterials(root: THREE.Object3D): void {
+function applyFamilies(root: THREE.Object3D): void {
   root.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh) return;
     const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
     for (const mat of mats) {
-      if (!mat || neutralized.has(mat)) continue;
-      neutralized.add(mat);
-      const m = mat as THREE.MeshStandardMaterial;
-      if (m.color?.isColor) desaturatedColor(m.color);
+      if (!mat || familyApplied.has(mat)) continue;
+      familyApplied.add(mat);
+      applyMaterialFamily(mat as THREE.MeshStandardMaterial, desaturatedColor);
     }
   });
 }
@@ -70,7 +70,7 @@ export default function GltfFurniture({
   // when the asset or its placement size changes.
   const object = useMemo(() => {
     const clone = scene.clone(true);
-    neutralizeMaterials(clone);
+    applyFamilies(clone);
 
     // Measure the raw model.
     const box = new THREE.Box3().setFromObject(clone);
@@ -107,18 +107,22 @@ export default function GltfFurniture({
     return wrapper;
   }, [scene, footprintW, footprintD]);
 
-  // Fitted height of the piece, so callers can put things ON it (the desk-top kit).
+  // Fitted height of the piece (the model's own top), so shelf dressing can size itself.
   const topY = useMemo(() => {
     const box = new THREE.Box3().setFromObject(object);
     return box.max.y;
   }, [object]);
+
+  // Desk-top kit rests on the declared SURFACE, not the model's bbox top (which a taller part —
+  // screen, rail, shelf — would push too high). Falls back to the measured top for bare pieces.
+  const anchorY = surfaceAnchorY(asset, topY);
 
   const [ox, oy, oz] = asset.offset ?? [0, 0, 0];
   return (
     <group position={[ox, oy, oz]} rotation-y={asset.yaw ?? 0} scale={asset.scale ?? 1}>
       <primitive object={object} />
       {dressing != null && <group>{dressing(topY)}</group>}
-      {children != null && <group position={[0, topY, 0]}>{children}</group>}
+      {children != null && <group position={[0, anchorY, 0]}>{children}</group>}
     </group>
   );
 }
