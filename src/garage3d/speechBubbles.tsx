@@ -10,17 +10,29 @@
 import { useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { cosmeticHash01, officeSeed, officeWeek } from "./officeLive.ts";
+import { cosmeticHash01, officeSeed, officeWeek, workTargetFor } from "./officeLive.ts";
+import { poseFor, type Activity } from "./employeeController.ts";
 
 export interface Speaker {
   key: string;
   x: number;
   z: number;
   y?: number;
+  /** The character's robot seed — the fallback work-state key before the robot publishes a pose. */
+  seed?: number;
 }
 
-/** Authored, brand-free, emoji-free lines. Kept short so the panels stay small above a desk. */
-const LINES = ["Working…", "Shipping…", "Compiling…", "On it.", "Coffee?", "Merging…", "Testing…", "Building…", "Nice.", "Rendering…"] as const;
+/** Every line belongs to a state, so a bubble can never claim something the character isn't doing.
+ *  The activity itself is published by whichever component animates the character (seated robot or
+ *  walker); this layer only chooses the wording. Authored, brand-free, emoji-free, kept short. */
+const LINES_BY_ACTIVITY: Record<Activity, readonly string[]> = {
+  working: ["Working…", "Shipping…", "Compiling…", "Testing…"],
+  thinking: ["Thinking…"],
+  walking: ["On my way…", "Be right back…"],
+  coffee: ["Coffee…", "Refuel…"],
+  arcade: ["One more…"],
+  board: ["Planning…"],
+};
 
 const MAX = 2;            // concurrent bubbles cap — a few at most
 const SLOT_SECONDS = 5.4; // one slot of chatter about every five seconds
@@ -97,16 +109,21 @@ function textureFor(line: string): THREE.CanvasTexture {
 }
 
 interface ActiveBubble {
+  key: string;
+  activity: Activity;
   line: string;
   born: number;
   x: number;
   z: number;
   y: number;
   jitter: number;
+  /** Set when the speaker's state no longer matches the line — the bubble is cleared, not replaced. */
+  gone?: boolean;
 }
 
 /** Pure: which bubbles a slot shows, chosen from the derived hash. `slot` is folded into the week
- *  argument so each slot is an independent stream; salts 419/421/433/439 keep the picks decorrelated. */
+ *  argument so each slot is an independent stream; salts 419/421/433/439 keep the picks decorrelated.
+ *  The LINE comes from the speaker's live activity — the same pose the animation uses. */
 function slotBubbles(speakers: Speaker[], seed: number, week: number, slot: number): ActiveBubble[] {
   if (speakers.length === 0) return [];
   const key = week * 4096 + (slot & 4095);
@@ -114,9 +131,14 @@ function slotBubbles(speakers: Speaker[], seed: number, week: number, slot: numb
   const count = cosmeticHash01(seed, key, 419) < 0.55 ? 2 : 1;
   for (let i = 0; i < Math.min(count, MAX); i++) {
     const sp = speakers[Math.floor(cosmeticHash01(seed, key, 421 + i * 7) * speakers.length) % speakers.length];
-    const line = LINES[Math.floor(cosmeticHash01(seed, key, 433 + i * 7) * LINES.length) % LINES.length];
+    const pose = poseFor(sp.key);
+    const activity: Activity =
+      pose?.activity ??
+      (sp.seed !== undefined && workTargetFor(officeSeed(), week, Math.round(sp.seed * 1000)) === 1 ? "working" : "thinking");
+    const pool = LINES_BY_ACTIVITY[activity];
+    const line = pool[Math.floor(cosmeticHash01(seed, key, 433 + i * 7) * pool.length) % pool.length];
     const jitter = (cosmeticHash01(seed, key, 439 + i * 7) - 0.5) * 0.34;
-    out.push({ line, born: slot * SLOT_SECONDS + i * 0.5, x: sp.x, z: sp.z, y: sp.y ?? 2.35, jitter });
+    out.push({ key: sp.key, activity, line, born: slot * SLOT_SECONDS + i * 0.5, x: pose?.x ?? sp.x, z: pose?.z ?? sp.z, y: sp.y ?? 2.35, jitter });
   }
   return out;
 }
@@ -127,6 +149,7 @@ export default function SpeechBubbles({ speakers, paused = false }: { speakers: 
   const mats = useRef<(THREE.MeshBasicMaterial | null)[]>([]);
   const active = useRef<ActiveBubble[]>([]);
   const slotRef = useRef(-1);
+  const weekRef = useRef(-1);
   const acc = useRef(0);
   // Seconds of ACTIVE play only (office live AND the sim not held). This is what drives the slot.
   // Unlike the render clock it never jumps when the office remounts from `demand`, and it stops
@@ -155,18 +178,33 @@ export default function SpeechBubbles({ speakers, paused = false }: { speakers: 
     acc.current = 0;
     const t = activeTime.current;
     const slot = Math.floor(t / SLOT_SECONDS);
+    const wk = officeWeek();
+    // A new week re-rolls who is working, so anything on screen was picked for last week's states:
+    // drop the slot and start clean rather than let a stale line speak for the new week.
+    if (wk !== weekRef.current) {
+      weekRef.current = wk;
+      slotRef.current = -1;
+      active.current = [];
+    }
     if (slot !== slotRef.current) {
       slotRef.current = slot;
-      active.current = slotBubbles(speakers, officeSeed(), officeWeek(), slot);
+      active.current = slotBubbles(speakers, officeSeed(), wk, slot);
     }
     for (let i = 0; i < MAX; i++) {
       const mesh = meshes.current[i];
       const mat = mats.current[i];
       if (!mesh || !mat) continue;
       const b = active.current[i];
-      if (!b) { mesh.visible = false; continue; }
+      if (!b || b.gone) { mesh.visible = false; continue; }
       const age = t - b.born;
       if (age < 0 || age > LIFE_SECONDS) { mesh.visible = false; continue; }
+      // The bubble follows its speaker (a walker moves) and dies if the speaker's state changed —
+      // it must never say "Working…" over someone who just walked off to the arcade.
+      const pose = poseFor(b.key);
+      if (pose) {
+        if (pose.activity !== b.activity) { b.gone = true; mesh.visible = false; continue; }
+        if (pose.x !== undefined && pose.z !== undefined) { b.x = pose.x; b.z = pose.z; }
+      }
       mesh.visible = true;
       mesh.position.set(b.x + b.jitter, b.y, b.z + b.jitter * 0.4);
       scratch.copy(st.camera.quaternion);

@@ -71,7 +71,11 @@ celebration style — leave them as-is.
   401/419/421/433/439 = office presentation streams (Wave 7, cosmetic-only, never read by the engine):
   401 = per-character work-target pick (idle vs working); 419 = bubble count per slot;
   421 = bubble character pick; 433 = bubble line pick; 439 = bubble position jitter. Bubble timing
-  advances with active play time, not the sim clock, so these hashes fix the content, not the second.)
+  advances with active play time, not the sim clock, so these hashes fix the content, not the second.);
+  443/449/457/461/463 = office ROAMING presentation (cosmetic-only, never read by the engine):
+  443 = who steps away from a desk this week; 449 = which break spot they claim; 457 = away priority
+  when more characters want a break than the room allows; 461/463 = overflow drifter heading/radius.
+  The plan is a pure fold over (seed, week, character), so a week always leaves the same desks.)
 - **Opportunistic full-screen interrupts share a budget.** Any card that fires on its own cadence
   (strike / eureka / community / earnings / rivalry / staff moment / regional event / licensing
   contract offer) must gate on

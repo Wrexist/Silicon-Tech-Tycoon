@@ -1,12 +1,12 @@
 // Procedural real-time 3D HQ (react-three-fiber). Zero image assets — everything is built
 // from primitives + materials + real lights. Scoped to the garage only; devices stay SVG.
-import { Component, Suspense, lazy, memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { ContactShadows, RoundedBox, Html } from "@react-three/drei";
 import { PartyPopper, Sparkles, Star, ThumbsUp, Rocket, Frown, CloudRain, BatteryLow, Meh, ThumbsDown } from "lucide-react";
 import * as THREE from "three";
 import { moodBand, type MoodBand } from "../engine/staff.ts";
-import type { Accessory, Staff } from "../engine/types.ts";
+import type { Staff } from "../engine/types.ts";
 import type { UpgradeId } from "../engine/upgrades.ts";
 import {
   canPlace,
@@ -25,13 +25,14 @@ import {
   type Rot,
 } from "../engine/furniture.ts";
 import { FurniturePiece } from "./furniture3d.tsx";
-import { sharedBox, sharedCapsule, sharedCylinder, sharedRounded, sharedSphere, sharedStandard, sharedTorus } from "./sharedGpu.ts";
+import { sharedBox, sharedCylinder, sharedRounded, sharedSphere, sharedStandard } from "./sharedGpu.ts";
 import type { FloorFinish, WallStyle } from "../engine/roomStyle.ts";
 import { roomPalette, type RoomPalette } from "./palette.ts";
-import { ROBOT_COLORS, robotModelFor } from "./robotModels.ts";
+import { ROBOT_COLORS } from "./robotModels.ts";
 import { reactionIntensity, onHqReaction, HQ_REACTION_MS, type HqReaction } from "../design/hqReaction.ts";
 import { highlightIntensity } from "../design/hqHighlight.ts";
-import { officeSeed, officeWeek, workTargetFor } from "./officeLive.ts";
+import { officeDestinations, ROAM_BOUND, scaledObstacles, type Destination, type RoamAgent } from "./employeeController.ts";
+import { OfficeRobot, RoamingRobot } from "./robotCharacter.tsx";
 import SpeechBubbles, { type Speaker } from "./speechBubbles.tsx";
 import { CameraRig, PinchZoom } from "./cameraRig.tsx";
 import { Lighting, EnableShadows } from "./lighting.tsx";
@@ -591,302 +592,6 @@ function Chair({ p, hue }: { p: RoomPalette; hue: string }) {
   );
 }
 
-// Lighten/darken a hex colour for two-tone shading (belly highlight, dark visor, etc.).
-function shade(hex: string, amt: number): string {
-  const c = new THREE.Color(hex);
-  if (amt >= 0) c.lerp(new THREE.Color("#ffffff"), amt);
-  else c.lerp(new THREE.Color("#000000"), -amt);
-  return `#${c.getHexString()}`;
-}
-
-// How high the seated robot rides above its floor pivot so its torso rests on the chair seat
-// (Chair seat top ≈ 0.58; the robot's torso underside sits ≈0.18 above its pivot → ≈0.4 lift).
-const SIT_LIFT = 0.4;
-
-// A worn head accessory (item 1.2) so the robot at the desk matches the employee on the roster card —
-// driven by Staff.appearance.accessory. Sits inside the head group (head sphere r≈0.33, eyes at z≈0.3).
-// `hat` is a solid, saturated cap/beanie colour (the robot's dark shade) — NOT the near-white metal
-// used for the neck ring/antenna, which made a cap read as a white "balloon" swallowing the head.
-function HeadAccessory({ accessory, hat }: { accessory: Accessory; hat: string }) {
-  if (accessory === "glasses")
-    return (
-      <group position={[0, 0.05, 0.31]}>
-        {[-0.12, 0.12].map((x, i) => (
-          <mesh key={i} position={[x, 0, 0]} rotation-x={Math.PI / 2} geometry={sharedTorus(0.075, 0.014, 8, 20)} material={sharedStandard({ color: "#1a1d23", metalness: 0.5, roughness: 0.4 })} />
-        ))}
-        <mesh position={[0, 0, 0]} geometry={sharedBox(0.06, 0.012, 0.012)} material={sharedStandard({ color: "#1a1d23" })} />
-      </group>
-    );
-  if (accessory === "headphones")
-    return (
-      <group>
-        <mesh position={[0, 0.34, 0]} rotation-z={Math.PI / 2} geometry={sharedTorus(0.34, 0.03, 10, 24, Math.PI)} material={sharedStandard({ color: "#15181d", roughness: 0.5 })} />
-        {[-0.34, 0.34].map((x, i) => (
-          <mesh key={i} position={[x, 0.02, 0]} rotation-z={Math.PI / 2} geometry={sharedCylinder(0.09, 0.09, 0.08, 16)} material={sharedStandard({ color: "#15181d", roughness: 0.5 })} />
-        ))}
-      </group>
-    );
-  if (accessory === "cap")
-    return (
-      <group position={[0, 0.24, 0]}>
-        <mesh geometry={sharedSphere(0.3, 20, 16, 0, Math.PI * 2, 0, Math.PI / 2)} material={sharedStandard({ color: hat, roughness: 0.6 })} />
-        <mesh position={[0, -0.01, 0.26]} rotation-x={-0.2} geometry={sharedBox(0.34, 0.03, 0.22)} material={sharedStandard({ color: hat, roughness: 0.6 })} />
-      </group>
-    );
-  if (accessory === "beanie")
-    return (
-      <mesh position={[0, 0.26, 0]} geometry={sharedSphere(0.32, 20, 16, 0, Math.PI * 2, 0, Math.PI * 0.62)} material={sharedStandard({ color: hat, roughness: 0.85 })} />
-    );
-  if (accessory === "earrings")
-    return (
-      <group>
-        {[-0.31, 0.31].map((x, i) => (
-          <mesh key={i} position={[x, -0.12, 0.02]} geometry={sharedSphere(0.03, 10, 10)} material={sharedStandard({ color: "#e8c14a", metalness: 0.7, roughness: 0.3 })} />
-        ))}
-      </group>
-    );
-  return null;
-}
-
-// Premium mascot robot: rounded two-tone shell, dark eye-visor with glowing eyes, antenna with a
-// lit tip, little arms + hands, rounded feet, metallic neck ring. ~1.45m tall, grounded at y=0.
-// `walking` toggles a stride swing; `sitting` folds it onto a chair; otherwise a gentle idle.
-// `accessory` (item 1.2) puts the employee's worn item on the head, so the seated robot IS them.
-function RobotCharacter({ colorIdx, seed, moodColor, walking = false, sitting = false, accessory = "none", still = false }: { colorIdx: number; seed: number; moodColor?: string; walking?: boolean; sitting?: boolean; accessory?: Accessory; still?: boolean }) {
-  const color = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
-  const belly = useMemo(() => shade(color, 0.32), [color]);
-  const dark = useMemo(() => shade(color, -0.5), [color]);
-  const metal = "#c7cdd6";
-  const root = useRef<THREE.Group>(null);
-  const headRef = useRef<THREE.Group>(null);
-  const antRef = useRef<THREE.Group>(null);
-  const armLRef = useRef<THREE.Group>(null);
-  const armRRef = useRef<THREE.Group>(null);
-  const legLRef = useRef<THREE.Group>(null);
-  const legRRef = useRef<THREE.Group>(null);
-  // Work state (Wave 7): a derived hash of (seed, week, character) picks idle vs working, eased so
-  // the pose never snaps. Only re-hashed when the sim week changes, never per frame. `still`
-  // (Reduce Motion) pins it to idle so no NEW always-on motion runs.
-  const work = useRef(0);
-  const workWeek = useRef(-1);
-  const workTo = useRef(0);
-
-  useFrame((st, dt) => {
-    const t = st.clock.elapsedTime + seed;
-    const wk = officeWeek();
-    if (workWeek.current !== wk) {
-      workWeek.current = wk;
-      workTo.current = still ? 0 : workTargetFor(officeSeed(), wk, Math.round(seed * 1000));
-    }
-    work.current += (workTo.current - work.current) * Math.min(1, dt * 1.6);
-    const w = work.current;
-    // Living-office reactions: a bouncy hop + raised arms on a win (cheer), or a head-down droop on
-    // a flop (slump). Both decay over the reaction window (hqReaction).
-    const cheer = reactionIntensity("cheer");
-    const slump = reactionIntensity("slump");
-    // Seated robots idly "type": a small forearm oscillation (left/right thrown out of phase) plus a
-    // subtle head dip toward the screen sharing the same phase, so a bank of desks reads as busy
-    // rather than frozen. Seeded (t already carries +seed; the extra +seed*3 further decorrelates)
-    // so no two robots tap in lockstep. Purely additive over the folded sitting pose; zero when standing.
-    const type = sitting ? Math.sin(t * 7 + seed * 3) * (0.02 + w * 0.08) : 0;
-    // Seated robots are lifted onto the seat (SIT_LIFT above the floor pivot) and stay planted — no
-    // standing bob — with a cheer reduced to a small in-seat bounce. SIT_LIFT lives here (not on the
-    // parent) so a rigged .glb playing its own grounded "Sitting" clip isn't pushed off the chair.
-    const baseY = sitting
-      ? SIT_LIFT
-      : walking ? Math.abs(Math.sin(t * 6)) * 0.05 : Math.sin(t * 1.5) * 0.035;
-    const hop = cheer > 0 ? Math.abs(Math.sin(t * 9)) * (sitting ? 0.05 : 0.14) * cheer : 0; // seeded t → each robot hops out of phase
-    if (root.current) root.current.position.y = baseY + hop - slump * 0.05; // sag a little on a flop
-    if (headRef.current) {
-      const calm = 1 - slump;
-      // Working robots keep their head down on the screen; idle robots sit back and slowly look
-      // around the room (the derived work state w cross-fades the two — visible across the team).
-      const lookAround = sitting && !still ? (1 - w) * Math.sin(t * 0.45 + seed * 1.7) * 0.26 : 0;
-      headRef.current.rotation.y =
-        Math.sin(t * 0.6) * (walking ? 0.08 : 0.22) * calm * (sitting ? 0.35 + 0.65 * (1 - w) : 1) + lookAround;
-      headRef.current.rotation.z = Math.sin(t * 0.95) * 0.04 * calm;
-      // hangs down on a flop; when seated, a forward nod toward the screen that deepens with work
-      headRef.current.rotation.x =
-        slump * 0.55 +
-        (sitting ? w * (0.1 + 0.03 * (0.5 + 0.5 * Math.sin(t * 7 + seed * 3))) : 0);
-    }
-    if (antRef.current) {
-      antRef.current.rotation.z = Math.sin(t * 2.2) * (0.18 + cheer * 0.6) * (1 - slump);
-      antRef.current.rotation.x = slump * 0.9; // antenna droops forward
-    }
-    // arms: brisk swing while walking, soft sway when idle, drawn forward to rest at the desk when
-    // seated — and thrown overhead on a cheer.
-    const arm = walking ? Math.sin(t * 6) * 0.7 : Math.sin(t * 1.6) * 0.12;
-    const cheerArm = -2.0 * cheer; // raise both arms up
-    const sitArm = sitting ? -0.45 - w * 0.25 : 0; // working leans the hands further onto the desk
-    if (armLRef.current) armLRef.current.rotation.x = -0.1 + arm + cheerArm + sitArm + type;
-    if (armRRef.current) armRRef.current.rotation.x = -0.1 - arm + cheerArm + sitArm - type;
-    // legs: brisk stride while walking, still when idle, folded forward at the hip when seated so
-    // the thighs run forward over the seat and tuck under the desk (the seated "L" silhouette).
-    if (sitting) {
-      if (legLRef.current) legLRef.current.rotation.x = -1.5;
-      if (legRRef.current) legRRef.current.rotation.x = -1.5;
-    } else {
-      const leg = walking ? Math.sin(t * 6) * 0.5 : 0;
-      if (legLRef.current) legLRef.current.rotation.x = -leg;
-      if (legRRef.current) legRRef.current.rotation.x = leg;
-    }
-  });
-
-  return (
-    <group ref={root} scale={1.25}>
-      {/* legs + rounded feet — geometries/materials come from the shared GPU cache (sharedGpu.ts):
-          16 characters × these meshes used to allocate every one of them per instance per mount. */}
-      <group ref={legLRef} position={[-0.13, 0.3, 0]}>
-        <mesh position={[0, -0.13, 0]} geometry={sharedCapsule(0.075, 0.16, 6, 10)} material={sharedStandard({ color: dark, roughness: 0.5 })} />
-        <mesh position={[0, -0.26, 0.05]} geometry={sharedSphere(0.11, 14, 12)} material={sharedStandard({ color: dark, roughness: 0.45 })} />
-      </group>
-      <group ref={legRRef} position={[0.13, 0.3, 0]}>
-        <mesh position={[0, -0.13, 0]} geometry={sharedCapsule(0.075, 0.16, 6, 10)} material={sharedStandard({ color: dark, roughness: 0.5 })} />
-        <mesh position={[0, -0.26, 0.05]} geometry={sharedSphere(0.11, 14, 12)} material={sharedStandard({ color: dark, roughness: 0.45 })} />
-      </group>
-
-      {/* body — rounded shell with a lighter belly panel */}
-      <mesh position={[0, 0.6, 0]} geometry={sharedCapsule(0.28, 0.36, 10, 20)} material={sharedStandard({ color, roughness: 0.32, metalness: 0.05 })} />
-      <mesh position={[0, 0.55, 0.2]} scale={[0.7, 0.85, 0.45]} geometry={sharedSphere(0.26, 18, 18)} material={sharedStandard({ color: belly, roughness: 0.4 })} />
-      {/* metallic neck ring */}
-      <mesh position={[0, 0.92, 0]} geometry={sharedCylinder(0.16, 0.18, 0.07, 18)} material={sharedStandard({ color: metal, metalness: 0.7, roughness: 0.3 })} />
-
-      {/* arms with rounded hands */}
-      <group ref={armLRef} position={[-0.32, 0.72, 0]}>
-        <mesh position={[0, -0.16, 0]} geometry={sharedCapsule(0.085, 0.24, 6, 12)} material={sharedStandard({ color, roughness: 0.32 })} />
-        <mesh position={[0, -0.32, 0]} geometry={sharedSphere(0.1, 14, 12)} material={sharedStandard({ color: belly, roughness: 0.4 })} />
-      </group>
-      <group ref={armRRef} position={[0.32, 0.72, 0]}>
-        <mesh position={[0, -0.16, 0]} geometry={sharedCapsule(0.085, 0.24, 6, 12)} material={sharedStandard({ color, roughness: 0.32 })} />
-        <mesh position={[0, -0.32, 0]} geometry={sharedSphere(0.1, 14, 12)} material={sharedStandard({ color: belly, roughness: 0.4 })} />
-      </group>
-
-      {/* head */}
-      <group ref={headRef} position={[0, 1.2, 0]}>
-        <mesh geometry={sharedSphere(0.33, 26, 26)} material={sharedStandard({ color, roughness: 0.3, metalness: 0.05 })} />
-        {/* dark wrap-around visor */}
-        <mesh position={[0, 0.04, 0.04]} scale={[1.02, 0.62, 1.02]} geometry={sharedSphere(0.32, 24, 24, 0, Math.PI * 2, Math.PI * 0.18, Math.PI * 0.4)} material={sharedStandard({ color: dark, roughness: 0.25, metalness: 0.2 })} />
-        {/* glowing eyes */}
-        <mesh position={[-0.12, 0.05, 0.3]} geometry={sharedSphere(0.055, 14, 14)} material={sharedStandard({ color: "#ffffff", emissive: "#cfeaff", emissiveIntensity: 2.2, toneMapped: false })} />
-        <mesh position={[0.12, 0.05, 0.3]} geometry={sharedSphere(0.055, 14, 14)} material={sharedStandard({ color: "#ffffff", emissive: "#cfeaff", emissiveIntensity: 2.2, toneMapped: false })} />
-        {/* antenna with a lit tip */}
-        <group ref={antRef} position={[0, 0.3, 0]}>
-          <mesh position={[0, 0.1, 0]} geometry={sharedCylinder(0.018, 0.018, 0.22, 8)} material={sharedStandard({ color: metal, metalness: 0.6, roughness: 0.3 })} />
-          <mesh position={[0, 0.24, 0]} geometry={sharedSphere(0.05, 12, 12)} material={sharedStandard({ color: moodColor ?? "#ff5a5a", emissive: moodColor ?? "#ff5a5a", emissiveIntensity: 1.4, toneMapped: false })} />
-        </group>
-        {/* the employee's worn accessory (item 1.2) */}
-        <HeadAccessory accessory={accessory} hat={dark} />
-      </group>
-
-      {/* blob shadow — grounds a standing robot; skipped when seated (it would float at seat
-          height, and the chair already grounds the figure). */}
-      {!sitting && (
-        <mesh rotation-x={-Math.PI / 2} position={[0, -0.005, 0.03]}>
-          <circleGeometry args={[0.32, 20]} />
-          <meshBasicMaterial color="#8090a8" transparent opacity={0.26} depthWrite={false} />
-        </mesh>
-      )}
-    </group>
-  );
-}
-
-// ---- AI-model robot pipeline: render a registered .glb (Meshy/Mixamo export) when present,
-// otherwise fall back to the parametric RobotCharacter above. Mirrors the furniture pattern. ----
-const LazyGltfRobot = lazy(() => import("./gltfRobot.tsx"));
-
-/** Falls back to the parametric robot if a registered .glb fails to load. */
-class RobotBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  render() {
-    return this.state.failed ? this.props.fallback : this.props.children;
-  }
-}
-
-/** A robot by colour index: uses a dropped-in .glb model when one exists (see robotModels.ts),
- *  otherwise the hand-built parametric robot. `clip` requests an animation by name (e.g. "Idle",
- *  "Sitting") — ignored if the model doesn't ship that clip. A blob shadow grounds the model. */
-function OfficeRobot({ colorIdx, seed, moodColor, clip, walking = false, sitting = false, accessory = "none", still = false }: { colorIdx: number; seed: number; moodColor?: string; clip?: string; walking?: boolean; sitting?: boolean; accessory?: Accessory; still?: boolean }) {
-  const parametric = <RobotCharacter colorIdx={colorIdx} seed={seed} moodColor={moodColor} walking={walking} sitting={sitting} accessory={accessory} still={still} />;
-  const model = robotModelFor(colorIdx);
-  if (!model) return parametric;
-  return (
-    <RobotBoundary fallback={parametric}>
-      <Suspense fallback={parametric}>
-        <LazyGltfRobot asset={model} clip={clip} seed={seed} />
-        {/* blob shadow under the loaded model */}
-        <mesh rotation-x={-Math.PI / 2} position={[0, -0.01, 0]}>
-          <circleGeometry args={[0.3, 18]} />
-          <meshBasicMaterial color="#8090a8" transparent opacity={0.28} depthWrite={false} />
-        </mesh>
-      </Suspense>
-    </RobotBoundary>
-  );
-}
-
-// Furniture/fixture keep-out circles (x,z,radius) so roaming robots never walk into the desk,
-// vault, gate, kanban, or corner plants. Kept in module scope — shared by every roamer.
-const ROAM_OBSTACLES: { x: number; z: number; r: number }[] = [
-  { x: -1.3, z: 2.3, r: 1.2 }, // founder desk
-  { x: -3.5, z: 1.6, r: 0.95 }, // vault
-  { x: 0.8, z: 3.55, r: 1.05 }, // security gate
-  { x: 2.5, z: -3.55, r: 1.1 }, // kanban wall
-  { x: -3.44, z: -3.44, r: 0.7 }, // corner plant
-  { x: 3.44, z: -3.44, r: 0.7 }, // corner plant
-];
-const ROAM_BOUND = 3.4; // stay on the floor slab
-
-// A robot that gently wanders within `radius` of its home, steering around furniture (simple
-// repulsion — the "physics" that keeps it out of the table) and facing its direction of travel.
-function RoamingRobot({ colorIdx, seed, home, radius = 1.1, accessory = "none", still = false }: { colorIdx: number; seed: number; home: [number, number]; radius?: number; accessory?: Accessory; still?: boolean }) {
-  const grp = useRef<THREE.Group>(null);
-  const s = useRef({ x: home[0], z: home[1], tx: home[0], tz: home[1], next: 0, face: 0 });
-  useFrame((st, dt) => {
-    const t = st.clock.elapsedTime + seed;
-    const cur = s.current;
-    if (t > cur.next) {
-      const a = Math.random() * Math.PI * 2;
-      const r = Math.random() * radius;
-      cur.tx = home[0] + Math.cos(a) * r;
-      cur.tz = home[1] + Math.sin(a) * r;
-      cur.next = t + 2.5 + Math.random() * 3.5;
-    }
-    const dx = cur.tx - cur.x;
-    const dz = cur.tz - cur.z;
-    const d = Math.hypot(dx, dz);
-    if (d > 0.03) {
-      const step = Math.min(d, 0.55 * dt);
-      cur.x += (dx / d) * step;
-      cur.z += (dz / d) * step;
-      cur.face = Math.atan2(dx, dz);
-    }
-    // repel out of furniture footprints
-    for (const o of ROAM_OBSTACLES) {
-      const ox = cur.x - o.x;
-      const oz = cur.z - o.z;
-      const od = Math.hypot(ox, oz);
-      if (od < o.r && od > 1e-3) {
-        cur.x += (ox / od) * (o.r - od);
-        cur.z += (oz / od) * (o.r - od);
-      }
-    }
-    cur.x = Math.max(-ROAM_BOUND, Math.min(ROAM_BOUND, cur.x));
-    cur.z = Math.max(-ROAM_BOUND, Math.min(ROAM_BOUND, cur.z));
-    if (grp.current) {
-      grp.current.position.set(cur.x, 0, cur.z);
-      grp.current.rotation.y += ((cur.face - grp.current.rotation.y + Math.PI * 3) % (Math.PI * 2) - Math.PI) * Math.min(1, dt * 6);
-    }
-  });
-  return (
-    <group ref={grp}>
-      <OfficeRobot colorIdx={colorIdx} seed={seed} clip="Walking" walking accessory={accessory} still={still} />
-    </group>
-  );
-}
-
 // A desk hard against a wall has no room behind it for the chair — the seated robot would sink
 // into the wall (and an empty chair poke through it). When the seat spot lands inside the walls,
 // flip the seat to the desk's FRONT instead: the figure works facing the wall, exactly like a
@@ -989,10 +694,9 @@ function LivingMonitor({ seed, hasProduction, p }: { seed: number; hasProduction
 }
 
 function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false, hasProduction = false, still = false }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId; flip?: boolean; hasProduction?: boolean; still?: boolean }) {
-  // Item 1.2 — the seated robot is the EMPLOYEE: its shell colour + worn accessory come from their
-  // Appearance (stable per person, not per seat), so the office shows your actual, distinct team.
+  // The seated robot is the EMPLOYEE: its shell colour comes from their Appearance (stable per
+  // person, not per seat), so the office shows your actual, distinct team.
   const personColor = staff ? staff.appearance.shirt % ROBOT_COLORS.length : colorIdx;
-  const accessory = staff?.appearance.accessory ?? "none";
   const hue = ROBOT_COLORS[personColor % ROBOT_COLORS.length];
   const moodColor = staff ? MOOD_HEX[moodBand(staff.mood ?? 60)] : undefined;
   // Occasional chair swivel: an occupied seat rotates a few degrees on a slow seeded cadence so a row
@@ -1033,7 +737,7 @@ function Workstation({ p, staff, seed, colorIdx, deskType = "desk", flip = false
         <Chair p={p} hue={hue} />
         {staff && (
           <group position={[0, 0, -0.08]}>
-            <OfficeRobot colorIdx={personColor} seed={seed} moodColor={moodColor} clip="Sitting" sitting accessory={accessory} still={still} />
+            <OfficeRobot colorIdx={personColor} seed={seed} moodColor={moodColor} clip="Sitting" sitting personKey={staff.id} still={still} />
           </group>
         )}
       </group>
@@ -1779,11 +1483,43 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   const podWorlds = desktopWorlds(podCount);
   const podStaff = overflow.slice(0, podCount);
   const roaming = overflow.slice(podCount, cfg.staffCap);
+  // Break destinations available this week: the coffee station, the planning board and any placed
+  // arcade. Built from upgrades + the player's layout, so a break only targets a prop that exists.
+  const destinations = useMemo<Destination[]>(
+    () => officeDestinations({ amenityTier, showWhiteboard: cfg.showWhiteboard, dark, layout: builder?.layout ?? [], facilityTier, roomScale: cfg.roomScale }),
+    [amenityTier, cfg.showWhiteboard, dark, builder?.layout, facilityTier, cfg.roomScale],
+  );
+  // Walkers steer and clamp in world units, so the keep-outs scale with the room shell.
+  const roamObstacles = useMemo(() => scaledObstacles(cfg.roomScale), [cfg.roomScale]);
+  const roamBound = ROAM_BOUND * cfg.roomScale;
+  // Desk-owning employees as walkable agents: their seat world position + facing, colour and robot
+  // seed. The walkers schedule from these SAME records, so the animation and the schedule agree.
+  const agents = useMemo<RoamAgent[]>(() => {
+    const out: RoamAgent[] = [];
+    seated.forEach((s, i) => {
+      const w = worldOf(seats[i], facilityTier);
+      const flip = occupiedSeatSides[seats[i].iid] ?? false;
+      const off = flip ? 0.86 : -0.86;
+      out.push({
+        key: s.id ?? `seat${i}`,
+        seed: i * 2.1,
+        colorIdx: s.appearance.shirt % ROBOT_COLORS.length,
+        x: w.x + Math.sin(w.rotY) * off,
+        z: w.z + Math.cos(w.rotY) * off,
+        face: w.rotY + (flip ? Math.PI : 0),
+      });
+    });
+    podStaff.forEach((s, i) => {
+      const w = podWorlds[i];
+      out.push({ key: s.id ?? `pod${i}`, seed: (seats.length + i) * 2.1, colorIdx: s.appearance.shirt % ROBOT_COLORS.length, x: w.x, z: w.z - 0.86, face: 0 });
+    });
+    return out;
+  }, [staff, builder?.layout, facilityTier, podCount, occupiedSeatSides, podWorlds]);
   // Chatter speakers: every seated worker (placed desks + bought desktops) with their world spot, so
   // a bubble can sit above whoever is talking. y=2.4 clears the seated robot's raised head (~1.9).
   const speakers: Speaker[] = [
-    ...seated.map((s, i) => { const w = worldOf(seats[i], facilityTier); return { key: s.id ?? `seat${i}`, x: w.x, z: w.z, y: 2.4 }; }),
-    ...podStaff.map((s, i) => ({ key: s.id ?? `pod${i}`, x: podWorlds[i].x, z: podWorlds[i].z, y: 2.4 })),
+    ...seated.map((s, i) => { const w = worldOf(seats[i], facilityTier); return { key: s.id ?? `seat${i}`, seed: i * 2.1, x: w.x, z: w.z, y: 2.4 }; }),
+    ...podStaff.map((s, i) => ({ key: s.id ?? `pod${i}`, seed: (seats.length + i) * 2.1, x: podWorlds[i].x, z: podWorlds[i].z, y: 2.4 })),
   ];
   // Occupied desks render as full live workstations, so hide their plain furniture models
   // (cozy view only — in Decorate mode the editable furniture pieces must stay visible).
@@ -1857,8 +1593,23 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           </group>
         );
       })}
-      {!inBuild && roaming.map((s, i) => (
-        <RoamingRobot key={s.id ?? `roam${i}`} colorIdx={s.appearance.shirt % ROBOT_COLORS.length} seed={(seats.length + podCount + i) * 3.7} home={roamHomeFor(i)} accessory={s.appearance.accessory} still={still} />
+      {!inBuild && roaming.map((s, i) => {
+        const home = roamHomeFor(i);
+        return (
+          <RoamingRobot
+            key={s.id ?? `roam${i}`}
+            agent={{ key: s.id ?? `roam${i}`, seed: (seats.length + podCount + i) * 3.7, colorIdx: s.appearance.shirt % ROBOT_COLORS.length, x: home[0], z: home[1], face: 0 }}
+            wander={1.1}
+            obstacles={roamObstacles}
+            bound={roamBound}
+            still={still}
+          />
+        );
+      })}
+      {/* Desk-owning employees walk to the break destination the weekly plan hands them; the same
+          walker covers both directions (out and back) so a week change never teleports anyone. */}
+      {!inBuild && agents.map((a) => (
+        <RoamingRobot key={`walk-${a.key}`} agent={a} agents={agents} destinations={destinations} obstacles={roamObstacles} bound={roamBound} still={still} />
       ))}
       {/* Player-bought desktops — a tidy symmetric row that overflow employees sit at (so new
           hires get a desk like the founder). Hidden in Decorate mode like the live workstations. */}

@@ -122,7 +122,6 @@ function Person({ s, c, r, reacting }: { s: Staff; c: number; r: number; reactin
           {/* face-screen visor */}
           <rect x={x - 3.8} y={eyeY - 1.9} width={7.6} height={4} rx={1.8} fill={look.dark} />
           <RobotSeatEyes shape={eyes} x={x} eyeY={eyeY} glow="#eaf6ff" accent={moodCol} />
-          <RobotSeatModule accessory={look.accessory} x={x} cy={hcy} hr={hr} eyeY={eyeY} metal={look.metal} trim={look.trim} />
         </g>
       </g>
       {/* mood status dot */}
@@ -183,37 +182,6 @@ function RobotSeatEyes({ shape, x, eyeY, glow, accent }: { shape: EyeShape; x: n
       <ellipse cx={x + dx} cy={eyeY} rx={0.9} ry={ry} />
     </g>
   );
-}
-
-/** Bolt-on modules for the seated robot, reinterpreting the stored accessory as hardware. */
-function RobotSeatModule({ accessory, x, cy, hr, eyeY, metal, trim }: { accessory: Staff["appearance"]["accessory"]; x: number; cy: number; hr: number; eyeY: number; metal: string; trim: string }) {
-  if (accessory === "glasses")
-    return (
-      <g stroke={trim} strokeWidth={0.4} fill="none" opacity={0.9}>
-        <circle cx={x - 1.9} cy={eyeY} r={1.5} />
-        <circle cx={x + 1.9} cy={eyeY} r={1.5} />
-      </g>
-    );
-  if (accessory === "headphones")
-    return (
-      <g>
-        <path d={`M ${x - hr - 0.6} ${cy} Q ${x} ${cy - hr - 3} ${x + hr + 0.6} ${cy}`} stroke={metal} strokeWidth={1.2} fill="none" />
-        <rect x={x - hr - 1.8} y={cy - 1.3} width={2.2} height={3.8} rx={1} fill={metal} />
-        <rect x={x + hr - 0.4} y={cy - 1.3} width={2.2} height={3.8} rx={1} fill={metal} />
-      </g>
-    );
-  if (accessory === "cap")
-    return <rect x={x - hr} y={cy - hr + 0.5} width={hr * 2} height={2} rx={1} fill={metal} opacity={0.9} />;
-  if (accessory === "beanie")
-    return <path d={`M ${x - hr} ${cy - hr + 2.5} Q ${x} ${cy - hr - 2.5} ${x + hr} ${cy - hr + 2.5} Z`} fill={metal} opacity={0.9} />;
-  if (accessory === "earrings")
-    return (
-      <g fill={trim}>
-        <circle cx={x - hr + 0.2} cy={eyeY + 1.6} r={0.7} />
-        <circle cx={x + hr - 0.2} cy={eyeY + 1.6} r={0.7} />
-      </g>
-    );
-  return null;
 }
 
 // A laptop that faces the seated person (we see the lid's back + a glow spill when on).
