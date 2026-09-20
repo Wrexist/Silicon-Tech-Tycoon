@@ -26,6 +26,18 @@ export interface RoomPalette {
   doorRail: string; // door tracks + dark trim
   baseboard: string; // skirting along wall bottoms
   board: string; // whiteboard surface
+  // Room-pass detailing: the brand wall, the lower-wall band, the nook rug and the floor pools.
+  slat: string; // feature-wall timber slats (lit face)
+  slatEdge: string; // the shadow gap behind + between the slats
+  signInk: string; // lit wordmark + mark (self-lit, so the sign reads as an installation)
+  signGlow: string; // cove / backlight behind the sign
+  wainscot: string; // lower wall band — separates wall treatment from wall field
+  rail: string; // chair-rail trim sitting on top of the band
+  rug: string; // scene-owned nook rug (coffee corner)
+  rugTrim: string; // its border
+  poolWarm: string; // warm floor light pool
+  poolCool: string; // cool floor light pool
+  floorField: string; // floor field border (material separation on the slab)
 }
 
 export function roomPalette(dark: boolean): RoomPalette {
@@ -55,6 +67,17 @@ export function roomPalette(dark: boolean): RoomPalette {
         doorRail: "#171b22",
         baseboard: "#2b313b",
         board: "#dfe5ec",
+        slat: "#3b2c1e",
+        slatEdge: "#1e1610",
+        signInk: "#ffe9c9",
+        signGlow: "#ff9d3c",
+        wainscot: "#1f242c",
+        rail: "#3a4250",
+        rug: "#3d3731",
+        rugTrim: "#4d453b",
+        poolWarm: "#ffb877",
+        poolCool: "#7fb4ff",
+        floorField: "#1b1f26",
       }
     : {
         floor: "#f6f7f9",
@@ -81,5 +104,16 @@ export function roomPalette(dark: boolean): RoomPalette {
         doorRail: "#c8cdd4",
         baseboard: "#dcdde2",
         board: "#f8f9fb",
+        slat: "#43301f",
+        slatEdge: "#2b1e13",
+        signInk: "#ffc46b",
+        signGlow: "#ffb054",
+        wainscot: "#e4e6ea",
+        rail: "#d3d7dd",
+        rug: "#d8ccb9",
+        rugTrim: "#c1b39d",
+        poolWarm: "#ffb877",
+        poolCool: "#8ec4ff",
+        floorField: "#dfe2e8",
       };
 }

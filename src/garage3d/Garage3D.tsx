@@ -26,7 +26,6 @@ import {
 } from "../engine/furniture.ts";
 import { FurniturePiece } from "./furniture3d.tsx";
 import { sharedBox, sharedCylinder, sharedRounded, sharedSphere, sharedStandard } from "./sharedGpu.ts";
-import type { FloorFinish, WallStyle } from "../engine/roomStyle.ts";
 import { roomPalette, type RoomPalette } from "./palette.ts";
 import { ROBOT_COLORS } from "./robotModels.ts";
 import { reactionIntensity, onHqReaction, HQ_REACTION_MS, type HqReaction } from "../design/hqReaction.ts";
@@ -36,6 +35,7 @@ import { OfficeRobot, RoamingRobot } from "./robotCharacter.tsx";
 import SpeechBubbles, { type Speaker } from "./speechBubbles.tsx";
 import { CameraRig, PinchZoom } from "./cameraRig.tsx";
 import { Lighting, EnableShadows } from "./lighting.tsx";
+import { Room, useWallCull, CHEER_GREEN } from "./room.tsx";
 import { useHqInteractions } from "./interactions.ts";
 import { officeConfigFor } from "./officeConfig.ts";
 
@@ -52,22 +52,6 @@ function Pulse({ feature, children }: { feature: UpgradeId; children: ReactNode 
 
 type Upgrades = Partial<Record<UpgradeId, number>>;
 const tierOf = (u: Upgrades, id: UpgradeId) => u[id] ?? 0;
-
-// The room's floor footprint. Sized to the walls (which sit at ±4.2) so the floor ends AT the
-// room instead of sprawling far past it — an oversized 18×18 floor was why furniture/desks near
-// the edges read as standing "outside the garage". Everything placeable lives within ±3.87 (the
-// 9×9 grid) and the fixed props within ±4.0, so 8.6 contains the whole room with a small margin.
-const FLOOR_SIZE = 8.6;
-const FLOOR_SLAB_THICKNESS = 0.4; // slab depth — gives the open dollhouse sides a finished plate edge
-const FLOOR_EDGE_RADIUS = 0.12;   // rounded slab corners
-// Low curbs that frame the two OPEN edges (front +z, right +x), derived from FLOOR_SIZE so they
-// track the floor: they sit just inside the rounded slab edge; the front curb spans the floor minus
-// its rounded corners; the right curb stops short so it doesn't double the front curb's corner.
-const CURB_H = 0.24;
-const CURB_T = 0.12;
-const CURB_EDGE = FLOOR_SIZE / 2 - 0.05; // ±4.25 — just inside the slab edge
-const CURB_LONG = FLOOR_SIZE - 0.1;      // 8.5 — front curb (minus the rounded corners)
-const CURB_SHORT = FLOOR_SIZE - 0.5;     // 8.1 — right curb (short of the front curb's corner)
 
 export interface BuildProps {
   build: boolean;
@@ -118,418 +102,6 @@ function roamHomeFor(i: number): [number, number] {
   const r = 0.85 * ring;
   const cl = (v: number) => Math.max(-ROAM_BOUND, Math.min(ROAM_BOUND, v));
   return [cl(base[0] + Math.cos(a) * r), cl(base[1] + Math.sin(a) * r)];
-}
-
-// Floor with a player-chosen finish (concrete/wood/tile/carpet/polished). The seam pattern +
-// material change with the finish; concrete keeps the painted garage work-zone.
-function Floor({ p, finish, dark }: { p: RoomPalette; finish: FloorFinish; dark: boolean }) {
-  const color = dark ? finish.dark : finish.light;
-  const line = dark ? finish.lineDark : finish.lineLight;
-  // seam axes depend on the pattern
-  let xs: number[] = [];
-  let zs: number[] = [];
-  if (finish.pattern === "grid") {
-    xs = [-4, -2, 0, 2, 4];
-    zs = [-4, -2, 0, 2, 4];
-  } else if (finish.pattern === "tile") {
-    for (let v = -4; v <= 4; v += 1) { xs.push(v); zs.push(v); }
-  } else if (finish.pattern === "plank") {
-    for (let z = -3.87; z <= 3.87; z += GRID.cell) zs.push(z); // planks run along x
-  }
-  return (
-    <group>
-      {/* Room floor as a finished slab sized to the walls. (Was an 18×18 plane that ran ~4.8m past
-          the ±4.2 walls on every side, so anything near the edge looked stranded outside the room.)
-          The slab's thickness gives the open dollhouse sides — front (+z) and the culled right (+x)
-          — a clean, premium plate edge instead of a hard cut. */}
-      <RoundedBox args={[FLOOR_SIZE, FLOOR_SLAB_THICKNESS, FLOOR_SIZE]} radius={FLOOR_EDGE_RADIUS} smoothness={3} position={[0, -FLOOR_SLAB_THICKNESS / 2, 0]}>
-        <meshStandardMaterial color={color} roughness={finish.roughness} metalness={finish.metalness} />
-      </RoundedBox>
-      {zs.map((z, i) => (
-        <mesh key={`sz${i}`} rotation-x={-Math.PI / 2} position={[0, 0.012, z]}>
-          <planeGeometry args={[8.2, 0.03]} />
-          <meshStandardMaterial color={line} roughness={0.9} />
-        </mesh>
-      ))}
-      {xs.map((x, i) => (
-        <mesh key={`sx${i}`} rotation-x={-Math.PI / 2} position={[x, 0.012, 0]}>
-          <planeGeometry args={[0.03, 8.2]} />
-          <meshStandardMaterial color={line} roughness={0.9} />
-        </mesh>
-      ))}
-      {/* painted work-zone outline (concrete garage look only) */}
-      {finish.id === "concrete" && ([[0, 2.9, 6.2, 0.06], [0, -2.3, 6.2, 0.06], [3.0, 0.3, 0.06, 5.2], [-3.0, 0.3, 0.06, 5.2]] as const).map((r, i) => (
-        <mesh key={`paint${i}`} rotation-x={-Math.PI / 2} position={[r[0], 0.014, r[1]]}>
-          <planeGeometry args={[r[2], r[3]]} />
-          <meshStandardMaterial color={p.floorPaint} roughness={0.8} transparent opacity={0.5} />
-        </mesh>
-      ))}
-    </group>
-  );
-}
-
-// Exposed-brick accent wall (wall B, −x) built from instanced bricks in a running bond.
-// `backZ` lets the brick run extend as the factory bay deepens.
-function BrickWall({ p, backZ = -4.1 }: { p: RoomPalette; backZ?: number }) {
-  const ref = useRef<THREE.InstancedMesh>(null);
-  const bw = 0.62, bh = 0.2, gap = 0.025;
-  const rows = 25;
-  const cols = Math.ceil((4.1 - backZ) / (bw + gap)) + 1;
-  const max = rows * cols;
-  useEffect(() => {
-    const mesh = ref.current;
-    if (!mesh) return;
-    const d = new THREE.Object3D();
-    const col = new THREE.Color();
-    const base = new THREE.Color(p.brick);
-    let i = 0;
-    for (let r = 0; r < rows; r++) {
-      const y = 0.1 + r * (bh + gap);
-      const off = (r % 2) * (bw / 2);
-      for (let c = 0; c < cols; c++) {
-        const z = backZ + off + c * (bw + gap);
-        if (z > 4.1) continue;
-        d.position.set(-4.0, y, z);
-        d.updateMatrix();
-        mesh.setMatrixAt(i, d.matrix);
-        // Deterministic per-brick tint hashed from (row,col) — stays stable across re-renders so
-        // bricks don't re-randomise / flicker on every paint.
-        const hash = ((r * 73856093) ^ (c * 19349663)) >>> 0;
-        const t = 0.82 + (hash % 1000) / 1000 * 0.3;
-        col.setRGB(base.r * t, base.g * t, base.b * t);
-        mesh.setColorAt(i, col);
-        i++;
-      }
-    }
-    mesh.count = i;
-    mesh.instanceMatrix.needsUpdate = true;
-    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [p.brick, backZ, cols]);
-  return (
-    <instancedMesh key={cols} ref={ref} args={[undefined, undefined, max]}>
-      <boxGeometry args={[0.06, bh, bw]} />
-      <meshStandardMaterial color={p.brick} roughness={0.95} />
-    </instancedMesh>
-  );
-}
-
-// A detailed sectional garage door (wall A) — panels with insets, a window row, side tracks.
-// `big` widens it into a loading-bay door as the factory grows; `z` follows the back wall.
-function GarageDoor({ p, z = -3.96, big = 0 }: { p: RoomPalette; z?: number; big?: number }) {
-  const W = 5.4 + big, panels = 4 + (big > 1 ? 1 : 0), panelH = 0.82, baseY = 0.34;
-  const topY = baseY + panels * panelH;
-  return (
-    <group position={[0, 0, z]}>
-      {/* concrete threshold */}
-      <mesh position={[0, 0.07, 0.04]}>
-        <boxGeometry args={[W + 0.5, 0.14, 0.34]} />
-        <meshStandardMaterial color={p.baseboard} roughness={0.9} />
-      </mesh>
-      {/* side tracks */}
-      {[-W / 2 - 0.13, W / 2 + 0.13].map((x, i) => (
-        <mesh key={i} position={[x, baseY + (topY - baseY) / 2, 0]}>
-          <boxGeometry args={[0.12, topY - baseY + 0.3, 0.16]} />
-          <meshStandardMaterial color={p.doorRail} metalness={0.5} roughness={0.5} />
-        </mesh>
-      ))}
-      {/* top rail + curved track hint */}
-      <mesh position={[0, topY + 0.16, 0]}>
-        <boxGeometry args={[W + 0.5, 0.16, 0.18]} />
-        <meshStandardMaterial color={p.doorRail} metalness={0.5} roughness={0.5} />
-      </mesh>
-      {/* panels */}
-      {Array.from({ length: panels }).map((_, r) => {
-        const y = baseY + panelH / 2 + r * panelH;
-        const windowRow = r === panels - 1;
-        return (
-          <group key={r} position={[0, y, 0]}>
-            <RoundedBox args={[W, panelH - 0.04, 0.08]} radius={0.012} smoothness={2}>
-              <meshStandardMaterial color={p.door} metalness={0.2} roughness={0.55} />
-            </RoundedBox>
-            {[-W / 3, 0, W / 3].map((cx, ci) =>
-              windowRow ? (
-                <mesh key={ci} position={[cx, 0, 0.05]}>
-                  <boxGeometry args={[W / 3 - 0.18, panelH - 0.3, 0.02]} />
-                  <meshStandardMaterial color="#bfe0ff" emissive="#bfe0ff" emissiveIntensity={0.55} roughness={0.25} toneMapped={false} />
-                </mesh>
-              ) : (
-                <mesh key={ci} position={[cx, 0, 0.045]}>
-                  <boxGeometry args={[W / 3 - 0.2, panelH - 0.26, 0.015]} />
-                  <meshStandardMaterial color={p.door} metalness={0.15} roughness={0.7} />
-                </mesh>
-              ),
-            )}
-          </group>
-        );
-      })}
-      {/* lift handle */}
-      <mesh position={[0, baseY + 0.46, 0.09]}>
-        <boxGeometry args={[0.42, 0.1, 0.06]} />
-        <meshStandardMaterial color={p.metalDark} metalness={0.6} roughness={0.3} />
-      </mesh>
-    </group>
-  );
-}
-
-// Shared ship-day celebration target (the positive green, matching CHEER_TINT / the Bank dot). One
-// module-level THREE.Color reused by the string lights and the desk monitors so the cheer light-beat
-// (item 7) allocates nothing per frame. STRING_WARM is the bulbs' resting emissive.
-const CHEER_GREEN = new THREE.Color("#34c759");
-const STRING_WARM = new THREE.Color("#ffce74");
-
-// Warm festoon string lights strung in a catenary near the ceiling. Each bulb twinkles on a slow
-// seeded phase (per-bulb `i` offset) so the strand shimmers instead of glowing dead-flat, and a
-// ship-day cheer pulses the whole run toward the positive green (item 7). One tiny useFrame drives
-// all 13 bulbs. Dark-mode only — the caller already gates the whole component.
-function StringLights() {
-  const a = [-3.8, 4.5, -3.6];
-  const b = [3.6, 4.5, 2.9];
-  const n = 13;
-  const mats = useRef<(THREE.MeshStandardMaterial | null)[]>([]);
-  const scratch = useMemo(() => new THREE.Color(), []); // reused so the cheer lerp allocates nothing
-  useFrame((st) => {
-    const t = st.clock.elapsedTime;
-    const cheer = reactionIntensity("cheer");
-    scratch.copy(STRING_WARM);
-    if (cheer > 0) scratch.lerp(CHEER_GREEN, cheer * 0.7);
-    for (let i = 0; i < n; i++) {
-      const m = mats.current[i];
-      if (!m) continue;
-      m.emissiveIntensity = 1.5 + Math.sin(t * 0.7 + i) * 0.2 + cheer * 0.8;
-      m.emissive.copy(scratch);
-    }
-  });
-  return (
-    <group>
-      {Array.from({ length: n }).map((_, i) => {
-        const t = i / (n - 1);
-        const x = a[0] + (b[0] - a[0]) * t;
-        const z = a[2] + (b[2] - a[2]) * t;
-        const yy = a[1] + (b[1] - a[1]) * t - Math.sin(t * Math.PI) * 0.7;
-        return (
-          <mesh key={i} position={[x, yy, z]}>
-            <sphereGeometry args={[0.05, 8, 8]} />
-            <meshStandardMaterial ref={(el) => { mats.current[i] = el; }} color="#ffe6b0" emissive="#ffce74" emissiveIntensity={1.7} toneMapped={false} />
-          </mesh>
-        );
-      })}
-    </group>
-  );
-}
-
-// A whiteboard with a scrappy product-roadmap sketch. Default mount = brick wall B (garage);
-// callers can override placement for the open diorama (lower back wall).
-function Whiteboard({ p, pos = [-3.92, 2.6, 3.0], rotY = Math.PI / 2 }: { p: RoomPalette; pos?: [number, number, number]; rotY?: number }) {
-  return (
-    <group position={pos} rotation-y={rotY}>
-      <RoundedBox args={[1.25, 0.95, 0.05]} radius={0.02} smoothness={2}>
-        <meshStandardMaterial color={p.metal} metalness={0.3} roughness={0.45} />
-      </RoundedBox>
-      <mesh position={[0, 0, 0.03]}>
-        <planeGeometry args={[1.14, 0.84]} />
-        <meshStandardMaterial color={p.board} roughness={0.5} />
-      </mesh>
-      <group position={[0, 0, 0.04]}>
-        <mesh position={[0, 0.12, 0]}>
-          <planeGeometry args={[0.92, 0.012]} />
-          <meshBasicMaterial color="#3b82f6" />
-        </mesh>
-        {["#f97316", "#1eb877", "#3b82f6"].map((c, i) => (
-          <mesh key={i} position={[-0.36 + i * 0.36, 0.12, 0.001]}>
-            <planeGeometry args={[0.16, 0.1]} />
-            <meshBasicMaterial color={c} />
-          </mesh>
-        ))}
-        <mesh position={[-0.2, -0.16, 0]} rotation-z={0.15}>
-          <planeGeometry args={[0.66, 0.01]} />
-          <meshBasicMaterial color="#9aa6b8" />
-        </mesh>
-        <mesh position={[-0.1, -0.28, 0]} rotation-z={-0.08}>
-          <planeGeometry args={[0.8, 0.01]} />
-          <meshBasicMaterial color="#9aa6b8" />
-        </mesh>
-      </group>
-    </group>
-  );
-}
-
-/** Dollhouse wall culling: any wall sitting between the camera and the room interior hides, so
- *  the player always looks INTO the room — in the default view AND while WASD-orbiting. A small
- *  hysteresis band stops flicker when the camera crosses an axis; state only changes on a flip. */
-export interface WallCull { a: boolean; b: boolean; r: boolean } // a = back (−z), b = left (−x), r = right (+x)
-
-function useWallCull(): WallCull {
-  // Default camera sits at +x/+z → the right wall starts hidden (it was boxing the view in).
-  const [cull, setCull] = useState<WallCull>({ a: false, b: false, r: true });
-  useFrame(({ camera }) => {
-    setCull((prev) => {
-      const a = camera.position.z < -0.6 ? true : camera.position.z > 0.6 ? false : prev.a;
-      const b = camera.position.x < -0.6 ? true : camera.position.x > 0.6 ? false : prev.b;
-      const r = camera.position.x > 0.6 ? true : camera.position.x < -0.6 ? false : prev.r;
-      return a === prev.a && b === prev.b && r === prev.r ? prev : { a, b, r };
-    });
-  });
-  return cull;
-}
-
-function Room({ p, dark, finish, wall, cull, showWhiteboard = true }: { p: RoomPalette; dark: boolean; finish: FloorFinish; wall: WallStyle; cull: WallCull; showWhiteboard?: boolean }) {
-  const wzA = -4.2;
-  const isBrick = wall.kind === "brick";
-  const wallColor = dark ? wall.dark : wall.light;
-
-  // LIGHT MODE = open "floating diorama": a rounded white floor slab sitting in the white void,
-  // with two low L-shaped back walls (no ceiling, no front/right walls) — like the reference.
-  if (!dark) {
-    return (
-      <group>
-        {/* floating rounded floor slab (the diorama plate) */}
-        <RoundedBox args={[9.4, 0.5, 9.4]} radius={0.22} smoothness={4} position={[0, -0.25, 0]}>
-          <meshStandardMaterial color="#fbfcfe" roughness={0.92} />
-        </RoundedBox>
-        {/* faint top inlay so the floor reads as a surface, not a blank slab */}
-        <mesh rotation-x={-Math.PI / 2} position={[0, 0.002, 0]}>
-          <planeGeometry args={[9.0, 9.0]} />
-          <meshStandardMaterial color="#f4f5f8" roughness={0.95} />
-        </mesh>
-        {/* low back wall (−z) cluster — hides when the camera swings behind it. Both back walls were
-            centred + 8.8 long, so each ran 0.4 past their shared corner and the two overshoots crossed
-            into a "+" poking up above the join. Trim the −x end to stop AT the side wall (x = −4.0) so
-            they meet as a clean right-angle corner instead. (The open +x/+z ends stay put.) */}
-        <group visible={!cull.a}>
-          <mesh position={[0.2, 1.25, -4.0]}>
-            <boxGeometry args={[8.4, 2.7, 0.16]} />
-            <meshStandardMaterial color="#eef0f3" roughness={0.96} />
-          </mesh>
-          <mesh position={[0.2, 0.07, -3.95]}>
-            <boxGeometry args={[8.4, 0.14, 0.06]} />
-            <meshStandardMaterial color="#dfe2e7" roughness={0.95} />
-          </mesh>
-          {/* whiteboard on the low back wall (−z), facing the room — gated (an earned upgrade) */}
-          {showWhiteboard && <Whiteboard p={p} pos={[-1.2, 1.55, -3.88]} rotY={0} />}
-        </group>
-        {/* low side wall (−x) cluster — its −z end likewise stops at the back wall (z = −4.0). */}
-        <group visible={!cull.b}>
-          <mesh position={[-4.0, 1.25, 0.2]}>
-            <boxGeometry args={[0.16, 2.7, 8.4]} />
-            <meshStandardMaterial color="#e8eaee" roughness={0.96} />
-          </mesh>
-          <mesh position={[-3.95, 0.07, 0.2]}>
-            <boxGeometry args={[0.06, 0.14, 8.4]} />
-            <meshStandardMaterial color="#dfe2e7" roughness={0.95} />
-          </mesh>
-        </group>
-      </group>
-    );
-  }
-
-  return (
-    <group>
-      <Floor p={p} finish={finish} dark={dark} />
-
-      {/* ── wall A cluster (back, −z: drywall + garage door + trim) — dollhouse-culled ── */}
-      <group visible={!cull.a}>
-        <mesh position={[0, 2.6, wzA]}>
-          <boxGeometry args={[8.4, 5.2, 0.3]} />
-          <meshStandardMaterial color={p.wallA} roughness={0.95} />
-        </mesh>
-        {/* baseboard along wall A */}
-        <mesh position={[0, 0.12, wzA + 0.18]}>
-          <boxGeometry args={[8.4, 0.24, 0.06]} />
-          <meshStandardMaterial color={p.baseboard} roughness={0.85} />
-        </mesh>
-        {/* crown trim where wall meets ceiling */}
-        <mesh position={[0, 5.1, wzA]}>
-          <boxGeometry args={[8.4, 0.2, 0.4]} />
-          <meshStandardMaterial color={p.trim} roughness={0.9} />
-        </mesh>
-        {dark && <GarageDoor p={p} z={wzA + 0.24} />}
-      </group>
-
-      {/* ── wall B cluster (left, −x: brick/finish + window + pegboard) — dollhouse-culled ── */}
-      <group visible={!cull.b}>
-        <mesh position={[-4.2, 2.6, 0]}>
-          <boxGeometry args={[0.3, 5.2, 8.4]} />
-          <meshStandardMaterial color={isBrick ? p.brickEdge : wallColor} roughness={wall.kind === "concrete" ? 0.95 : 0.8} metalness={wall.kind === "panel" ? 0.05 : 0} />
-        </mesh>
-        {isBrick && <BrickWall p={p} backZ={-4.1} />}
-        {wall.kind === "panel" && [-3.0, -1.5, 0, 1.5, 3.0].map((z, i) => (
-          <mesh key={i} position={[-4.04, 2.6, z]}><boxGeometry args={[0.02, 5.0, 0.04]} /><meshStandardMaterial color={dark ? "#2a1f15" : "#8a6843"} roughness={0.7} /></mesh>
-        ))}
-      </group>
-
-      {dark && <StringLights />}
-      {/* clean-mode ceiling (light mode): flush white soffit instead of beams */}
-      {!dark && (
-        <mesh position={[0, 5.2, 0]}>
-          <boxGeometry args={[8.4, 0.2, 8.6]} />
-          <meshStandardMaterial color="#f0f1f4" roughness={0.9} />
-        </mesh>
-      )}
-      {/* ── right wall (+x) — hidden in the default view (it boxed the room in); appears only
-            when the camera orbits to the other side and it becomes the far wall ── */}
-      <mesh visible={!cull.r} position={[4.2, 2.6, 0]}>
-        <boxGeometry args={[0.3, 5.2, 8.4]} />
-        <meshStandardMaterial color={dark ? "#272d37" : "#e8e9ec"} roughness={0.85} />
-      </mesh>
-      {/* Low curbs frame the two OPEN dollhouse edges (front +z, right +x) so the room footprint
-          reads as a deliberate space on all four sides — the back/left already have wall baseboards. */}
-      <mesh position={[0, CURB_H / 2, CURB_EDGE]}>
-        <boxGeometry args={[CURB_LONG, CURB_H, CURB_T]} />
-        <meshStandardMaterial color={p.baseboard} roughness={0.85} />
-      </mesh>
-      <mesh position={[CURB_EDGE, CURB_H / 2, 0.2]}>
-        <boxGeometry args={[CURB_T, CURB_H, CURB_SHORT]} />
-        <meshStandardMaterial color={p.baseboard} roughness={0.85} />
-      </mesh>
-      {showWhiteboard && (
-        <group visible={!cull.b}>
-          <Whiteboard p={p} />
-        </group>
-      )}
-
-      {/* daylight window (wall B), framed */}
-      <group visible={!cull.b} position={[-3.97, 3.1, -1.1]}>
-        <mesh>
-          <boxGeometry args={[0.05, 1.7, 2.3]} />
-          <meshStandardMaterial color={p.metalDark} roughness={0.6} metalness={0.3} />
-        </mesh>
-        <mesh position={[0.02, 0, 0]}>
-          <boxGeometry args={[0.04, 1.5, 2.1]} />
-          <meshStandardMaterial color="#bfe0ff" emissive="#9fc8f5" emissiveIntensity={0.7} toneMapped={false} />
-        </mesh>
-        {/* muntin bars */}
-        <mesh position={[0.04, 0, 0]}>
-          <boxGeometry args={[0.03, 1.5, 0.04]} />
-          <meshStandardMaterial color={p.metalDark} roughness={0.6} />
-        </mesh>
-        <mesh position={[0.04, 0, 0]}>
-          <boxGeometry args={[0.03, 0.04, 2.1]} />
-          <meshStandardMaterial color={p.metalDark} roughness={0.6} />
-        </mesh>
-      </group>
-
-      {/* pegboard with tools (wall B) */}
-      <group visible={!cull.b} position={[-3.95, 2.5, 2.2]}>
-        <mesh>
-          <boxGeometry args={[0.04, 1.5, 1.9]} />
-          <meshStandardMaterial color={p.pot} roughness={0.85} />
-        </mesh>
-        {/* a few hung tools (silhouettes) */}
-        <mesh position={[0.05, 0.2, -0.5]}>
-          <boxGeometry args={[0.03, 0.5, 0.1]} />
-          <meshStandardMaterial color={p.metalDark} metalness={0.5} roughness={0.4} />
-        </mesh>
-        <mesh position={[0.05, 0.1, 0]} rotation-x={0.4}>
-          <cylinderGeometry args={[0.03, 0.03, 0.5, 8]} />
-          <meshStandardMaterial color={p.metal} metalness={0.5} roughness={0.4} />
-        </mesh>
-        <mesh position={[0.05, 0.0, 0.55]}>
-          <torusGeometry args={[0.16, 0.03, 6, 18]} />
-          <meshStandardMaterial color={p.metalDark} metalness={0.5} roughness={0.4} />
-        </mesh>
-      </group>
-    </group>
-  );
 }
 
 /** A proper task chair, in the Herman Miller idiom: a slim raked back inside a polished frame, a
@@ -1196,10 +768,32 @@ function WallTV({ name, tier, accent }: { name: string; tier: number; accent: st
   );
 }
 
-// Espresso machine + counter that appears with the Amenities upgrade.
+// Espresso machine + counter that appears with the Amenities upgrade. The scene owns this corner,
+// so it stages its own nook: a rug anchoring the counter and a warm pendant over it, which is what
+// makes the break corner read as a distinct, cozy zone rather than a machine against a wall.
 function CoffeeStation({ p }: { p: RoomPalette }) {
   return (
     <group position={[-3.6, 0, 0.5]}>
+      {/* the nook rug: a bordered flat slab extending toward the room, clear of the vault's footprint */}
+      <RoundedBox args={[2.1, 0.02, 1.5]} radius={0.03} smoothness={2} position={[0.7, 0.011, 0.12]}>
+        <meshStandardMaterial color={p.rugTrim} roughness={1} />
+      </RoundedBox>
+      <RoundedBox args={[1.85, 0.02, 1.28]} radius={0.03} smoothness={2} position={[0.7, 0.016, 0.12]}>
+        <meshStandardMaterial color={p.rug} roughness={1} />
+      </RoundedBox>
+      {/* pendant: a warm cone over the counter (the light pool comes from the rig's lounge light) */}
+      <mesh position={[0, 2.42, 0.05]}>
+        <cylinderGeometry args={[0.012, 0.012, 0.5, 6]} />
+        <meshStandardMaterial color={p.metalDark} />
+      </mesh>
+      <mesh position={[0, 2.02, 0.05]}>
+        <coneGeometry args={[0.24, 0.26, 18, 1, true]} />
+        <meshStandardMaterial color={p.lamp} emissive={p.lamp} emissiveIntensity={0.4} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh position={[0, 1.93, 0.05]}>
+        <sphereGeometry args={[0.05, 10, 10]} />
+        <meshStandardMaterial color="#fff6df" emissive="#fff2cc" emissiveIntensity={1.3} toneMapped={false} />
+      </mesh>
       {/* counter */}
       <RoundedBox args={[0.95, 0.9, 0.55]} radius={0.04} smoothness={3} position={[0, 0.45, 0]}>
         <meshStandardMaterial color={p.deskDark} roughness={0.6} />
@@ -1535,13 +1129,13 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {!dark && <EnableShadows />}
       <CameraRig build={!!builder?.build} facilityTier={facilityTier} still={still} />
       <PinchZoom />
-      <Lighting p={p} dark={dark} />
+      <Lighting p={p} dark={dark} roomScale={cfg.roomScale} />
 
       {/* Whiteboard is earned: it appears once the team has real Workstations (computers ≥ 1),
           so a fresh garage starts bare and upgrading visibly adds the planning board. The room shell
           scales with the facility so Studio/Campus give a visibly bigger floor to fill. */}
       <group scale={sc}>
-        <Room p={p} dark={dark} finish={finish} wall={wall} cull={cull} showWhiteboard={cfg.showWhiteboard} />
+        <Room p={p} dark={dark} finish={finish} wall={wall} cull={cull} showWhiteboard={cfg.showWhiteboard} name={companyName} />
       </group>
       {/* distant skyline behind the windows — garage (dark) only; the light diorama floats in
           a clean white void, so no exterior scenery. */}
@@ -1563,12 +1157,6 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           ))}
         </group>
       )}
-      {/* rug under the pod — scales with the room so it stays proportional to the floor */}
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0.012, 0.3 * roomK]} scale={[roomK, roomK, 1]}>
-        <circleGeometry args={[3.2, 40]} />
-        <meshStandardMaterial color={p.screen} transparent opacity={facilityTier > 1 ? 0.1 : 0.05} roughness={1} />
-      </mesh>
-
       {/* The team — each employee's full workstation (desk + computer + robot) renders AT the
           placed desk they occupy, so buying a desk and hiring puts the new robot exactly where
           the player put the furniture. Hidden in Decorate mode (the editable desk pieces show
@@ -1683,10 +1271,12 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {/* Bake the shadow pass once (frames={1}) — the scene is mostly static, so re-rendering the
           depth pass every frame is wasted GPU. The key re-bakes on anything that moves geometry:
           item count alone missed moves/rotations (a dragged sofa kept its shadow at the old spot),
-          plus desks (staff) and upgrade fixtures. */}
+          plus desks (staff) and upgrade fixtures. The plane is sized to the room + a small margin
+          (it used to be 16× the room scale, which spread 1024 px of shadow over a 23 m plane and
+          smeared the whole floor into one soft grey blot). */}
       <ContactShadows
         key={`${(builder?.layout ?? []).map((it) => `${it.iid}${it.c},${it.r},${it.rot}`).join("|")}·${staff.length}·${Object.values(upgrades).join("")}`}
-        position={[0, 0.02, 0]} scale={16 * roomK} blur={3.0} far={6} opacity={dark ? 0.5 : 0.45} color={p.shadow} resolution={1024} frames={1} />
+        position={[0, 0.02, 0]} scale={9.8 * roomK} blur={2.5} far={6} opacity={dark ? 0.62 : 0.42} color={p.shadow} resolution={1024} frames={1} />
     </>
   );
 }
