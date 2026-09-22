@@ -245,6 +245,7 @@ jobs:
             archive
 
       - name: Export IPA
+        id: export_ipa
         env:
           KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -274,7 +275,7 @@ jobs:
             --apiKey "$KEY_ID" --apiIssuer "$ISSUER_ID"
 
       - name: Upload IPA artifact
-        if: success()
+        if: always() && steps.export_ipa.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: silicon-ios-ipa
