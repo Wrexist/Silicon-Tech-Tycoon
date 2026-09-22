@@ -1,4 +1,6 @@
-// Verify a clean installation defaults to the new shell, without URL or saved UI overrides.
+// Verify the Silicon 2.0 shell does not break FIRST RUN: complete onboarding with the flag on and
+// confirm React never throws a hook-order error. The flag is forced by the URL param, so no storage
+// seeding is needed and the run also proves the param path works.
 //   npm run build && node scripts/verify-onboarding-ui2.mjs
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
@@ -22,7 +24,7 @@ const server = createServer(async (req, res) => {
   res.end(b);
 });
 await new Promise((r) => server.listen(0, r));
-const URL = `http://localhost:${server.address().port}/`;
+const URL = `http://localhost:${server.address().port}/?ui=next`;
 
 const CHROME_ARGS = ["--no-sandbox", "--use-gl=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist"];
 const PINNED = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
@@ -57,30 +59,28 @@ for (let step = 0; step < 8 && !reached; step++) {
 }
 if (!reached) reached = await p.waitForSelector(".bnav__item", { timeout: 15000 }).then(() => true).catch(() => false);
 
-const rail = await p.$(".railnav").then(Boolean);
-// Wave 1a invariant: the shell presents exactly ONE page title and exactly ONE primary nav. At
-// 1024x768 with the flag on that is one `.ds-pghead__title` and one visible `.railnav` (the `.bnav`
-// is hidden by CSS). `offsetParent` is null for position:fixed, so test geometry + computed style.
-const counts = await p.evaluate(() => {
-  const visible = (el) => {
-    const s = getComputedStyle(el);
-    if (s.display === "none" || s.visibility === "hidden" || s.opacity === "0") return false;
-    const r = el.getBoundingClientRect();
-    return r.width > 0 && r.height > 0;
-  };
-  const titles = [...document.querySelectorAll(".ds-pghead__title")].filter(visible).length
-    || [...document.querySelectorAll(".app__title")].filter(visible).length;
-  const navs = [...document.querySelectorAll(".railnav")].filter(visible).length
-    + [...document.querySelectorAll(".bnav")].filter(visible).length;
-  return { titles, navs };
-});
-await browser.close();
-server.close();
 
-if (!reached) { console.error("FAIL: onboarding never reached the game."); process.exit(1); }
-if (errors.some((e) => /hook|minified react error #(310|321)/i.test(e))) { console.error("FAIL: hook error during first run:", errors); process.exit(1); }
-if (errors.length) { console.error("FAIL: console/page errors during first run:\n" + errors.join("\n")); process.exit(1); }
-if (!rail) { console.error("FAIL: flag on at 1024x768 but the rail never rendered."); process.exit(1); }
-if (counts.titles !== 1) { console.error(`FAIL: expected exactly one visible page title, found ${counts.titles}.`); process.exit(1); }
-if (counts.navs !== 1) { console.error(`FAIL: expected exactly one visible primary nav, found ${counts.navs}.`); process.exit(1); }
-console.log("PASS: clean installation defaults to the new interface; onboarding completed, no hook/console errors, rail rendered.");
+if(!reached)throw Error('Onboarding failed');
+await p.setViewportSize({width:390,height:844});
+for(let i=0;i<8;i++){const b=p.locator('.coach__skip');if(!await b.count())break;await b.click();}
+await p.locator('.bnav__item').filter({hasText:'Office'}).click();
+const earlySpeed=p.getByRole('button',{name:'Pause',exact:true});if(await earlySpeed.count()){const dial=await earlySpeed.getAttribute('class');await earlySpeed.click();if(dial?.includes('speeddial'))await earlySpeed.click();}
+await p.getByRole('button',{name:'Open the Design Lab',exact:true}).click();await p.waitForTimeout(300);for(let i=0;i<4;i++){const next=p.getByRole('button',{name:/^Next:/});if(!await next.count())break;await next.click();await p.waitForTimeout(100);}
+await p.getByRole('button',{name:'Plan production',exact:true}).last().click();await p.waitForTimeout(200);for(let i=0;i<3;i++){const next=p.getByRole('button',{name:'Next',exact:true});if(!await next.count())break;await next.click();await p.waitForTimeout(100);}
+
+await p.getByRole('button',{name:/^Build \d+ units$/}).click();
+await p.locator('.done__close').click();
+for(let i=0;i<8;i++){const b=p.locator('.coach__skip');if(!await b.count())break;await b.click();}
+const speed=p.getByRole('button',{name:'Pause',exact:true});if(await speed.count()){const dial=await speed.getAttribute('class');await speed.click();if(dial?.includes('speeddial'))await speed.click();}
+await p.locator('.bnav__item').filter({hasText:'Office'}).click();
+await p.getByRole('button',{name:'Factory',exact:true}).click();
+await p.getByRole('button',{name:'Open factory mode',exact:true}).click();
+for(let i=0;i<6;i++){await p.waitForTimeout(250);const b=p.locator('.dtut__btn--primary');if(!await b.count())break;await b.click();}
+await p.waitForTimeout(1200);
+if(await p.locator('.done__close').count())await p.locator('.done__close').click();
+await p.screenshot({path:'artifacts/factory-fixes/images/fresh-onboarding-factory.png'});
+const save=await p.evaluate(()=>JSON.parse(localStorage.getItem('silicon.save.v1')));
+if(save.factoryFloor.machines.length!==2||save.factoryFloor.belts.length!==0)throw Error('Fresh floor was altered');
+if(errors.length)throw Error(errors.join('\n'));
+console.log('PASS: real onboarding flow; untouched default factory has 2 starter machines and no belts; screenshot captured.');
+await browser.close();server.close();

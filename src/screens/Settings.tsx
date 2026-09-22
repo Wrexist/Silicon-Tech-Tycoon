@@ -39,6 +39,8 @@ import { manageProSubscription, proPurchasesAvailable, restorePro } from "../sta
 import { openPaywall } from "../state/paywall.ts";
 import { useIsPro, useProStatus } from "../state/usePro.ts";
 import { useGame, useGameActions } from "../state/useGame.tsx";
+import { recoveryCopies, discardRecoveryCopies, save, loadResult } from "../state/persistence.ts";
+import { useSaveHealth } from "../state/saveHealth.ts";
 import "./settings.css";
 
 const THEMES: { id: ThemePref; label: string; Icon: typeof Sun }[] = [
@@ -207,6 +209,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
 
       <div className="set__group">
         <span className="set__group-label">Backup</span>
+        <SaveRecovery />
         <p className="set__group-note">
           Your company lives only on this device. Export a backup before switching devices or
           clearing your browser.
@@ -246,6 +249,74 @@ export function Settings({ onClose }: { onClose: () => void }) {
       </Sheet>
     </div>
   );
+}
+
+/** Available before onboarding so an unreadable company never strands its owner. */
+export function SaveRecoveryScreen({ onContinue }: { onContinue: () => void }) {
+  return <div className="set">
+    <h1>Recover your company</h1>
+    <p className="set__group-note">Your previous company could not be opened safely. Keep a recovery copy before starting again.</p>
+    <div className="set__group"><SaveRecovery /></div>
+    <ExportButton />
+    <Button block onClick={onContinue}>Continue with current company</Button>
+  </div>;
+}
+
+function SaveRecovery() {
+  const { state } = useGame();
+  const { importSave } = useGameActions();
+  const issue = useSaveHealth();
+  const [, refresh] = useState(0);
+  const [confirm, setConfirm] = useState<string | null>(null);
+  const copies = recoveryCopies();
+  const [reloadConfirm, setReloadConfirm] = useState(false);
+  return <>
+    {issue && <><p className="set__group-note" role="status">{issue}</p>
+      {reloadConfirm ? <div className="set__confirm"><p>Export any unsaved progress first. Reload the saved company now?</p>
+        <Button variant="tertiary" onClick={() => setReloadConfirm(false)}>Cancel</Button>
+        <Button onClick={() => window.location.reload()}>Reload now</Button></div>
+        : <Button variant="tertiary" onClick={() => setReloadConfirm(true)}>Reload saved company</Button>}</>}
+    <Button variant="secondary" onClick={() => { save(state); refresh(n => n + 1); }}>Retry saving</Button>
+    {copies.map(copy => <div key={copy.id}>
+      <p className="set__group-note">{copy.id === "backup" ? "Preserved recovery copy" : "Protected unreadable company"}. Export this copy before removing it. A newer app version may be needed to open it.</p>
+      <div className="set__pair">
+        <Button variant="secondary" onClick={async () => {
+          const copied = await copyText(copy.data);
+          downloadText(copy.data, `silicon-recovery-${copy.id}-${stamp()}.txt`);
+          showToast(copied ? "Recovery copy copied; download requested" : "Download requested. Keep the recovery copy until you have the file.");
+        }}>Export recovery copy</Button>
+        <Button variant="secondary" onClick={() => setConfirm(copy.data)}>Try restoring</Button>
+      </div>
+    </div>)}
+    {confirm && <div className="set__confirm">
+      <p>Restore this copy over {state.companyName}? Export the current company first. The recovery copy will be kept.</p>
+      <Button variant="tertiary" onClick={() => setConfirm(null)}>Cancel</Button>
+      <Button onClick={() => {
+        const ok = importSave(confirm);
+        showToast(ok ? "Recovery loaded. Check the save status before closing." : "This version cannot read that copy. It has been kept.", { tone: ok ? "positive" : "negative" });
+        setConfirm(null);
+      }}>Restore recovery copy</Button>
+    </div>}
+    {copies.length > 0 && <RecoveryRemoval onRemoved={() => { refresh(n => n + 1); save(state); }} />}
+    {issue && <Button variant="tertiary" onClick={() => { loadResult(); refresh(n => n + 1); }}>Retry recovery backup</Button>}
+  </>;
+}
+
+function RecoveryRemoval({ onRemoved }: { onRemoved: () => void }) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  if (!confirming) return <Button variant="tertiary" onClick={() => setConfirming(true)}>Remove recovery copies</Button>;
+  return <div className="set__confirm">
+    <p>This permanently removes the preserved copies and allows the current company to overwrite the protected save. Continue only after checking your exported files.</p>
+    <Button disabled={busy} variant="tertiary" onClick={() => setConfirming(false)}>Cancel</Button>
+    <Button disabled={busy} variant="destructive" onClick={async () => {
+      setBusy(true);
+      const ok = await discardRecoveryCopies();
+      setBusy(false);
+      if (ok) { setConfirming(false); onRemoved(); }
+      else showToast("Recovery copies could not be removed. Nothing has been unprotected.", { tone: "negative" });
+    }}>Remove copies and continue</Button>
+  </div>;
 }
 
 /** Copies the backup string to the clipboard AND offers a file download. */

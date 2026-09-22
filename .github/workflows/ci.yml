@@ -18,28 +18,4 @@ concurrency:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22.x"
-          cache: "npm"
-
-      - name: Install dependencies
-        run: npm ci
-
-      # Separate steps so a failure points straight at the culprit (types vs tests vs bundler).
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Unit tests
-        run: npm test
-
-      - name: Build
-        run: npm run build
+    uses: ./.github/workflows/release-gates.yml

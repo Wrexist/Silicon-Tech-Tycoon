@@ -2,6 +2,7 @@
 // slat backing with a cove-lit wordmark and mark, mounted on the room's focal wall. Asset-free (the
 // mark is drawn to a canvas, like the marketing screen's poster) and presentation-only.
 import { useEffect, useMemo, useRef } from "react";
+import { useThree } from "@react-three/fiber";
 import { RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 import { glowTexture } from "./glow.ts";
@@ -67,9 +68,11 @@ export type BrandWallMode = "overDoor" | "lowWall";
 
 export function BrandWall({ name, p, mode }: { name: string; p: RoomPalette; mode: BrandWallMode }) {
   const overDoor = mode === "overDoor";
-  const w = overDoor ? 4.9 : 2.9;
+  const compact = useThree(state => state.size.width < 480);
+  // Keep the architectural wordmark inside portrait framing, without moving the camera or furniture.
+  const w = compact ? (overDoor ? 3.4 : 1.7) : (overDoor ? 4.9 : 2.9);
   const h = overDoor ? 1.02 : 0.76;
-  const slatN = overDoor ? 17 : 10;
+  const slatN = compact ? (overDoor ? 11 : 6) : (overDoor ? 17 : 10);
   const slatW = 0.19;
   const backing = sharedStandard({ color: p.slatEdge, roughness: 0.72, metalness: 0.05 });
   const slat = sharedStandard({ color: p.slat, roughness: 0.58, metalness: 0.08 });
@@ -89,7 +92,7 @@ export function BrandWall({ name, p, mode }: { name: string; p: RoomPalette; mod
     mesh.instanceMatrix.needsUpdate = true;
   }, [w, slatN]);
   return (
-    <group position={overDoor ? [0, 4.44, -4.0] : [1.5, 1.62, -3.86]}>
+    <group name="office-brand-panel" position={overDoor ? [compact ? -0.9 : 0, 4.44, -4.0] : [compact ? 0.4 : 1.5, 1.62, -3.86]}>
       <RoundedBox args={[w, h, 0.09]} radius={0.012} smoothness={2} material={backing} />
       <instancedMesh ref={slats} args={[undefined, undefined, slatN]} material={slat}>
         <boxGeometry args={[slatW, h - 0.1, 0.06]} />
@@ -108,7 +111,7 @@ export function BrandWall({ name, p, mode }: { name: string; p: RoomPalette; mod
         <planeGeometry args={[w - 0.2, h * 1.3]} />
         <meshBasicMaterial map={glowTexture()} color={p.signGlow} transparent opacity={0.24} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
       </mesh>
-      <mesh position={[0, 0, 0.082]} renderOrder={1}>
+      <mesh name="office-brand-wordmark" position={[0, 0, 0.082]} renderOrder={1}>
         <planeGeometry args={[w - 0.4, h - 0.22]} />
         <meshBasicMaterial map={tex} transparent depthWrite={false} toneMapped={false} />
       </mesh>

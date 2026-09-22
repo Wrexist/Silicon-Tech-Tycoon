@@ -4,16 +4,14 @@
 // app-store-screenshots/ipad/NN-*.png at 2064×2752 (13" iPad portrait — the largest required iPad
 // slot; App Store Connect scales it to the 12.9"/11" slots).
 //
-// The app is a phone-width UI (hard-capped at 540px, viewport-fixed chrome). Capturing at a wide
-// iPad viewport would letterbox that column with dark gutters and detach the nav to the screen
-// edges. So we capture at a 540×720 viewport — the app's *designed maximum* width, where the column
-// fills edge-to-edge (no gutters, chrome aligned) at a clean 3:4 aspect — then scale that into the
-// iPad's 3:4 screen full-bleed.
+// Capture the actual 13-inch tablet CSS viewport at DPR 2. The app's responsive
+// gutters and navigation are part of the device experience and must remain visible.
+// Marketing framing may scale this genuine tablet capture, never a phone layout.
 //
 //   npm run build && npm run preview -- --port 5199 &
 //   npm run shots:stage
 //   node scripts/shots-ipad.mjs
-import { mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { existsSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
@@ -39,9 +37,9 @@ function resolveChrome() {
 }
 const EXE = resolveChrome();
 const SIZE = { w: 2064, h: 2752 };            // 13" iPad portrait (App Store "iPad 13-inch" slot)
-const CAP = { w: 540, h: 720 };               // capture viewport — app's max width, 3:4 aspect
-const rawDir = resolve(root, ".ipad-raw");
-const outDir = resolve(root, "app-store-screenshots", "ipad");
+const CAP = { w: 1032, h: 1376 }; // Actual tablet CSS viewport, 3:4 aspect.
+const outDir = resolve(root, process.env.SHOTS_OUTPUT || "app-store-screenshots/ipad");
+const rawDir = process.env.SHOTS_OUTPUT ? resolve(outDir, "raw") : resolve(root, ".ipad-raw");
 await mkdir(rawDir, { recursive: true });
 await mkdir(outDir, { recursive: true });
 
@@ -53,7 +51,7 @@ try {
   console.error(`Staging save not found at ${stagePath}. Run: npm run shots:stage`);
   process.exit(1);
 }
-const withMut = (mut) => { const s = structuredClone(baseSave); s.lastActive = Date.now(); mut?.(s); return JSON.stringify(s); };
+const withMut = (mut) => { const s = structuredClone(baseSave); s.lastActive = Date.now(); calm(s); mut?.(s); return JSON.stringify(s); };
 
 // Depth props identical to the iPhone `store/` set so the two carousels read as one campaign.
 const addLoan = (s) => { s.loans = [{ id: "loan-1", principal: 25_000_000, balance: 24_000_000, weeklyPayment: 513_000, ratePerWeek: 0.0025, termWeeks: 52, takenWeek: 20 }]; };
@@ -74,7 +72,7 @@ const calm = (s) => { s.building = []; s.ready = []; s.lastInterruptWeek = (s.we
 const browser = await chromium.launch({ executablePath: EXE, args: ["--no-sandbox", "--use-gl=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist"] });
 
 async function page(saveJson) {
-  const ctx = await browser.newContext({ viewport: { width: CAP.w, height: CAP.h }, deviceScaleFactor: 3 });
+  const ctx = await browser.newContext({ viewport: { width: CAP.w, height: CAP.h }, deviceScaleFactor: 2 });
   await ctx.addInitScript((v) => {
     localStorage.setItem("silicon.save.v1", v);
     localStorage.setItem("silicon.settings", JSON.stringify({ theme: "dark", sound: true, haptics: true, garage3d: true, decorateTutorialSeen: true }));
@@ -85,7 +83,9 @@ async function page(saveJson) {
   await p.addStyleTag({ content: ".hq__camhint{display:none!important}" }).catch(() => {});
   await p.click('.ds-sheet button:has-text("Continue")', { timeout: 2200 }).catch(() => {});
   for (let i = 0; i < 8; i++) { const sk = await p.$(".coach__skip"); if (!sk) break; await sk.click().catch(() => {}); await p.waitForTimeout(220); }
-  await p.click('button[aria-label="Pause"]', { timeout: 4000 }).catch(() => {});
+  const speed = p.locator('.speeddial__btn--primary');
+  for (let i = 0; i < 3 && await speed.getAttribute('aria-label') === 'Pause'; i++) await speed.click();
+  if (await speed.getAttribute('aria-label') !== 'Resume') throw new Error('Could not pause screenshot fixture');
   // Neutralize CSS animations/transitions so a capture can never land on a mid-flight step
   // cross-fade or card-stagger (which at 540px width overlapped two wizard steps). This mirrors
   // the app's own prefers-reduced-motion end-state — but injected as a plain <style> so it does
@@ -99,7 +99,7 @@ async function page(saveJson) {
 }
 const tab = async (p, label) => {
   await p.evaluate(() => window.scrollTo(0, 0));
-  await p.evaluate((l) => { [...document.querySelectorAll(".bnav__item")].find((e) => e.querySelector(".bnav__label")?.textContent?.trim() === l)?.click(); }, label);
+  await p.evaluate((l) => { const target = [...document.querySelectorAll(".bnav__item, .railnav__item")].find((e) => e.offsetParent !== null && e.querySelector(".bnav__label, .railnav__label")?.textContent?.trim() === l); if (!target) throw new Error(`Missing navigation: ${l}`); target.click(); }, label);
   await p.waitForTimeout(1200);
 };
 const subtab = async (p, n) => { await p.click(`button[role="tab"]:has-text("${n}")`, { timeout: 5000 }).catch(() => {}); await p.waitForTimeout(700); };
@@ -115,19 +115,19 @@ const FRAMES = [
     shoot: async (p) => { await tab(p, "Market"); await p.evaluate(() => document.querySelector(".mkt__board")?.scrollIntoView({ block: "start" })).catch(() => {}); await p.waitForTimeout(300); } },
   { raw: "hq", head: 'Garage to <span class="ac">global empire</span>', sub: "Watch your studio grow in real-time 3D as you scale.", hue: 200,
     shoot: async (p) => { await tab(p, "Office"); await p.waitForTimeout(700); await top(p); } },
-  { raw: "decorate", head: 'Make it <span class="ac">yours</span>', sub: "Design your studio. Drag in 60+ pieces of parametric furniture.", hue: 168,
+  { raw: "decorate", head: 'Make it <span class="ac">yours</span>', sub: "Design your studio. Choose furniture, arrange your room and make it yours.", hue: 168,
     shoot: async (p) => { await tab(p, "Office"); await p.waitForTimeout(500); await top(p); await p.evaluate(() => { const el = document.querySelector(".hq__decorate"); if (!(el instanceof HTMLElement)) throw new Error("Missing .hq__decorate — cannot open the studio editor"); el.click(); }); await p.waitForTimeout(2400); } },
   { raw: "research", head: 'Choose your <span class="ac">doctrine</span>', sub: "Mutually-exclusive research forks shape a company that plays like no other.", hue: 188,
     shoot: async (p) => { await tab(p, "Research"); await p.evaluate(() => [...document.querySelectorAll(".ds-card")].find((c) => /Performance House|Reliability House/.test(c.textContent || ""))?.scrollIntoView({ block: "center" })).catch(() => {}); await p.waitForTimeout(400); } },
   { raw: "finance", head: 'Master your <span class="ac">finances</span>', sub: "Borrow to fund a bet, invest in morale. Runway is a decision, not a timer.", hue: 150, mut: addLoan,
-    shoot: async (p) => { await tab(p, "Finance"); await p.evaluate(() => document.querySelector(".co__borrow, .co__loan-list")?.closest(".ds-card")?.scrollIntoView({ block: "center" })).catch(() => {}); await p.waitForTimeout(400); } },
+    shoot: async (p) => { await tab(p, "Company"); await subtab(p, "Overview"); await p.evaluate(() => document.querySelector(".co__borrow, .co__loan-list")?.closest(".ds-card")?.scrollIntoView({ block: "center" })).catch(() => {}); await p.waitForTimeout(400); } },
   { raw: "people", head: 'Keep your <span class="ac">best people</span>', sub: "Rivals poach your talent. Match the offer, or watch them walk.", hue: 16, mut: setPoach,
     shoot: async (p) => { await tab(p, "Office"); await p.evaluate(() => document.querySelector(".hq__choice")?.scrollIntoView({ block: "center" })).catch(() => {}); await p.waitForTimeout(400); } },
   { raw: "team", head: 'Grow a <span class="ac">real team</span>', sub: "Hire, mentor and lead. A senior anchor levels up the juniors beside them.", hue: 130,
-    shoot: async (p) => { await tab(p, "Finance"); await p.evaluate(() => [...document.querySelectorAll(".ds-card")].find((c) => /Team morale/.test(c.textContent || ""))?.scrollIntoView({ block: "start" })).catch(() => {}); await p.waitForTimeout(400); } },
+    shoot: async (p) => { await tab(p, "Company"); await subtab(p, "Team"); await p.evaluate(() => [...document.querySelectorAll(".ds-card")].find((c) => /Team morale/.test(c.textContent || ""))?.scrollIntoView({ block: "start" })).catch(() => {}); await p.waitForTimeout(400); } },
   // No price in a screenshot: the paid era's "$8.99 once" outlived the paid era here and cost a
   // Guideline 2.3.7 rejection. Describe the model (free download + optional Pro), never the number.
-  { raw: "premium", head: 'Free to play. <span class="ac">No dark patterns.</span>', sub: "No ads, no timers, no loot boxes. Optional Silicon Pro adds content and modes — never an advantage.", hue: 222, mut: calm,
+  { raw: "premium", head: 'Free to play. <span class="ac">No dark patterns.</span>', sub: "No ads, no loot boxes, no pay-to-win. Optional Silicon Pro adds content and modes — never an advantage.", hue: 222, mut: calm,
     shoot: async (p) => { await tab(p, "Office"); await p.waitForTimeout(700); await top(p); } },
 ];
 
@@ -143,6 +143,7 @@ for (const { fr } of frames) {
     await fr.shoot(p);
     await p.waitForTimeout(450); // let the final state fully settle before capturing
     await p.screenshot({ path: resolve(rawDir, `${fr.raw}.png`), clip: { x: 0, y: 0, width: CAP.w, height: CAP.h } });
+    await writeFile(resolve(rawDir, `${fr.raw}-environment.json`), JSON.stringify(await p.evaluate(() => ({ viewport: [innerWidth, innerHeight], dpr: devicePixelRatio, userAgent: navigator.userAgent })), null, 2));
     console.log("captured", fr.raw);
   } finally {
     await ctx.close().catch(() => {});
@@ -208,7 +209,7 @@ for (const { fr, n } of frames) {
   await fp.setContent(frameHtml(b64, fr.head, fr.sub, fr.hue), { waitUntil: "networkidle" });
   await fp.waitForTimeout(200);
   await fp.screenshot({ path: resolve(outDir, `${nn}-${fr.raw}.png`) });
-  console.log("wrote", `app-store-screenshots/ipad/${nn}-${fr.raw}.png`);
+  console.log("wrote", resolve(outDir, `${nn}-${fr.raw}.png`));
 }
 await browser.close();
 console.log(`done. ${frames.length} frames at ${SIZE.w}×${SIZE.h}.`);
