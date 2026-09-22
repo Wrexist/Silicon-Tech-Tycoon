@@ -21,4 +21,3 @@ describe("arcade screen clearance", () => {
     expect(nearestZ).toBeGreaterThan(frontZ);
   });
 });
-

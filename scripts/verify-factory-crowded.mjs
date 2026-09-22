@@ -75,7 +75,7 @@ for(const theme of ['dark','light']){
   await p.screenshot({path:`artifacts/factory-fixes/crowded/images/${theme}-${width}-${scale}.png`});layouts.push({width,height,scale,...checks});
  }
  if(errors.length)throw Error(errors.join('\n'));
- 
+
  await p.getByRole('button',{name:'Style',exact:true}).click();
  for(let i=0;i<2;i++)await p.locator('.fmode__upline').filter({hasText:'Expand the floor'}).getByRole('button').click();
  await p.keyboard.press('Escape');await p.setViewportSize({width:320,height:740});await p.waitForTimeout(500);
