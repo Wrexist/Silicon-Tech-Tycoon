@@ -162,7 +162,8 @@
      On wide screens (iPad) the app is a centered 540px column, so clamp to the COLUMN's left edge
      instead of drifting to the viewport edge far from the content. */
   left: max(var(--edge), calc(50% - 270px + var(--edge)));
-  bottom: calc(72px + env(safe-area-inset-bottom));
+  /* The persistent-control lane (design/tokens.css). Toasts stack above this band, never inside it. */
+  bottom: calc(var(--bottom-chrome-bottom) + env(safe-area-inset-bottom));
   z-index: 27;
   display: inline-flex;
   align-items: center;

@@ -12,6 +12,8 @@ import * as THREE from "three";
 import type { ModelAsset } from "./furnitureModels.ts";
 import { surfaceAnchorY } from "./furnitureModels.ts";
 import { desaturatedColor } from "./palette.ts";
+import { catalogFinish } from "./furnitureFinish.ts";
+import { publishSeatSurface } from "./seatAnchors.ts";
 import { applyMaterialFamily } from "./materialFamilies.ts";
 
 // ---- Material identity for the fitted glTF catalog --------------------------------------------------
@@ -22,7 +24,8 @@ import { applyMaterialFamily } from "./materialFamilies.ts";
 // a WeakSet stops the pass compounding on models that mount more than once. No new materials.
 const familyApplied = new WeakSet<THREE.Material>();
 
-function applyFamilies(root: THREE.Object3D, tint?: ModelAsset["tint"]): void {
+function applyFamilies(root: THREE.Object3D, asset: ModelAsset): void {
+  const tint=asset.tint;
   const blend = tint ? new THREE.Color(tint.color) : null;
   root.traverse((o) => {
     const mesh = o as THREE.Mesh;
@@ -35,6 +38,8 @@ function applyFamilies(root: THREE.Object3D, tint?: ModelAsset["tint"]): void {
       // Optional per-asset finish: blend the family's colour toward the piece's tint. The family
       // pass is shared (a WeakSet), so a tint only ever reaches materials this asset introduced.
       const std = mat as THREE.MeshStandardMaterial;
+      const finish=catalogFinish(mat.name,asset.url);
+      if(finish && std.color)std.color.set(finish);
       if (blend && std.color && (!tint!.families || tint!.families.includes(family))) {
         std.color.lerp(blend, tint!.amount);
       }
@@ -77,7 +82,8 @@ export default function GltfFurniture({
   // when the asset or its placement size changes.
   const object = useMemo(() => {
     const clone = scene.clone(true);
-    applyFamilies(clone, asset.tint);
+    // Keep the source family response, then match the catalog's intrinsic finish tokens.
+    applyFamilies(clone, asset);
 
     // Measure the raw model.
     const box = new THREE.Box3().setFromObject(clone);
@@ -117,6 +123,7 @@ export default function GltfFurniture({
   // Fitted height of the piece (the model's own top), so shelf dressing can size itself.
   const topY = useMemo(() => {
     const box = new THREE.Box3().setFromObject(object);
+    if(asset.seatSurfaceFraction !== undefined)publishSeatSurface(asset.url,box.max.y*asset.seatSurfaceFraction*(asset.scale??1)+(asset.offset?.[1]??0));
     return box.max.y;
   }, [object]);
 

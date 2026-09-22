@@ -105,7 +105,7 @@ describe("factory floor grid (F2)", () => {
     const f = demoFloor();
     // wired single-arm line → the earned bonus, lightly scaled by the (near-max) layout quality (3.2)
     expect(lineSpeedMult(f)).toBeCloseTo(0.9211, 4);
-    const twoArms = placeMachine(f, "arm", 13, 8, "arm2")!; // a second arm deepens it
+    const twoArms = placeMachine(f, "arm", 13, 7, "arm2")!; // a second arm deepens it
     expect(lineSpeedMult(twoArms)).toBeLessThan(lineSpeedMult(f));
     const broken = removeAt(f, 7, 6); // sever the bottom lane → bonus lost, no punishment
     expect(lineSpeedMult(broken)).toBe(1);
@@ -201,9 +201,9 @@ describe("factory floor grid (F2)", () => {
     expect(lineUnitMult(f)).toBeLessThan(1);
     expect(lineUnitMult(f)).toBeGreaterThanOrEqual(0.85);
     // More arms widen throughput; a second QA deepens the unit-cost discount.
-    const twoArms = placeMachine(f, "arm", 13, 8, "arm2")!;
+    const twoArms = placeMachine(f, "arm", 13, 7, "arm2")!;
     expect(lineCapacityMult(twoArms)).toBeGreaterThan(lineCapacityMult(f));
-    const twoQa = placeMachine(f, "qa", 13, 8, "qa2")!;
+    const twoQa = placeMachine(f, "qa", 13, 7, "qa2")!;
     expect(lineUnitMult(twoQa)).toBeLessThan(lineUnitMult(f));
     // Machine upgrades nudge both further (still clamped).
     const qa = f.machines.find((m) => m.kind === "qa")!;

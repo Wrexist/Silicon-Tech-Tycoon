@@ -30,7 +30,7 @@ import { CATALOG, roomPalette, type RoomPalette } from "./palette.ts";
 import { ROBOT_COLORS } from "./robotModels.ts";
 import { reactionIntensity, onHqReaction, HQ_REACTION_MS, type HqReaction } from "../design/hqReaction.ts";
 import { highlightIntensity } from "../design/hqHighlight.ts";
-import { officeDestinations, ROAM_BOUND, scaledObstacles, type Destination, type RoamAgent } from "./employeeController.ts";
+import { officeDestinations, ROAM_BOUND, furnitureObstacles, emptyChairObstacles, type Destination, type RoamAgent } from "./employeeController.ts";
 import { OfficeRobot, RoamingRobot } from "./robotCharacter.tsx";
 import SpeechBubbles, { type Speaker } from "./speechBubbles.tsx";
 import { CameraRig, PinchZoom, CAM_REST_POSITION } from "./cameraRig.tsx";
@@ -40,8 +40,8 @@ import { useHqInteractions } from "./interactions.ts";
 import { TargetPrompt } from "./interactionPrompt.tsx";
 import { officeConfigFor } from "./officeConfig.ts";
 import { workstationModuleFor, type WorkstationProp } from "./workstationModule.ts";
-import { officeSeed } from "./officeLive.ts";
-import { derivedYawFor } from "./officeArrangement.ts";
+import { officeWeek, officeSeed } from "./officeLive.ts";
+import { arrangeOffice, derivedYawFor } from "./officeArrangement.ts";
 import { OfficeDressing } from "./officeDressing.tsx";
 import { skylinePlacement, SKYLINE_COLOR } from "./skyline.ts";
 
@@ -905,14 +905,34 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   const podWorlds = desktopWorlds(podCount);
   const podStaff = overflow.slice(0, podCount);
   const roaming = overflow.slice(podCount, cfg.staffCap);
+  const arrangement = useMemo(() => arrangeOffice({facilityTier, headcount: staff.length,
+    occupied: builder?.layout ?? [], dark, amenities: amenityTier, designSuite: cfg.showEasel,
+    testLab: cfg.showTestChamber, monitors: cfg.monitors, seed: officeSeed(), week: officeWeek()}),
+    [facilityTier, staff.length, builder?.layout, dark, amenityTier, cfg.showEasel, cfg.showTestChamber, cfg.monitors]);
+  const activityLayout = useMemo(() => [...(builder?.layout ?? []), ...arrangement.dressing], [builder?.layout, arrangement]);
   // Break destinations available this week: the coffee station, the planning board and any placed
   // arcade. Built from upgrades + the player's layout, so a break only targets a prop that exists.
   const destinations = useMemo<Destination[]>(
-    () => officeDestinations({ amenityTier, showWhiteboard: cfg.showWhiteboard, dark, layout: builder?.layout ?? [], facilityTier, roomScale: cfg.roomScale }),
-    [amenityTier, cfg.showWhiteboard, dark, builder?.layout, facilityTier, cfg.roomScale],
+    () => officeDestinations({ amenityTier, showWhiteboard: cfg.showWhiteboard, dark, layout: activityLayout, ownedLayout: builder?.layout, facilityTier, roomScale: cfg.roomScale }),
+    [amenityTier, cfg.showWhiteboard, dark, activityLayout, facilityTier, cfg.roomScale],
   );
   // Walkers steer and clamp in world units, so the keep-outs scale with the room shell.
-  const roamObstacles = useMemo(() => scaledObstacles(cfg.roomScale), [cfg.roomScale]);
+  const roamObstacles = useMemo(() => [
+    ...furnitureObstacles(activityLayout, facilityTier),
+    ...emptyChairObstacles(builder?.layout ?? [], facilityTier, seated.length),
+    ...podWorlds.slice(podStaff.length).map(w => ({x:w.x,z:w.z-0.86,r:0.30})),
+    ...podWorlds.map(w => ({x:w.x,z:w.z,hx:0.65,hz:0.35})),
+    {x:-3.0*cfg.roomScale,z:2.9*cfg.roomScale,hx:0.45*cfg.roomScale,hz:0.45*cfg.roomScale}, // printer
+    ...(dark ? [{x:3.1*cfg.roomScale,z:-3.4*cfg.roomScale,hx:0.5*cfg.roomScale,hz:0.8*cfg.roomScale}]
+      : [{x:3.1*cfg.roomScale,z:3.0*cfg.roomScale,r:0.17*cfg.roomScale}]),
+    ...(cfg.showEasel ? [{x:3.5*cfg.roomScale,z:0.9*cfg.roomScale,r:0.55*cfg.roomScale}] : []),
+    ...(cfg.showTestChamber ? [{x:3.6*cfg.roomScale,z:-1.5*cfg.roomScale,hx:0.45*cfg.roomScale,hz:0.35*cfg.roomScale}] : []),
+    {x:-3.5*cfg.roomScale,z:1.6*cfg.roomScale,hx:0.475*cfg.roomScale,hz:0.325*cfg.roomScale}, // rendered vault
+    ...(amenityTier >= 1 ? [{x:-3.6*cfg.roomScale,z:0.5*cfg.roomScale,r:0.50*cfg.roomScale}] : []),
+    ...(amenityTier >= 2 ? [{x:-3.3*cfg.roomScale,z:3.1*cfg.roomScale,r:0.30}] : []),
+    ...(amenityTier >= 3 ? [{x:3.4*cfg.roomScale,z:1.4*cfg.roomScale,r:0.27}] : []),
+    ...(amenityTier >= 4 ? [{x:3.5*cfg.roomScale,z:0,r:0.25}] : []),
+  ], [activityLayout, facilityTier, podCount, staff.length, cfg.roomScale, amenityTier, dark, cfg.showEasel, cfg.showTestChamber]);
   const roamBound = ROAM_BOUND * cfg.roomScale;
   // Desk-owning employees as walkable agents: their seat world position + facing, colour and robot
   // seed. The walkers schedule from these SAME records, so the animation and the schedule agree.
@@ -1018,6 +1038,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           <RoamingRobot
             key={s.id ?? `roam${i}`}
             agent={{ key: s.id ?? `roam${i}`, seed: (seats.length + podCount + i) * 3.7, colorIdx: s.appearance.shirt % ROBOT_COLORS.length, x: home[0], z: home[1], face: 0 }}
+            onTap={onTapStaff && s.id ? () => onTapStaff(s.id!) : undefined}
             wander={1.1}
             obstacles={roamObstacles}
             bound={roamBound}
@@ -1028,7 +1049,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {/* Desk-owning employees walk to the break destination the weekly plan hands them; the same
           walker covers both directions (out and back) so a week change never teleports anyone. */}
       {!inBuild && agents.map((a) => (
-        <RoamingRobot key={`walk-${a.key}`} agent={a} agents={agents} destinations={destinations} obstacles={roamObstacles} bound={roamBound} still={still} />
+        <RoamingRobot key={`walk-${a.key}`} agent={a} onTap={onTapStaff ? () => onTapStaff(a.key) : undefined} agents={agents} destinations={destinations} obstacles={roamObstacles} bound={roamBound} still={still} />
       ))}
       {/* Player-bought desktops — a tidy symmetric row that overflow employees sit at (so new
           hires get a desk like the founder). Hidden in Decorate mode like the live workstations. */}
@@ -1044,7 +1065,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           live workstations above, so their plain models are suppressed outside Decorate mode. */}
       {builder && <BuildLayer p={p} b={builder} hideIids={inBuild ? undefined : occupiedIids} facilityTier={facilityTier} />}
       {/* The room's own dressing — arranged around the player's furniture, never written to it. */}
-      <OfficeDressing p={p} cfg={cfg} dark={dark} headcount={staff.length} layout={builder?.layout} />
+      <OfficeDressing arrangement={arrangement} p={p} cfg={cfg} dark={dark} headcount={staff.length} layout={builder?.layout} />
 
       {/* ---- Upgrades made physical: each company upgrade adds real furniture. Wall-anchored, so
              they scale with the room to stay against the walls as the facility grows. ---- */}

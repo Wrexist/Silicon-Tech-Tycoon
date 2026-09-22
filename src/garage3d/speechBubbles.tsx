@@ -32,6 +32,8 @@ const LINES_BY_ACTIVITY: Record<Activity, readonly string[]> = {
   coffee: ["Coffee…", "Refuel…"],
   arcade: ["One more…"],
   board: ["Planning…"],
+  relaxing: ["Taking a break", "Recharging"],
+  watering: ["Watering plants"],
 };
 
 const MAX = 2;            // concurrent bubbles cap — a few at most

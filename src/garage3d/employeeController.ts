@@ -4,17 +4,23 @@
 // Presentation-only. The rolls are DERIVED hashes of (seed, week, character) — never Math.random,
 // never the engine's sim RNG — so the same week always leaves the same desks and a capture is
 // repeatable. `engine/` never reads any of this; the determinism pin cannot see it.
-import { cosmeticHash01, workTargetFor } from "./officeLive.ts";
-import { furnitureDef, worldOf, type PlacedItem } from "../engine/furniture.ts";
+import { cosmeticHash01, workTargetFor } from './officeLive.ts';
+import { furnitureDef, footprint, GRID, worldOf, deskItems, planSeats, type PlacedItem } from '../engine/furniture.ts';
+
+import { derivedYawFor } from './officeArrangement.ts';
+import { clearSegment, findOfficePath, type Obstacle } from './officeNavigation.ts';
 
 /** Where an employee can be found when they are not at their desk. */
-export type DestinationKind = "coffee" | "arcade" | "board";
+export type DestinationKind = 'coffee' | 'arcade' | 'board' | 'relaxing' | 'watering';
 
 /** A single stand point in a destination (two people can share the coffee machine side by side). */
 export interface DestinationSpot {
   x: number;
   z: number;
   face: number;
+  /** Stable resource reservation; all approaches to a plant share this key. */
+  resource?: string;
+  seat?: { x: number; z: number };
 }
 
 export interface Destination {
@@ -56,6 +62,7 @@ export function awayPlanFor(
   seed: number,
   week: number,
   destinations: readonly Destination[],
+  reachable: (agent: RoamAgent, spot: DestinationSpot) => boolean = () => true,
 ): Map<string, AwaySpot> {
   const out = new Map<string, AwaySpot>();
   if (destinations.length === 0) return out;
@@ -68,19 +75,21 @@ export function awayPlanFor(
     candidates.push({ agent: a, i, star: cosmeticHash01(s, week, ORDER_SALT) });
   }
   // Highest priority first; the index breaks ties so the order is total and stable.
-  candidates.sort((a, b) => (b.star - a.star) || (a.i - b.i));
+  candidates.sort((a, b) => b.star - a.star || a.i - b.i);
   const used = new Set<string>(); // `${destinationIndex}:${spotIndex}`
   for (const c of candidates) {
     if (out.size >= MAX_AWAY) break;
     const s = agentSeed(seed, c.i);
-    const start = Math.floor(cosmeticHash01(s, week, SPOT_SALT) * destinations.length) % destinations.length;
+    const start =
+      Math.floor(cosmeticHash01(s, week, SPOT_SALT) * destinations.length) % destinations.length;
     for (let d = 0; d < destinations.length; d++) {
       const di = (start + d) % destinations.length;
       const dest = destinations[di];
       let claimed = false;
       for (let si = 0; si < dest.spots.length; si++) {
-        if (used.has(`${di}:${si}`)) continue;
-        used.add(`${di}:${si}`);
+        const resource = dest.spots[si].resource ?? `${di}:${si}`;
+        if (used.has(resource) || !reachable(c.agent, dest.spots[si])) continue;
+        used.add(resource);
         out.set(c.agent.key, { ...dest.spots[si], kind: dest.kind });
         claimed = true;
         break;
@@ -105,7 +114,11 @@ export const ROAM_OBSTACLES: { x: number; z: number; r: number }[] = [
 
 /** Keep-out circles in WORLD units for a facility scale. */
 export function scaledObstacles(roomScale: number): { x: number; z: number; r: number }[] {
-  return ROAM_OBSTACLES.map((o) => ({ x: o.x * roomScale, z: o.z * roomScale, r: o.r * roomScale }));
+  return ROAM_OBSTACLES.map((o) => ({
+    x: o.x * roomScale,
+    z: o.z * roomScale,
+    r: o.r * roomScale,
+  }));
 }
 
 /**
@@ -119,6 +132,7 @@ export function officeDestinations(opts: {
   showWhiteboard: boolean;
   dark: boolean;
   layout: readonly PlacedItem[];
+  ownedLayout?: readonly PlacedItem[];
   facilityTier: number;
   roomScale: number;
 }): Destination[] {
@@ -126,45 +140,127 @@ export function officeDestinations(opts: {
   const bound = ROAM_BOUND * k;
   const obstacles = scaledObstacles(k);
   const ok = (x: number, z: number) =>
-    Math.abs(x) <= bound && Math.abs(z) <= bound &&
-    obstacles.every((o) => Math.hypot(x - o.x, z - o.z) >= o.r + 0.30);
+    Math.abs(x) <= bound &&
+    Math.abs(z) <= bound &&
+    obstacles.every((o) => Math.hypot(x - o.x, z - o.z) >= o.r + 0.3);
   const faceTo = (fx: number, fz: number, tx: number, tz: number) => Math.atan2(tx - fx, tz - fz);
   const out: Destination[] = [];
   if (opts.amenityTier >= 1) {
     // The machine sits at (-3.6, 0.5)·k facing +z; stand beside the counter (its right side), clear
     // of the vault keep-out. Both spots look back at the machine.
-    const ax = -3.6 * k, az = 0.5 * k;
+    const ax = -3.6 * k,
+      az = 0.5 * k;
     const sx = ax + 0.79 * k;
     const spots = [
       { x: sx, z: az, face: faceTo(sx, az, ax, az) },
       { x: sx, z: az - 0.45 * k, face: faceTo(sx, az - 0.45 * k, ax, az) },
     ].filter((s) => ok(s.x, s.z));
-    if (spots.length) out.push({ kind: "coffee", spots });
+    if (spots.length)
+      out.push({
+        kind: 'coffee',
+        spots: spots.map((spot, i) => ({ ...spot, resource: `coffee-${i}` })),
+      });
   }
   if (opts.showWhiteboard) {
     const spot = opts.dark
       ? { x: -3.1 * k, z: 2.85 * k, face: faceTo(-3.1 * k, 2.85 * k, -3.92 * k, 3.0 * k) }
       : { x: -1.2 * k, z: -3.13 * k, face: faceTo(-1.2 * k, -3.13 * k, -1.2 * k, -3.88 * k) };
-    if (ok(spot.x, spot.z)) out.push({ kind: "board", spots: [spot] });
+    if (ok(spot.x, spot.z))
+      out.push({ kind: 'board', spots: [{ ...spot, resource: 'planning-board' }] });
   }
-  const arcade = opts.layout.find((it) => it.type === "arcade");
+  const arcade = opts.layout.find((it) => it.type === 'arcade');
   if (arcade) {
     const w = worldOf(arcade, opts.facilityTier);
-    const half = furnitureDef("arcade").d * 0.5 + 0.42;
+    const half = furnitureDef('arcade').d * 0.5 + 0.42;
     for (const side of [1, -1]) {
       const x = w.x + Math.sin(w.rotY) * half * side;
       const z = w.z + Math.cos(w.rotY) * half * side;
       if (!ok(x, z)) continue;
-      out.push({ kind: "arcade", spots: [{ x, z, face: faceTo(x, z, w.x, w.z) }] });
+      out.push({
+        kind: 'arcade',
+        spots: [{ x, z, face: faceTo(x, z, w.x, w.z), resource: arcade.iid }],
+      });
       break;
+    }
+  }
+  for (const item of opts.layout) {
+    const def = furnitureDef(item.type);
+    if (item.type !== 'sofa' && def.category !== 'plants') continue;
+    const w = worldOf(item, opts.facilityTier);
+    const orientationLayout = opts.ownedLayout?.some((owned) => owned.iid === item.iid)
+      ? opts.ownedLayout
+      : opts.layout;
+    const yaw = derivedYawFor(item, orientationLayout, opts.facilityTier);
+    const local = (x: number, z: number) => ({
+      x: w.x + Math.cos(yaw) * x + Math.sin(yaw) * z,
+      z: w.z - Math.sin(yaw) * x + Math.cos(yaw) * z,
+    });
+    if (item.type === 'sofa') {
+      // One centered seat keeps the mascot clear of both armrests. Only the final sit transition
+      // enters this furniture; the route ends outside its padded footprint.
+      const approach = local(0, (def.d * GRID.cell) / 2 + 0.36);
+      const seat = local(0, 0.1);
+      out.push({
+        kind: 'relaxing',
+        spots: [{ ...approach, face: yaw, resource: item.iid, seat: { ...seat } }],
+      });
+    } else {
+      const spots = [0, 1, 2, 3].map((side) => {
+        const angle = (side * Math.PI) / 2;
+        const distance = ((side % 2 ? def.w : def.d) * GRID.cell) / 2 + 0.38;
+        const pos = local(Math.sin(angle) * distance, Math.cos(angle) * distance);
+        return { ...pos, face: faceTo(pos.x, pos.z, w.x, w.z), resource: item.iid };
+      });
+      out.push({ kind: 'watering', spots });
     }
   }
   return out;
 }
 
+/** Current rendered footprints, including automatic dressing. Flat rugs remain walkable. */
+export function furnitureObstacles(
+  layout: readonly PlacedItem[],
+  facilityTier: number,
+): Obstacle[] {
+  return layout.flatMap((item) => {
+    const def = furnitureDef(item.type);
+    if (def.flat) return [];
+    const w = worldOf(item, facilityTier),
+      fp = footprint(def, item.rot);
+    return [
+      { id: item.iid, x: w.x, z: w.z, hx: (fp.w * GRID.cell) / 2, hz: (fp.d * GRID.cell) / 2 },
+    ];
+  });
+}
+/** Empty workstation chairs remain physical furniture even without an assigned employee. */
+export function emptyChairObstacles(layout: readonly PlacedItem[], facilityTier: number, occupiedCount: number): Obstacle[] {
+  const sides = planSeats([...layout], facilityTier).flipped;
+  return deskItems([...layout]).slice(occupiedCount).map(item => {
+    const w=worldOf(item,facilityTier), offset=sides[item.iid]?0.86:-0.86;
+    return {x:w.x+Math.sin(w.rotY)*offset,z:w.z+Math.cos(w.rotY)*offset,r:0.30};
+  });
+}
+
+export function reachableDestination(
+  agent: RoamAgent,
+  spot: DestinationSpot,
+  obstacles: readonly Obstacle[],
+  bound: number,
+): boolean {
+  if (!findOfficePath(agent, spot, obstacles, bound)) return false;
+  if (!spot.seat) return true;
+  // A sofa against a wall or another piece cannot be entered from an obstructed side.
+  return clearSegment(
+    spot,
+    spot.seat,
+    obstacles.filter((o) => o.id !== spot.resource),
+    bound,
+  );
+}
+
 /** What a character is doing right now. `working`/`thinking` come from the seated robot; the walker
  *  owns `walking` and the destination kinds. The speech bubbles read this — never a second guess. */
-export type Activity = "working" | "thinking" | "walking" | DestinationKind;
+export type Activity = 'working' | 'thinking' | 'walking' | DestinationKind;
 
 export interface LivePose {
   activity: Activity;
@@ -172,6 +268,7 @@ export interface LivePose {
   z?: number;
   /** True while the walker owns the character (away from the desk), so the seated robot hides. */
   roaming?: boolean;
+  resource?: string;
 }
 
 const livePoses = new Map<string, LivePose>();

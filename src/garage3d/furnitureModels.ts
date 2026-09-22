@@ -42,6 +42,8 @@ export interface ModelAsset {
    *  open shelf and should be stocked": the renderer dresses those surfaces with books. Omit for
    *  closed/other pieces. */
   shelfRows?: number[];
+  /** Measured cushion top divided by source model height. */
+  seatSurfaceFraction?: number;
 }
 
 const u = (id: string): string => `furniture/${id}.glb`;
@@ -53,18 +55,16 @@ export const MODEL_ASSETS: Partial<Record<FurnitureId, ModelAsset>> = {
   chair: { url: u("chair"), scale: 1, realHeight: 0.95 },
   armchair: { url: u("armchair"), scale: 1, realHeight: 0.78 },
   loungeChair: { url: u("loungeChair"), scale: 1, realHeight: 0.8 },
-  sofa: { url: u("sofa"), scale: 1, realHeight: 0.82 },
+  sofa: { url: u("sofa"), scale: 1, realHeight: 0.82, seatSurfaceFraction: 0.5 },
   sofaL: { url: u("sofaL"), scale: 1, realHeight: 0.82 },
   stool: { url: u("stool"), scale: 1, realHeight: 0.55 },
   coffeeTable: { url: u("coffeeTable"), scale: 1, realHeight: 0.42 },
   meetingTable: { url: u("meetingTable"), scale: 1, realHeight: 0.74 },
   sideTable: { url: u("sideTable"), scale: 1, realHeight: 0.55 },
-  // The two open shelving units get the darkest finish in the catalog: they are tall, pale and
-  // large, and in a nighttime office a bright frame out-shouts the team. Dark neutral frame, warm
-  // shelves — storage reads as storage, not as the brightest object on the floor.
-  bookshelf: { url: u("bookshelf"), scale: 1, realHeight: 1.8, shelfRows: [0.15, 0.425, 0.7], tint: { color: "#4b4038", amount: 0.6, families: ["wood"] } },
+  // Shelving uses the same walnut finish as tables; source geometry and shelf anchors stay intact.
+  bookshelf: { url: u("bookshelf"), scale: 1, realHeight: 1.8, shelfRows: [0.15, 0.425, 0.7] },
   cabinet: { url: u("cabinet"), scale: 1, realHeight: 0.9 },
-  shelfUnit: { url: u("shelfUnit"), scale: 1, realHeight: 1.8, shelfRows: [0.325], tint: { color: "#4b4038", amount: 0.55, families: ["wood"] } },
+  shelfUnit: { url: u("shelfUnit"), scale: 1, realHeight: 1.8, shelfRows: [0.325] },
   crates: { url: u("crates"), scale: 1, realHeight: 0.6 },
   plantTall: { url: u("plantTall"), scale: 1, realHeight: 1.45 },
   plantPot: { url: u("plantPot"), scale: 1, realHeight: 0.5 },

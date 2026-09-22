@@ -25,7 +25,7 @@
 
 /* ---------------- fullscreen shell ---------------- */
 .fmode {
-  --fmode-btn-bg: rgba(15, 18, 24, 0.88);
+  --fmode-btn-bg: var(--surface);
   --fmode-btn-line: rgba(255, 255, 255, 0.12);
   /* Above the base app (nav 30, HQ decorate 45) but BELOW the sheet scrim (50): Sheet portals to
      <body>, so if the factory sat at 60 its own Upgrades/Style/Stats/Shop sheets opened INVISIBLY
@@ -33,7 +33,7 @@
      (58) and tutorials (70) all correctly on top. */
   position: fixed; inset: 0; z-index: 46;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(9, 11, 15, 0.99);
+  background: var(--bg);
   padding: calc(56px + env(safe-area-inset-top)) var(--sp-8) calc(64px + env(safe-area-inset-bottom));
 }
 .fmode .fmini { width: min(900px, 100%); }
@@ -52,13 +52,13 @@
   font-size: var(--fs-caption); font-weight: 800;
 }
 .fmode__cash { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.fmode__cash-val { font-size: var(--fs-body); font-weight: 800; color: #fff; }
+.fmode__cash-val { font-size: var(--fs-body); font-weight: 800; color: var(--ink); }
 .fmode__cash-flow { font-size: var(--fs-micro); font-weight: 700; color: var(--positive); }
 .fmode__cash-flow--neg { color: var(--negative); }
 /* Calm capacity line inside the order card — a slim bar + a word, never a scary percentage. */
 .fmode__cap-line {
   display: inline-flex; align-items: center; gap: var(--sp-6);
-  font-size: var(--fs-nano); font-weight: 700; color: rgba(255,255,255,0.7);
+  font-size: var(--fs-nano); font-weight: 700; color: var(--ink-2);
 }
 .fmode__cap-bar { width: 40px; height: 4px; border-radius: var(--r-pill); background: rgba(255,255,255,0.16); overflow: hidden; flex: none; }
 .fmode__cap-fill { display: block; height: 100%; border-radius: var(--r-pill); background: var(--positive); }
@@ -74,10 +74,10 @@
   display: inline-flex; align-items: center; justify-content: center;
   width: 44px; height: 44px; flex: none; border-radius: var(--r-pill);
   border: 1px solid var(--fmode-btn-line);
-  background: var(--fmode-btn-bg); color: #fff; cursor: pointer;
+  background: var(--fmode-btn-bg); color: var(--ink); cursor: pointer;
   backdrop-filter: blur(8px);
 }
-.fmode__icons { color: rgba(255,255,255,0.82); }
+.fmode__icons { color: var(--ink-2); }
 .fmode__icons:active { transform: scale(0.94); }
 
 /* one-time camera gesture hint — a calm centred pill that fades itself out */
@@ -87,7 +87,7 @@
   display: inline-flex; align-items: center; gap: var(--sp-6);
   padding: 8px 14px; border-radius: var(--r-pill);
   background: var(--fmode-btn-bg); border: 1px solid var(--fmode-btn-line);
-  color: rgba(255,255,255,0.9); font-size: var(--fs-caption); font-weight: 600;
+  color: var(--ink-2); font-size: var(--fs-caption); font-weight: 600;
   white-space: nowrap; backdrop-filter: blur(8px); pointer-events: none;
   box-shadow: var(--shadow-subtle);
   animation: fmode-camhint 4.2s ease forwards;
@@ -110,9 +110,9 @@
 .fmode__panel {
   padding: var(--sp-10) var(--sp-12);
   border-radius: var(--r-card);
-  background: rgba(15, 18, 24, 0.88);
+  background: var(--surface);
   border: 1px solid rgba(255,255,255,0.1);
-  color: #fff;
+  color: var(--ink);
   backdrop-filter: blur(8px);
 }
 .fmode__panel-head {
@@ -120,13 +120,13 @@
   width: 100%; min-height: 28px;
   padding: 0; border: none; background: none; cursor: pointer; color: inherit;
 }
-.fmode__panel-caret { color: rgba(255,255,255,0.5); transition: transform 0.2s ease; }
+.fmode__panel-caret { color: var(--ink-2); transition: transform 0.2s ease; }
 .fmode__panel-caret--open { transform: rotate(180deg); }
 .fmode__panel-head .fmode__panel-title { margin-bottom: 0; }
 .fmode__panel-title {
   display: block; margin-bottom: var(--sp-6);
   font-size: var(--fs-nano); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
-  color: rgba(255,255,255,0.55);
+  color: var(--ink-2);
 }
 .fmode__order { display: flex; gap: var(--sp-10); align-items: center; }
 .fmode__order-thumb { flex: none; }
@@ -134,21 +134,21 @@
 /* Stage stepper sits on the always-dark factory panel, so it reads off white-on-dark values
    rather than the theme surface (which would blend or glare depending on light/dark). */
 .fmode .strail { margin-top: 6px; }
-.fmode .strail__node { background: rgba(255,255,255,0.06); border-color: rgba(255,255,255,0.16); color: rgba(255,255,255,0.5); }
+.fmode .strail__node { background: rgba(255,255,255,0.06); border-color: var(--ink-2); color: var(--ink-2); }
 .fmode .strail__bar { background: rgba(255,255,255,0.14); }
-.fmode .strail__step--done .strail__node { background: color-mix(in srgb, var(--accent) 30%, transparent); border-color: transparent; color: #fff; }
+.fmode .strail__step--done .strail__node { background: color-mix(in srgb, var(--accent) 30%, transparent); border-color: transparent; color: var(--ink); }
 .fmode .strail__step--done .strail__bar--done { background: color-mix(in srgb, var(--accent) 60%, rgba(255,255,255,0.14)); }
-.fmode .strail__step--active .strail__node { color: #fff; }
+.fmode .strail__step--active .strail__node { color: var(--ink); }
 /* captions read on the dark panel; the whole trail fits the narrow order card */
-.fmode .strail__cap { color: rgba(255,255,255,0.5); font-size: 0.625rem; }
-.fmode .strail__step--done .strail__cap { color: rgba(255,255,255,0.68); }
-.fmode .strail__step--active .strail__cap { color: #fff; }
+.fmode .strail__cap { color: var(--ink-2); font-size: 0.625rem; }
+.fmode .strail__step--done .strail__cap { color: var(--ink-2); }
+.fmode .strail__step--active .strail__cap { color: var(--ink); }
 .fmode__order-name { font-size: var(--fs-caption); font-weight: 800; }
-.fmode__order-units { font-size: var(--fs-micro); color: rgba(255,255,255,0.6); }
+.fmode__order-units { font-size: var(--fs-micro); color: var(--ink-2); }
 .fmode__order-track { display: block; height: 6px; border-radius: var(--r-pill); background: rgba(255,255,255,0.14); overflow: hidden; }
 .fmode__order-fill { display: block; height: 100%; border-radius: var(--r-pill); background: var(--accent); transition: width 0.6s ease; }
-.fmode__order-eta { font-size: var(--fs-micro); font-weight: 600; color: rgba(255,255,255,0.75); }
-.fmode__empty { margin: 0; font-size: var(--fs-micro); color: rgba(255,255,255,0.6); line-height: 1.4; }
+.fmode__order-eta { font-size: var(--fs-micro); font-weight: 600; color: var(--ink-2); }
+.fmode__empty { margin: 0; font-size: var(--fs-micro); color: var(--ink-2); line-height: 1.4; }
 .fmode__stat {
   display: flex; justify-content: space-between; gap: var(--sp-8);
   padding: 3px 0; font-size: var(--fs-micro); font-weight: 600;
@@ -176,7 +176,7 @@
   width: 58px; padding: var(--sp-8) 0;
   border-radius: var(--r-button);
   border: 1px solid var(--fmode-btn-line);
-  background: var(--fmode-btn-bg); color: #fff; cursor: pointer;
+  background: var(--fmode-btn-bg); color: var(--ink); cursor: pointer;
   font-size: var(--fs-nano); font-weight: 700;
   backdrop-filter: blur(8px);
 }
@@ -215,13 +215,13 @@
   width: 44px; height: 44px; flex: none;
   border-radius: var(--r-button);
   border: 1px solid var(--fmode-btn-line);
-  background: var(--fmode-btn-bg); color: #fff; cursor: pointer;
+  background: var(--fmode-btn-bg); color: var(--ink); cursor: pointer;
 }
 .fmode__side-n {
   position: absolute; top: -5px; right: -5px;
   min-width: 17px; height: 17px; padding: 0 4px;
   border-radius: var(--r-pill);
-  background: var(--negative); color: #fff;
+  background: var(--negative); color: var(--ink);
   font-size: 0.625rem; font-weight: 800; line-height: 17px; text-align: center;
 }
 
@@ -264,7 +264,7 @@
 /* Auto-route quote — the build head swaps to price + Confirm/Cancel while Auto is armed. */
 .fmode__autoquote-label {
   flex: 1; min-width: 0; display: inline-flex; align-items: center; gap: var(--sp-6);
-  font-size: var(--fs-caption); font-weight: 700; color: rgba(255,255,255,0.85);
+  font-size: var(--fs-caption); font-weight: 700; color: var(--ink-2);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .fmode__autoquote-go { min-height: 44px; }
@@ -272,7 +272,7 @@
   display: inline-flex; align-items: center; justify-content: center;
   width: 44px; height: 44px; flex: none; border-radius: var(--r-pill);
   background: rgba(255,255,255,0.08); border: 1px solid var(--fmode-btn-line);
-  color: rgba(255,255,255,0.8); cursor: pointer;
+  color: var(--ink-2); cursor: pointer;
 }
 
 /* ---------------- saved layouts (Style sheet) ---------------- */
@@ -376,7 +376,7 @@
 }
 .fmode__build-rule {
   order: 2; flex: 1 0 100%;
-  font-size: var(--fs-nano); font-weight: 600; color: rgba(255,255,255,0.6);
+  font-size: var(--fs-nano); font-weight: 600; color: var(--ink-2);
   line-height: 1.35;
 }
 /* Wide enough for one row? Put it back inline, where it fits without truncating. */
@@ -393,7 +393,7 @@
 }
 .fmode__build-tab {
   min-height: 34px; padding: 0 var(--sp-12); border: none; background: none; cursor: pointer;
-  border-radius: var(--r-pill); font-size: var(--fs-caption); font-weight: 700; color: rgba(255,255,255,0.6);
+  border-radius: var(--r-pill); font-size: var(--fs-caption); font-weight: 700; color: var(--ink-2);
 }
 .fmode__build-tab--on { background: var(--accent); color: var(--accent-ink); }
 .fmode__build-done {
@@ -408,7 +408,7 @@
   flex: none; width: 44px; height: 44px; padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid var(--fmode-btn-line); border-radius: var(--r-pill);
-  background: rgba(255, 255, 255, 0.1); color: #fff; cursor: pointer;
+  background: rgba(255, 255, 255, 0.1); color: var(--ink); cursor: pointer;
 }
 .fmode__build-undo:active { transform: scale(0.94); }
 .fmode__palette {
@@ -422,14 +422,14 @@
   width: 62px; min-height: 62px; padding: var(--sp-8) 0;
   border-radius: var(--r-button);
   border: 1px solid var(--fmode-btn-line);
-  background: var(--fmode-btn-bg); color: #fff; cursor: pointer;
+  background: var(--fmode-btn-bg); color: var(--ink); cursor: pointer;
   backdrop-filter: blur(8px);
 }
-.fmode__ptile-icon { display: inline-flex; color: rgba(255,255,255,0.85); transition: transform 0.15s ease; }
+.fmode__ptile-icon { display: inline-flex; color: var(--ink-2); transition: transform 0.15s ease; }
 .fmode__ptile-name { font-size: var(--fs-nano); font-weight: 700; }
-.fmode__ptile-cost { font-size: 0.5625rem; font-weight: 600; color: rgba(255,255,255,0.55); }
+.fmode__ptile-cost { font-size: 0.5625rem; font-weight: 600; color: var(--ink-2); }
 .fmode__ptile--on { background: var(--accent); border-color: var(--accent); }
-.fmode__ptile--on .fmode__ptile-icon, .fmode__ptile--on .fmode__ptile-cost { color: rgba(255,255,255,0.9); }
+.fmode__ptile--on .fmode__ptile-icon, .fmode__ptile--on .fmode__ptile-cost { color: var(--ink-2); }
 .fmode__ptile--util { width: 54px; }
 .fmode__ptile--erase.fmode__ptile--on { background: var(--negative); border-color: var(--negative); }
 /* can't afford this yet — dimmed with a warning-tinted price (still selectable; placement toasts) */
@@ -459,8 +459,8 @@
 /* This panel lives on the always-dark factory HUD, so every text/track colour is an explicit
    white-on-dark value — theme ink tokens would go near-invisible in light mode. */
 .fmode__sideorder--live .fmode__sideorder-head { color: color-mix(in srgb, var(--positive) 55%, #fff); }
-.fmode__sideorder-body { margin: 0; font-size: var(--fs-caption); color: rgba(255,255,255,0.88); line-height: 1.45; }
-.fmode__sideorder-body b { color: #fff; }
+.fmode__sideorder-body { margin: 0; font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.45; }
+.fmode__sideorder-body b { color: var(--ink); }
 .fmode__sideorder-warn { margin: 0; font-size: var(--fs-micro); font-weight: 700; color: color-mix(in srgb, var(--negative) 55%, #fff); }
 .fmode__sideorder-actions { display: flex; align-items: center; gap: var(--sp-8); }
 .fmode__sideorder-go {
@@ -473,8 +473,21 @@
 .fmode__sideorder-x {
   min-height: 40px; padding: 0 var(--sp-12);
   border: 1px solid rgba(255,255,255,0.16); border-radius: var(--r-button);
-  background: rgba(255,255,255,0.1); color: #fff;
+  background: rgba(255,255,255,0.1); color: var(--ink);
   font-size: var(--fs-caption); font-weight: 700;
 }
 .fmode__sideorder-track { display: block; height: 5px; border-radius: var(--r-pill); background: rgba(255,255,255,0.16); overflow: hidden; }
 .fmode__sideorder-fill { display: block; height: 100%; border-radius: var(--r-pill); background: var(--positive); transition: width var(--spring-standard); }
+
+/* Reserve a separate hint band; neither order panels nor action rails occupy it. */
+.fmode__camhint { top: auto; bottom: calc(76px + env(safe-area-inset-bottom)); max-width: calc(100vw - 24px); white-space: normal; text-align: center; }
+.fmode__left { max-height: calc(100dvh - 240px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow-y: auto; }
+@media (max-width: 619px) {
+  .fmode__panel { padding: 8px; }
+  .fmode__tool { width: 50px; padding: 7px 0; }
+  .fmode__rail { gap: 6px; }
+}
+
+.fmini__cell:focus-visible { outline: none; stroke: var(--accent); stroke-width: 3px; }
+
+.fmode__ptile--on, .fmode__ptile--on .fmode__ptile-icon, .fmode__ptile--on .fmode__ptile-cost { color: var(--accent-ink); }

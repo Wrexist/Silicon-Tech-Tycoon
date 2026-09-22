@@ -26,6 +26,20 @@ export interface FactoryLayout {
 /** How many named layouts a player can keep at once. */
 export const MAX_LAYOUTS = 6;
 
+/** Match ownership first, then equivalent pieces already occupying the target cell, one-to-one. */
+function matchOwned<T extends { id: string; kind: string; c: number; r: number }>(current: readonly T[], target: readonly T[]): Map<string, T> {
+  const matches = new Map<string, T>(), used = new Set<string>();
+  for (const t of target) {
+    const m = current.find(c => c.id === t.id && c.kind === t.kind);
+    if (m) { matches.set(t.id, m); used.add(m.id); }
+  }
+  for (const t of target) if (!matches.has(t.id)) {
+    const m = current.find(c => !used.has(c.id) && c.kind === t.kind && c.c === t.c && c.r === t.r);
+    if (m) { matches.set(t.id, m); used.add(m.id); }
+  }
+  return matches;
+}
+
 const half = (c: number): number => Math.round(c / 2); // the standard demolition refund (mirrors demolitionRefund)
 
 /**
@@ -42,15 +56,14 @@ export function layoutApplyCost(
   target: FactoryFloor,
   targetProps: readonly PlacedProp[],
 ): Money {
-  const mKey = (m: { c: number; r: number; kind: string }) => `${m.c},${m.r},${m.kind}`;
   const bKey = (b: { c: number; r: number }) => `${b.c},${b.r}`;
 
-  const curMachines = new Map(current.machines.map((m) => [mKey(m), m]));
-  const tgtMachines = new Map(target.machines.map((m) => [mKey(m), m]));
+  const curMachines = matchOwned(current.machines, target.machines);
+  const retainedMachines = new Set([...curMachines.values()].map(m => m.id));
   const curB = new Set(current.belts.map(bKey));
   const tgtB = new Set(target.belts.map(bKey));
-  const curP = new Set(currentProps.map(mKey));
-  const tgtP = new Set(targetProps.map(mKey));
+  const curP = matchOwned(currentProps, targetProps);
+  const retainedProps = new Set([...curP.values()].map(p => p.id));
 
   let total = 0;
 
@@ -58,19 +71,19 @@ export function layoutApplyCost(
   // when the layout is less tuned); a brand-new machine costs its full invested price (base + any
   // upgrades) and a dropped one refunds half of what it cost. So no layout can mint free upgrades.
   for (const m of target.machines) {
-    const cur = curMachines.get(mKey(m));
+    const cur = curMachines.get(m.id);
     if (!cur) { total += machineInvested(m.kind, machineLevel(m)); continue; }
     const from = machineLevel(cur), to = machineLevel(m);
     if (to > from) for (let l = from; l < to; l++) total += machineUpgradeStepCost(m.kind, l) ?? 0;
     else if (to < from) total -= half(machineInvested(m.kind, from) - machineInvested(m.kind, to));
   }
-  for (const m of current.machines) if (!tgtMachines.has(mKey(m))) total -= half(machineInvested(m.kind, machineLevel(m)));
+  for (const m of current.machines) if (!retainedMachines.has(m.id)) total -= half(machineInvested(m.kind, machineLevel(m)));
   // Belts: cell identity only (re-aiming is free), pay full for new tiles, refund half for removed.
   for (const b of target.belts) if (!curB.has(bKey(b))) total += BELT_COST;
   for (const b of current.belts) if (!tgtB.has(bKey(b))) total -= half(BELT_COST);
   // Props: same as machines.
-  for (const p of targetProps) if (!curP.has(mKey(p))) total += PROP_DEFS[p.kind].cost;
-  for (const p of currentProps) if (!tgtP.has(mKey(p))) total -= half(PROP_DEFS[p.kind].cost);
+  for (const p of targetProps) if (!curP.has(p.id)) total += PROP_DEFS[p.kind].cost;
+  for (const p of currentProps) if (!retainedProps.has(p.id)) total -= half(PROP_DEFS[p.kind].cost);
 
   return cents(total);
 }
@@ -83,17 +96,23 @@ export function layoutDiff(
   target: FactoryFloor,
   targetProps: readonly PlacedProp[],
 ): { added: number; removed: number } {
-  const mKey = (m: { c: number; r: number; kind: string }) => `${m.c},${m.r},${m.kind}`;
   const bKey = (b: { c: number; r: number }) => `${b.c},${b.r}`;
-  const curM = new Set(current.machines.map(mKey)), tgtM = new Set(target.machines.map(mKey));
+  const machines = matchOwned(current.machines, target.machines);
+  const props = matchOwned(currentProps, targetProps);
   const curB = new Set(current.belts.map(bKey)), tgtB = new Set(target.belts.map(bKey));
-  const curP = new Set(currentProps.map(mKey)), tgtP = new Set(targetProps.map(mKey));
-  let added = 0, removed = 0;
-  for (const k of tgtM) if (!curM.has(k)) added++;
-  for (const k of curM) if (!tgtM.has(k)) removed++;
+  let added = target.machines.length - machines.size + targetProps.length - props.size;
+  let removed = current.machines.length - machines.size + currentProps.length - props.size;
   for (const k of tgtB) if (!curB.has(k)) added++;
   for (const k of curB) if (!tgtB.has(k)) removed++;
-  for (const k of tgtP) if (!curP.has(k)) added++;
-  for (const k of curP) if (!tgtP.has(k)) removed++;
   return { added, removed };
+}
+
+export function layoutEditSummary(current: FactoryFloor, currentProps: readonly PlacedProp[], target: FactoryFloor, targetProps: readonly PlacedProp[]): string {
+  const diff = layoutDiff(current, currentProps, target, targetProps);
+  const machines = matchOwned(current.machines, target.machines), props = matchOwned(currentProps, targetProps);
+  const moved = target.machines.filter(t => { const c = machines.get(t.id); return c && (c.c !== t.c || c.r !== t.r); }).length
+    + targetProps.filter(t => { const c = props.get(t.id); return c && (c.c !== t.c || c.r !== t.r); }).length;
+  const levels = target.machines.filter(t => { const c = machines.get(t.id); return c && machineLevel(c) !== machineLevel(t); }).length;
+  const aimed = target.belts.filter(t => current.belts.some(c => c.c === t.c && c.r === t.r && c.dir !== t.dir)).length;
+  return [`${diff.added} added`, `${diff.removed} removed`, `${moved} moved`, `${levels} level changes`, `${aimed} belts redirected`].join(" ? ");
 }

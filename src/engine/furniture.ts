@@ -752,7 +752,7 @@ export function addItem(layout: PlacedItem[], iid: string, type: FurnitureId, c:
 }
 export function moveItem(layout: PlacedItem[], iid: string, c: number, r: number, facilityTier = 1): PlacedItem[] {
   const it = layout.find((x) => x.iid === iid);
-  if (!it || !canPlace(layout, it.type, c, r, it.rot, iid, facilityTier)) return layout;
+  if (!it || (it.c === c && it.r === r) || !canPlace(layout, it.type, c, r, it.rot, iid, facilityTier)) return layout;
   return layout.map((x) => (x.iid === iid ? { ...x, c, r } : x));
 }
 export function rotateItem(layout: PlacedItem[], iid: string, facilityTier = 1): PlacedItem[] {
@@ -763,6 +763,7 @@ export function rotateItem(layout: PlacedItem[], iid: string, facilityTier = 1):
   return layout.map((x) => (x.iid === iid ? { ...x, rot } : x));
 }
 export function removeItem(layout: PlacedItem[], iid: string): PlacedItem[] {
+  if (!layout.some(x => x.iid === iid)) return layout;
   return layout.filter((x) => x.iid !== iid);
 }
 

@@ -16,6 +16,7 @@ import { sharedBasic, sharedBox, sharedCapsule, sharedCircle, sharedCone, shared
 import type { FurnitureId } from "../engine/furniture.ts";
 import { GRID, FURNITURE } from "../engine/furniture.ts";
 import { modelFor } from "./furnitureModels.ts";
+import { furniturePalette } from "./furnitureFinish.ts";
 import { CATALOG, type RoomPalette } from "./palette.ts";
 
 const C = GRID.cell; // ≈0.86m per cell
@@ -328,8 +329,9 @@ function Easel({ p }: { p: RoomPalette }) {
 function Arcade({ p }: { p: RoomPalette }) {
   return (
     <group>
-      <mesh position={[0, 0.75, 0]} geometry={sharedRounded(0.5, 1.5, 0.5, 4, 0.04)} material={sharedStandard({ color: CATALOG.graphite, roughness: 0.5 })} />
-      <mesh position={[0, 1.12, 0.22]} rotation-x={-0.25} geometry={sharedPlane(0.4, 0.34)} material={sharedStandard({ color: p.screen, emissive: p.screen, emissiveIntensity: 1.2, toneMapped: false })} />
+      <mesh position={[0, 0.75, 0]} geometry={sharedRounded(0.5, 1.5, 0.5, 4, 0.04)} material={sharedStandard({ color: CATALOG.slate, roughness: 0.72 })} />
+      {/* The tilted screen must clear the cabinet front across its entire height. */}
+      <mesh position={[0, 1.12, 0.30]} rotation-x={-0.25} geometry={sharedPlane(0.4, 0.34)} material={sharedStandard({ color: p.screen, emissive: p.screen, emissiveIntensity: 1.2, toneMapped: false })} />
       <mesh position={[0, 0.82, 0.26]} rotation-x={0.5} geometry={sharedBox(0.42, 0.18, 0.04)} material={sharedStandard({ color: CATALOG.ink })} />
       <mesh position={[-0.1, 0.86, 0.27]} geometry={sharedSphere(0.03, 8, 8)} material={sharedStandard({ color: CATALOG.ledAlert, emissive: CATALOG.ledAlert, emissiveIntensity: 0.8, toneMapped: false })} />
       <mesh position={[0.08, 0.86, 0.27]} geometry={sharedSphere(0.03, 8, 8)} material={sharedStandard({ color: CATALOG.ledWarn, emissive: CATALOG.ledWarn, emissiveIntensity: 0.8, toneMapped: false })} />
@@ -366,12 +368,25 @@ function WaterCooler(_: { p: RoomPalette }) {
 function ServerRack({ p }: { p: RoomPalette }) {
   return (
     <group>
-      <mesh position={[0, 0.85, 0]} geometry={sharedRounded(0.5, 1.7, 0.55, 4, 0.02)} material={sharedStandard({ color: "#1a1d23", roughness: 0.5, metalness: 0.3 })} />
+      {/* Painted graphite housing: retain a lit side face under the existing studio lighting.
+          The darker front bay and cap separate the cabinet's volume at phone size. */}
+      <mesh position={[0, 0.86, 0]} geometry={sharedRounded(0.5, 1.62, 0.55, 4, 0.02)} material={sharedStandard({ color: CATALOG.slate, roughness: 0.72, metalness: 0.02 })} />
+      {/* Plinth: grounds the rack with a shadow line instead of letting the base melt into the slab. */}
+      <mesh position={[0, 0.035, 0]} geometry={sharedBox(0.54, 0.07, 0.59)} material={sharedStandard({ color: CATALOG.ink, roughness: 0.5, metalness: 0.2 })} />
+      {/* Top cap: a distinct lit top face is what makes the silhouette read from the iso camera. */}
+      <mesh position={[0, 1.7, 0]} geometry={sharedBox(0.52, 0.05, 0.57)} material={sharedStandard({ color: CATALOG.slate, roughness: 0.42, metalness: 0.3 })} />
+      {/* Recessed front bay + two corner rails: different front / side treatment, and crisp vertical
+          edges that survive phone-size rendering (the bay's dark face sits between the rails). */}
+      <mesh position={[0, 0.88, 0.257]} geometry={sharedBox(0.42, 1.46, 0.03)} material={sharedStandard({ color: CATALOG.charcoal, roughness: 0.7 })} />
+      {[-0.222, 0.222].map((x, i) => (
+        <mesh key={i} position={[x, 0.86, 0.283]} geometry={sharedBox(0.036, 1.5, 0.036)} material={sharedStandard({ color: CATALOG.slate, roughness: 0.45, metalness: 0.28 })} />
+      ))}
+      {/* One status LED per unit bay (7 total, down from 14 sub-pixel dots) — a readable status column,
+          not a light show. Alternating screen blue / ok green keeps the tech accent restrained. */}
       {Array.from({ length: 7 }).map((_, i) => (
-        <group key={i} position={[0, 0.3 + i * 0.2, 0.28]}>
-          <mesh geometry={sharedBox(0.42, 0.16, 0.02)} material={sharedStandard({ color: "#2a2f37" })} />
-          <mesh position={[-0.15, 0, 0.02]} geometry={sharedSphere(0.018, 6, 6)} material={sharedStandard({ color: i % 2 ? CATALOG.ledOk : p.screen, emissive: i % 2 ? CATALOG.ledOk : p.screen, emissiveIntensity: 1.1, toneMapped: false })} />
-          <mesh position={[-0.1, 0, 0.02]} geometry={sharedSphere(0.018, 6, 6)} material={sharedStandard({ color: CATALOG.ledWarn, emissive: CATALOG.ledWarn, emissiveIntensity: 0.9, toneMapped: false })} />
+        <group key={i} position={[0, 0.31 + i * 0.205, 0.276]}>
+          <mesh geometry={sharedBox(0.38, 0.13, 0.018)} material={sharedStandard({ color: CATALOG.ink, roughness: 0.6 })} />
+          <mesh position={[-0.155, 0, 0.014]} geometry={sharedSphere(0.023, 8, 8)} material={sharedStandard({ color: i % 2 ? CATALOG.ledOk : p.screen, emissive: i % 2 ? CATALOG.ledOk : p.screen, emissiveIntensity: i % 2 ? 0.9 : 1.1, toneMapped: false })} />
         </group>
       ))}
     </group>
@@ -1503,6 +1518,7 @@ class ModelBoundary extends Component<{ fallback: ReactNode; children: ReactNode
  *  exists (see furnitureModels.ts), otherwise the premium parametric renderer. Memoized so the
  *  whole layout doesn't re-render on every drag move / sim tick. */
 export const FurniturePiece = memo(function FurniturePiece({ type, p }: { type: FurnitureId; p: RoomPalette }) {
+  p = furniturePalette(p);
   const parametric = renderParametric(type, p);
   const model = modelFor(type);
   if (!model) return parametric;

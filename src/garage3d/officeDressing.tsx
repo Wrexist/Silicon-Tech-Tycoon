@@ -23,6 +23,7 @@ export const OfficeDressing = memo(function OfficeDressing({
   dark,
   headcount,
   layout,
+  arrangement: supplied,
 }: {
   p: RoomPalette;
   cfg: OfficeConfig;
@@ -30,10 +31,11 @@ export const OfficeDressing = memo(function OfficeDressing({
   headcount: number;
   /** The player's layout. Absent (the decorative hero) means an empty room to dress. */
   layout?: readonly PlacedItem[];
+  arrangement?: ReturnType<typeof arrangeOffice>;
 }) {
   const arrangement = useMemo(
     () =>
-      arrangeOffice({
+      supplied ?? arrangeOffice({
         facilityTier: cfg.facilityTier,
         headcount,
         occupied: layout ?? NO_LAYOUT,
@@ -45,7 +47,7 @@ export const OfficeDressing = memo(function OfficeDressing({
         seed: officeSeed(),
         week: officeWeek(),
       }),
-    [cfg.facilityTier, cfg.amenityTier, cfg.showEasel, cfg.showTestChamber, cfg.monitors, headcount, layout, dark],
+    [supplied, cfg.facilityTier, cfg.amenityTier, cfg.showEasel, cfg.showTestChamber, cfg.monitors, headcount, layout, dark],
   );
 
   return (

@@ -1,3 +1,6 @@
+import { continueWithPreservedRecovery } from "./state/persistence.ts";
+import { useSaveHealth } from "./state/saveHealth.ts";
+import { hasFactoryAccess } from "./state/factorySummary.ts";
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, Check, CircuitBoard, CircleX, Compass, Copy, Cpu, Crown, Factory, Flame, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
 import { GameProvider, useGame, useGameActions } from "./state/useGame.tsx";
@@ -36,6 +39,7 @@ import { resolvePlatformSection } from "./state/platformSections.ts";
 // Sheet-hosted screens. `Sheet` returns null while closed, so React never renders these and their
 // chunks are not fetched until the player actually opens the sheet — which for Settings, Progress and
 // Scenarios is rarely, and for many runs never.
+const SaveRecoveryScreen = lazy(() => import("./screens/Settings.tsx").then((m) => ({ default: m.SaveRecoveryScreen })));
 const Settings = lazy(() => import("./screens/Settings.tsx").then((m) => ({ default: m.Settings })));
 const ProgressSheet = lazy(() => import("./screens/Progress.tsx").then((m) => ({ default: m.ProgressSheet })));
 const ScenariosSheet = lazy(() => import("./screens/Scenarios.tsx").then((m) => ({ default: m.ScenariosSheet })));
@@ -106,6 +110,7 @@ function AppShell() {
   const { state, tabBlocked, takeOverHere } = useGame();
   const [tab, setTab] = useState<Tab>("hq");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const saveIssue = useSaveHealth();
   const [progressOpen, setProgressOpen] = useState(false);
   // Which view the Progress sheet opens on — "challenges" when HQ's daily-challenge card deep-links.
   const [progressView, setProgressView] = useState<"hub" | "challenges">("hub");
@@ -211,6 +216,16 @@ function AppShell() {
   // "what just unlocked" card renders on HQ (UnlockCard) until the player taps it, so nothing is lost.
   const hasShippedNow = state.launched.length >= 1 || state.legacy > 0;
 
+  if (!state.onboarded && saveIssue) return <div className="app"><main className="app__main">
+    <div className="app__save-notice" role="alert">{saveIssue}</div>
+    <ErrorBoundary fallback={<ScreenError onHome={() => window.location.reload()} />}>
+      <Suspense fallback={<ScreenLoading title="Save recovery" />}>
+        <SaveRecoveryScreen onContinue={() => {
+          if (!continueWithPreservedRecovery()) showToast("Export the protected copy and resolve recovery before starting another company.", { tone: "negative" });
+        }} />
+      </Suspense>
+    </ErrorBoundary>
+  </main><ToastHost /></div>;
   if (!state.onboarded) return <Onboarding onStart={() => setTab("design")} />;
 
   // Progress hub (achievements/scenarios/challenges/museum) is surfaced once the player has shipped
@@ -231,10 +246,8 @@ function AppShell() {
     market: revealMore,
     company: state.staff.length >= 2 || state.era >= 2,
   };
-  // The Office/Factory world toggle only matters once there's a manufacturing floor to visit —
-  // defer it until the player owns a factory or reaches era 2. Kept visible whenever the factory
-  // world is already open (e.g. entered via HQ's "Build your factory line") so there's always a way back.
-  const showWorldTabs = state.era >= 2 || (state.ownedFactories?.length ?? 0) > 0 || hqWorld === "factory";
+  // Once manufacturing starts, keep the factory reachable between runs as well.
+  const showWorldTabs = hasFactoryAccess(state) || hqWorld === "factory";
 
   return (
     <div className={`app${uiVersion === "next" ? " app--next" : ""}`}>
@@ -248,6 +261,10 @@ function AppShell() {
         <RailNav active={tab} onChange={changeTab} badge={navAttention(state)} visible={tabVisible} />
       )}
       <main className="app__main">
+        {saveIssue && <div className="app__save-notice" role="status">
+          <span>{saveIssue}</span>
+          <button type="button" onClick={() => uiVersion === "next" ? push("settings") : setSettingsOpen(true)}>Save recovery</button>
+        </div>}
         {/* Wave 1a: the new shell owns the page title. It lives INSIDE main so it inherits the
             content column's edge inset (rather than re-adding it) and is not a second banner
             landmark beside <Hud>. With the flag off this renders nothing and each screen keeps

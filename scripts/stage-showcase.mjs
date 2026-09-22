@@ -8,7 +8,7 @@ import {
   newGame, placeFurniture, hireStaff, assignStaff, startBuild, launchReady,
   advanceOneWeek, buildWeeksFor, upgradeFacility, recommendedRun, productStats,
 } from "../src/state/gameState.ts";
-import { demoFloor, floorWidth } from "../src/engine/factoryFloor.ts";
+import { demoFloor, floorWidth, canPlaceMachine, canPlaceBelt } from "../src/engine/factoryFloor.ts";
 import { canPlaceProp, propCells } from "../src/engine/factoryProps.ts";
 import { generateSideOrder } from "../src/engine/sideOrders.ts";
 import { priceGuidance } from "../src/engine/market.ts";
@@ -120,9 +120,17 @@ const extraMachines = [
   ["mill", 13, 0], ["screen", 16, 0],   // back row → east bays
   ["press", 13, 6], ["arm", 16, 6],      // front row → east bays
 ];
-extraMachines.forEach(([kind, c, r], i) => floor.machines.push({ id: `st-x${i}`, kind, c, r, level: 3 }));
+extraMachines.forEach(([kind, c, r], i) => {
+  // This is a crowded diagnostic fixture, but it must obey the real placement rules.
+  let cell = canPlaceMachine(floor, kind, c, r, maxW) ? { c, r } : null;
+  for (let row = 0; !cell && row < 10; row++) for (let col = 0; col < maxW; col++) {
+    if (canPlaceMachine(floor, kind, col, row, maxW)) { cell = { c: col, r: row }; break; }
+  }
+  if (!cell) throw new Error(`No legal showcase cell for ${kind}`);
+  floor.machines.push({ id: `st-x${i}`, kind, ...cell, level: 3 });
+});
 // A west→east return belt on the free row-5 aisle, spanning the width beneath the middle row.
-for (let c = 1; c <= 18; c++) floor.belts.push({ c, r: 5, dir: "w" });
+for (let c = 1; c <= 18; c++) if (canPlaceBelt(floor, c, 5, maxW) && !floor.belts.some(b => b.c === c && b.r === 5)) floor.belts.push({ c, r: 5, dir: "w" });
 // Decorate the frontmost row (row 9 is entirely clear) + the aisle ends; each candidate is validated
 // against the live floor (skips anything overlapping a machine, belt, or another prop).
 let props = [];
@@ -139,7 +147,7 @@ s = {
   factoryFloor: floor,
   factoryProps: props,
   factoryExpansion: EXP,
-  factoryDecor: { wall: 8, floor: 7 }, // Ocean walls + Marble floor — a premium, high-tech finish
+  factoryDecor: { wall: 2, floor: 4 }, // Ocean walls + Marble floor — a premium, high-tech finish
   factoryPieceCounter: 400,
   reputation: Math.max(s.reputation, 80),
   fans: Math.max(s.fans, 240_000),
