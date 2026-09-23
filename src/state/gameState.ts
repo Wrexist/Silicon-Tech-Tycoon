@@ -1,3 +1,4 @@
+import { connectedMachines } from "../engine/factoryFloor.ts";
 // GameState + pure reducers. Composes the engine; owns NO React. Fully testable.
 // The React hook (useGame) wraps these and drives the tick.
 import { BALANCE } from "../engine/balance.ts";
@@ -398,6 +399,8 @@ export interface GameState {
   /** player-arranged office furniture (the builder) */
   layout: PlacedItem[];
   furnitureCounter: number;
+  /** Net office purchase/sale cash, used only to reverse Decorate edits. */
+  officeEditCash?: number;
   /** room theming — indices into FLOOR_FINISHES / WALL_STYLES */
   roomStyle: { floor: number; wall: number };
   /** Player-built Factory Mode layout (machines + directed conveyor tiles). */
@@ -416,6 +419,8 @@ export interface GameState {
   /** Monotonic id source for floor machines AND props — same rule: demolish + re-buy in one week
    *  must never mint a duplicate id (moveMachine and React keys both key on it). */
   factoryPieceCounter: number;
+  /** Net cash movement from reversible floor edits only; unrelated transactions never enter it. */
+  factoryEditCash?: number;
   /** standalone computer desks the player has bought to populate the garage (0–4) */
   desktops: number;
   sandboxUnlocked: boolean;
@@ -2489,7 +2494,13 @@ export function advanceOneWeek(state: GameState, rate = 1, offline = false): Gam
   let sideOrdersCompleted = state.sideOrdersCompleted ?? 0;
   let sideOrderClients = state.sideOrderClients ?? {};
   if (pendingSideOrder && week > pendingSideOrder.expiresWeek) pendingSideOrder = null;
-  if (activeSideOrder && week >= activeSideOrder.startedWeek + activeSideOrder.weeksNeeded) {
+  if (activeSideOrder) {
+    const prior = activeSideOrder.completedWeeks ?? Math.max(0, state.week - activeSideOrder.startedWeek);
+    const available = new Set(connectedMachines(state.factoryFloor).map(m => m.kind));
+    const working = lineComplete(state.factoryFloor) && activeSideOrder.requiredKinds.every(k => available.has(k));
+    activeSideOrder = { ...activeSideOrder, completedWeeks: Math.min(activeSideOrder.weeksNeeded, prior + (working ? 1 : 0)) };
+  }
+  if (activeSideOrder && (activeSideOrder.completedWeeks ?? 0) >= activeSideOrder.weeksNeeded) {
     const payout = sideOrderPayout(activeSideOrder);
     // Item 3.5 — a tidy, capable line (3.1/3.2) and a returning client both earn a completion bonus
     // ON TOP of the base payout. Pure upside on an already opt-in order, so the sim is unaffected.
@@ -4029,7 +4040,7 @@ function machineOverPropAt(state: GameState, kind: MachineKind, c: number, r: nu
 }
 
 /** Factory Mode Build: buy + place a machine on the floor grid (cash-gated, overlap-checked). */
-export function buyFloorMachine(state: GameState, kind: MachineKind, c: number, r: number): ActionResult {
+function buyFloorMachineImpl(state: GameState, kind: MachineKind, c: number, r: number): ActionResult {
   const def = MACHINE_DEFS[kind];
   if (state.cash < def.cost) return { state, ok: false, reason: `Need ${format(def.cost)} for the ${def.name}.` };
   if (machineOverPropAt(state, kind, c, r)) return { state, ok: false, reason: "A decoration is in the way — move it first." };
@@ -4040,7 +4051,7 @@ export function buyFloorMachine(state: GameState, kind: MachineKind, c: number, 
 }
 
 /** Buy + lay a conveyor tile. Re-aiming an existing tile is free; new tiles cost BELT_COST. */
-export function buyFloorBelt(state: GameState, c: number, r: number, dir: BeltDir): ActionResult {
+function buyFloorBeltImpl(state: GameState, c: number, r: number, dir: BeltDir): ActionResult {
   const existing = state.factoryFloor.belts.some((b) => b.c === c && b.r === r);
   if (!existing && state.cash < BELT_COST) return { state, ok: false, reason: `Belts cost ${format(BELT_COST)} a tile.` };
   if (propCellSet(state.factoryProps).has(`${c},${r}`)) return { state, ok: false, reason: "A decoration is in the way — move it first." };
@@ -4053,7 +4064,7 @@ export function buyFloorBelt(state: GameState, c: number, r: number, dir: BeltDi
  *  continues straight; a single tile uses `fallbackDir`). New tiles cost BELT_COST, re-aiming an
  *  existing tile is free, and cells over a machine / prop / off-grid are skipped. Places greedily and
  *  stops when the budget runs out, so a long drag paints as much as the player can afford. */
-export function paintBeltRun(state: GameState, cells: { c: number; r: number }[], fallbackDir: BeltDir): ActionResult {
+function paintBeltRunImpl(state: GameState, cells: { c: number; r: number }[], fallbackDir: BeltDir): ActionResult {
   if (cells.length === 0) return { state, ok: false, reason: "Nothing to lay." };
   const maxW = floorWidth(state.factoryExpansion);
   const propAt = propCellSet(state.factoryProps);
@@ -4099,7 +4110,7 @@ export function buyFloorExpansion(state: GameState): ActionResult {
 }
 
 /** Buy + place a decorative prop on an empty floor cell (cash-gated, overlap-checked). */
-export function buyFactoryProp(state: GameState, kind: PropKind, c: number, r: number): ActionResult {
+function buyFactoryPropImpl(state: GameState, kind: PropKind, c: number, r: number): ActionResult {
   const def = PROP_DEFS[kind];
   if (state.cash < def.cost) return { state, ok: false, reason: `Need ${format(def.cost)} for the ${def.name}.` };
   const next = propsPlace(state.factoryFloor, state.factoryProps, kind, c, r, `fp-${state.week}-${state.factoryPieceCounter}`, floorWidth(state.factoryExpansion));
@@ -4130,7 +4141,7 @@ export function autoConnectQuote(state: GameState): { cost: Money; tiles: number
  *  wire a fresh Intake→Packer chain around them, so a scattered floor becomes one long straight line.
  *  Charges only the net belt tiles (new at full price, removed at half refund); rearranging machines
  *  is free. Deterministic: the same tidy+route runs on quote and commit, so the price is exact. */
-export function autoConnectLine(state: GameState): ActionResult {
+function autoConnectLineImpl(state: GameState): ActionResult {
   const routed = autoTidyFloor(state.factoryFloor, floorWidth(state.factoryExpansion), propCellSet(state.factoryProps));
   if (!routed) return { state, ok: false, reason: "Place an Intake and a Packer first (and expand if the floor is full)." };
   const cost = autoRouteNet(state.factoryFloor, routed);
@@ -4140,7 +4151,7 @@ export function autoConnectLine(state: GameState): ActionResult {
 
 /** Tune up the machine at (c,r) one level (cash-gated, capped at MACHINE_MAX_LEVEL). Upgrades shave
  *  build time via lineSpeedMult and raise the machine's demolition value. */
-export function upgradeFloorMachine(state: GameState, c: number, r: number): ActionResult {
+function upgradeFloorMachineImpl(state: GameState, c: number, r: number): ActionResult {
   const cost = machineUpgradeCostAt(state.factoryFloor, c, r);
   if (cost == null) return { state, ok: false, reason: "Nothing to upgrade here (or it's already maxed)." };
   if (state.cash < cost) return { state, ok: false, reason: `Need ${format(cost)} to upgrade that machine.` };
@@ -4151,7 +4162,7 @@ export function upgradeFloorMachine(state: GameState, c: number, r: number): Act
 
 /** Relocate a machine to a new cell — the hold-and-drag gesture. Free (rearranging isn't buying);
  *  keeps the machine's id, kind and upgrade level. */
-export function moveFloorMachine(state: GameState, id: string, c: number, r: number): ActionResult {
+function moveFloorMachineImpl(state: GameState, id: string, c: number, r: number): ActionResult {
   const m = state.factoryFloor.machines.find((x) => x.id === id);
   if (m && machineOverPropAt(state, m.kind, c, r)) return { state, ok: false, reason: "A decoration is in the way — move it first." };
   const next = floorMoveMachine(state.factoryFloor, id, c, r, floorWidth(state.factoryExpansion));
@@ -4160,14 +4171,14 @@ export function moveFloorMachine(state: GameState, id: string, c: number, r: num
 }
 
 /** Relocate a decor prop to a new cell — the hold-and-drag gesture. Free. */
-export function moveFactoryProp(state: GameState, id: string, c: number, r: number): ActionResult {
+function moveFactoryPropImpl(state: GameState, id: string, c: number, r: number): ActionResult {
   const next = propsMove(state.factoryFloor, state.factoryProps, id, c, r, floorWidth(state.factoryExpansion));
   if (!next) return { state, ok: false, reason: "Doesn't fit there." };
   return { state: { ...state, factoryProps: next }, ok: true };
 }
 
 /** Clear whatever occupies the cell — a prop first, else a machine/belt; demolition pays back half. */
-export function clearFloorCell(state: GameState, c: number, r: number): GameState {
+function clearFloorCellImpl(state: GameState, c: number, r: number): GameState {
   const propBack = propRefund(state.factoryProps, c, r);
   if (propBack > 0) {
     return { ...state, factoryProps: propsRemoveAt(state.factoryProps, c, r), cash: add(state.cash, propBack) };
@@ -4714,14 +4725,14 @@ export function acceptSideOrder(state: GameState): ActionResult {
   if (state.week > offer.expiresWeek) return { state, ok: false, reason: "The offer has expired." };
   if (state.activeSideOrder) return { state, ok: false, reason: "The line is already running a commission." };
   if (!lineComplete(state.factoryFloor)) return { state, ok: false, reason: "Wire Intake → Packer first — the client needs a working line." };
-  const missing = sideOrderMissingKinds(state.factoryFloor.machines.map((m) => m.kind), offer);
+  const missing = sideOrderMissingKinds(connectedMachines(state.factoryFloor).map((m) => m.kind), offer);
   if (missing.length > 0) return { state, ok: false, reason: `Needs a ${MACHINE_DEFS[missing[0]].name} on the floor.` };
   const { expiresWeek: _drop, ...rest } = offer;
   void _drop;
   const feed = [...state.feed];
   feed.push(feedItem(state.week, `Signed ${offer.clientName}'s order: ${offer.units.toLocaleString()} units in ${offer.weeksNeeded} weeks, ${format(sideOrderPayout(offer))} on delivery.`, "accent"));
   return {
-    state: { ...state, pendingSideOrder: null, activeSideOrder: { ...rest, startedWeek: state.week }, feed: trimFeed(feed) },
+    state: { ...state, pendingSideOrder: null, activeSideOrder: { ...rest, startedWeek: state.week, completedWeeks: 0 }, feed: trimFeed(feed) },
     ok: true,
   };
 }
@@ -5346,7 +5357,7 @@ export function placeFurniture(state: GameState, type: FurnitureId, c: number, r
   const iid = `f${state.furnitureCounter}`;
   const layout = addFurniture(state.layout, iid, type, c, r, rot, state.facilityTier);
   if (layout === state.layout) return state; // rejected (overlap / out of bounds) — no charge
-  return { ...state, cash: sub(state.cash, cost), layout, furnitureCounter: state.furnitureCounter + 1 };
+  return { ...state, cash: sub(state.cash, cost), officeEditCash: (state.officeEditCash ?? 0) - cost, layout, furnitureCounter: state.furnitureCounter + 1 };
 }
 export function moveFurniture(state: GameState, iid: string, c: number, r: number): GameState {
   const layout = moveFurnitureOp(state.layout, iid, c, r, state.facilityTier);
@@ -5362,7 +5373,7 @@ export function removeFurniture(state: GameState, iid: string): GameState {
   const layout = removeFurnitureOp(state.layout, iid);
   if (layout === state.layout) return state; // nothing removed
   const refund = it ? dollars(Math.round(furnitureCost(it.type) * BALANCE.shop.resaleRate)) : ZERO;
-  return { ...state, cash: add(state.cash, refund) as Money, layout };
+  return { ...state, cash: add(state.cash, refund) as Money, officeEditCash: (state.officeEditCash ?? 0) + refund, layout };
 }
 export function resetFurniture(state: GameState): GameState {
   return { ...state, layout: defaultLayout() };
@@ -5371,23 +5382,21 @@ export function resetFurniture(state: GameState): GameState {
 export function setLayout(state: GameState, layout: PlacedItem[]): GameState {
   return { ...state, layout };
 }
-/** Restore a Decorate undo snapshot — both the layout AND the cash, so undoing a purchase is a
- *  true reversal (cash back in full; selling is the deliberate 50%-refund path instead). */
-export function applyLayoutSnapshot(state: GameState, snap: { layout: PlacedItem[]; cash: Money }): GameState {
-  return { ...state, layout: snap.layout, cash: snap.cash };
+/** Reverse only office edits; preserve unrelated spending/income and refuse an unaffordable reversal. */
+export function applyLayoutSnapshot(state: GameState, snap: { layout: PlacedItem[]; editCash: number }): GameState {
+  const cash = state.cash + snap.editCash - (state.officeEditCash ?? 0);
+  if (!Number.isSafeInteger(cash) || cash < 0) return state;
+  return { ...state, layout: snap.layout, cash: cents(cash), officeEditCash: snap.editCash };
 }
-/** Restore a Factory-floor undo snapshot — the machine/belt layout, the decor props AND the cash, so
- *  undoing a misplaced $18K arm is a true reversal. The exact counterpart of applyLayoutSnapshot for
- *  the office: the floor builder had no undo at all, while the office refunded in full.
- *
- *  Deliberately does NOT touch `factoryExpansion`: buying a bay is a separate armed-confirm purchase
- *  that widens the grid, and rolling it back under a layout could leave machines outside the bounds
- *  the snapshot was taken in. */
+/** Reverse only floor-edit transactions since this snapshot. Income, expansion and other
+ * purchases are outside this ledger. Refuse an unaffordable reversal without losing state. */
 export function applyFactorySnapshot(
   state: GameState,
-  snap: { floor: FloorPlan; props: PlacedProp[]; cash: Money },
+  snap: { floor: FloorPlan; props: PlacedProp[]; editCash: number },
 ): GameState {
-  return { ...state, factoryFloor: snap.floor, factoryProps: snap.props, cash: snap.cash };
+  const cash = state.cash + snap.editCash - (state.factoryEditCash ?? 0);
+  if (!Number.isSafeInteger(cash) || cash < 0) return state;
+  return { ...state, factoryFloor: snap.floor, factoryProps: snap.props, cash: cents(cash), factoryEditCash: snap.editCash };
 }
 
 /** Buy another copy of a placed item, dropped into the nearest free cell (charges its cost). */
@@ -5400,7 +5409,7 @@ export function duplicateFurniture(state: GameState, iid: string): GameState {
     const c = it.c + dc, r = it.r + dr;
     if (canPlace(state.layout, it.type, c, r, it.rot, undefined, state.facilityTier)) {
       const copy: PlacedItem = { ...it, iid: `f${state.furnitureCounter}`, c, r };
-      return { ...state, cash: sub(state.cash, cost), layout: [...state.layout, copy], furnitureCounter: state.furnitureCounter + 1 };
+      return { ...state, cash: sub(state.cash, cost), officeEditCash: (state.officeEditCash ?? 0) - cost, layout: [...state.layout, copy], furnitureCounter: state.furnitureCounter + 1 };
     }
   }
   return state;
@@ -7130,3 +7139,32 @@ export function chooseMandate(state: GameState, id: string | null): GameState {
 // guards still document which systems are live-play-only.
 
 export { dollars };
+
+export const buyFloorMachine = recordFactoryEdit(buyFloorMachineImpl);
+
+export const buyFloorBelt = recordFactoryEdit(buyFloorBeltImpl);
+
+export const paintBeltRun = recordFactoryEdit(paintBeltRunImpl);
+
+export const buyFactoryProp = recordFactoryEdit(buyFactoryPropImpl);
+
+export const autoConnectLine = recordFactoryEdit(autoConnectLineImpl);
+
+export const upgradeFloorMachine = recordFactoryEdit(upgradeFloorMachineImpl);
+
+export const moveFloorMachine = recordFactoryEdit(moveFloorMachineImpl);
+
+export const moveFactoryProp = recordFactoryEdit(moveFactoryPropImpl);
+
+function recordFactoryEdit<A extends unknown[]>(action: (state: GameState, ...args: A) => ActionResult) {
+  return (state: GameState, ...args: A): ActionResult => {
+    const result = action(state, ...args);
+    if (!result.ok) return result;
+    return { ...result, state: { ...result.state, factoryEditCash: (state.factoryEditCash ?? 0) + result.state.cash - state.cash } };
+  };
+}
+
+export function clearFloorCell(state: GameState, c: number, r: number): GameState {
+  const next = clearFloorCellImpl(state, c, r);
+  return next === state ? state : { ...next, factoryEditCash: (state.factoryEditCash ?? 0) + next.cash - state.cash };
+}

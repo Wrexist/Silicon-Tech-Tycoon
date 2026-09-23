@@ -8,48 +8,43 @@ import {
   newGame, placeFurniture, hireStaff, assignStaff, startBuild, launchReady,
   advanceOneWeek, buildWeeksFor, upgradeFacility, recommendedRun, productStats,
 } from "../src/state/gameState.ts";
-import { demoFloor, floorWidth } from "../src/engine/factoryFloor.ts";
+import { demoFloor, floorWidth, canPlaceMachine, canPlaceBelt } from "../src/engine/factoryFloor.ts";
 import { canPlaceProp, propCells } from "../src/engine/factoryProps.ts";
 import { generateSideOrder } from "../src/engine/sideOrders.ts";
 import { priceGuidance } from "../src/engine/market.ts";
 import { overallScore } from "../src/engine/product.ts";
 import { dollars, toDollars } from "../src/engine/money.ts";
+import { arrangeOffice } from "../src/garage3d/officeArrangement.ts";
 
 let s = { ...newGame(7), designBudgetEnabled: false }; // screenshot harness: raw builds, not the design-budget cap (feature #1)
 s = { ...s, onboarded: true, tutorialDone: true, factoryFloor: demoFloor(), companyName: "Silicon", cash: dollars(80_000_000), era: 2,
   reputation: 78, researched: { chip: 5, display: 5, battery: 4, materials: 4, software: 4, camera: 4 } };
 for (let i = 0; i < 3; i++) { const n = upgradeFacility(s); if (n !== s) s = n; }
 
-// Office: a FURNISHED Campus — the facility is tier 3, so the office grid is a roomy 13×13. Three
-// open-plan desk bands (every seat gets its chair from the seat planner, so the desks alone are the
-// seating), a proper lounge (round rug + sectional + coffee table + side table + lamp), a meeting
-// corner (table + chairs), and greenery / storage / branding along the walls. Walkways stay clear by
-// construction: desk bands sit on rows 1/4/7 and everything else hugs the perimeter or the front
-// half. A fresh layout (not the starter desk) gives full control; placeFurniture no-ops on
-// collision/OOB, so the log below reports anything that did NOT fit.
+// Office: the SMART ARRANGER lays the Campus out — the same pure call the live scene makes for its
+// game-owned dressing, with an explicit tier + headcount, so the showcase can never drift from what
+// the game actually places. The 13×13 grid gets three work banks (headcount 12), a lounge anchored
+// by its rug, a storage/research run against the right wall and one culture accent; every piece
+// skips rather than overlaps, and the room shell's fixtures (violated by hand until now) are
+// reserved cells inside the arranger. The saved layout is written through placeFurniture so every
+// piece is owned exactly like a player's, and the scene then skips its dressing for those zones.
+const upgrades = s.upgrades ?? {};
+const arrangement = arrangeOffice({
+  facilityTier: s.facilityTier,
+  headcount: 12,
+  dark: true, // the capture harness pins the dark theme, whose tool chest shifts the storage run
+  amenities: upgrades.amenities ?? 0,
+  designSuite: (upgrades.designSuite ?? 0) >= 1,
+  testLab: (upgrades.testLab ?? 0) >= 1,
+  era: s.era,
+  seed: s.seed,
+  week: s.week,
+});
 s = { ...s, layout: [] };
-const layout = [
-  // ── Engineering: three desk bands, one seat per employee. Row 1 sits off the back wall so every
-  //    occupant faces the camera; rows 4 and 7 leave walkways at 3 and 6. ──
-  ["executiveDesk", 0, 1], ["dualDesk", 4, 1], ["dualDesk", 7, 1], ["dualDesk", 10, 1],
-  ["deskL", 0, 4], ["dualDesk", 3, 4], ["dualDesk", 6, 4], ["dualDesk", 9, 4], ["desk", 11, 4],
-  ["dualDesk", 1, 7], ["dualDesk", 4, 7], ["dualDesk", 7, 7], ["desk", 10, 7],
-  // ── Lounge, front-left: a sectional on a round rug, a coffee table, a side table, a reading
-  //    armchair and a floor lamp — a real "zone", not one lonely sofa. ──
-  ["rugRound", 0, 10], ["sofaL", 0, 10], ["coffeeTable", 2, 10], ["armchair", 2, 11],
-  ["sideTable", 4, 10], ["floorLamp", 4, 11],
-  // ── Meeting corner, front-centre-right: table with chairs on the camera side. ──
-  ["meetingTable", 7, 10], ["armchair", 7, 9], ["armchair", 9, 9],
-  // ── Branding + storage along the walls, greenery in the corners. ──
-  ["neonSign", 6, 0], ["ideaWall", 0, 8], ["bookshelf", 0, 9],
-  ["shelfUnit", 12, 0], ["bookshelf", 12, 1], ["plantTall", 12, 2],
-  ["plantTall", 12, 8], ["plantTall", 12, 11], ["plantTall", 6, 12], ["plantPot", 12, 12],
-  ["cabinet", 0, 12], ["plantPot", 2, 12],
-];
 let placed = 0;
 const skipped = [];
-for (const [type, c, r] of layout) { const n = placeFurniture(s, type, c, r, 0); if (n !== s) { s = n; placed++; } else skipped.push(`${type}@${c},${r}`); }
-console.error(`office layout: placed ${placed}/${layout.length}${skipped.length ? ` — SKIPPED (collision/OOB): ${skipped.join(", ")}` : ""}`);
+for (const piece of arrangement.pieces) { const n = placeFurniture(s, piece.type, piece.c, piece.r, piece.rot); if (n !== s) { s = n; placed++; } else skipped.push(`${piece.type}@${piece.c},${piece.r}:${piece.rot}`); }
+console.error(`office arrangement: ${arrangement.seats} work seats + ${arrangement.dressing.length} dressing pieces; placed ${placed}/${arrangement.pieces.length}${skipped.length ? ` — SKIPPED (collision/OOB): ${skipped.join(", ")}` : ""}`);
 s = { ...s, desktops: 0 }; // no standalone pods — every employee has a real desk in the open plan
 
 const hires = [
@@ -125,9 +120,17 @@ const extraMachines = [
   ["mill", 13, 0], ["screen", 16, 0],   // back row → east bays
   ["press", 13, 6], ["arm", 16, 6],      // front row → east bays
 ];
-extraMachines.forEach(([kind, c, r], i) => floor.machines.push({ id: `st-x${i}`, kind, c, r, level: 3 }));
+extraMachines.forEach(([kind, c, r], i) => {
+  // This is a crowded diagnostic fixture, but it must obey the real placement rules.
+  let cell = canPlaceMachine(floor, kind, c, r, maxW) ? { c, r } : null;
+  for (let row = 0; !cell && row < 10; row++) for (let col = 0; col < maxW; col++) {
+    if (canPlaceMachine(floor, kind, col, row, maxW)) { cell = { c: col, r: row }; break; }
+  }
+  if (!cell) throw new Error(`No legal showcase cell for ${kind}`);
+  floor.machines.push({ id: `st-x${i}`, kind, ...cell, level: 3 });
+});
 // A west→east return belt on the free row-5 aisle, spanning the width beneath the middle row.
-for (let c = 1; c <= 18; c++) floor.belts.push({ c, r: 5, dir: "w" });
+for (let c = 1; c <= 18; c++) if (canPlaceBelt(floor, c, 5, maxW) && !floor.belts.some(b => b.c === c && b.r === 5)) floor.belts.push({ c, r: 5, dir: "w" });
 // Decorate the frontmost row (row 9 is entirely clear) + the aisle ends; each candidate is validated
 // against the live floor (skips anything overlapping a machine, belt, or another prop).
 let props = [];
@@ -144,7 +147,7 @@ s = {
   factoryFloor: floor,
   factoryProps: props,
   factoryExpansion: EXP,
-  factoryDecor: { wall: 8, floor: 7 }, // Ocean walls + Marble floor — a premium, high-tech finish
+  factoryDecor: { wall: 2, floor: 4 }, // Ocean walls + Marble floor — a premium, high-tech finish
   factoryPieceCounter: 400,
   reputation: Math.max(s.reputation, 80),
   fans: Math.max(s.fans, 240_000),

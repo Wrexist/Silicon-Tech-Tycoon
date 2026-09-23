@@ -1,0 +1,65 @@
+name: Release gates
+on:
+  workflow_call:
+    inputs:
+      marketing_version:
+        type: string
+        required: false
+        default: ""
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+          cache: npm
+      - run: npm ci
+      - name: Version agreement
+        run: node scripts/verify-release-version.mjs
+        env:
+          MARKETING_VERSION: ${{ inputs.marketing_version }}
+      - run: npm run typecheck
+      - run: npm test -- --maxWorkers=2
+      - run: node appstore/localizations/validate.mjs --all
+      - run: npm run build
+      - run: npx playwright-core install --with-deps chromium
+      - name: Resolve installed browser
+        run: |
+          node --input-type=module -e 'import { chromium } from "playwright-core"; import { appendFileSync } from "node:fs"; appendFileSync(process.env.GITHUB_ENV, "SHOTS_CHROME=" + chromium.executablePath() + "\n");'
+      - name: Fresh default interface
+        run: node scripts/verify-onboarding-ui2.mjs | tee onboarding.log
+      - name: Save recovery interaction
+        run: node scripts/verify-save-recovery.mjs | tee save-recovery.log
+      - name: Factory ownership and Undo
+        run: node scripts/verify-factory-integrity.mjs | tee factory-integrity.log
+      - name: Office fallback editing and ownership
+        run: node scripts/verify-office-integrity.mjs dark --fallback | tee office-integrity.log
+      - name: Tablet editor navigation
+        run: node scripts/verify-office-integrity.mjs dark --fallback --width=1032 | tee office-tablet.log
+      - run: npm run shots:stage:showcase
+      - run: npm run audit:screens | tee screen-audit.log
+      - name: Preserve browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-gates-${{ github.sha }}
+          path: |
+            artifacts/release-prep/
+            save-recovery.log
+            factory-integrity.log
+            office-integrity.log
+            office-tablet.log
+            artifacts/office-factory-followup/
+            artifacts/factory-fixes/images/fallback-undo.png
+            onboarding.log
+            screen-audit.log
+            .audit-shots/
+            .shots/
+          if-no-files-found: ignore

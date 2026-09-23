@@ -113,6 +113,15 @@
   --content-max: 540px;         /* the phone column, matching #root today */
   --shell-max: calc(var(--content-max) + var(--rail-w) + var(--sp-24)); /* rail + column + gutter */
   --content-max-wide: 1200px;
+  /* Fixed bottom chrome — ONE band for persistent controls, and the toast lane stacked ABOVE it.
+     The floating SpeedDial rests `--bottom-chrome-bottom` above the safe area and grows to
+     `--bottom-chrome-controls` (48px button + 2×6px padding). The scroll spacer reserves the whole
+     band; toasts start above it, so a transient line can never cover Pause / speed / Skip — the
+     2026-09 overlay collision this family exists to prevent. */
+  --bottom-chrome-bottom: 72px;
+  --bottom-chrome-controls: 60px;
+  --bottom-chrome-gap: 20px;
+  --bottom-chrome: calc(var(--bottom-chrome-bottom) + var(--bottom-chrome-controls) + var(--bottom-chrome-gap));
 
   /* Radius */
   --r-button: 12px;

@@ -185,13 +185,17 @@ export interface BasicMatProps {
   toneMapped?: boolean;
   side?: THREE.Side;
   wireframe?: boolean;
+  /** Blend mode — additive for light pools/halos, which must brighten what is behind them. */
+  blending?: THREE.Blending;
+  /** The falloff/decal texture (light pools, sign halo). Keyed by texture id. */
+  map?: THREE.Texture | null;
 }
 
 const basicCache = new Map<string, THREE.MeshBasicMaterial>();
 
 /** A MeshBasicMaterial from the same pool discipline as sharedStandard — every varying prop keys. */
 export function sharedBasic(p: BasicMatProps): THREE.MeshBasicMaterial {
-  const k = `${p.color ?? ""}|${p.transparent ? 1 : 0}|${p.opacity ?? ""}|${p.depthWrite == null ? "" : p.depthWrite ? 1 : 0}|${p.toneMapped == null ? "" : p.toneMapped ? 1 : 0}|${p.side ?? ""}|${p.wireframe ? 1 : 0}`;
+  const k = `${p.color ?? ""}|${p.transparent ? 1 : 0}|${p.opacity ?? ""}|${p.depthWrite == null ? "" : p.depthWrite ? 1 : 0}|${p.toneMapped == null ? "" : p.toneMapped ? 1 : 0}|${p.side ?? ""}|${p.wireframe ? 1 : 0}|${p.blending ?? ""}|${p.map?.uuid ?? ""}`;
   let m = basicCache.get(k);
   if (!m) {
     m = new THREE.MeshBasicMaterial(defined({
@@ -202,6 +206,8 @@ export function sharedBasic(p: BasicMatProps): THREE.MeshBasicMaterial {
       toneMapped: p.toneMapped,
       side: p.side,
       wireframe: p.wireframe,
+      blending: p.blending,
+      map: p.map,
     }));
     basicCache.set(k, m);
   }

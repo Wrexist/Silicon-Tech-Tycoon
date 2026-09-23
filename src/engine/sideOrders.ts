@@ -25,6 +25,8 @@ export interface SideOrderOffer {
 
 export interface ActiveSideOrder extends Omit<SideOrderOffer, "expiresWeek"> {
   startedWeek: number;
+  /** Productive weeks only. Missing on legacy orders, which retain accrued calendar progress. */
+  completedWeeks?: number;
 }
 
 /** Total payout of an offer/active order. */

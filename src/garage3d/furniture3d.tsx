@@ -16,15 +16,17 @@ import { sharedBasic, sharedBox, sharedCapsule, sharedCircle, sharedCone, shared
 import type { FurnitureId } from "../engine/furniture.ts";
 import { GRID, FURNITURE } from "../engine/furniture.ts";
 import { modelFor } from "./furnitureModels.ts";
-import type { RoomPalette } from "./palette.ts";
+import { CATALOG, type RoomPalette } from "./palette.ts";
 
 const C = GRID.cell; // ≈0.86m per cell
 
 // fabric / accent tones (theme-stable)
-const FABRIC = "#5b6573";
-const FABRIC_2 = "#6f7a89";
-const WOOD = "#9c6b43";
-const BOOKS = ["#3b82f6", "#1eb877", "#f59e0b", "#ef4444", "#8b5cf6"];
+const FABRIC = CATALOG.fabric;
+const FABRIC_2 = CATALOG.fabric2;
+const WOOD = CATALOG.woodMid;
+// Book spines are dressing, not a colour chart: the neutral/warm families only. `aluminium` (near
+// white) used to sit in this list and made every open shelf the highest-contrast thing on the wall.
+const BOOKS = [CATALOG.graphite, CATALOG.wood, CATALOG.fabric, CATALOG.warmGrey, CATALOG.slate];
 
 /** What sits ON a desk: the monitor, a keyboard and a mug. The Kenney desk models are bare boards —
  *  they ship with no computer at all, which is why the most common desk in the office read as an
@@ -39,7 +41,7 @@ function DeskTopKit({ p, w }: { p: RoomPalette; w: number }) {
         <Monitor p={p} w={0.6} h={0.36} y={0.32} />
       </group>
       <mesh position={[-0.12, 0.012, 0.13]} rotation-x={-0.04} geometry={sharedBox(0.42, 0.016, 0.15)} material={sharedStandard({ color: "#2a2f37", roughness: 0.6 })} />
-      <mesh position={[Math.min(0.5, half - 0.14), 0.045, 0.02]} geometry={sharedCylinder(0.045, 0.04, 0.1, 12)} material={sharedStandard({ color: "#c9743a", roughness: 0.7 })} />
+      <mesh position={[Math.min(0.5, half - 0.14), 0.045, 0.02]} geometry={sharedCylinder(0.045, 0.04, 0.1, 12)} material={sharedStandard({ color: CATALOG.silver, roughness: 0.7 })} />
     </group>
   );
 }
@@ -59,7 +61,7 @@ function DeskTopKit({ p, w }: { p: RoomPalette; w: number }) {
  *
  *  The panel itself is a thin bezelled slab tilted back ~8°, on a slim neck and a weighted base —
  *  the silhouette of a real monitor rather than a slab on a stick. */
-function Monitor({
+export function Monitor({
   p, w = 0.66, h = 0.38, y = 0.4, tilt = 0.14, pool = true,
 }: { p: RoomPalette; w?: number; h?: number; y?: number; tilt?: number; pool?: boolean }) {
   const bezel = 0.028;
@@ -111,7 +113,7 @@ function Desk({ p }: { p: RoomPalette }) {
       <mesh position={[-0.14, 0.785, 0.12]} geometry={sharedBox(0.46, 0.03, 0.17)} material={sharedStandard({ color: "#2a2f37", roughness: 0.6 })} />
       <mesh position={[0.2, 0.785, 0.14]} geometry={sharedBox(0.08, 0.03, 0.11)} material={sharedStandard({ color: "#2a2f37", roughness: 0.6 })} />
       {/* a coffee mug for life */}
-      <mesh position={[-0.44, 0.83, 0.0]} geometry={sharedCylinder(0.05, 0.045, 0.11, 12)} material={sharedStandard({ color: "#c9743a", roughness: 0.7 })} />
+      <mesh position={[-0.44, 0.83, 0.0]} geometry={sharedCylinder(0.05, 0.045, 0.11, 12)} material={sharedStandard({ color: CATALOG.silver, roughness: 0.7 })} />
     </group>
   );
 }
@@ -237,7 +239,7 @@ function Lockers({ p }: { p: RoomPalette }) {
     <group>
       {[-0.2, 0.2].map((x, i) => (
         <group key={i} position={[x, 0, 0]}>
-          <mesh position={[0, 0.85, 0]} geometry={sharedRounded(0.38, 1.7, 0.5, 4, 0.02)} material={sharedStandard({ color: i ? "#3f6f9c" : "#4b7aa6", roughness: 0.5, metalness: 0.2 })} />
+          <mesh position={[0, 0.85, 0]} geometry={sharedRounded(0.38, 1.7, 0.5, 4, 0.02)} material={sharedStandard({ color: i ? CATALOG.slate : CATALOG.steel, roughness: 0.5, metalness: 0.2 })} />
           <mesh position={[0.12, 1.0, 0.26]} geometry={sharedBox(0.02, 0.1, 0.02)} material={sharedStandard({ color: p.metalDark, metalness: 0.6 })} />
           {[0.6, 1.2].map((y, j) => <mesh key={j} position={[0, y, 0.255]} geometry={sharedPlane(0.3, 0.02)} material={sharedStandard({ color: p.metalDark })} />)}
         </group>
@@ -291,7 +293,7 @@ function FloorLamp({ p }: { p: RoomPalette }) {
       <mesh position={[0, 0.03, 0]} geometry={sharedCylinder(0.16, 0.18, 0.06, 16)} material={sharedStandard({ color: p.metalDark, metalness: 0.5 })} />
       <mesh position={[0, 0.8, 0]} geometry={sharedCylinder(0.02, 0.02, 1.6, 8)} material={sharedStandard({ color: p.metalDark, metalness: 0.5 })} />
       <mesh position={[0, 1.62, 0]} geometry={sharedCone(0.22, 0.26, 18, 1, true)} material={sharedStandard({ color: p.lamp, emissive: p.lamp, emissiveIntensity: 0.5, side: 2 })} />
-      <mesh position={[0, 1.55, 0]} geometry={sharedSphere(0.08, 10, 10)} material={sharedStandard({ color: "#fff2cc", emissive: "#fff2cc", emissiveIntensity: 1.4, toneMapped: false })} />
+      <mesh position={[0, 1.55, 0]} geometry={sharedSphere(0.08, 10, 10)} material={sharedStandard({ color: CATALOG.glow, emissive: CATALOG.glow, emissiveIntensity: 1.4, toneMapped: false })} />
     </group>
   );
 }
@@ -316,8 +318,8 @@ function Easel({ p }: { p: RoomPalette }) {
       <group position={[0, 1.0, 0.05]} rotation-x={-0.38}>
         <mesh position={[0, 0, 0]} geometry={sharedRounded(0.8, 0.62, 0.04, 4, 0.02)} material={sharedStandard({ color: p.metal, metalness: 0.3 })} />
         <mesh position={[0, 0, 0.025]} geometry={sharedPlane(0.72, 0.54)} material={sharedStandard({ color: p.board })} />
-        <mesh position={[-0.05, 0.08, 0.03]} geometry={sharedPlane(0.5, 0.01)} material={sharedBasic({ color: "#3b82f6" })} />
-        <mesh position={[0.1, -0.08, 0.03]} rotation-z={0.1} geometry={sharedPlane(0.4, 0.01)} material={sharedBasic({ color: "#1eb877" })} />
+        <mesh position={[-0.05, 0.08, 0.03]} geometry={sharedPlane(0.5, 0.01)} material={sharedBasic({ color: CATALOG.slate })} />
+        <mesh position={[0.1, -0.08, 0.03]} rotation-z={0.1} geometry={sharedPlane(0.4, 0.01)} material={sharedBasic({ color: CATALOG.warmGrey })} />
       </group>
     </group>
   );
@@ -326,11 +328,12 @@ function Easel({ p }: { p: RoomPalette }) {
 function Arcade({ p }: { p: RoomPalette }) {
   return (
     <group>
-      <mesh position={[0, 0.75, 0]} geometry={sharedRounded(0.5, 1.5, 0.5, 4, 0.04)} material={sharedStandard({ color: "#5b2bd0", roughness: 0.5 })} />
-      <mesh position={[0, 1.12, 0.22]} rotation-x={-0.25} geometry={sharedPlane(0.4, 0.34)} material={sharedStandard({ color: p.screen, emissive: p.screen, emissiveIntensity: 1.2, toneMapped: false })} />
-      <mesh position={[0, 0.82, 0.26]} rotation-x={0.5} geometry={sharedBox(0.42, 0.18, 0.04)} material={sharedStandard({ color: "#2a1d40" })} />
-      <mesh position={[-0.1, 0.86, 0.27]} geometry={sharedSphere(0.03, 8, 8)} material={sharedStandard({ color: "#ef4444", emissive: "#ef4444", emissiveIntensity: 0.8, toneMapped: false })} />
-      <mesh position={[0.08, 0.86, 0.27]} geometry={sharedSphere(0.03, 8, 8)} material={sharedStandard({ color: "#f59e0b", emissive: "#f59e0b", emissiveIntensity: 0.8, toneMapped: false })} />
+      <mesh position={[0, 0.75, 0]} geometry={sharedRounded(0.5, 1.5, 0.5, 4, 0.04)} material={sharedStandard({ color: CATALOG.slate, roughness: 0.72 })} />
+      {/* The tilted screen must clear the cabinet front across its entire height. */}
+      <mesh position={[0, 1.12, 0.30]} rotation-x={-0.25} geometry={sharedPlane(0.4, 0.34)} material={sharedStandard({ color: p.screen, emissive: p.screen, emissiveIntensity: 1.2, toneMapped: false })} />
+      <mesh position={[0, 0.82, 0.26]} rotation-x={0.5} geometry={sharedBox(0.42, 0.18, 0.04)} material={sharedStandard({ color: CATALOG.ink })} />
+      <mesh position={[-0.1, 0.86, 0.27]} geometry={sharedSphere(0.03, 8, 8)} material={sharedStandard({ color: CATALOG.ledAlert, emissive: CATALOG.ledAlert, emissiveIntensity: 0.8, toneMapped: false })} />
+      <mesh position={[0.08, 0.86, 0.27]} geometry={sharedSphere(0.03, 8, 8)} material={sharedStandard({ color: CATALOG.ledWarn, emissive: CATALOG.ledWarn, emissiveIntensity: 0.8, toneMapped: false })} />
       <mesh position={[0, 1.46, 0]} geometry={sharedBox(0.5, 0.12, 0.5)} material={sharedStandard({ color: p.screen, emissive: p.screen, emissiveIntensity: 0.5 })} />
     </group>
   );
@@ -340,7 +343,7 @@ function PingPong({ p }: { p: RoomPalette }) {
   const w = 3 * C, d = 2 * C;
   return (
     <group>
-      <mesh position={[0, 0.74, 0]} geometry={sharedRounded(w - 0.3, 0.05, d - 0.4, 4, 0.01)} material={sharedStandard({ color: "#1c6b4a", roughness: 0.7 })} />
+      <mesh position={[0, 0.74, 0]} geometry={sharedRounded(w - 0.3, 0.05, d - 0.4, 4, 0.01)} material={sharedStandard({ color: CATALOG.fabric, roughness: 0.7 })} />
       <mesh position={[0, 0.77, 0]} geometry={sharedBox(w - 0.3, 0.005, 0.01)} material={sharedBasic({ color: "#ffffff" })} />
       <mesh position={[0, 0.86, 0]} geometry={sharedBox(0.02, 0.18, d - 0.4)} material={sharedStandard({ color: "#ffffff", transparent: true, opacity: 0.7 })} />
       {([[-w / 2 + 0.2, -d / 2 + 0.2], [w / 2 - 0.2, -d / 2 + 0.2], [-w / 2 + 0.2, d / 2 - 0.2], [w / 2 - 0.2, d / 2 - 0.2]] as const).map((l, i) => (
@@ -354,9 +357,9 @@ function WaterCooler(_: { p: RoomPalette }) {
   return (
     <group>
       <mesh position={[0, 0.45, 0]} geometry={sharedRounded(0.4, 0.9, 0.4, 4, 0.03)} material={sharedStandard({ color: "#e9edf2", roughness: 0.4 })} />
-      <mesh position={[0, 1.12, 0]} geometry={sharedCylinder(0.16, 0.18, 0.4, 14)} material={sharedStandard({ color: "#7fb6f0", transparent: true, opacity: 0.5, roughness: 0.1 })} />
-      <mesh position={[0, 0.55, 0.21]} geometry={sharedBox(0.12, 0.08, 0.04)} material={sharedStandard({ color: "#3b82f6" })} />
-      <mesh position={[0, 0.62, 0.21]} geometry={sharedBox(0.12, 0.05, 0.04)} material={sharedStandard({ color: "#ef4444" })} />
+      <mesh position={[0, 1.12, 0]} geometry={sharedCylinder(0.16, 0.18, 0.4, 14)} material={sharedStandard({ color: CATALOG.screenDim, transparent: true, opacity: 0.5, roughness: 0.1 })} />
+      <mesh position={[0, 0.55, 0.21]} geometry={sharedBox(0.12, 0.08, 0.04)} material={sharedStandard({ color: CATALOG.steel })} />
+      <mesh position={[0, 0.62, 0.21]} geometry={sharedBox(0.12, 0.05, 0.04)} material={sharedStandard({ color: CATALOG.ledAlert })} />
     </group>
   );
 }
@@ -364,12 +367,25 @@ function WaterCooler(_: { p: RoomPalette }) {
 function ServerRack({ p }: { p: RoomPalette }) {
   return (
     <group>
-      <mesh position={[0, 0.85, 0]} geometry={sharedRounded(0.5, 1.7, 0.55, 4, 0.02)} material={sharedStandard({ color: "#1a1d23", roughness: 0.5, metalness: 0.3 })} />
+      {/* Painted graphite housing: retain a lit side face under the existing studio lighting.
+          The darker front bay and cap separate the cabinet's volume at phone size. */}
+      <mesh position={[0, 0.86, 0]} geometry={sharedRounded(0.5, 1.62, 0.55, 4, 0.02)} material={sharedStandard({ color: CATALOG.slate, roughness: 0.72, metalness: 0.02 })} />
+      {/* Plinth: grounds the rack with a shadow line instead of letting the base melt into the slab. */}
+      <mesh position={[0, 0.035, 0]} geometry={sharedBox(0.54, 0.07, 0.59)} material={sharedStandard({ color: CATALOG.ink, roughness: 0.5, metalness: 0.2 })} />
+      {/* Top cap: a distinct lit top face is what makes the silhouette read from the iso camera. */}
+      <mesh position={[0, 1.7, 0]} geometry={sharedBox(0.52, 0.05, 0.57)} material={sharedStandard({ color: CATALOG.slate, roughness: 0.42, metalness: 0.3 })} />
+      {/* Recessed front bay + two corner rails: different front / side treatment, and crisp vertical
+          edges that survive phone-size rendering (the bay's dark face sits between the rails). */}
+      <mesh position={[0, 0.88, 0.257]} geometry={sharedBox(0.42, 1.46, 0.03)} material={sharedStandard({ color: CATALOG.charcoal, roughness: 0.7 })} />
+      {[-0.222, 0.222].map((x, i) => (
+        <mesh key={i} position={[x, 0.86, 0.283]} geometry={sharedBox(0.036, 1.5, 0.036)} material={sharedStandard({ color: CATALOG.slate, roughness: 0.45, metalness: 0.28 })} />
+      ))}
+      {/* One status LED per unit bay (7 total, down from 14 sub-pixel dots) — a readable status column,
+          not a light show. Alternating screen blue / ok green keeps the tech accent restrained. */}
       {Array.from({ length: 7 }).map((_, i) => (
-        <group key={i} position={[0, 0.3 + i * 0.2, 0.28]}>
-          <mesh geometry={sharedBox(0.42, 0.16, 0.02)} material={sharedStandard({ color: "#2a2f37" })} />
-          <mesh position={[-0.15, 0, 0.02]} geometry={sharedSphere(0.018, 6, 6)} material={sharedStandard({ color: i % 2 ? "#10b981" : p.screen, emissive: i % 2 ? "#10b981" : p.screen, emissiveIntensity: 1.1, toneMapped: false })} />
-          <mesh position={[-0.1, 0, 0.02]} geometry={sharedSphere(0.018, 6, 6)} material={sharedStandard({ color: "#f59e0b", emissive: "#f59e0b", emissiveIntensity: 0.9, toneMapped: false })} />
+        <group key={i} position={[0, 0.31 + i * 0.205, 0.276]}>
+          <mesh geometry={sharedBox(0.38, 0.13, 0.018)} material={sharedStandard({ color: CATALOG.ink, roughness: 0.6 })} />
+          <mesh position={[-0.155, 0, 0.014]} geometry={sharedSphere(0.023, 8, 8)} material={sharedStandard({ color: i % 2 ? CATALOG.ledOk : p.screen, emissive: i % 2 ? CATALOG.ledOk : p.screen, emissiveIntensity: i % 2 ? 0.9 : 1.1, toneMapped: false })} />
         </group>
       ))}
     </group>
@@ -446,7 +462,7 @@ function Stool({ p }: { p: RoomPalette }) {
   );
 }
 
-function Beanbag({ hue = "#e0843c" }: { hue?: string }) {
+function Beanbag({ hue = CATALOG.fabric2 }: { hue?: string }) {
   return (
     <group>
       <mesh position={[0, 0.22, 0]} scale={[1, 0.55, 1]} geometry={sharedSphere(0.4, 18, 16)} material={sharedStandard({ color: hue, roughness: 0.9 })} />
@@ -456,7 +472,7 @@ function Beanbag({ hue = "#e0843c" }: { hue?: string }) {
 }
 
 function GamingChair({ p }: { p: RoomPalette }) {
-  const hue = "#e23b3b";
+  const hue = CATALOG.slate;
   return (
     <group>
       <mesh position={[0, 0.5, 0]} geometry={sharedRounded(0.5, 0.12, 0.5, 4, 0.06)} material={sharedStandard({ color: "#15181d", roughness: 0.6 })} />
@@ -541,7 +557,7 @@ function Crates({ p }: { p: RoomPalette }) {
 function Cactus({ p }: { p: RoomPalette }) {
   return (
     <group>
-      <mesh position={[0, 0.16, 0]} geometry={sharedCylinder(0.16, 0.13, 0.32, 12)} material={sharedStandard({ color: "#d98a4a", roughness: 0.8 })} />
+      <mesh position={[0, 0.16, 0]} geometry={sharedCylinder(0.16, 0.13, 0.32, 12)} material={sharedStandard({ color: CATALOG.tan, roughness: 0.8 })} />
       <mesh position={[0, 0.6, 0]} geometry={sharedCapsule(0.1, 0.5, 4, 10)} material={sharedStandard({ color: p.plant, roughness: 0.8 })} />
       <mesh position={[0.13, 0.66, 0]} rotation-z={-0.5} geometry={sharedCapsule(0.05, 0.22, 4, 8)} material={sharedStandard({ color: p.plant, roughness: 0.8 })} />
       <mesh position={[-0.13, 0.74, 0]} rotation-z={0.5} geometry={sharedCapsule(0.05, 0.2, 4, 8)} material={sharedStandard({ color: p.plant, roughness: 0.8 })} />
@@ -564,8 +580,8 @@ function NeonSign({ p }: { p: RoomPalette }) {
     <group>
       <mesh position={[0, 0.6, 0]} geometry={sharedCylinder(0.03, 0.03, 1.2, 8)} material={sharedStandard({ color: p.metalDark })} />
       <mesh position={[0, 0.03, 0]} geometry={sharedCylinder(0.16, 0.18, 0.06, 12)} material={sharedStandard({ color: p.metalDark })} />
-      <mesh position={[0, 1.2, 0]} geometry={sharedTorus(0.26, 0.04, 10, 28)} material={sharedStandard({ color: "#ff4fd8", emissive: "#ff4fd8", emissiveIntensity: 1.6, toneMapped: false })} />
-      <mesh position={[0, 1.2, 0.01]} geometry={sharedBox(0.04, 0.34, 0.04)} material={sharedStandard({ color: "#54e0ff", emissive: "#54e0ff", emissiveIntensity: 1.6, toneMapped: false })} />
+      <mesh position={[0, 1.2, 0]} geometry={sharedTorus(0.26, 0.04, 10, 28)} material={sharedStandard({ color: CATALOG.glow, emissive: CATALOG.glow, emissiveIntensity: 1.6, toneMapped: false })} />
+      <mesh position={[0, 1.2, 0.01]} geometry={sharedBox(0.04, 0.34, 0.04)} material={sharedStandard({ color: CATALOG.glow, emissive: CATALOG.glow, emissiveIntensity: 1.6, toneMapped: false })} />
     </group>
   );
 }
@@ -577,8 +593,8 @@ function ArtStand(_: { p: RoomPalette }) {
       <group position={[0, 0.92, 0.04]} rotation-x={-0.32}>
         <mesh position={[0, 0, 0]} geometry={sharedRounded(0.66, 0.5, 0.04, 4, 0.01)} material={sharedStandard({ color: "#2a2623" })} />
         <mesh position={[0, 0, 0.025]} geometry={sharedPlane(0.58, 0.42)} material={sharedStandard({ color: "#e8e2d6" })} />
-        <mesh position={[-0.1, 0.05, 0.03]} geometry={sharedPlane(0.2, 0.2)} material={sharedBasic({ color: "#f59e0b" })} />
-        <mesh position={[0.12, -0.06, 0.03]} geometry={sharedCircle(0.1, 16)} material={sharedBasic({ color: "#3b82f6" })} />
+        <mesh position={[-0.1, 0.05, 0.03]} geometry={sharedPlane(0.2, 0.2)} material={sharedBasic({ color: CATALOG.tan })} />
+        <mesh position={[0.12, -0.06, 0.03]} geometry={sharedCircle(0.1, 16)} material={sharedBasic({ color: CATALOG.slate })} />
       </group>
     </group>
   );
@@ -589,7 +605,7 @@ function Globe({ p }: { p: RoomPalette }) {
     <group>
       <mesh position={[0, 0.16, 0]} geometry={sharedCylinder(0.04, 0.16, 0.32, 4)} material={sharedStandard({ color: WOOD })} />
       <mesh position={[0, 0.62, 0]} rotation-z={0.4} geometry={sharedTorus(0.26, 0.018, 8, 28)} material={sharedStandard({ color: p.metal, metalness: 0.6 })} />
-      <mesh position={[0, 0.62, 0]} rotation-z={0.4} geometry={sharedSphere(0.24, 20, 16)} material={sharedStandard({ color: "#2f6f9e", roughness: 0.6 })} />
+      <mesh position={[0, 0.62, 0]} rotation-z={0.4} geometry={sharedSphere(0.24, 20, 16)} material={sharedStandard({ color: CATALOG.tan, roughness: 0.6 })} />
     </group>
   );
 }
@@ -610,7 +626,7 @@ function Sculpture({ p }: { p: RoomPalette }) {
   return (
     <group>
       <mesh position={[0, 0.1, 0]} geometry={sharedCylinder(0.2, 0.22, 0.2, 16)} material={sharedStandard({ color: p.metalDark, roughness: 0.4 })} />
-      <mesh position={[0, 0.5, 0]} rotation-x={0.5} rotation-z={0.4} geometry={sharedTorus(0.22, 0.07, 12, 28)} material={sharedStandard({ color: "#d4af37", metalness: 0.7, roughness: 0.3 })} />
+      <mesh position={[0, 0.5, 0]} rotation-x={0.5} rotation-z={0.4} geometry={sharedTorus(0.22, 0.07, 12, 28)} material={sharedStandard({ color: CATALOG.brass, metalness: 0.7, roughness: 0.3 })} />
       <mesh position={[0, 0.85, 0]} geometry={sharedCone(0.12, 0.3, 4)} material={sharedStandard({ color: "#c0c5cc", metalness: 0.6, roughness: 0.3 })} />
     </group>
   );
@@ -635,7 +651,7 @@ function ArcLamp({ p }: { p: RoomPalette }) {
       <mesh position={[0, 0.03, 0]} geometry={sharedCylinder(0.2, 0.22, 0.06, 20)} material={sharedStandard({ color: p.metalDark, metalness: 0.5 })} />
       <mesh position={[0, 1.0, -0.1]} geometry={sharedCylinder(0.025, 0.025, 1.9, 8)} material={sharedStandard({ color: p.metalDark, metalness: 0.5 })} />
       <mesh position={[0.18, 1.9, 0.1]} rotation-z={-0.9} geometry={sharedCylinder(0.025, 0.025, 0.7, 8)} material={sharedStandard({ color: p.metalDark, metalness: 0.5 })} />
-      <mesh position={[0.42, 1.78, 0.18]} geometry={sharedSphere(0.12, 14, 12)} material={sharedStandard({ color: "#fff2cc", emissive: "#fff2cc", emissiveIntensity: 1.5, toneMapped: false })} />
+      <mesh position={[0.42, 1.78, 0.18]} geometry={sharedSphere(0.12, 14, 12)} material={sharedStandard({ color: CATALOG.glow, emissive: CATALOG.glow, emissiveIntensity: 1.5, toneMapped: false })} />
     </group>
   );
 }
@@ -645,7 +661,7 @@ function Lantern({ p }: { p: RoomPalette }) {
     <group>
       <mesh position={[0, 0.5, 0]} geometry={sharedCylinder(0.02, 0.02, 1.0, 6)} material={sharedStandard({ color: p.metalDark })} />
       <mesh position={[0, 0.03, 0]} geometry={sharedCylinder(0.14, 0.16, 0.05, 12)} material={sharedStandard({ color: p.metalDark })} />
-      <mesh position={[0, 1.1, 0]} geometry={sharedSphere(0.22, 16, 14)} material={sharedStandard({ color: "#ffd98a", emissive: "#ffcf72", emissiveIntensity: 1.1, toneMapped: false, transparent: true, opacity: 0.92 })} />
+      <mesh position={[0, 1.1, 0]} geometry={sharedSphere(0.22, 16, 14)} material={sharedStandard({ color: CATALOG.glow, emissive: CATALOG.glow, emissiveIntensity: 1.1, toneMapped: false, transparent: true, opacity: 0.92 })} />
     </group>
   );
 }
@@ -654,10 +670,10 @@ function Foosball({ p }: { p: RoomPalette }) {
   const w = 3 * C, d = 2 * C;
   return (
     <group>
-      <mesh position={[0, 0.74, 0]} geometry={sharedRounded(w - 0.3, 0.18, d - 0.4, 4, 0.03)} material={sharedStandard({ color: "#1c6b4a", roughness: 0.7 })} />
+      <mesh position={[0, 0.74, 0]} geometry={sharedRounded(w - 0.3, 0.18, d - 0.4, 4, 0.03)} material={sharedStandard({ color: CATALOG.fabric, roughness: 0.7 })} />
       <mesh position={[0, 0.84, -d / 2 + 0.18]} geometry={sharedRounded(w - 0.2, 0.2, 0.12, 4, 0.03)} material={sharedStandard({ color: p.deskDark })} />
       <mesh position={[0, 0.84, d / 2 - 0.18]} geometry={sharedRounded(w - 0.2, 0.2, 0.12, 4, 0.03)} material={sharedStandard({ color: p.deskDark })} />
-      {[-0.7, -0.2, 0.3, 0.8].map((x, i) => <mesh key={i} position={[x, 0.95, 0]} rotation-x={Math.PI / 2} geometry={sharedCylinder(0.025, 0.025, d + 0.2, 8)} material={sharedStandard({ color: i % 2 ? "#e23b3b" : "#3b82f6", metalness: 0.4 })} />)}
+      {[-0.7, -0.2, 0.3, 0.8].map((x, i) => <mesh key={i} position={[x, 0.95, 0]} rotation-x={Math.PI / 2} geometry={sharedCylinder(0.025, 0.025, d + 0.2, 8)} material={sharedStandard({ color: i % 2 ? CATALOG.steel : CATALOG.graphite, metalness: 0.4 })} />)}
       {([[-0.78, -0.2], [0.88, 0.2]] as const).map((l, i) => <mesh key={i} position={[l[0], 0.74, l[1]]} geometry={sharedBox(0.1, 0.74, 0.1)} material={sharedStandard({ color: p.metalDark })} />)}
     </group>
   );
@@ -666,7 +682,7 @@ function Foosball({ p }: { p: RoomPalette }) {
 function Vending({ p }: { p: RoomPalette }) {
   return (
     <group>
-      <mesh position={[0, 0.85, 0]} geometry={sharedRounded(0.56, 1.7, 0.5, 4, 0.03)} material={sharedStandard({ color: "#b83232", roughness: 0.5 })} />
+      <mesh position={[0, 0.85, 0]} geometry={sharedRounded(0.56, 1.7, 0.5, 4, 0.03)} material={sharedStandard({ color: CATALOG.graphite, roughness: 0.5 })} />
       <mesh position={[0.08, 1.05, 0.255]} geometry={sharedBox(0.34, 0.9, 0.02)} material={sharedStandard({ color: "#0a0d13" })} />
       <mesh position={[0.08, 1.05, 0.27]} geometry={sharedPlane(0.3, 0.86)} material={sharedStandard({ color: p.screen, emissive: p.screen, emissiveIntensity: 0.5 })} />
       {[0, 1, 2].map((r) => [0, 1].map((c) => <mesh key={`${r}-${c}`} position={[-0.02 + c * 0.12, 0.78 + r * 0.24, 0.275]} geometry={sharedBox(0.07, 0.12, 0.02)} material={sharedStandard({ color: BOOKS[(r + c) % BOOKS.length], emissive: BOOKS[(r + c) % BOOKS.length], emissiveIntensity: 0.3 })} />))}
@@ -679,11 +695,11 @@ function PoolTable(_: { p: RoomPalette }) {
   const w = 3 * C, d = 2 * C;
   return (
     <group>
-      <mesh position={[0, 0.66, 0]} geometry={sharedRounded(w - 0.2, 0.16, d - 0.2, 4, 0.04)} material={sharedStandard({ color: "#7a3b1e", roughness: 0.6 })} />
-      <mesh position={[0, 0.75, 0]} geometry={sharedBox(w - 0.5, 0.04, d - 0.5)} material={sharedStandard({ color: "#1c6b4a", roughness: 0.8 })} />
+      <mesh position={[0, 0.66, 0]} geometry={sharedRounded(w - 0.2, 0.16, d - 0.2, 4, 0.04)} material={sharedStandard({ color: CATALOG.wood, roughness: 0.6 })} />
+      <mesh position={[0, 0.75, 0]} geometry={sharedBox(w - 0.5, 0.04, d - 0.5)} material={sharedStandard({ color: CATALOG.fabric, roughness: 0.8 })} />
       {([[-w / 2 + 0.25, -d / 2 + 0.25], [0, -d / 2 + 0.22], [w / 2 - 0.25, -d / 2 + 0.25], [-w / 2 + 0.25, d / 2 - 0.25], [0, d / 2 - 0.22], [w / 2 - 0.25, d / 2 - 0.25]] as const).map((l, i) => <mesh key={i} position={[l[0], 0.78, l[1]]} geometry={sharedCylinder(0.06, 0.06, 0.04, 12)} material={sharedStandard({ color: "#0a0d13" })} />)}
-      {[["#f59e0b", -0.3], ["#ef4444", -0.15], ["#3b82f6", 0], ["#ffffff", 0.4]].map((b, i) => <mesh key={i} position={[b[1] as number, 0.81, 0]} geometry={sharedSphere(0.05, 12, 12)} material={sharedStandard({ color: b[0] as string, roughness: 0.3 })} />)}
-      {([[-w / 2 + 0.2, -d / 2 + 0.2], [w / 2 - 0.2, -d / 2 + 0.2], [-w / 2 + 0.2, d / 2 - 0.2], [w / 2 - 0.2, d / 2 - 0.2]] as const).map((l, i) => <mesh key={`leg${i}`} position={[l[0], 0.33, l[1]]} geometry={sharedBox(0.12, 0.66, 0.12)} material={sharedStandard({ color: "#5a2c16" })} />)}
+      {[[CATALOG.brass, -0.3], [CATALOG.aluminium, -0.15], [CATALOG.graphite, 0], [CATALOG.chalk, 0.4]].map((b, i) => <mesh key={i} position={[b[1] as number, 0.81, 0]} geometry={sharedSphere(0.05, 12, 12)} material={sharedStandard({ color: b[0] as string, roughness: 0.3 })} />)}
+      {([[-w / 2 + 0.2, -d / 2 + 0.2], [w / 2 - 0.2, -d / 2 + 0.2], [-w / 2 + 0.2, d / 2 - 0.2], [w / 2 - 0.2, d / 2 - 0.2]] as const).map((l, i) => <mesh key={`leg${i}`} position={[l[0], 0.33, l[1]]} geometry={sharedBox(0.12, 0.66, 0.12)} material={sharedStandard({ color: CATALOG.woodDark })} />)}
     </group>
   );
 }
@@ -704,7 +720,7 @@ function Treadmill({ p }: { p: RoomPalette }) {
 function Guitar({ p }: { p: RoomPalette }) {
   return (
     <group rotation-z={0.12}>
-      <mesh position={[0, 0.3, 0]} scale={[1, 1, 0.4]} geometry={sharedSphere(0.18, 16, 14)} material={sharedStandard({ color: "#c0392b", roughness: 0.4 })} />
+      <mesh position={[0, 0.3, 0]} scale={[1, 1, 0.4]} geometry={sharedSphere(0.18, 16, 14)} material={sharedStandard({ color: CATALOG.wood, roughness: 0.4 })} />
       <mesh position={[0, 0.85, 0]} geometry={sharedBox(0.07, 0.9, 0.04)} material={sharedStandard({ color: WOOD, roughness: 0.5 })} />
       <mesh position={[0, 1.34, 0]} geometry={sharedBox(0.1, 0.16, 0.05)} material={sharedStandard({ color: "#1a1d23" })} />
       <mesh position={[0.16, 0.28, 0.08]} rotation-z={-0.4} geometry={sharedCylinder(0.02, 0.02, 0.7, 6)} material={sharedStandard({ color: p.metalDark })} />
@@ -715,11 +731,11 @@ function Guitar({ p }: { p: RoomPalette }) {
 function RobotArm({ p }: { p: RoomPalette }) {
   return (
     <group>
-      <mesh position={[0, 0.1, 0]} geometry={sharedCylinder(0.18, 0.22, 0.2, 16)} material={sharedStandard({ color: "#f97316", roughness: 0.4, metalness: 0.2 })} />
+      <mesh position={[0, 0.1, 0]} geometry={sharedCylinder(0.18, 0.22, 0.2, 16)} material={sharedStandard({ color: CATALOG.warmGrey, roughness: 0.4, metalness: 0.2 })} />
       <mesh position={[0, 0.42, 0]} geometry={sharedCylinder(0.1, 0.12, 0.4, 12)} material={sharedStandard({ color: p.metal, metalness: 0.5 })} />
-      <mesh position={[0.0, 0.72, 0.16]} rotation-x={0.7} geometry={sharedBox(0.08, 0.5, 0.08)} material={sharedStandard({ color: "#f97316", metalness: 0.3 })} />
+      <mesh position={[0.0, 0.72, 0.16]} rotation-x={0.7} geometry={sharedBox(0.08, 0.5, 0.08)} material={sharedStandard({ color: CATALOG.warmGrey, metalness: 0.3 })} />
       <mesh position={[0.0, 0.95, 0.42]} rotation-x={-0.5} geometry={sharedBox(0.07, 0.36, 0.07)} material={sharedStandard({ color: p.metal, metalness: 0.5 })} />
-      <mesh position={[0, 0.86, 0.56]} geometry={sharedSphere(0.06, 10, 10)} material={sharedStandard({ color: "#10b981", emissive: "#10b981", emissiveIntensity: 0.8, toneMapped: false })} />
+      <mesh position={[0, 0.86, 0.56]} geometry={sharedSphere(0.06, 10, 10)} material={sharedStandard({ color: CATALOG.ledOk, emissive: CATALOG.ledOk, emissiveIntensity: 0.8, toneMapped: false })} />
     </group>
   );
 }
@@ -746,11 +762,11 @@ function Workbench({ p }: { p: RoomPalette }) {
       <mesh position={[0, 0.86, 0]} geometry={sharedRounded(w - 0.1, 0.1, C - 0.1, 4, 0.02)} material={sharedStandard({ color: WOOD, roughness: 0.7 })} />
       {([[-w / 2 + 0.16, -C / 2 + 0.16], [w / 2 - 0.16, -C / 2 + 0.16], [-w / 2 + 0.16, C / 2 - 0.16], [w / 2 - 0.16, C / 2 - 0.16]] as const).map((l, i) => <mesh key={i} position={[l[0], 0.43, l[1]]} geometry={sharedBox(0.1, 0.86, 0.1)} material={sharedStandard({ color: "#3a3026" })} />)}
       {/* pegboard back with tools */}
-      <mesh position={[0, 1.4, -C / 2 + 0.06]} geometry={sharedBox(w - 0.2, 0.9, 0.04)} material={sharedStandard({ color: "#caa15a", roughness: 0.8 })} />
+      <mesh position={[0, 1.4, -C / 2 + 0.06]} geometry={sharedBox(w - 0.2, 0.9, 0.04)} material={sharedStandard({ color: CATALOG.tan, roughness: 0.8 })} />
       <mesh position={[-0.3, 1.4, -C / 2 + 0.1]} geometry={sharedBox(0.04, 0.4, 0.06)} material={sharedStandard({ color: p.metalDark, metalness: 0.5 })} />
       <mesh position={[0.0, 1.3, -C / 2 + 0.1]} rotation-z={0.3} geometry={sharedCylinder(0.03, 0.03, 0.4, 8)} material={sharedStandard({ color: p.metal, metalness: 0.5 })} />
       {/* vise */}
-      <mesh position={[w / 2 - 0.3, 0.96, 0.1]} geometry={sharedBox(0.18, 0.14, 0.16)} material={sharedStandard({ color: "#4b7aa6", metalness: 0.4 })} />
+      <mesh position={[w / 2 - 0.3, 0.96, 0.1]} geometry={sharedBox(0.18, 0.14, 0.16)} material={sharedStandard({ color: CATALOG.steel, metalness: 0.4 })} />
     </group>
   );
 }
@@ -758,10 +774,10 @@ function Workbench({ p }: { p: RoomPalette }) {
 function ToolCabinet({ p }: { p: RoomPalette }) {
   return (
     <group>
-      <mesh position={[0, 0.55, 0]} geometry={sharedRounded(0.6, 1.0, 0.5, 4, 0.03)} material={sharedStandard({ color: "#c0392b", roughness: 0.4, metalness: 0.2 })} />
+      <mesh position={[0, 0.55, 0]} geometry={sharedRounded(0.6, 1.0, 0.5, 4, 0.03)} material={sharedStandard({ color: CATALOG.graphite, roughness: 0.4, metalness: 0.2 })} />
       {[0.3, 0.55, 0.8].map((y, i) => (
         <group key={i} position={[0, y, 0.26]}>
-          <mesh geometry={sharedBox(0.52, 0.2, 0.02)} material={sharedStandard({ color: "#a52f24" })} />
+          <mesh geometry={sharedBox(0.52, 0.2, 0.02)} material={sharedStandard({ color: CATALOG.charcoal })} />
           <mesh position={[0, 0, 0.02]} geometry={sharedBox(0.3, 0.03, 0.02)} material={sharedStandard({ color: p.metalDark, metalness: 0.6 })} />
         </group>
       ))}
@@ -786,11 +802,11 @@ function Ladder({ p }: { p: RoomPalette }) {
     <group>
       {[-0.18, 0.18].map((x, i) => (
         <group key={i}>
-          <mesh position={[x, 0.55, -0.18]} rotation-x={-0.18} geometry={sharedBox(0.05, 1.15, 0.05)} material={sharedStandard({ color: "#d8a23a", metalness: 0.3 })} />
-          <mesh position={[x, 0.55, 0.18]} rotation-x={0.18} geometry={sharedBox(0.05, 1.15, 0.05)} material={sharedStandard({ color: "#d8a23a", metalness: 0.3 })} />
+          <mesh position={[x, 0.55, -0.18]} rotation-x={-0.18} geometry={sharedBox(0.05, 1.15, 0.05)} material={sharedStandard({ color: CATALOG.steel, metalness: 0.3 })} />
+          <mesh position={[x, 0.55, 0.18]} rotation-x={0.18} geometry={sharedBox(0.05, 1.15, 0.05)} material={sharedStandard({ color: CATALOG.steel, metalness: 0.3 })} />
         </group>
       ))}
-      {[0.28, 0.56, 0.84].map((y, i) => <mesh key={i} position={[0, y, -0.18 + (y - 0.28) * 0.32]} geometry={sharedBox(0.42, 0.04, 0.12)} material={sharedStandard({ color: "#b9842a", metalness: 0.3 })} />)}
+      {[0.28, 0.56, 0.84].map((y, i) => <mesh key={i} position={[0, y, -0.18 + (y - 0.28) * 0.32]} geometry={sharedBox(0.42, 0.04, 0.12)} material={sharedStandard({ color: CATALOG.steel, metalness: 0.3 })} />)}
       <mesh position={[0, 1.06, 0]} geometry={sharedBox(0.46, 0.06, 0.3)} material={sharedStandard({ color: p.metalDark, metalness: 0.3 })} />
     </group>
   );
@@ -799,8 +815,8 @@ function Ladder({ p }: { p: RoomPalette }) {
 function OilDrum() {
   return (
     <group>
-      <mesh position={[0, 0.45, 0]} geometry={sharedCylinder(0.26, 0.26, 0.9, 24)} material={sharedStandard({ color: "#2f6f4f", roughness: 0.5, metalness: 0.3 })} />
-      {[0.25, 0.65].map((y, i) => <mesh key={i} position={[0, y, 0]} rotation-x={Math.PI / 2} geometry={sharedTorus(0.265, 0.02, 8, 24)} material={sharedStandard({ color: "#244f3a", metalness: 0.3 })} />)}
+      <mesh position={[0, 0.45, 0]} geometry={sharedCylinder(0.26, 0.26, 0.9, 24)} material={sharedStandard({ color: CATALOG.graphite, roughness: 0.5, metalness: 0.3 })} />
+      {[0.25, 0.65].map((y, i) => <mesh key={i} position={[0, y, 0]} rotation-x={Math.PI / 2} geometry={sharedTorus(0.265, 0.02, 8, 24)} material={sharedStandard({ color: CATALOG.charcoal, metalness: 0.3 })} />)}
       <mesh position={[0.1, 0.9, 0.1]} geometry={sharedCylinder(0.04, 0.04, 0.04, 10)} material={sharedStandard({ color: "#1a1d23" })} />
     </group>
   );
@@ -838,8 +854,13 @@ function LoungeChair({ hue = FABRIC_2 }: { hue?: string }) {
 
 function SofaL({ hue = FABRIC }: { hue?: string }) {
   const a = 2 * C;
+  // The house convention is rot 0 → front +z (backs at −z). This section was authored the other
+  // way round — backs at +z/−x, opening −z/+x — which put it 180° from its glTF sibling
+  // (`loungeSofaCorner.glb`, backs at −z/+x) and from every other seat. The shape is turned here
+  // rather than per instance so placement, rotation and the derived-orientation rules all agree.
+  // A save that owns one shows the sofa flipped once: the only correct reading of the same model.
   return (
-    <group>
+    <group rotation-y={Math.PI}>
       {/* main run */}
       <mesh position={[0, 0.26, C / 2 - 0.02]} geometry={sharedRounded(a - 0.1, 0.26, C - 0.06, 4, 0.08)} material={sharedStandard({ color: hue, roughness: 0.85 })} />
       <mesh position={[0, 0.48, C - 0.06]} geometry={sharedRounded(a - 0.1, 0.44, 0.16, 4, 0.08)} material={sharedStandard({ color: hue, roughness: 0.85 })} />
@@ -896,8 +917,8 @@ function Bonsai({ p }: { p: RoomPalette }) {
 function FloorVase({ p }: { p: RoomPalette }) {
   return (
     <group>
-      <mesh position={[0, 0.4, 0]} geometry={sharedCylinder(0.12, 0.18, 0.8, 18)} material={sharedStandard({ color: "#c08a5a", roughness: 0.35, metalness: 0.1 })} />
-      <mesh position={[0, 0.82, 0]} geometry={sharedCylinder(0.1, 0.12, 0.12, 18)} material={sharedStandard({ color: "#b07a48", roughness: 0.4 })} />
+      <mesh position={[0, 0.4, 0]} geometry={sharedCylinder(0.12, 0.18, 0.8, 18)} material={sharedStandard({ color: CATALOG.tan, roughness: 0.35, metalness: 0.1 })} />
+      <mesh position={[0, 0.82, 0]} geometry={sharedCylinder(0.1, 0.12, 0.12, 18)} material={sharedStandard({ color: CATALOG.tan, roughness: 0.4 })} />
       {[[-0.05, 1.1], [0.06, 1.15], [0, 1.05]].map((l, i) => <mesh key={i} position={[l[0], l[1], 0]} rotation-z={l[0] * 3} geometry={sharedCylinder(0.01, 0.01, 0.5, 5)} material={sharedStandard({ color: p.plant, roughness: 0.8 })} />)}
     </group>
   );
@@ -906,7 +927,7 @@ function FloorVase({ p }: { p: RoomPalette }) {
 function CubeLamp({ p }: { p: RoomPalette }) {
   return (
     <group>
-      <mesh position={[0, 0.28, 0]} geometry={sharedBox(0.34, 0.56, 0.34)} material={sharedStandard({ color: "#fff2cc", emissive: "#ffe9b0", emissiveIntensity: 0.9, toneMapped: false, transparent: true, opacity: 0.92 })} />
+      <mesh position={[0, 0.28, 0]} geometry={sharedBox(0.34, 0.56, 0.34)} material={sharedStandard({ color: CATALOG.glow, emissive: CATALOG.glow, emissiveIntensity: 0.9, toneMapped: false, transparent: true, opacity: 0.92 })} />
       <mesh position={[0, 0.01, 0]} geometry={sharedBox(0.36, 0.04, 0.36)} material={sharedStandard({ color: p.metalDark, metalness: 0.5 })} />
     </group>
   );
@@ -921,10 +942,10 @@ function CoffeeBar({ p }: { p: RoomPalette }) {
       {/* espresso machine */}
       <mesh position={[-w / 4, 1.18, -0.04]} geometry={sharedRounded(0.42, 0.4, 0.34, 4, 0.05)} material={sharedStandard({ color: p.metal, metalness: 0.6, roughness: 0.3 })} />
       <mesh position={[-w / 4, 1.0, 0.16]} geometry={sharedCylinder(0.04, 0.05, 0.1, 12)} material={sharedStandard({ color: p.metalDark, metalness: 0.7 })} />
-      <mesh position={[-w / 4 + 0.16, 1.26, 0.12]} geometry={sharedSphere(0.022, 8, 8)} material={sharedStandard({ color: "#10b981", emissive: "#10b981", emissiveIntensity: 1.2, toneMapped: false })} />
+      <mesh position={[-w / 4 + 0.16, 1.26, 0.12]} geometry={sharedSphere(0.022, 8, 8)} material={sharedStandard({ color: CATALOG.ledOk, emissive: CATALOG.ledOk, emissiveIntensity: 1.2, toneMapped: false })} />
       {/* cups + a mug */}
       {[0.1, 0.24, 0.38].map((x, i) => <mesh key={i} position={[x, 1.04, -0.08]} geometry={sharedCylinder(0.05, 0.045, 0.1, 12)} material={sharedStandard({ color: "#efeae0", roughness: 0.5 })} />)}
-      <mesh position={[w / 4, 1.04, 0.16]} geometry={sharedCylinder(0.055, 0.05, 0.11, 14)} material={sharedStandard({ color: "#d98a4a", roughness: 0.5 })} />
+      <mesh position={[w / 4, 1.04, 0.16]} geometry={sharedCylinder(0.055, 0.05, 0.11, 14)} material={sharedStandard({ color: CATALOG.tan, roughness: 0.5 })} />
     </group>
   );
 }
@@ -935,20 +956,20 @@ function Aquarium() {
   return (
     <group>
       {/* dark-wood cabinet */}
-      <mesh position={[0, 0.36, 0]} geometry={sharedRounded(w - 0.1, 0.72, C - 0.1, 4, 0.03)} material={sharedStandard({ color: "#2e2016", roughness: 0.6 })} />
+      <mesh position={[0, 0.36, 0]} geometry={sharedRounded(w - 0.1, 0.72, C - 0.1, 4, 0.03)} material={sharedStandard({ color: CATALOG.woodDark, roughness: 0.6 })} />
       {/* faint blue emissive backlight */}
-      <mesh position={[0, 1.02, -C / 2 + 0.07]} geometry={sharedPlane(w - 0.24, 0.5)} material={sharedStandard({ color: "#2a6fae", emissive: "#2f7fd0", emissiveIntensity: 0.6, toneMapped: false })} />
+      <mesh position={[0, 1.02, -C / 2 + 0.07]} geometry={sharedPlane(w - 0.24, 0.5)} material={sharedStandard({ color: CATALOG.screenDim, emissive: CATALOG.screenDim, emissiveIntensity: 0.6, toneMapped: false })} />
       {/* water body — transparent bluish glass */}
-      <mesh position={[0, 1.02, 0]} geometry={sharedBox(w - 0.22, 0.5, C - 0.24)} material={sharedPhysical({ color: "#7fc4e8", transparent: true, opacity: 0.32, roughness: 0.08, transmission: 0.6, thickness: 0.4 })} />
+      <mesh position={[0, 1.02, 0]} geometry={sharedBox(w - 0.22, 0.5, C - 0.24)} material={sharedPhysical({ color: CATALOG.screenDim, transparent: true, opacity: 0.32, roughness: 0.08, transmission: 0.6, thickness: 0.4 })} />
       {/* glass tank shell */}
       <mesh position={[0, 1.02, 0]} geometry={sharedBox(w - 0.2, 0.52, C - 0.22)} material={sharedStandard({ color: "#9fb4c4", transparent: true, opacity: 0.12, roughness: 0.05, metalness: 0.3 })} />
       {/* emissive coral cones */}
-      {([[-0.9, "#ff7043"], [-0.2, "#ffb74d"], [0.7, "#ef5a8a"]] as const).map((c, i) => (
+      {([[-0.9, CATALOG.steel], [-0.2, CATALOG.tan], [0.7, CATALOG.warmGrey]] as const).map((c, i) => (
         <mesh key={i} position={[c[0], 0.86, 0.05]} geometry={sharedCone(0.06, 0.28, 8)} material={sharedStandard({ color: c[1], emissive: c[1], emissiveIntensity: 0.5, roughness: 0.6 })} />
       ))}
       {/* tiny fish */}
       {([[-0.5, 1.12, 0.18], [0.3, 1.0, -0.14], [0.9, 1.15, 0.1]] as const).map((f, i) => (
-        <mesh key={`f${i}`} position={[f[0], f[1], f[2]]} rotation-y={i * 0.6} geometry={sharedBox(0.09, 0.05, 0.03)} material={sharedStandard({ color: i % 2 ? "#ffd54f" : "#ff8a65", emissive: i % 2 ? "#ffd54f" : "#ff8a65", emissiveIntensity: 0.3 })} />
+        <mesh key={`f${i}`} position={[f[0], f[1], f[2]]} rotation-y={i * 0.6} geometry={sharedBox(0.09, 0.05, 0.03)} material={sharedStandard({ color: i % 2 ? CATALOG.aluminium : CATALOG.warmGrey, emissive: i % 2 ? CATALOG.aluminium : CATALOG.warmGrey, emissiveIntensity: 0.3 })} />
       ))}
     </group>
   );
@@ -964,13 +985,13 @@ function SuperCluster() {
           <mesh position={[0, 0.9, 0.31]} geometry={sharedPlane(0.6, 1.6)} material={sharedPhysical({ color: "#0a0d13", transparent: true, opacity: 0.35, roughness: 0.05, transmission: 0.4, metalness: 0.2 })} />
           {/* dense status LEDs */}
           {Array.from({ length: 8 }).map((_, i) => [-0.18, -0.06, 0.06, 0.18].map((lx, j) => (
-            <mesh key={`${i}-${j}`} position={[lx, 0.28 + i * 0.18, 0.315]} geometry={sharedSphere(0.014, 6, 6)} material={sharedStandard({ color: (i + j) % 3 ? "#10b981" : "#f59e0b", emissive: (i + j) % 3 ? "#10b981" : "#f59e0b", emissiveIntensity: 1.2, toneMapped: false })} />
+            <mesh key={`${i}-${j}`} position={[lx, 0.28 + i * 0.18, 0.315]} geometry={sharedSphere(0.014, 6, 6)} material={sharedStandard({ color: (i + j) % 3 ? CATALOG.ledOk : CATALOG.ledWarn, emissive: (i + j) % 3 ? CATALOG.ledOk : CATALOG.ledWarn, emissiveIntensity: 1.2, toneMapped: false })} />
           )))}
         </group>
       ))}
       {/* cable bundles on top */}
       {[-0.3, 0, 0.3].map((x, i) => (
-        <mesh key={i} position={[x, 1.84, -0.1]} rotation-x={Math.PI / 2} geometry={sharedTorus(0.1, 0.03, 8, 16, Math.PI)} material={sharedStandard({ color: i % 2 ? "#3a3f48" : "#c0392b", roughness: 0.7 })} />
+        <mesh key={i} position={[x, 1.84, -0.1]} rotation-x={Math.PI / 2} geometry={sharedTorus(0.1, 0.03, 8, 16, Math.PI)} material={sharedStandard({ color: i % 2 ? CATALOG.slate : CATALOG.warmGrey, roughness: 0.7 })} />
       ))}
     </group>
   );
@@ -984,12 +1005,12 @@ function HoloGlobe() {
       <mesh position={[0, 0.06, 0]} geometry={sharedCylinder(0.24, 0.26, 0.06, 24)} material={sharedStandard({ color: "#1a1d23", roughness: 0.4, metalness: 0.5 })} />
       <mesh position={[0, 0.12, 0]} rotation-x={Math.PI / 2} geometry={sharedTorus(0.22, 0.03, 12, 32)} material={sharedStandard({ color: "#2a2f37", metalness: 0.6, roughness: 0.3 })} />
       {/* floating cyan wireframe sphere */}
-      <mesh position={[0, 0.78, 0]} geometry={sharedSphere(R, 16, 12)} material={sharedBasic({ color: "#38e6ff", wireframe: true, transparent: true, opacity: 0.55, toneMapped: false })} />
-      <mesh position={[0, 0.78, 0]} geometry={sharedSphere(R - 0.01, 20, 16)} material={sharedStandard({ color: "#0aa0c0", emissive: "#22cfe6", emissiveIntensity: 0.5, transparent: true, opacity: 0.12, toneMapped: false })} />
+      <mesh position={[0, 0.78, 0]} geometry={sharedSphere(R, 16, 12)} material={sharedBasic({ color: CATALOG.screenCyan, wireframe: true, transparent: true, opacity: 0.55, toneMapped: false })} />
+      <mesh position={[0, 0.78, 0]} geometry={sharedSphere(R - 0.01, 20, 16)} material={sharedStandard({ color: CATALOG.screenCyan, emissive: CATALOG.screenCyan, emissiveIntensity: 0.5, transparent: true, opacity: 0.12, toneMapped: false })} />
       {/* thin latitude rings */}
       {[-0.18, 0, 0.18].map((yo, i) => {
         const rr = Math.sqrt(Math.max(0, R * R - yo * yo));
-        return <mesh key={i} position={[0, 0.78 + yo, 0]} rotation-x={Math.PI / 2} geometry={sharedTorus(rr, 0.006, 6, 32)} material={sharedBasic({ color: "#38e6ff", transparent: true, opacity: 0.7, toneMapped: false })} />;
+        return <mesh key={i} position={[0, 0.78 + yo, 0]} rotation-x={Math.PI / 2} geometry={sharedTorus(rr, 0.006, 6, 32)} material={sharedBasic({ color: CATALOG.screenCyan, transparent: true, opacity: 0.7, toneMapped: false })} />;
       })}
     </group>
   );
@@ -1002,14 +1023,14 @@ function QuantumRig() {
       {/* dark pedestal */}
       <mesh position={[0, 0.15, 0]} geometry={sharedRounded(0.5, 0.3, 0.5, 4, 0.03)} material={sharedStandard({ color: "#15181d", roughness: 0.5, metalness: 0.3 })} />
       {/* faint cyan base glow */}
-      <mesh position={[0, 0.32, 0]} rotation-x={-Math.PI / 2} geometry={sharedCircle(0.3, 24)} material={sharedBasic({ color: "#22cfe6", transparent: true, opacity: 0.35, toneMapped: false })} />
+      <mesh position={[0, 0.32, 0]} rotation-x={-Math.PI / 2} geometry={sharedCircle(0.3, 24)} material={sharedBasic({ color: CATALOG.screenCyan, transparent: true, opacity: 0.35, toneMapped: false })} />
       {/* thin rods */}
       {([[-0.16, -0.16], [0.16, -0.16], [-0.16, 0.16], [0.16, 0.16]] as const).map((l, i) => (
-        <mesh key={i} position={[l[0], 0.75, l[1]]} geometry={sharedCylinder(0.012, 0.012, 0.9, 8)} material={sharedStandard({ color: "#c9a24a", metalness: 0.7, roughness: 0.3 })} />
+        <mesh key={i} position={[l[0], 0.75, l[1]]} geometry={sharedCylinder(0.012, 0.012, 0.9, 8)} material={sharedStandard({ color: CATALOG.brass, metalness: 0.7, roughness: 0.3 })} />
       ))}
       {/* stacked descending gold torus plates */}
       {plates.map((pl, i) => (
-        <mesh key={i} position={[0, pl[0], 0]} rotation-x={Math.PI / 2} geometry={sharedTorus(pl[1], 0.03, 10, 32)} material={sharedStandard({ color: "#d4af37", metalness: 0.8, roughness: 0.25 })} />
+        <mesh key={i} position={[0, pl[0], 0]} rotation-x={Math.PI / 2} geometry={sharedTorus(pl[1], 0.03, 10, 32)} material={sharedStandard({ color: CATALOG.brass, metalness: 0.8, roughness: 0.25 })} />
       ))}
     </group>
   );
@@ -1018,11 +1039,12 @@ function QuantumRig() {
 function EspressoRobot() {
   return (
     <group>
-      {/* chrome cylinder body */}
-      <mesh position={[0, 0.5, 0]} geometry={sharedCylinder(0.22, 0.24, 1.0, 24)} material={sharedStandard({ color: "#c7ccd4", metalness: 0.85, roughness: 0.18 })} />
+      {/* chrome cylinder body — metalness kept moderate: with no environment map a near-mirror
+          metal renders black, which turned the barista bot into a dark bin in the light office. */}
+      <mesh position={[0, 0.5, 0]} geometry={sharedCylinder(0.22, 0.24, 1.0, 24)} material={sharedStandard({ color: "#c7ccd4", metalness: 0.35, roughness: 0.32 })} />
       <mesh position={[0, 1.0, 0]} geometry={sharedCylinder(0.2, 0.22, 0.12, 24)} material={sharedStandard({ color: "#9aa1ab", metalness: 0.7, roughness: 0.3 })} />
       {/* green status LED */}
-      <mesh position={[0, 0.72, 0.23]} geometry={sharedSphere(0.03, 10, 10)} material={sharedStandard({ color: "#10b981", emissive: "#10b981", emissiveIntensity: 1.3, toneMapped: false })} />
+      <mesh position={[0, 0.72, 0.23]} geometry={sharedSphere(0.03, 10, 10)} material={sharedStandard({ color: CATALOG.ledOk, emissive: CATALOG.ledOk, emissiveIntensity: 1.3, toneMapped: false })} />
       {/* articulated arm holding a cup */}
       <mesh position={[0.18, 0.62, 0.16]} rotation-z={-0.5} geometry={sharedBox(0.28, 0.05, 0.05)} material={sharedStandard({ color: "#8a9099", metalness: 0.6 })} />
       <mesh position={[0.32, 0.5, 0.26]} geometry={sharedCylinder(0.03, 0.03, 0.16, 10)} material={sharedStandard({ color: "#8a9099", metalness: 0.6 })} />
@@ -1046,7 +1068,7 @@ function DronePad() {
       {/* flat hex landing pad */}
       <mesh position={[0, 0.03, 0]} rotation-y={Math.PI / 6} geometry={sharedCylinder(0.8, 0.8, 0.06, 6)} material={sharedStandard({ color: "#2a2f37", roughness: 0.7 })} />
       {/* emissive-yellow perimeter */}
-      <mesh position={[0, 0.065, 0]} rotation-x={-Math.PI / 2} rotation-z={Math.PI / 6} geometry={sharedRing(0.66, 0.74, 6)} material={sharedBasic({ color: "#f5c542", transparent: true, opacity: 0.9, toneMapped: false, side: 2 })} />
+      <mesh position={[0, 0.065, 0]} rotation-x={-Math.PI / 2} rotation-z={Math.PI / 6} geometry={sharedRing(0.66, 0.74, 6)} material={sharedBasic({ color: CATALOG.ledWarn, transparent: true, opacity: 0.9, toneMapped: false, side: 2 })} />
       {/* painted "H" */}
       <group position={[0, 0.062, 0]} rotation-x={-Math.PI / 2}>
         {[-0.14, 0.14].map((x, i) => <mesh key={i} position={[x, 0, 0]} geometry={sharedPlane(0.06, 0.4)} material={sharedBasic({ color: "#e8ecf2" })} />)}
@@ -1055,14 +1077,14 @@ function DronePad() {
       {/* hovering quadcopter */}
       <group ref={drone} position={[0, 0.85, 0]}>
         <mesh position={[0, 0, 0]} geometry={sharedRounded(0.22, 0.1, 0.22, 4, 0.03)} material={sharedStandard({ color: "#1a1d23", roughness: 0.5, metalness: 0.3 })} />
-        <mesh position={[0, -0.03, 0]} geometry={sharedSphere(0.05, 10, 10)} material={sharedStandard({ color: "#22cfe6", emissive: "#22cfe6", emissiveIntensity: 0.9, toneMapped: false })} />
+        <mesh position={[0, -0.03, 0]} geometry={sharedSphere(0.05, 10, 10)} material={sharedStandard({ color: CATALOG.screenCyan, emissive: CATALOG.screenCyan, emissiveIntensity: 0.9, toneMapped: false })} />
         {/* crossed arms */}
         {[Math.PI / 4, -Math.PI / 4].map((a, i) => (
           <mesh key={i} rotation-y={a} geometry={sharedBox(0.56, 0.02, 0.02)} material={sharedStandard({ color: "#3a3f48", metalness: 0.4 })} />
         ))}
         {/* rotor discs */}
         {([[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]] as const).map((l, i) => (
-          <mesh key={`rot${i}`} position={[l[0], 0.03, l[1]]} geometry={sharedCylinder(0.1, 0.1, 0.008, 16)} material={sharedStandard({ color: "#5b9dff", transparent: true, opacity: 0.35 })} />
+          <mesh key={`rot${i}`} position={[l[0], 0.03, l[1]]} geometry={sharedCylinder(0.1, 0.1, 0.008, 16)} material={sharedStandard({ color: CATALOG.screen, transparent: true, opacity: 0.35 })} />
         ))}
       </group>
     </group>
@@ -1074,12 +1096,12 @@ function ZenFountain() {
     <group>
       {/* circular stone basin */}
       <mesh position={[0, 0.1, 0]} geometry={sharedCylinder(0.62, 0.66, 0.2, 32)} material={sharedStandard({ color: "#8a8f96", roughness: 0.85 })} />
-      <mesh position={[0, 0.19, 0]} geometry={sharedCylinder(0.56, 0.56, 0.04, 32)} material={sharedStandard({ color: "#5a9db8", transparent: true, opacity: 0.5, roughness: 0.1, metalness: 0.2 })} />
+      <mesh position={[0, 0.19, 0]} geometry={sharedCylinder(0.56, 0.56, 0.04, 32)} material={sharedStandard({ color: CATALOG.screenDim, transparent: true, opacity: 0.5, roughness: 0.1, metalness: 0.2 })} />
       {/* stacked slate discs */}
       <mesh position={[0, 0.3, 0]} geometry={sharedCylinder(0.34, 0.38, 0.14, 24)} material={sharedStandard({ color: "#4a5058", roughness: 0.7 })} />
       <mesh position={[0, 0.44, 0]} geometry={sharedCylinder(0.22, 0.26, 0.12, 24)} material={sharedStandard({ color: "#565c64", roughness: 0.7 })} />
       {/* thin transparent emissive-blue water column */}
-      <mesh position={[0, 0.55, 0]} geometry={sharedCylinder(0.03, 0.04, 0.5, 12)} material={sharedStandard({ color: "#7fd4f0", emissive: "#4fbfe8", emissiveIntensity: 0.7, transparent: true, opacity: 0.6, toneMapped: false })} />
+      <mesh position={[0, 0.55, 0]} geometry={sharedCylinder(0.03, 0.04, 0.5, 12)} material={sharedStandard({ color: CATALOG.screenDim, emissive: CATALOG.screenDim, emissiveIntensity: 0.7, transparent: true, opacity: 0.6, toneMapped: false })} />
       {/* ring of pebbles */}
       {Array.from({ length: 10 }).map((_, i) => {
         const a = (i / 10) * Math.PI * 2;
@@ -1096,7 +1118,7 @@ function TrophyCase({ p }: { p: RoomPalette }) {
       {/* cabinet body */}
       <mesh position={[0, 0.9, 0]} geometry={sharedRounded(w - 0.1, 1.8, 0.4, 4, 0.03)} material={sharedStandard({ color: p.deskDark, roughness: 0.6 })} />
       {/* warm backlit interior */}
-      <mesh position={[0, 0.9, -0.16]} geometry={sharedPlane(w - 0.24, 1.6)} material={sharedStandard({ color: "#ffdca0", emissive: "#ffcf86", emissiveIntensity: 0.5, toneMapped: false })} />
+      <mesh position={[0, 0.9, -0.16]} geometry={sharedPlane(w - 0.24, 1.6)} material={sharedStandard({ color: CATALOG.glow, emissive: CATALOG.glow, emissiveIntensity: 0.5, toneMapped: false })} />
       {/* glass front */}
       <mesh position={[0, 0.9, 0.2]} geometry={sharedPlane(w - 0.18, 1.66)} material={sharedPhysical({ color: "#cfe0ee", transparent: true, opacity: 0.14, roughness: 0.05, transmission: 0.6 })} />
       {/* shelves with gold trophies + medals */}
@@ -1104,11 +1126,11 @@ function TrophyCase({ p }: { p: RoomPalette }) {
         <group key={s} position={[0, y, 0]}>
           <mesh position={[0, -0.02, 0]} geometry={sharedBox(w - 0.16, 0.03, 0.34)} material={sharedStandard({ color: p.desk, roughness: 0.6 })} />
           {/* trophy cup: base + stem + bowl */}
-          <mesh position={[-0.2, 0.04, 0]} geometry={sharedCylinder(0.05, 0.06, 0.03, 12)} material={sharedStandard({ color: "#d4af37", metalness: 0.8, roughness: 0.3 })} />
-          <mesh position={[-0.2, 0.09, 0]} geometry={sharedCylinder(0.012, 0.012, 0.07, 8)} material={sharedStandard({ color: "#d4af37", metalness: 0.8, roughness: 0.3 })} />
-          <mesh position={[-0.2, 0.15, 0]} geometry={sharedSphere(0.055, 12, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2)} material={sharedStandard({ color: "#e6c34a", metalness: 0.8, roughness: 0.3, side: 2 })} />
+          <mesh position={[-0.2, 0.04, 0]} geometry={sharedCylinder(0.05, 0.06, 0.03, 12)} material={sharedStandard({ color: CATALOG.brass, metalness: 0.8, roughness: 0.3 })} />
+          <mesh position={[-0.2, 0.09, 0]} geometry={sharedCylinder(0.012, 0.012, 0.07, 8)} material={sharedStandard({ color: CATALOG.brass, metalness: 0.8, roughness: 0.3 })} />
+          <mesh position={[-0.2, 0.15, 0]} geometry={sharedSphere(0.055, 12, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2)} material={sharedStandard({ color: CATALOG.brass, metalness: 0.8, roughness: 0.3, side: 2 })} />
           {/* medal disc */}
-          <mesh position={[0.18, 0.08, 0.02]} rotation-x={Math.PI / 2} geometry={sharedCylinder(0.06, 0.06, 0.015, 20)} material={sharedStandard({ color: s % 2 ? "#c0c5cc" : "#d4af37", metalness: 0.7, roughness: 0.3 })} />
+          <mesh position={[0.18, 0.08, 0.02]} rotation-x={Math.PI / 2} geometry={sharedCylinder(0.06, 0.06, 0.015, 20)} material={sharedStandard({ color: s % 2 ? "#c0c5cc" : CATALOG.brass, metalness: 0.7, roughness: 0.3 })} />
         </group>
       ))}
     </group>
@@ -1128,7 +1150,7 @@ function NapPod() {
       <mesh position={[0, 0.28, 0.12]} geometry={sharedRounded(0.7, 0.16, 0.5, 4, 0.07)} material={sharedStandard({ color: FABRIC_2, roughness: 0.85 })} />
       <mesh position={[0, 0.45, -0.22]} geometry={sharedRounded(0.6, 0.3, 0.14, 4, 0.06)} material={sharedStandard({ color: FABRIC, roughness: 0.85 })} />
       {/* subtle interior LED */}
-      <mesh position={[0, 0.9, -0.3]} geometry={sharedSphere(0.03, 8, 8)} material={sharedStandard({ color: "#8ecbff", emissive: "#8ecbff", emissiveIntensity: 0.8, toneMapped: false })} />
+      <mesh position={[0, 0.9, -0.3]} geometry={sharedSphere(0.03, 8, 8)} material={sharedStandard({ color: CATALOG.screenDim, emissive: CATALOG.screenDim, emissiveIntensity: 0.8, toneMapped: false })} />
     </group>
   );
 }
@@ -1146,11 +1168,11 @@ function MicroKitchen({ p }: { p: RoomPalette }) {
       <mesh position={[-w / 4, 0.92, 0.02]} geometry={sharedBox(0.3, 0.06, 0.34)} material={sharedStandard({ color: "#8a9099", metalness: 0.6, roughness: 0.3 })} />
       <mesh position={[-w / 4, 1.02, -0.14]} rotation-x={0.3} geometry={sharedCylinder(0.015, 0.015, 0.14, 8)} material={sharedStandard({ color: "#9aa1ab", metalness: 0.7 })} />
       {/* colored mini-fridge */}
-      <mesh position={[w / 2 - 0.3, 0.45, 0]} geometry={sharedRounded(0.5, 0.86, C - 0.2, 4, 0.03)} material={sharedStandard({ color: "#3f7fbf", roughness: 0.5, metalness: 0.15 })} />
+      <mesh position={[w / 2 - 0.3, 0.45, 0]} geometry={sharedRounded(0.5, 0.86, C - 0.2, 4, 0.03)} material={sharedStandard({ color: CATALOG.steel, roughness: 0.5, metalness: 0.15 })} />
       <mesh position={[w / 2 - 0.48, 0.55, 0.28]} geometry={sharedBox(0.03, 0.2, 0.02)} material={sharedStandard({ color: "#c0c5cc", metalness: 0.5 })} />
       {/* fruit bowl */}
-      <mesh position={[0.2, 0.99, 0]} geometry={sharedCylinder(0.11, 0.08, 0.06, 16)} material={sharedStandard({ color: "#c98b5a", roughness: 0.5 })} />
-      {([["#e2452f", -0.05, -0.03], ["#f0a63a", 0.05, -0.03], ["#7cb342", 0, 0.04]] as const).map((f, i) => (
+      <mesh position={[0.2, 0.99, 0]} geometry={sharedCylinder(0.11, 0.08, 0.06, 16)} material={sharedStandard({ color: CATALOG.tan, roughness: 0.5 })} />
+      {([[CATALOG.tan, -0.05, -0.03], [CATALOG.brass, 0.05, -0.03], [CATALOG.plantDeep, 0, 0.04]] as const).map((f, i) => (
         <mesh key={i} position={[0.2 + f[1], 1.06, f[2]]} geometry={sharedSphere(0.045, 10, 10)} material={sharedStandard({ color: f[0], roughness: 0.6 })} />
       ))}
       {/* coffee carafe */}
@@ -1185,7 +1207,7 @@ function FocusPod({ p }: { p: RoomPalette }) {
 
 function IdeaWall({ p }: { p: RoomPalette }) {
   const w = 2 * C;
-  const notes = ["#f6c945", "#4e9d6b", "#5b9dff", "#e2452f", "#c77dff", "#f0883a"];
+  const notes = [CATALOG.chalk, CATALOG.warmGrey, CATALOG.slate, CATALOG.tan, CATALOG.steel, CATALOG.woodMid];
   return (
     <group>
       {/* stand legs + foot */}
@@ -1199,8 +1221,8 @@ function IdeaWall({ p }: { p: RoomPalette }) {
         return <mesh key={i} position={[-0.4 + col * 0.4, 1.32 - row * 0.34, 0.03]} rotation-z={(i % 2 ? 1 : -1) * 0.08} geometry={sharedPlane(0.16, 0.16)} material={sharedStandard({ color: c, roughness: 0.7 })} />;
       })}
       {/* marker scribble */}
-      <mesh position={[0.44, 1.0, 0.03]} rotation-z={0.2} geometry={sharedPlane(0.28, 0.012)} material={sharedBasic({ color: "#e2452f" })} />
-      <mesh position={[0.4, 0.92, 0.03]} rotation-z={-0.15} geometry={sharedPlane(0.22, 0.012)} material={sharedBasic({ color: "#5b9dff" })} />
+      <mesh position={[0.44, 1.0, 0.03]} rotation-z={0.2} geometry={sharedPlane(0.28, 0.012)} material={sharedBasic({ color: CATALOG.slate })} />
+      <mesh position={[0.4, 0.92, 0.03]} rotation-z={-0.15} geometry={sharedPlane(0.22, 0.012)} material={sharedBasic({ color: CATALOG.steel })} />
     </group>
   );
 }
@@ -1210,7 +1232,7 @@ function IndoorTree({ p }: { p: RoomPalette }) {
     <group>
       {/* planter */}
       <mesh position={[0, 0.25, 0]} geometry={sharedCylinder(0.32, 0.26, 0.5, 20)} material={sharedStandard({ color: p.pot, roughness: 0.8 })} />
-      <mesh position={[0, 0.5, 0]} geometry={sharedCylinder(0.32, 0.32, 0.04, 20)} material={sharedStandard({ color: "#3a2a1c", roughness: 0.9 })} />
+      <mesh position={[0, 0.5, 0]} geometry={sharedCylinder(0.32, 0.32, 0.04, 20)} material={sharedStandard({ color: CATALOG.woodDark, roughness: 0.9 })} />
       {/* thick trunk */}
       <mesh position={[0, 0.95, 0]} geometry={sharedCylinder(0.09, 0.13, 0.9, 12)} material={sharedStandard({ color: WOOD, roughness: 0.85 })} />
       {/* broad multi-sphere canopy */}
@@ -1229,12 +1251,12 @@ function KombuchaTap() {
       {/* chalkboard label */}
       <mesh position={[0, 0.78, 0.225]} geometry={sharedPlane(0.38, 0.28)} material={sharedStandard({ color: "#1e2228", roughness: 0.8 })} />
       <mesh position={[0, 0.82, 0.23]} geometry={sharedPlane(0.24, 0.03)} material={sharedBasic({ color: "#e8ecf2" })} />
-      <mesh position={[0, 0.74, 0.23]} geometry={sharedPlane(0.16, 0.02)} material={sharedBasic({ color: "#8ecbff" })} />
+      <mesh position={[0, 0.74, 0.23]} geometry={sharedPlane(0.16, 0.02)} material={sharedBasic({ color: CATALOG.screenDim })} />
       {/* tap handles */}
       {[-0.13, 0, 0.13].map((x, i) => (
         <group key={i} position={[x, 0.42, 0.22]}>
           <mesh position={[0, 0, 0.04]} geometry={sharedBox(0.03, 0.08, 0.08)} material={sharedStandard({ color: "#4a505a", metalness: 0.6 })} />
-          <mesh position={[0, 0.08, 0.02]} geometry={sharedCylinder(0.015, 0.015, 0.12, 8)} material={sharedStandard({ color: i % 2 ? "#c0392b" : "#2f6f4f", roughness: 0.5 })} />
+          <mesh position={[0, 0.08, 0.02]} geometry={sharedCylinder(0.015, 0.015, 0.12, 8)} material={sharedStandard({ color: i % 2 ? CATALOG.steel : CATALOG.graphite, roughness: 0.5 })} />
         </group>
       ))}
       {/* drip tray */}
@@ -1252,7 +1274,7 @@ function RocketModel({ p }: { p: RoomPalette }) {
       {/* white body */}
       <mesh position={[0, 0.7, 0]} geometry={sharedCylinder(0.11, 0.11, 0.9, 20)} material={sharedStandard({ color: "#eef1f5", roughness: 0.4, metalness: 0.1 })} />
       {/* cone nose */}
-      <mesh position={[0, 1.28, 0]} geometry={sharedCone(0.11, 0.32, 20)} material={sharedStandard({ color: "#d05a51", roughness: 0.4 })} />
+      <mesh position={[0, 1.28, 0]} geometry={sharedCone(0.11, 0.32, 20)} material={sharedStandard({ color: CATALOG.slate, roughness: 0.4 })} />
       {/* window */}
       <mesh position={[0, 0.95, 0.11]} geometry={sharedCircle(0.03, 12)} material={sharedStandard({ color: p.screen, emissive: p.screen, emissiveIntensity: 0.5, toneMapped: false })} />
       {/* dark engine bell */}
@@ -1276,7 +1298,7 @@ function TreeLamp({ p }: { p: RoomPalette }) {
           {/* horizontal arm from pole to globe */}
           <mesh position={[a[1] * 0.5, a[0], a[2] * 0.5]} rotation-y={Math.atan2(a[2], a[1])} geometry={sharedBox(Math.hypot(a[1], a[2]), 0.02, 0.02)} material={sharedStandard({ color: p.metalDark, metalness: 0.5 })} />
           {/* warm emissive glass globe */}
-          <mesh position={[a[1], a[0], a[2]]} geometry={sharedSphere(0.08, 14, 12)} material={sharedStandard({ color: "#fff2cc", emissive: "#ffcf86", emissiveIntensity: 1.3, toneMapped: false, transparent: true, opacity: 0.92 })} />
+          <mesh position={[a[1], a[0], a[2]]} geometry={sharedSphere(0.08, 14, 12)} material={sharedStandard({ color: CATALOG.glow, emissive: CATALOG.glow, emissiveIntensity: 1.3, toneMapped: false, transparent: true, opacity: 0.92 })} />
         </group>
       ))}
     </group>
@@ -1284,7 +1306,7 @@ function TreeLamp({ p }: { p: RoomPalette }) {
 }
 
 function Uplight({ p }: { p: RoomPalette }) {
-  const hue = "#8b5cf6";
+  const hue = CATALOG.glow;
   return (
     <group>
       {/* backing panel */}
@@ -1309,7 +1331,7 @@ function PizzaStack() {
       {/* top box lid ajar */}
       <mesh position={[0, 0.5, -0.16]} rotation-x={-0.5} geometry={sharedBox(0.44, 0.02, 0.44)} material={sharedStandard({ color: "#c9a274", roughness: 0.8 })} />
       {/* grease-spot label */}
-      <mesh position={[0, 0.46, 0.221]} geometry={sharedPlane(0.14, 0.08)} material={sharedBasic({ color: "#c0392b" })} />
+      <mesh position={[0, 0.46, 0.221]} geometry={sharedPlane(0.14, 0.08)} material={sharedBasic({ color: CATALOG.tan })} />
     </group>
   );
 }
@@ -1331,7 +1353,7 @@ function CableSpool() {
 }
 
 function MascotStandee({ p }: { p: RoomPalette }) {
-  const hue = "#4f7bd8";
+  const hue = CATALOG.slate;
   return (
     <group>
       {/* easel foot */}
@@ -1343,7 +1365,7 @@ function MascotStandee({ p }: { p: RoomPalette }) {
         <mesh position={[0, 1.0, 0]} geometry={sharedBox(0.42, 0.34, 0.03)} material={sharedStandard({ color: hue, roughness: 0.6 })} />
         {/* antenna */}
         <mesh position={[0, 1.24, 0]} geometry={sharedCylinder(0.012, 0.012, 0.12, 6)} material={sharedStandard({ color: p.metalDark })} />
-        <mesh position={[0, 1.32, 0]} geometry={sharedSphere(0.03, 8, 8)} material={sharedStandard({ color: "#f5c542", emissive: "#f5c542", emissiveIntensity: 0.6, toneMapped: false })} />
+        <mesh position={[0, 1.32, 0]} geometry={sharedSphere(0.03, 8, 8)} material={sharedStandard({ color: CATALOG.ledWarn, emissive: CATALOG.ledWarn, emissiveIntensity: 0.6, toneMapped: false })} />
         {/* eyes + smile */}
         {[-0.1, 0.1].map((x, i) => <mesh key={i} position={[x, 1.02, 0.02]} geometry={sharedCircle(0.05, 14)} material={sharedBasic({ color: "#eef1f5" })} />)}
         {[-0.1, 0.1].map((x, i) => <mesh key={`p${i}`} position={[x, 1.02, 0.025]} geometry={sharedCircle(0.02, 10)} material={sharedBasic({ color: "#1a1d23" })} />)}
@@ -1448,6 +1470,36 @@ function renderParametric(type: FurnitureId, p: RoomPalette) {
   }
 }
 
+/** Books for the OPEN SHELVES of a fitted glTF bookcase (see `shelfRows` in furnitureModels.ts).
+ *  The Kenney bookcases ship empty — an open frame on a wall reads as scaffolding next to the
+ *  parametric case's tidy row of books — so each shelf surface gets a short run of books, sized in
+ *  metres off the model's fitted height. Deterministic (index arithmetic, no randomness), pooled
+ *  geometry/material like every other piece. */
+export function ShelfBooks({ rows, height }: { rows: readonly number[]; height: number }) {
+  const W = 0.05, D = 0.15, PITCH = 0.082;
+  const COUNT = 5; // fewer, calmer spines: a stocked shelf, not a full bookcase
+  return (
+    <group>
+      {rows.map((f, r) => (
+        <group key={r} position={[0, f * height, -0.03]}>
+          {Array.from({ length: COUNT }).map((_, i) => {
+            if ((i + r) % 5 === 3) return null; // one gap per shelf, in a different spot each row
+            const h = 0.19 + ((i + r * 2) % 3) * 0.03;
+            return (
+              <mesh
+                key={i}
+                position={[(i - (COUNT - 1) / 2) * PITCH, h / 2, 0]}
+                geometry={sharedBox(W, h, D)}
+                material={sharedStandard({ color: BOOKS[(i + r) % BOOKS.length], roughness: 0.75 })}
+              />
+            );
+          })}
+        </group>
+      ))}
+    </group>
+  );
+}
+
 const LazyGltf = lazy(() => import("./gltfFurniture.tsx"));
 
 /** Falls back to the parametric piece if a registered glTF model fails to load. Tiny + asset-only. */
@@ -1470,6 +1522,7 @@ export const FurniturePiece = memo(function FurniturePiece({ type, p }: { type: 
   if (!model) return parametric;
   const def = FURNITURE.find((f) => f.id === type);
   const desk = def?.category === "desks";
+  const shelves = model.shelfRows;
   return (
     <ModelBoundary fallback={parametric}>
       <Suspense fallback={parametric}>
@@ -1477,6 +1530,7 @@ export const FurniturePiece = memo(function FurniturePiece({ type, p }: { type: 
           asset={model}
           footprintW={(def?.w ?? 1) * C}
           footprintD={(def?.d ?? 1) * C}
+          dressing={shelves ? (h) => <ShelfBooks rows={shelves} height={h} /> : undefined}
         >
           {/* the modelled desks ship bare — give them the computer they're supposed to have */}
           {desk && <DeskTopKit p={p} w={def?.w ?? 2} />}

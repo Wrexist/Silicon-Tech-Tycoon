@@ -55,7 +55,12 @@ env:
   TEAM_ID: S3U8B8HH96
 
 jobs:
+  validation:
+    uses: ./.github/workflows/release-gates.yml
+    with:
+      marketing_version: ${{ inputs.marketing_version }}
   testflight:
+    needs: validation
     runs-on: macos-26
     timeout-minutes: 45
 
@@ -166,6 +171,9 @@ jobs:
         run: |
           xcodebuild -version
           xcode-select -p
+          XCODE_MAJOR=$(xcodebuild -version | head -1 | awk '{print $2}' | cut -d. -f1)
+          SDK_MAJOR=$(xcrun --sdk iphoneos --show-sdk-version | cut -d. -f1)
+          test "$XCODE_MAJOR" -ge 26 && test "$SDK_MAJOR" -ge 26 || { echo "::error::Xcode/iOS SDK 26 or later required"; exit 1; }
 
       - name: Install App Store Connect API key
         env:

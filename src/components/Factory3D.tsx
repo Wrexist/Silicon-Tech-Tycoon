@@ -1,3 +1,4 @@
+import { useReducedMotionLive } from "../garage3d/support.ts";
 // Factory Mode's 3D floor — the PLAYER'S line rendered live, not a diorama: whatever they've
 // built, raw material enters at the intake hopper, rides their conveyor through their machines
 // (gantry press, robot arms, glass QA tunnel…) and leaves the packer as a boxed crate at the
@@ -12,12 +13,26 @@ import { ContactShadows, Html, OrbitControls, RoundedBox } from "@react-three/dr
 import { Maximize2 } from "lucide-react";
 import * as THREE from "three";
 import {
-  FLOOR, MACHINE_DEFS, beltPath, canPlaceMachine, formMarks, machineCells, machineCenter, machineLevel, worldOf,
+  FLOOR, MACHINE_DEFS, beltPath, connectedChain, connectedMachines, canPlaceMachine, formMarks, machineCells, machineCenter, machineLevel, worldOf,
   type BeltDir, type FactoryFloor, type MachineKind,
 } from "../engine/factoryFloor.ts";
 import { PROP_DEFS, canPlaceProp, propCells, propCenter, type PlacedProp, type PropKind } from "../engine/factoryProps.ts";
 import { FINISH_SWATCHES } from "../render/deviceStyle.ts";
 import type { CategoryId, Product } from "../engine/types.ts";
+
+const MotionContext = createContext({ reduced: false, revision: "" });
+function useMotionFrame(callback: Parameters<typeof useFrame>[0]) {
+  const { reduced, revision } = useContext(MotionContext);
+  const initialize = useRef(true);
+  useEffect(() => { initialize.current = true; }, [reduced, revision]);
+  useFrame((state, delta, frame) => {
+    if (!reduced) callback(state, delta, frame);
+    else if (initialize.current) {
+      initialize.current = false;
+      callback({ ...state, clock: { ...state.clock, elapsedTime: 0, getElapsedTime: () => 0 } as typeof state.clock }, 0, frame);
+    }
+  });
+}
 
 /* palette — intrinsic object colours, the garage3d precedent */
 const C = {
@@ -185,32 +200,6 @@ function nearestItemDist(pl: Polyline, itemsT: number[], cx: number, cz: number)
   return best;
 }
 
-/** Closest point on the belt to (x,z) + the belt's heading there (yaw so a +Z-forward shape aims
- *  down the belt). Lets a machine sit ON the line and face along it, so the product runs THROUGH it
- *  — a gantry press straddles the belt, a QA tunnel encloses it, the packer folds around it. */
-function snapToBelt(pl: Polyline, x: number, z: number): { x: number; z: number; yaw: number; nx: number; nz: number } | null {
-  if (pl.pts.length < 2) return null;
-  let best = Infinity, bx = x, bz = z, byaw = 0, bnx = 0, bnz = 0;
-  for (let i = 0; i < pl.pts.length - 1; i++) {
-    const [ax, az] = pl.pts[i];
-    const [cx, cz] = pl.pts[i + 1];
-    const dx = cx - ax, dz = cz - az;
-    const len2 = dx * dx + dz * dz;
-    if (len2 === 0) continue;
-    const t = Math.max(0, Math.min(1, ((x - ax) * dx + (z - az) * dz) / len2));
-    const px = ax + dx * t, pz = az + dz * t;
-    const d = Math.hypot(px - x, pz - z);
-    if (d < best) {
-      best = d;
-      bx = px; bz = pz;
-      const len = Math.sqrt(len2);
-      byaw = Math.atan2(dx, dz);        // +Z-forward shape → aims along the segment
-      bnx = dz / len; bnz = -dx / len;  // in-plane normal (belt's side), for placing things beside it
-    }
-  }
-  return { x: bx, z: bz, yaw: byaw, nx: bnx, nz: bnz };
-}
-
 type ItemsRef = React.MutableRefObject<number[]>;
 
 /* ------------------------------- conveyor ------------------------------- */
@@ -299,7 +288,7 @@ function BeltTiles({ floor, lineOk, active, overtime, detail = "full" }: { floor
   rollers.current = [];
   arrows.current = [];
   const wasRunning = useRef(false);
-  useFrame(({ clock }) => {
+  useMotionFrame(({ clock }) => {
     const running = fine && lineOk && active;
     if (!running) {
       // Settle the chevrons back to their static glow ONCE, then idle (no writes while stopped).
@@ -413,7 +402,7 @@ function BeltTiles({ floor, lineOk, active, overtime, detail = "full" }: { floor
 function AndonStrip({ hot, phase, args, position }: { hot: boolean; phase: number; args: [number, number, number]; position: [number, number, number] }) {
   const accent = useAccent();
   const mat = useRef<THREE.MeshStandardMaterial>(null);
-  useFrame(({ clock }) => {
+  useMotionFrame(({ clock }) => {
     if (!mat.current) return;
     mat.current.emissiveIntensity = hot ? 1.2 : 0.35 + 0.25 * Math.sin(clock.elapsedTime * 1.3 + phase);
   });
@@ -488,7 +477,7 @@ function TravelingItem({ index, itemsT, pl, marks, look }: {
 }) {
   const grp = useRef<THREE.Group>(null);
   const forms = useRef<THREE.Group[]>([]);
-  useFrame(() => {
+  useMotionFrame(() => {
     const t = itemsT.current[index];
     if (t == null || !grp.current || pl.total === 0) return;
     const [x, z] = polyAtInto(pl, t, _scrItem);
@@ -534,7 +523,7 @@ function HotLight({ on, y = 2.4 }: { on: boolean; y?: number }) {
 function Intake({ active, hot, position, yaw = 0, phase = 0 }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; phase?: number }) {
   const accent = useAccent();
   const puff = useRef<THREE.Mesh>(null);
-  useFrame(({ clock }) => {
+  useMotionFrame(({ clock }) => {
     if (!puff.current) return;
     const f = (clock.elapsedTime % 1.4) / 1.4;
     puff.current.position.y = 1.7 - f * 0.9;
@@ -572,11 +561,11 @@ function GantryPress({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: 
   const accent = useAccent();
   const ram = useRef<THREE.Group>(null);
   const eng = useRef(0);
-  useFrame(() => {
+  useMotionFrame(() => {
     if (!ram.current) return;
     // Only the machine working the current stage moves; it slams DOWN as the item reaches the ram.
     const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
-    const target = active && hot ? Math.max(0, 1 - d / 0.95) : 0;
+    const target = active && hot ? Math.max(0, 1 - Math.max(0, d - 1.5) / 0.95) : 0;
     eng.current += (target - eng.current) * 0.5;
     ram.current.position.y = 1.55 - (eng.current ** 1.4) * 0.82;
   });
@@ -620,7 +609,7 @@ function RobotArm({ active, hot, position, phase = 0, pl, itemsT }: {
   const elbow = useRef<THREE.Group>(null);
   const wrist = useRef<THREE.Group>(null);
   const eng = useRef(0);
-  useFrame(({ clock }) => {
+  useMotionFrame(({ clock }) => {
     // Find the nearest item + its offset, so the arm can turn TOWARD it and reach down as it arrives.
     let d = Infinity, ix = position[0], iz = position[2];
     if (pl && itemsT) {
@@ -698,10 +687,10 @@ function QaTunnel({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { a
   const accent = useAccent();
   const beam = useRef<THREE.Mesh>(null);
   const eng = useRef(0);
-  useFrame(({ clock }) => {
+  useMotionFrame(({ clock }) => {
     if (!beam.current) return;
     const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
-    const target = active && hot ? Math.max(0, 1 - d / 1.1) : 0;   // only scans during its own (QA) stage
+    const target = active && hot ? Math.max(0, 1 - Math.max(0, d - 1.5) / 1.1) : 0;   // only scans during its own (QA) stage
     eng.current += (target - eng.current) * 0.3;
     beam.current.position.x = Math.sin(clock.elapsedTime * 3) * 0.55 * eng.current; // sweeps only while a unit is inside
     const mat = beam.current.material as THREE.MeshStandardMaterial;
@@ -738,9 +727,9 @@ function Packer({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { act
   const l = useRef<THREE.Mesh>(null);
   const r = useRef<THREE.Mesh>(null);
   const eng = useRef(0);
-  useFrame(() => {
+  useMotionFrame(() => {
     const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
-    const target = active && hot ? Math.max(0, 1 - d / 0.95) : 0;   // only folds during its own (packaging) stage
+    const target = active && hot ? Math.max(0, 1 - Math.max(0, d - 1.5) / 0.95) : 0;   // only folds during its own (packaging) stage
     eng.current += (target - eng.current) * 0.4;
     const c = eng.current; // plates fold shut around the device as it reaches the packer
     if (l.current) l.current.rotation.z = -0.2 - c * 0.95;
@@ -774,9 +763,9 @@ function CncMill({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { ac
   const spindle = useRef<THREE.Group>(null);
   const bit = useRef<THREE.Mesh>(null);
   const eng = useRef(0);
-  useFrame(({ clock }) => {
+  useMotionFrame(({ clock }) => {
     const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
-    const target = active && hot ? Math.max(0, 1 - d / 1.0) : 0;   // only cuts during its own (milling) stage
+    const target = active && hot ? Math.max(0, 1 - Math.max(0, d - 1.5) / 1.0) : 0;   // only cuts during its own (milling) stage
     eng.current += (target - eng.current) * 0.3;
     const c = eng.current;
     if (spindle.current) {
@@ -817,9 +806,9 @@ function ScreenBonder({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }:
   const head = useRef<THREE.Group>(null);
   const glow = useRef<THREE.Mesh>(null);
   const eng = useRef(0);
-  useFrame(() => {
+  useMotionFrame(() => {
     const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
-    const target = active && hot ? Math.max(0, 1 - d / 0.9) : 0;   // only bonds during its own (screen) stage
+    const target = active && hot ? Math.max(0, 1 - Math.max(0, d - 1.5) / 0.9) : 0;   // only bonds during its own (screen) stage
     eng.current += (target - eng.current) * 0.35;
     const c = eng.current;
     if (head.current) head.current.position.y = 1.5 - c * 0.92;                                  // lowers the panel
@@ -859,7 +848,7 @@ const PROP_GREEN = "#3f8f5a";
 function FanProp({ pos, id }: { pos: [number, number, number]; id: string }) {
   const blades = useRef<THREE.Group>(null);
   const phase = (hashNum(id) % 628) / 100;
-  useFrame(({ clock }) => { if (blades.current) blades.current.rotation.z = clock.elapsedTime * 0.9 + phase; });
+  useMotionFrame(({ clock }) => { if (blades.current) blades.current.rotation.z = clock.elapsedTime * 0.9 + phase; });
   return (
     <group position={pos}>
       {/* base + pedestal */}
@@ -884,7 +873,7 @@ function FanProp({ pos, id }: { pos: [number, number, number]; id: string }) {
 function GantryProp({ pos, id }: { pos: [number, number, number]; id: string }) {
   const hook = useRef<THREE.Group>(null);
   const phase = (hashNum(id) % 628) / 100;
-  useFrame(({ clock }) => { if (hook.current) hook.current.rotation.x = Math.sin(clock.elapsedTime * 0.8 + phase) * 0.05; });
+  useMotionFrame(({ clock }) => { if (hook.current) hook.current.rotation.x = Math.sin(clock.elapsedTime * 0.8 + phase) * 0.05; });
   return (
     <group position={pos}>
       {/* two A-frame legs */}
@@ -1210,7 +1199,7 @@ function Pallet({ position, yaw = 0, count }: { position: [number, number, numbe
 
 function Truck({ selling, position, yaw = 0 }: { selling: boolean; position: [number, number, number]; yaw?: number }) {
   const grp = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
+  useMotionFrame(({ clock }) => {
     if (grp.current) grp.current.position.y = selling ? Math.abs(Math.sin(clock.elapsedTime * 3)) * 0.012 : 0; // subtle idle rumble while shipping
   });
   return (
@@ -1248,7 +1237,7 @@ function Agvs({ tier, overtime, tail, dock }: {
   const shuttle = useRef<THREE.Group>(null);
   const shuttleCrate = useRef<THREE.Group>(null);
   const t0 = useRef(0);
-  useFrame((_, dt) => {
+  useMotionFrame((_, dt) => {
     t0.current += dt * 0.8;
     refs.current.forEach((g, i) => {
       if (!g) return;
@@ -1326,7 +1315,7 @@ function CompletionPop({ count, pallet, truck, yaw }: {
   const prev = useRef(count);
   const born = useRef(-10);
   const jit = useRef(0);
-  useFrame(({ clock }) => {
+  useMotionFrame(({ clock }) => {
     if (count > prev.current) {                 // a unit just shipped → start a beat
       born.current = clock.elapsedTime;
       jit.current = (hashNum(`pop${count}`) % 100) / 100;
@@ -1411,7 +1400,14 @@ function frameCamera(cam: THREE.PerspectiveCamera, portrait: boolean, cx = 0, zo
   cam.fov = (portrait ? 54 : 30) + cx * 0.9;
   if (portrait) cam.position.set(12.2 + cx, 16.6, 13.4);
   else cam.position.set((10.6 + cx) * zoomOut, 13.1 * zoomOut, 11.6 * zoomOut);
-  cam.lookAt(cx, -0.3, 0);
+  const target = portrait ? new THREE.Vector3(0, -0.3, -cx) : new THREE.Vector3(cx, -0.3, 0);
+  const radius = Math.hypot(8.7 + cx, 5.7, 2);
+  const halfVertical = THREE.MathUtils.degToRad(cam.fov / 2);
+  const halfHorizontal = Math.atan(Math.tan(halfVertical) * cam.aspect);
+  const distance = radius / Math.sin(Math.min(halfVertical, halfHorizontal)) * 1.08;
+  const direction = cam.position.clone().sub(target).normalize();
+  cam.position.copy(target).addScaledVector(direction, distance * zoomOut);
+  cam.lookAt(target);
   cam.updateProjectionMatrix();
 }
 
@@ -1435,12 +1431,13 @@ function CameraReset({ signal, cx }: { signal: number; cx: number }) {
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as { target: THREE.Vector3; update: () => void } | null;
   const size = useThree((s) => s.size);
-  const seen = useRef(signal);
+  const seen = useRef("");
   useFrame(() => {
-    if (seen.current === signal) return;
-    seen.current = signal;
+    const revision = `${signal}:${size.width}:${size.height}:${cx}`;
+    if (seen.current === revision) return;
+    seen.current = revision;
     frameCamera(camera as THREE.PerspectiveCamera, size.height > size.width, cx);
-    if (controls) { controls.target.set(cx, -0.3, 0); controls.update(); }
+    if (controls) { controls.target.set(size.height > size.width ? 0 : cx, -0.3, size.height > size.width ? -cx : 0); controls.update(); }
   });
   return null;
 }
@@ -1488,12 +1485,9 @@ function MachineAt({ m, active, activeKind, pl, itemsT }: {
   m: FactoryFloor["machines"][number]; active: boolean; activeKind: MachineKind | null; pl: Polyline; itemsT: ItemsRef;
 }) {
   const [cx, cz] = machineCenter(m);
-  // Snap the machine ONTO the belt so the product runs through it. Straddlers (mill / press / screen
-  // / QA / packer / intake) sit centred on the line and face along it; the robot arm stands beside
-  // the belt and reaches over. If there's no line yet, fall back to the raw cell centre.
-  const snap = snapToBelt(pl, cx, cz);
-  const onBelt: [number, number, number] = snap ? [snap.x, 0, snap.z] : [cx, 0, cz];
-  const yaw = snap ? snap.yaw : 0;
+  // Geometry and picking must agree with the owned footprint. Belts never relocate a machine.
+  const onBelt: [number, number, number] = [cx, 0, cz];
+  const yaw = 0; // footprints have no rotation field; the model uses the same orientation as the ghost.
   const hot = active && activeKind === m.kind; // only the machine working the current step animates
   const phase = (hashNum(m.id) % 628) / 100;   // stable per-machine andon hum phase (0..~6.28)
   let el: React.ReactElement | null = null;
@@ -1506,21 +1500,19 @@ function MachineAt({ m, active, activeKind, pl, itemsT }: {
     case "qa": el = <QaTunnel active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} pl={pl} itemsT={itemsT} />; break;
     case "packer": el = <Packer active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} pl={pl} itemsT={itemsT} />; break;
     case "arm": {
-      // beside the belt on the side it was placed, reaching over the line
-      const side = snap ? Math.sign((cx - snap.x) * snap.nx + (cz - snap.z) * snap.nz) || 1 : 1;
-      const armPos: [number, number, number] = snap ? [snap.x + snap.nx * side * 0.95, 0, snap.z + snap.nz * side * 0.95] : [cx, 0, cz];
+      const armPos: [number, number, number] = [cx, 0, cz];
       el = <RobotArm active={active} hot={hot} position={armPos} phase={phase} pl={pl} itemsT={itemsT} />;
       pipPos = armPos;
       break;
     }
   }
-  return <group>{el}<TierPips level={machineLevel(m)} position={pipPos} /></group>;
+  return <group name={`factory-machine:${m.id}`}>{el}<TierPips level={machineLevel(m)} position={pipPos} /></group>;
 }
 
 /** The picked-up piece hovers with a soft bob — reads as "in hand", not placed. */
 function Lift({ children }: { children: React.ReactNode }) {
   const g = useRef<THREE.Group>(null);
-  useFrame(({ clock }) => {
+  useMotionFrame(({ clock }) => {
     if (g.current) g.current.position.y = 0.55 + Math.sin(clock.elapsedTime * 3.5) * 0.06;
   });
   return <group ref={g} position={[0, 0.55, 0]}>{children}</group>;
@@ -1543,13 +1535,19 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   const { size } = useThree();
   const portrait = size.height > size.width;
   const world = useRef<THREE.Group>(null);
+  const connectedIds = useMemo(() => new Set(connectedMachines(p.floor).map(m => m.id)), [p.floor]);
   const floorW = p.floorW ?? FLOOR.w;      // buildable width in cells (grows east with expansions)
+  const shadowTarget = useMemo(() => {
+    const target = new THREE.Object3D();
+    target.position.x = (floorW - FLOOR.w) / 2;
+    return target;
+  }, [floorW]);
   const cx = (floorW - FLOOR.w) / 2;       // east shift of the building centre (origin fixed)
   const accent = eraAccent(p.era ?? 1);    // working-machine glow advances with the company's era
 
   // The belts ARE the path: chain them, then derive where the item transforms.
-  const pl = useMemo(() => makePolyline(beltPath(p.floor.belts)), [p.floor.belts]);
-  const marks = useMemo(() => formMarks(p.floor, pl.pts), [p.floor, pl.pts]);
+  const pl = useMemo(() => makePolyline(beltPath(connectedChain(p.floor))), [p.floor]);
+  const marks = useMemo(() => formMarks(p.floor, pl.pts, p.product?.category), [p.floor, pl.pts, p.product?.category]);
 
   // The line ENDS at a dock: a pallet just past the belt tail with the delivery truck behind it,
   // both aimed along the tail's flow — so wherever the player routes the line, it ships from its end.
@@ -1571,7 +1569,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
 
   const look = useMemo(() => productLook(p.product), [p.product]);
   const itemsT = useRef<number[]>([0, 0.25, 0.5, 0.75].map((f) => f * Math.max(1, pl.total)));
-  useFrame((_, dt) => {
+  useMotionFrame((_, dt) => {
     // Items exist only on a wired line (rendered below when lineOk). When the line is wired but NOT
     // actively producing, they still CREEP at ~10% so a stopped belt reads as "warming up" rather
     // than showing parts frozen mid-conveyor. Advance IN PLACE — no per-frame array allocation.
@@ -1775,7 +1773,10 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
           era-tinted HotLight accents on the working machine still punch through this lower base. */}
       <ambientLight intensity={0.4} />
       <hemisphereLight args={["#bcd3ff", "#2a2f37", 0.55]} position={[0, 8, 0]} />
-      <directionalLight position={[7, 12, 5]} intensity={1.0} castShadow shadow-mapSize={[1024, 1024]} />
+      <primitive object={shadowTarget} />
+      <directionalLight position={[7 + (floorW - FLOOR.w) / 2, 12, 5]} target={shadowTarget} intensity={1.0} castShadow shadow-mapSize={[1024, 1024]}
+        shadow-camera-left={-floorW / 2 - 3} shadow-camera-right={floorW / 2 + 3}
+        shadow-camera-top={floorW / 2 + 3} shadow-camera-bottom={-floorW / 2 - 3} shadow-camera-far={60} />
       {/* overhead high-bay pools spaced down the floor (follow the building's east shift) */}
       {[-4.2, 0, 4.2].map((dx, i) => (
         <pointLight key={i} position={[cx + dx, 6, 0]} intensity={p.overtime ? 16 : 10} distance={11} decay={2} color={p.overtime ? C.amber : "#f2f6ff"} />
@@ -1910,7 +1911,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
             </mesh>
             {/* the expand pill — one compact line hugging the bay's west edge, far enough west
                 that neither the fullscreen tool rail nor the HQ card's crop clips the price */}
-            <Html position={[-(bw / 2) - 0.6, 0.45, -2.2]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
+            {p.preview && <Html position={[-(bw / 2) - 0.6, 0.45, -2.2]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
               <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, whiteSpace: "nowrap", fontFamily: "system-ui,-apple-system,sans-serif" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 999, background: p.lockedBay.armed ? "var(--accent, #3b82f6)" : "rgba(15,18,24,0.88)", border: p.lockedBay.armed ? "1px solid transparent" : "1px solid rgba(255,255,255,0.14)", color: "#fff", fontSize: 12, fontWeight: 800 }}>
                   <Maximize2 size={12} aria-hidden /> {p.lockedBay.label}
@@ -1921,7 +1922,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
                   </div>
                 )}
               </div>
-            </Html>
+            </Html>}
           </group>
         );
       })()}
@@ -1934,7 +1935,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
         .filter((m) => !(carry?.type === "machine" && carry.id === m.id))
         .map((m) => (
           <group key={m.id} onPointerDown={(e) => beginHold(e, { type: "machine", id: m.id })}>
-            <MachineAt m={m} active={p.active && p.lineOk} activeKind={p.activeKind} pl={pl} itemsT={itemsT} />
+            <MachineAt m={m} active={p.active && connectedIds.has(m.id)} activeKind={p.activeKind} pl={pl} itemsT={itemsT} />
           </group>
         ))}
       {p.props
@@ -1982,13 +1983,14 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {dock && <CompletionPop count={p.readyCount} pallet={dock.pallet} truck={dock.truck} yaw={dock.yaw} />}
       <Agvs tier={p.robotTier} overtime={p.overtime} tail={pl.pts.length ? pl.pts[pl.pts.length - 1] : null} dock={dock} />
 
-      <ContactShadows position={[0, 0.11, 0]} opacity={0.5} scale={26} blur={2.2} far={4} frames={60} />
+      <ContactShadows key={JSON.stringify([p.floor, p.props, p.floorW])} position={[(floorW - FLOOR.w) / 2, 0.11, 0]} opacity={0.5} scale={Math.max(26, floorW + 2)} blur={2.2} far={4} frames={60} />
     </group>
     </AccentContext.Provider>
   );
 }
 
 export default function Factory3D(p: Factory3DProps) {
+  const reduced = useReducedMotionLive();
   // Building east-shift from expansions; when a LOCKED bay is previewed, frame slightly east of the
   // built floor so the ghost bay (and its lock pill) sit on screen instead of behind the tool rail.
   const cx = ((p.floorW ?? FLOOR.w) - FLOOR.w) / 2 + (p.lockedBay ? p.lockedBay.cols / 4 : 0);
@@ -1996,7 +1998,7 @@ export default function Factory3D(p: Factory3DProps) {
   // piece — not the view. Mirrored out to the caller for haptics/hints via onCarryChange.
   const [carrying, setCarrying] = useState(false);
   return (
-    <Canvas
+    <MotionContext.Provider value={{ reduced, revision: JSON.stringify([p.floor, p.props, p.floorW]) }}><Canvas
       role="img"
       aria-label="Factory floor, 3D view"
       frameloop={p.paused ? "never" : "always"}
@@ -2033,10 +2035,10 @@ export default function Factory3D(p: Factory3DProps) {
         rotateSpeed={0.55}
         zoomSpeed={0.8}
         minDistance={8}
-        maxDistance={32}
+        maxDistance={80}
         minPolarAngle={0.18}
         maxPolarAngle={Math.PI / 2 - 0.06}
       />}
-    </Canvas>
+    </Canvas></MotionContext.Provider>
   );
 }

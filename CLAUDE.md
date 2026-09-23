@@ -71,7 +71,17 @@ celebration style — leave them as-is.
   401/419/421/433/439 = office presentation streams (Wave 7, cosmetic-only, never read by the engine):
   401 = per-character work-target pick (idle vs working); 419 = bubble count per slot;
   421 = bubble character pick; 433 = bubble line pick; 439 = bubble position jitter. Bubble timing
-  advances with active play time, not the sim clock, so these hashes fix the content, not the second.)
+  advances with active play time, not the sim clock, so these hashes fix the content, not the second.);
+  443/449/457/461/463 = office ROAMING presentation (cosmetic-only, never read by the engine):
+  443 = who steps away from a desk this week; 449 = which break spot they claim; 457 = away priority
+  when more characters want a break than the room allows; 461/463 = overflow drifter heading/radius.
+  The plan is a pure fold over (seed, week, character), so a week always leaves the same desks.;
+  467 = the office ARRANGER's cosmetic pick (which free right-wall row the culture arcade lands on).
+  The arrangement is a pure fold of (tier, headcount, player layout, seed, week, era) — the player's
+  layout is never written, and the engine never reads it.;
+  479 = the workstation MODULE's cosmetic variation (item 5): screen layout + the one small desk
+  prop, a pure fold over (seed, per-desk station key). Presentation-only; the module adds no grid
+  cells and the engine never reads it.)
 - **Opportunistic full-screen interrupts share a budget.** Any card that fires on its own cadence
   (strike / eureka / community / earnings / rivalry / staff moment / regional event / licensing
   contract offer) must gate on

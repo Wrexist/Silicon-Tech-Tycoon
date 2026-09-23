@@ -14,6 +14,14 @@ const CAM_ZOOM_MAX = 13;
 // ramps in. Kept generous so it never fights an active viewer — it's a screensaver for an office
 // left alone, and collapses back to zero the instant the controls are touched (so `settled` fires).
 const IDLE_DRIFT_DELAY = 6;
+// Item 4 (wave 0): the resting framing sits this fraction of the old distance from the room, so the
+// office reads ~18% larger in the viewport and the empty margin around it shrinks. Only the numbers
+// change — parallax, idle drift, the settle path and the Reduce-Motion `still` suppression are
+// untouched. Decorate mode keeps its own pulled-back framing (it has to show the whole grid above
+// the shop panel).
+const REST_FRAME = 0.85;
+/** The rig's resting pose, exported so the Canvas can start there instead of at a stale position. */
+export const CAM_REST_POSITION: [number, number, number] = [15.5 * REST_FRAME, 13.0 * REST_FRAME, 17.5 * REST_FRAME];
 // Shared camera dolly offset (in the same units as baseR): written by both the W/S keys and the
 // pinch-to-zoom handler, read by CameraRig every frame. A plain module singleton (no React state) so
 // the render loop stays allocation-free and the DOM touch handler can drive it without re-renders.
@@ -102,9 +110,9 @@ export function CameraRig({ build = false, facilityTier = 1, still = false }: { 
     // room's edges off-screen (and the shop panel hides the front row), so furniture near the walls
     // was unreachable. Pull back + raise the angle so the WHOLE grid sits in the visible area above
     // the panel; W/S (or a pinch, if added) still let you dolly in for fine placement.
-    const px = build ? 9.5 : 15.5;
-    const py = build ? 13.6 : 13.0;
-    const pz = build ? 12.5 : 17.5;
+    const px = build ? 9.5 : 15.5 * REST_FRAME;
+    const py = build ? 13.6 : 13.0 * REST_FRAME;
+    const pz = build ? 12.5 : 17.5 * REST_FRAME;
     const ty = build ? 0.5 : 0.7;
 
     // Convert the base offset to an orbit (radius + azimuth) so A/D rotates around the room
