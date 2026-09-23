@@ -16,7 +16,8 @@ import {
   Construction, FireExtinguisher, Fence, Fan, Lamp, Box, Gauge, PocketKnife, SearchCheck, Forklift,
 } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
-import { burn, industryRank, nextWeekRevenue, nextExpansionCost, factoryLayoutCost, autoConnectQuote } from "../state/gameState.ts";
+import { industryRank, nextExpansionCost, factoryLayoutCost, autoConnectQuote } from "../state/gameState.ts";
+import { weeklyFinancials } from "../state/managementMetrics.ts";
 import { MAX_LAYOUTS, layoutDiff, layoutEditSummary } from "../engine/factoryLayout.ts";
 import { appOverlayOpen } from "../design/overlayGuard.ts";
 import { lockScroll } from "../design/scrollLock.ts";
@@ -96,9 +97,7 @@ function useFactoryData() {
   const readyCount = state.ready.length;
   const { fac, util, overtime, selling, unitsWk } = factoryProductionSummary(state);
   const robotTier = state.upgrades.assembly ?? 0;
-  const revenueWk = nextWeekRevenue(state);
-  const expensesWk = burn(state);
-  const profitWk = sub(revenueWk, expensesWk);
+  const { revenue: revenueWk, costs: expensesWk, profit: profitWk } = weeklyFinancials(state);
 
   // Estimated committed parts — parts committed to active runs, per component kind of each product.
   const materials = new Map<ComponentKind, number>();
@@ -850,7 +849,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               </button>
             )}
           </div>
-          <p className="fmode__sheet-note">Design Suite, Test Lab, Marketing and the rest live on the Company tab.</p>
+          <p className="fmode__sheet-note">Design Suite, Test Lab, Marketing and the rest live under Office upgrades.</p>
         </div>
       </Sheet>
 
@@ -862,8 +861,9 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           <div className="fmode__stat"><span>Ready to launch</span><span className="tnum">{d.readyCount}</span></div>
           <div className="fmode__stat"><span>Retail units / next wk</span><span className="tnum">{d.unitsWk.toLocaleString()}</span></div>
           <div className="fmode__stat"><span>Company revenue / wk</span><span className="tnum">{format(d.revenueWk)}</span></div>
-          <div className="fmode__stat"><span>Company expenses / wk</span><span className="tnum">{format(d.expensesWk)}</span></div>
-          <div className="fmode__stat"><span>Company profit / wk</span><span className={`tnum ${toDollars(d.profitWk) >= 0 ? "fmode__pos" : "fmode__neg"}`}>{format(d.profitWk)}</span></div>
+          <div className="fmode__stat"><span>Company outflow / wk</span><span className="tnum">{format(d.expensesWk)}</span></div>
+          <div className="fmode__stat"><span>Company cash surplus / wk</span><span className={`tnum ${toDollars(d.profitWk) >= 0 ? "fmode__pos" : "fmode__neg"}`}>{format(d.profitWk)}</span></div>
+          <p className="fmode__sheet-note">Forecast next week, including loan payments and overhead. Upfront production investment is separate.</p>
           {d.util != null && <div className="fmode__stat"><span>Lead run / current capacity</span><span className="tnum">{Math.round(d.util * 100)}%</span></div>}
           <div className="fmode__stat">
             <span>Assembly time reduction</span>
