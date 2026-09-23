@@ -359,6 +359,12 @@ function DioramaRoom({ p, cull, showWhiteboard, name }: { p: RoomPalette; cull: 
           <boxGeometry args={[0.06, 0.14, 8.4]} />
         </mesh>
         <Wainscot p={p} axis="-x" len={8.3} offset={0.2} face={-3.92} />
+        {/* Shallow window frames stay against the wall, clear of saved furniture footprints. */}
+        {[-1.7, 1.0].map((z) => <group key={z} position={[-3.89, 1.8, z]}>
+          <mesh material={skirting}><boxGeometry args={[0.045, 1.25, 2.15]} /></mesh>
+          <mesh position={[0.025, 0, 0]} material={sharedStandard({ color: p.poolCool, roughness: 0.55, metalness: 0 })}><boxGeometry args={[0.012, 1.1, 1.98]} /></mesh>
+          <mesh position={[0.045, 0, 0]} material={skirting}><boxGeometry args={[0.03, 1.12, 0.055]} /></mesh>
+        </group>)}
       </group>
     </group>
   );
@@ -369,7 +375,7 @@ function Room({ p, dark, finish, wall, cull, showWhiteboard = true, name = "Sili
   const isBrick = wall.kind === "brick";
   const wallColor = dark ? wall.dark : wall.light;
 
-  if (!dark) return <DioramaRoom p={p} cull={cull} showWhiteboard={showWhiteboard} name={name} />;
+  if (!dark) return <DioramaRoom p={{ ...p, floor: finish.light, floorField: finish.light, wallA: wall.light, wallB: wall.light }} cull={cull} showWhiteboard={showWhiteboard} name={name} />;
 
   return (
     <group>

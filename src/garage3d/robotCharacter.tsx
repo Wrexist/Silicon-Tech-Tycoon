@@ -1,4 +1,4 @@
-import { sofaSeatSurface, robotSeatLift } from './seatAnchors.ts';
+import { sofaSeatSurface, robotSeatLift, ROBOT_SCALE } from './seatAnchors.ts';
 import { stepOfficeMotion, updateWalkPose, angleDelta, type WalkPose } from './officeMotion.ts';
 // The team's mascot robots. Parametric-only (the rigged .glb path renders when a model is
 // registered, with this parametric robot as its fallback). Extract from Garage3D so the scene file
@@ -51,7 +51,7 @@ export function shade(hex: string, amt: number): string {
 
 // How high the seated robot rides above its floor pivot so its torso rests on the chair seat
 // (Chair seat top ≈ 0.58; the robot's torso underside sits ≈0.18 above its pivot → ≈0.4 lift).
-export const SIT_LIFT = 0.4;
+export const SIT_LIFT = robotSeatLift(0.575);
 
 // Premium mascot robot: soft two-tone shell, dark eye-visor with generous glowing eyes that blink,
 // antenna with a lit mood tip, little arms + hands, rounded feet, metallic neck ring. `walking`
@@ -134,7 +134,7 @@ export function RobotCharacter({
     const hop = cheer > 0 ? Math.abs(Math.sin(t * 9)) * (sitting ? 0.05 : 0.14) * cheer : 0; // seeded t → each robot hops out of phase
     if (root.current) {
       root.current.position.y = baseY + hop - slump * 0.05 + breath * 0.008;
-      root.current.scale.setScalar(1.25 * (1 + breath * 0.007));
+      root.current.scale.setScalar(ROBOT_SCALE * (1 + breath * 0.007));
     }
     if (headRef.current) {
       const calm = 1 - slump;
@@ -201,7 +201,7 @@ export function RobotCharacter({
   });
 
   return (
-    <group ref={root} name="office-robot-body" scale={1.25}>
+    <group ref={root} name="office-robot-body" scale={ROBOT_SCALE}>
       {/* legs + rounded feet — geometries/materials come from the shared GPU cache (sharedGpu.ts) */}
       <group ref={legLRef} position={[-0.13, 0.3, 0]}>
         <mesh

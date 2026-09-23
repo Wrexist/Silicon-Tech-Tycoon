@@ -81,7 +81,9 @@ const DesignLab = lazy(() => import("./screens/DesignLab.tsx").then((m) => ({ de
 const Research = lazy(() => import("./screens/Research.tsx").then((m) => ({ default: m.Research })));
 const Market = lazy(() => import("./screens/Market.tsx").then((m) => ({ default: m.Market })));
 const Company = lazy(() => import("./screens/Company.tsx").then((m) => ({ default: m.Company })));
+import { BottomDock } from "./components/BottomDock.tsx";
 import "./App.css";
+import "./design/redesign.css";
 
 const TAB_TITLE: Record<Tab, string> = {
   hq: "Silicon",
@@ -90,11 +92,7 @@ const TAB_TITLE: Record<Tab, string> = {
   market: "Market",
   company: "Company",
 };
-const TAB_TINT: Partial<Record<Tab, string>> = {
-  design: "var(--fn-design)",
-  research: "var(--fn-eng)",
-  market: "var(--fn-mkt)",
-};
+const TAB_TINT: Partial<Record<Tab, string>> = {};
 
 export function App() {
   return (
@@ -144,6 +142,8 @@ function AppShell() {
   // Transient "design a successor" seed — set from a launched product's detail sheet, consumed by
   // the Design Lab on the next render, then cleared. Lives in React (never persisted) so it's a
   // pure UI hand-off and survives no reloads.
+  const designVisited = useRef(false);
+  if (tab === "design") designVisited.current = true;
   const [successorSeed, setSuccessorSeed] = useState<Product | null>(null);
   const designSuccessor = (p: Product) => {
     setSuccessorSeed(p);
@@ -308,14 +308,21 @@ function AppShell() {
             <HQ onNavigate={setTab} onOpenBank={openBank} onOpenChallenges={() => (uiVersion === "next" ? push("progress", { section: "challenges" }) : openProgress("challenges"))} onViewFactory={() => { setHqWorld("factory"); haptic.light(); }} active={tab === "hq" && page == null} world={hqWorld} />
           </ErrorBoundary>
         </div>
+        {designVisited.current && <div className="app__screen" hidden={page != null || tab !== "design"}>
+          {uiVersion !== "next" && <h1 className="app__title">Design Lab</h1>}
+          <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
+            <Suspense fallback={<ScreenLoading />}>
+              <DesignLab key={gameId} active={tab === "design" && page == null} seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} />
+            </Suspense>
+          </ErrorBoundary>
+        </div>}
         {/* The other screens are light (no WebGL), so they keep the snappy keyed remount that
             replays the `app__screen` enter animation on each navigation. */}
-        {!page && tab !== "hq" && (
+        {!page && tab !== "hq" && tab !== "design" && (
           <div className="app__screen" key={tab}>
             <h1 className="app__title" style={TAB_TINT[tab] ? { color: TAB_TINT[tab] } : undefined}>{TAB_TITLE[tab]}</h1>
             <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
               <Suspense fallback={<ScreenLoading />}>
-                {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} />}
                 {tab === "research" && <Research onNavigate={setTab} />}
                 {tab === "market" && (
                   <Market
@@ -382,9 +389,9 @@ function AppShell() {
 
       <Coach tab={tab} onNavigate={setTab} />
 
-      {/* Thumb-reachable speed control, post-tutorial. Hidden on Design (the build wizard owns the
-          bottom band there) and during the tutorial (the controls stay in the top HUD then). */}
-      {state.tutorialDone && tab !== "design" && <SpeedDial />}
+      {/* Shared continuous-time controls reserve their measured height on every screen. */}
+      <BottomDock>
+      <SpeedDial />
 
       <BottomNav
         active={tab}
@@ -392,6 +399,7 @@ function AppShell() {
         badge={navAttention(state)}
         visible={tabVisible}
       />
+      </BottomDock>
 
       <GainFX />
       <Confetti />

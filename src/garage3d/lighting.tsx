@@ -134,7 +134,7 @@ export function Lighting({ p, dark, roomScale = 1 }: { p: RoomPalette; dark: boo
         {/* the lounge / coffee nook reads warm and separate from the work floor */}
         <pointLight position={[-3.2, 2.0, 0.5]} intensity={dark ? 9 : 2.4} distance={3.6} decay={2} color={p.lamp} />
       </group>
-      <FloorPools p={p} dark={dark} roomScale={roomScale} />
+      {dark && <FloorPools p={p} dark={dark} roomScale={roomScale} />}
     </>
   );
 }

@@ -31,7 +31,7 @@ function getCamZoom(): number { return camZoomOffset; }
 function setCamZoom(v: number): void { camZoomOffset = Math.max(CAM_ZOOM_MIN, Math.min(CAM_ZOOM_MAX, v)); }
 
 export function CameraRig({ build = false, facilityTier = 1, still = false }: { build?: boolean; facilityTier?: number; still?: boolean }) {
-  const { camera, pointer } = useThree();
+  const { camera, pointer, gl } = useThree();
   const target = useMemo(() => new THREE.Vector3(0, 1.5, 0), []);
   const keys = useRef<Set<string>>(new Set());
   const orbit = useRef({ yaw: 0, lift: 0 }); // player camera offsets (zoom lives in the shared singleton)
@@ -41,6 +41,30 @@ export function CameraRig({ build = false, facilityTier = 1, still = false }: { 
   // Each mode (decorate vs. normal) has its own default framing, so reset the dolly when the mode
   // flips, otherwise a big pinch-out in Decorate would leave the normal office zoomed out too.
   useEffect(() => { setCamZoom(0); }, [build]);
+  useEffect(() => {
+    const reset = () => { setCamZoom(0); orbit.current = { yaw: 0, lift: 0 }; keys.current.clear(); idleT.current = 0; };
+    window.addEventListener("silicon:office-camera-reset", reset);
+    return () => window.removeEventListener("silicon:office-camera-reset", reset);
+  }, []);
+  useEffect(() => {
+    if (build) return; // The editor owns furniture gestures.
+    const el = gl.domElement;
+    let start: { x: number; y: number; yaw: number; id: number } | null = null;
+    const down = (e: PointerEvent) => { if (!e.isPrimary || e.button !== 0) { start = null; return; } start = { x: e.clientX, y: e.clientY, yaw: orbit.current.yaw, id: e.pointerId }; };
+    const move = (e: PointerEvent) => {
+      if (!start || e.pointerId !== start.id) return;
+      const dx = e.clientX - start.x, dy = e.clientY - start.y;
+      if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 8) { start = null; return; }
+      if (Math.abs(dx) < 8) return;
+      orbit.current.yaw = start.yaw - dx * 0.006;
+      idleT.current = 0;
+    };
+    const end = () => { start = null; };
+    el.addEventListener("pointerdown", down); el.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
+    return () => { el.removeEventListener("pointerdown", down); el.removeEventListener("pointermove", move); window.removeEventListener("pointerup", end); el.removeEventListener("pointercancel", end); };
+  }, [gl, build]);
+
 
   useEffect(() => {
     const MOVE = new Set(["w", "a", "s", "d", "q", "e", "r", "f"]);
@@ -113,7 +137,7 @@ export function CameraRig({ build = false, facilityTier = 1, still = false }: { 
     const px = build ? 9.5 : 15.5 * REST_FRAME;
     const py = build ? 13.6 : 13.0 * REST_FRAME;
     const pz = build ? 12.5 : 17.5 * REST_FRAME;
-    const ty = build ? 0.5 : 0.7;
+    const ty = build ? 0.5 : 0.25;
 
     // Convert the base offset to an orbit (radius + azimuth) so A/D rotates around the room
     // and W/S dollies in/out, while pointer parallax + smoothing are preserved. The radius scales

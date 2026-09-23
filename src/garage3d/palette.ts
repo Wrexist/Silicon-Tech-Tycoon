@@ -64,11 +64,11 @@ export const CATALOG = {
   paper: "#e8e2d6",
   tan: "#c9a274",
   wood: "#5a4630",
-  woodMid: "#665039",
-  woodDark: "#3d2f24",
+  woodMid: "#cbb38e",
+  woodDark: "#9b8568",
   brass: "#8a7a52",
-  fabric: "#5b6573",
-  fabric2: "#6f7a89",
+  fabric: "#617c98",
+  fabric2: "#7189a1",
   // the one muted green, and a deeper shade of the same family for foliage depth
   plantDeep: "#41674e",
   // purpose colours (saturated by design — each one justified in SATURATED_ALLOWED)

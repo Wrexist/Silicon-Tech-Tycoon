@@ -20,7 +20,7 @@ import type { FactoryId } from "../engine/types.ts";
 import { assignedSkill, designCeiling, runwayWeeks, salaryFor, trainCost, weeklyPayroll, xpToNext } from "../engine/economy.ts";
 import { disciplineOutput, staffXpMult, visionaryHype, perfectionistCeilingBonus } from "../engine/staff.ts";
 import { mentorTeamXpMult } from "../engine/staffMoment.ts";
-import { cents, dollars, format, formatShortDollars, sub, toDollars } from "../engine/money.ts";
+import { cents, dollars, format, formatCount, formatShortDollars, sub, toDollars } from "../engine/money.ts";
 import { designCeilingBonus, marketingHype } from "../engine/upgrades.ts";
 import {
   DISCIPLINE_LABEL,
@@ -47,11 +47,9 @@ import {
   moraleCost,
   canBoostMorale,
   type MoraleKind,
-  nextWeekRevenue,
   restCost,
   lateEraDrag,
   weeklyEcosystemRevenue,
-  weeklyOutflow,
   weeklyRpGen,
   type GameState,
 } from "../state/gameState.ts";
@@ -60,8 +58,9 @@ import { isDisciplineLead, mentorshipXpMult } from "../engine/org.ts";
 import { useGame, useGameActions } from "../state/useGame.tsx";
 import { useUiVersion } from "../state/uiVersion.ts";
 import { DataChart, Sparkline } from "../components/charts.tsx";
-import { HeroFrame } from "../components/HeroFrame.tsx";
-import { growthDeltaDollars, growthDeltaPct } from "../engine/financials.ts";
+import { RolePortrait } from "../design/management.tsx";
+import { weeklyFinancials } from "../state/managementMetrics.ts";
+import { eraName } from "../engine/eras.ts";
 import { customerRating, criticReviews } from "../engine/reviews.ts";
 import { worldCoverage } from "../engine/regions.ts";
 import { haptic } from "../design/haptics.ts";
@@ -87,11 +86,6 @@ function runwayTone(weeks: number): "positive" | "negative" | "neutral" {
 
 /** A tile's delta chip: the raw percent keeps its true sign, while the TONE follows the metric's
  *  meaning — a rising burn (goodWhenUp false) reads `down`/negative even though the number is +. */
-function growthChip(pct: number, goodWhenUp: boolean): { text: string; tone: "up" | "down" | "flat" } {
-  const text = `${pct > 0 ? "+" : ""}${pct}%`;
-  const tone = pct === 0 ? "flat" : (pct > 0) === goodWhenUp ? "up" : "down";
-  return { text, tone };
-}
 
 const ASSIGN_LABEL: Record<Assignment, string> = {
   rnd: "R&D",
@@ -167,13 +161,14 @@ export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
   // scale clears the gate instantly; "already in use" escape hatches below keep nothing stranded.
   const advanced = state.era >= 2 || state.staff.length >= 2;
   const wkBurn = burn(state); // operating burn only (payroll + rent + lines) — for the itemised view
-  const wkOut = weeklyOutflow(state); // the TRUE weekly outflow: burn + loan debt service + late-era drag
+  const financials = weeklyFinancials(state);
+  const wkOut = financials.costs; // the TRUE weekly outflow: burn + loan debt service + late-era drag
   const wkDrag = lateEraDrag(state); // frontier-scale operating headwind (0 before the AI era)
   const wkDebt = sub(sub(wkOut, wkBurn), wkDrag); // debt service alone, for the breakdown line
   const wkPayroll = weeklyPayroll(state.staff);
   const wkRent = facilityRent(state);
   const wkUpkeep = totalFactoryUpkeep(state.ownedFactories);
-  const wkRev = nextWeekRevenue(state);
+  const wkRev = financials.revenue;
   const ecoRev = weeklyEcosystemRevenue(state);
   const runway = runwayWeeks(state.cash, wkOut, wkRev);
   const cashData = state.cashHistory.map((h) => h.cash);
@@ -194,20 +189,6 @@ export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
   // financialHistory on the classic path.
   const isNext = uiVersion === "next";
   const finHistory = isNext ? (state.financialHistory ?? []) : [];
-  // A real 8-week delta needs a baseline point at index length-1-8, i.e. at least 9 rows. Short
-  // history renders the tile with no chip rather than a fabricated 0%.
-  const hasFinDelta = finHistory.length >= 9;
-  const finPct = growthDeltaPct(finHistory, 8);
-  const finDollars = growthDeltaDollars(finHistory, 8);
-  const dollarsTitle = (n: number) => (hasFinDelta ? `8-week change: ${formatShortDollars(n)}` : undefined);
-  // Only the income and burn tiles carry a chip. Profit is not a cash series (capex, hiring and debt
-  // service all break the link) and revenue-per-head moves with headcount, so neither can be inferred
-  // from what financialHistory records — an absent chip is the honest answer. A null pct means the
-  // base week was zero, so no percentage exists; omit the chip there too.
-  const revPerHead =
-    state.staff.length > 0
-      ? `${format(dollars(Math.round(toDollars(wkRev) / state.staff.length)))}/wk`
-      : "—";
   // The most recent launch (launched is newest-first) through the same criticReviews the Market
   // screen uses, so the number matches the review the player can read there. No launches → the
   // Wave 3 "No data" label, never a 0.
@@ -225,11 +206,10 @@ export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
   const rating = customerRating(lastReviews ? lastReviews.outlets.map((o) => o.score) : []);
   const growthSeries = [
     { id: "revenue", label: "Revenue", colour: "var(--positive)", points: finHistory.map((h) => h.revenue) },
-    { id: "expenses", label: "Expenses", colour: "var(--negative)", points: finHistory.map((h) => h.expenses) },
-    { id: "profit", label: "Profit", colour: "var(--accent)", points: finHistory.map((h) => h.profit) },
+    { id: "expenses", label: "Outflow", colour: "var(--negative)", points: finHistory.map((h) => h.expenses) },
+    { id: "profit", label: "Cash surplus", colour: "var(--accent)", points: finHistory.map((h) => h.profit) },
   ];
-  const incomeChip = finPct.revenue !== null ? growthChip(finPct.revenue, true) : null;
-  const burnChip = finPct.expenses !== null ? growthChip(finPct.expenses, false) : null;
+
 
   return (
     <div className="co">
@@ -266,25 +246,18 @@ export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
       {/* Wave 4 dashboard — gated on the flag so a flag-off build is the game as it was. */}
       {isNext && (<>
       {/* Hero — the company's own office in 3D, framed with its name + era. */}
-      <HeroFrame state={state} />
-
-      {/* Dashboard stat tiles. These replace the financials readout that used to sit in the
-          Financials card below (Cash / weekly burn / weekly income / revenue-per-head). */}
+      <div className="co-identity"><span className="co-identity__mark" aria-hidden>S</span><div><strong>{state.companyName}</strong><span>{eraName(state.era)}</span></div><button className="co-identity__staff mg-text-action" aria-label="Manage team" onClick={() => setCoTab("team")}><Users size={15} /> {state.staff.length}</button></div>
       <div className="co-tiles">
-        <div className="co-tiles__cell">
-          <StatTile label="Cash" value={<AnimatedMoney value={state.cash} />} />
-        </div>
-        <div className="co-tiles__cell" title={dollarsTitle(finDollars.revenue)}>
-          <StatTile label="Weekly income" value={format(wkRev)} delta={incomeChip?.text} deltaTone={incomeChip?.tone} />
-        </div>
-        <div className="co-tiles__cell" title={dollarsTitle(finDollars.expenses)}>
-          <StatTile label="Weekly burn" value={format(wkBurn)} delta={burnChip?.text} deltaTone={burnChip?.tone} />
-        </div>
-        <div className="co-tiles__cell">
-          <StatTile label="Revenue / employee" value={revPerHead} />
-        </div>
+        <div className="co-tiles__cell"><StatTile label="Revenue / wk" value={format(wkRev)} /></div>
+        <div className="co-tiles__cell"><StatTile label="Outflow / wk" value={format(wkOut)} /></div>
+        <div className="co-tiles__cell"><StatTile label="Cash surplus / wk" value={format(financials.profit)} /></div>
+        <div className="co-tiles__cell"><StatTile label="Fans" value={formatCount(state.fans)} /></div>
       </div>
-
+      <p className="mg-footnote">Forecast next week. Outflow includes running costs and loan payments; upfront production investment is separate.</p>
+      <Card className="co-team-preview"><SectionHeader title={`Team (${state.staff.length})`} accessory={<button className="mg-text-action" onClick={() => setCoTab("team")}>View all</button>} />
+        <div className="co-role-grid">{(["engineer", "designer", "marketer", "researcher", "hr"] as StaffRole[]).filter((role, i) => i < 3 || state.staff.some((s) => s.role === role)).map((role) => <button key={role} onClick={() => setCoTab("team")}><RolePortrait role={role} /><strong>{ROLE_LABEL[role]}</strong><span>{state.staff.filter((s) => s.role === role).length} staff</span></button>)}</div>
+        <Button block onClick={() => setCoTab("team")}>Manage team</Button>
+      </Card>
       {/* Company Growth — revenue, expenses and profit over the recorded weeks. */}
       <Card>
         <SectionHeader title="Company growth" />
@@ -299,7 +272,7 @@ export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
           <EmptyState
             glyph={<TrendingUp size={36} strokeWidth={1.6} />}
             title="No history yet"
-            sub="Revenue, expenses and profit appear here after your first week."
+            sub="Revenue, outflow and cash surplus appear here after your first week."
           />
         )}
       </Card>

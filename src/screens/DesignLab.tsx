@@ -1,5 +1,8 @@
+import { ProductComparison } from "../components/ProductComparison.tsx";
+import { useDesignDraft } from "../state/useDesignDraft.ts";
+import { designAdvice, priceAssessment } from "../state/designAdvice.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, ArrowLeft, ArrowRight, Ban, Camera, Check, ChevronDown, CircleDollarSign, Clock, Cpu, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, Target, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, Wand2, X, type LucideIcon } from "lucide-react";
+import { AlertTriangle, Undo2, Redo2, Info, ArrowLeft, ArrowRight, Ban, Camera, Check, ChevronDown, CircleDollarSign, Clock, Cpu, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, Target, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
 import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
@@ -72,12 +75,11 @@ import {
 import { runwayWeeks } from "../engine/economy.ts";
 import { forecastBand, forecastConfidenceLabel } from "../engine/forecast.ts";
 import { prototypeCost } from "../engine/prototype.ts";
-import { useGame, useHoldSim } from "../state/useGame.tsx";
+import { useGame, useHoldSim, useGameControls } from "../state/useGame.tsx";
 import { useUiVersion } from "../state/uiVersion.ts";
 import { useLaunchProduct } from "../state/useLaunchProduct.ts";
 import { claimReadyLaunch, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { BuildProgress } from "../components/BuildProgress.tsx";
-import { DEVELOPMENT_STAGES, developmentStage, type DevelopmentStage } from "./developmentStage.ts";
 import { StatBars } from "../components/charts.tsx";
 import { segmentDemand, tuningSegmentBias, SEGMENTS, type SegmentDemand } from "../engine/segments.ts";
 import { styleAppeal, styleAppealLabel } from "../engine/aesthetics.ts";
@@ -181,13 +183,7 @@ const LAB_TABS: { id: LabTab; label: string }[] = [
 
 /** Which existing tab each stage names. `testing` has no screen yet, and its action does not ship —
  *  the lens omits it from the rendered ladder entirely until that action exists. */
-const STAGE_TAB: Record<DevelopmentStage, LabTab | null> = {
-  concept: "components",
-  design: "style",
-  components: "components",
-  testing: null,
-  finalize: "launch",
-};
+
 
 function newestProduct(state: GameState): Product | null {
   if (state.building.length) return state.building[state.building.length - 1].product;
@@ -266,14 +262,18 @@ interface CompletedBuild {
 export function DesignLab({
   seed,
   onSeedConsumed,
+  active = true,
 }: {
+  active?: boolean;
   seed?: Product | null;
   onSeedConsumed?: () => void;
 } = {}) {
   const { state, build, launchReady, unlockLens, unlockFinish, negotiateContract, runPrototype, clearPrototype } = useGame();
   const uiVersion = useUiVersion();
   const [contractSheet, setContractSheet] = useState<SupplierId | null>(null);
-  const [draft, setDraft] = useState<Product>(() => (seed ? successorDraft(seed) : freshDraft(state)));
+  const { tabBlocked } = useGameControls();
+  const draftStore = useDesignDraft(`${state.seed}:${state.legacy}`, state.week, () => seed ? successorDraft(seed) : freshDraft(state), !!seed, !tabBlocked);
+  const { draft, setDraft, step: labTab, setStep: setLabTab } = draftStore;
   // Advanced sourcing (supplier/factory/contracts) is collapsed by default so the Components tab
   // isn't a day-one wall — but opens itself when the draft already carries a non-default choice.
   const [sourcingOpen, setSourcingOpen] = useState<boolean>(() => {
@@ -283,21 +283,28 @@ export function DesignLab({
   const [face, setFace] = useState<"front" | "back">("front");
   const [wizard, setWizard] = useState(false);
   const [completed, setCompleted] = useState<CompletedBuild | null>(null);
-  const [labTab, setLabTab] = useState<LabTab>("components");
   // "Start from…" picker — choose a franchise/device to design the next version of, or a fresh
   // concept. Opened by the hero's "New version" pill and by the completion sheet's follow-up CTA.
   const [startPicker, setStartPicker] = useState(false);
+  // Preserve the draft when hidden, but release transient sheets and launch ownership.
+  useEffect(() => {
+    if (active) return;
+    setWizard(false);
+    setCompleted(null);
+    setContractSheet(null);
+    setStartPicker(false);
+  }, [active]);
   // The ready-launch claim lives HERE, not inside the completion card: the Sheet keeps its cached
   // children mounted through the 260ms close animation, so a card-owned claim would linger after
   // the player dismissed the sheet — and a build finishing in that window would be claimed by a
   // dying sheet AND skipped by the global popup (the moment lost entirely). Keying the claim on
   // `completed` releases it synchronously the instant the sheet closes.
   useEffect(() => {
-    if (completed) return claimReadyLaunch(completed.builtId);
-  }, [completed]);
+    if (active && completed) return claimReadyLaunch(completed.builtId);
+  }, [active, completed]);
   const franchises = useMemo(() => playerFranchises(state.launched), [state.launched]);
   const startFrom = (prev: Product | null) => {
-    setDraft(prev ? successorDraft(prev) : freshDraft(state));
+    draftStore.reset(prev ? successorDraft(prev) : freshDraft(state));
     clearPrototype(); // a fresh design must not inherit the previous draft's prototype result
     setFace("front");
     setLabTab("components");
@@ -324,7 +331,7 @@ export function DesignLab({
   // tell the parent to clear it so re-renders don't keep overwriting the player's edits.
   useEffect(() => {
     if (!seed) return;
-    setDraft(successorDraft(seed));
+    draftStore.reset(successorDraft(seed));
     clearPrototype(); // the successor is a fresh draft — drop the prior prototype result
     setFace("front");
     onSeedConsumed?.();
@@ -349,12 +356,7 @@ export function DesignLab({
   const guidance = priceGuidance(stats, draft.category);
   const fairPriceDollars = Math.max(1, toDollars(guidance.fair));
   const priceRatio = toDollars(draft.price) / fairPriceDollars;
-  const [priceZone, priceZoneTone] =
-    priceRatio < 0.65 ? ["Underpriced", "accent" as const]
-    : priceRatio < 0.95 ? ["Good value", "positive" as const]
-    : priceRatio < 1.3 ? ["Fair", "positive" as const]
-    : priceRatio < 1.8 ? ["Premium", "neutral" as const]
-    : ["Overpriced", "negative" as const];
+  const { label: priceZone, tone: priceZoneTone } = priceAssessment(priceRatio);
   const priceSliderAccent =
     priceRatio < 0.65 ? "var(--accent)"
     : priceRatio < 1.3 ? "var(--positive)"
@@ -398,7 +400,6 @@ export function DesignLab({
   // Development Stage lens — a PURE read of where the draft sits in the pipeline. A lens, not a gate:
   // it never blocks a build, and it reads only what the draft already carries. `prototypeRun` is the
   // real fact now that the Testing action ships, so the step can light up.
-  const requiredSlots = CATEGORIES[draft.category].slots.length;
   const proto = prototypeState(state);
   const protoCost = prototypeCost(state.era);
   // Why the Run-prototype button is disabled, or null when it is ready. A disabled control must
@@ -409,12 +410,7 @@ export function DesignLab({
     : state.bankrupt ? "Company is bankrupt."
     : state.cash < protoCost ? `Need ${format(protoCost)}.`
     : null;
-  const devStage = developmentStage({
-    designStarted: missing.length < requiredSlots,
-    componentsChosen: missing.length === 0,
-    prototypeRun: proto !== null,
-    building: state.building.length > 0,
-  });
+
   const ceiling = designTierCeiling(state);
   // Design Budget (feature #1) — the per-project engineering-points cap (fresh runs only). The meter is
   // read-only guidance; the hard gate lives in startBuild, but openWizard mirrors it so an over-budget
@@ -470,7 +466,7 @@ export function DesignLab({
   const bands = launchBars(state);
   const verdict =
     effectiveScore >= bands.hit ? { label: "Projected hit", tone: "positive" as const }
-      : effectiveScore <= bands.flop ? { label: "Likely flop", tone: "negative" as const }
+      : effectiveScore <= bands.flop ? { label: "Needs refinement", tone: "neutral" as const }
         : effectiveScore >= bands.solid ? { label: "Solid performer", tone: "positive" as const }
           : { label: "Steady seller", tone: "accent" as const };
   // Item 1: the verdict can swing while "Fit" is unchanged because rivals (competitionFactor)
@@ -550,7 +546,7 @@ export function DesignLab({
     });
     // Seed the next draft from the run that JUST started (not the stale pre-build state), so the
     // supply chain the player just chose carries into the follow-up design.
-    setDraft({ ...freshDraft(state), name: suggestNextName(finished.name).slice(0, 22), supplierId: finished.supplierId, factoryId: finished.factoryId });
+    draftStore.reset({ ...freshDraft(state), name: suggestNextName(finished.name).slice(0, 22), supplierId: finished.supplierId, factoryId: finished.factoryId });
     clearPrototype(); // a new design starts with a clean prototype slate
   }
 
@@ -610,15 +606,180 @@ export function DesignLab({
   // than the canonical "Battery". Kept local on purpose; canonical copy lives in glossary STAT_INFO.
   const STAT_LABEL_FULL: Record<keyof Stats, string> = { performance: "Performance", quality: "Quality", battery: "Battery life", design: "Design", ecosystem: "Ecosystem" };
 
+  const underserved = [...liveSegments.perSegment].sort((a, b) => b.size * (100 - b.fit) - a.size * (100 - a.fit))[0];
+  const advice = designAdvice({ buyerNeeds: underserved ? `${underserved.name}: ${segmentWantsById(underserved.id)}` : undefined, missing: missing.map(capSlot), priceRatio, weak: syn.weakest && capSlot(syn.weakest), fit, trend: topWantedDelta > .02 ? STAT_LABEL_FULL[topWanted] : null });
   return (
     <div className="lab">
       {/* Header strip — subtitle + the live projected-verdict badge (mockup's "Steady Seller"). */}
       <div className="lab__head">
-        <p className="lab__subtitle">Build iconic devices. Define the future.</p>
+        <p className="lab__subtitle">Create your next breakthrough.</p>
         <span className={`lab__verdict-badge lab__verdict-badge--${verdict.tone}`}>
           <ShieldCheck size={14} aria-hidden /> {verdict.label}
         </span>
       </div>
+      <div className="draft-tools">
+        <span role="status">{tabBlocked ? "Draft saving paused in this tab" : draftStore.saved ? "Draft saved on this device" : "Draft could not be saved"}</span>
+        {!draftStore.saved && <button onClick={draftStore.retry}>Retry save</button>}
+        <button aria-label="Undo design change" disabled={!draftStore.canUndo} onClick={() => { draftStore.undo(); clearPrototype(); }}><Undo2 size={16} /></button>
+        <button aria-label="Redo design change" disabled={!draftStore.canRedo} onClick={() => { draftStore.redo(); clearPrototype(); }}><Redo2 size={16} /></button>
+      </div>
+      {draftStore.recovery === "recovered" && <p className="mg-advice">Recovered your previous saved draft.</p>}
+      {draftStore.recovery === "invalid" && <p className="mg-advice">The saved draft was unreadable or belongs to a later week. A fresh draft is ready; your company save is unchanged.</p>}
+      <div className="lab__tabs" role="tablist" aria-label="Design sections">
+        {LAB_TABS.map((t) => {
+          // Turn the strip into a checklist: an amber dot flags the Components step while parts are
+          // still missing, and a check lands on Launch once the device is fully specced + named.
+          const needs = t.id === "components" && missing.length > 0;
+          const ready = t.id === "launch" && missing.length === 0 && !!draft.name.trim();
+          return (
+            <button
+              key={t.id}
+              role="tab"
+              id={`lab-tab-${t.id}`}
+              aria-controls="lab-tabpanel"
+              aria-selected={labTab === t.id}
+              className={`lab__tab${labTab === t.id ? " lab__tab--on" : ""}`}
+              onClick={() => { haptic.light(); setLabTab(t.id); }}
+            >
+              {/* The 3rd tab is "Camera" only when the device has one; otherwise it holds display/
+                  storage specs (a monitor's refresh, a desktop's capacity), so label it "Specs". */}
+              {t.id === "camera" ? (hasCamera ? "Camera" : "Specs") : t.label}
+              {needs && <span className="lab__tab-badge lab__tab-badge--warn" aria-label="components incomplete" />}
+              {ready && <span className="lab__tab-badge lab__tab-badge--ready" aria-hidden><Check size={10} /></span>}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Hero device — always visible, updates live as you design. Two-column card:
+          device on a green glow (left), live design read-out (right). */}
+      <Card className="lab__hero">
+        <div className="lab__hero-grid">
+          <div className="lab__hero-stage">
+            <span className="lab__hero-backdrop" aria-hidden>
+              <span className="lab__hero-glow" />
+              <span className="lab__hero-dots" />
+              <CircuitMotif className="lab__hero-circuit" />
+            </span>
+            <DeviceRenderer product={draft} size={140} flip={handheld} face={face} />
+            {/* Read-only reflection of the current category — the ONE picker lives in the
+                Category card below (it carries the generation badges + market hints); a second
+                interactive strip here was the same control in a different coat. */}
+            <div className="lab__hero-cats">
+              <span className="lab__hero-cat lab__hero-cat--on">
+                <CategoryIcon id={draft.category} size={14} /> {cat.displayName}
+              </span>
+            </div>
+          </div>
+          <div className="lab__hero-info">
+            <div className="lab__hero-name-row">
+              <span className="lab__hero-name">{draft.name || "Untitled"}</span>
+              <span className="lab__hero-tag">{labTab === "components" ? "Components" : labTab === "camera" ? (hasCamera ? "Camera" : "Specs") : labTab === "style" ? "Style" : "Launch plan"}</span>
+              {franchises.length > 0 && (
+                <button className="lab__hero-newver" onClick={() => { haptic.light(); setStartPicker(true); }}>
+                  <Wand2 size={13} aria-hidden /> New version
+                </button>
+              )}
+            </div>
+            <div className="lab__hero-fit">
+              <span className="lab__hero-fit-label">Market fit</span>
+              <span className="lab__hero-fit-val tnum">{fit} <span className="lab__den">/ 100</span></span>
+              <div className="lab__hero-bar"><div className="lab__hero-bar-fill" style={{ width: `${Math.max(0, Math.min(100, fit))}%` }} /></div>
+            </div>
+            <div className="lab__hero-line">
+              <span className="lab__hero-line-label">Build</span>
+              <span className={`lab__hero-line-val lab__hero-line-val--${synState}`}>
+                <Scale size={15} aria-hidden /> {synState === "flagship" ? `Flagship +${synPct}%` : synState === "weak" ? `Weak: ${capSlot(syn.weakest!)}` : "Balanced"}
+              </span>
+            </div>
+            {formMatters && (
+              <div className="lab__hero-line">
+                <span className="lab__hero-line-label">Design Language</span>
+                <span className="lab__hero-line-val">
+                  <Sparkles size={14} aria-hidden /> <strong>{styleLabel},</strong>{" "}
+                  <span className="lab__hero-line-hint">
+                    {styleLabel === "Striking" ? "lifts demand across every buyer"
+                      : styleLabel === "Clean" ? "refine the form to lift demand further"
+                      : CATEGORIES[draft.category].slots.includes("camera") ? "notch, cameras & layout shape desirability"
+                      : "the screen treatment shapes desirability"}
+                  </span>
+                </span>
+              </div>
+            )}
+            {archetypes.length > 0 && (
+              <div className="lab__archetypes">
+                {archetypes.map((a) => (
+                  <span key={a.id} className="lab__archetype" title={a.blurb}>
+                    <Sparkles size={11} aria-hidden /> {a.name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+        {handheld && (
+          <button
+            className="lab__flip"
+            onClick={() => {
+              haptic.light();
+              setFace((f) => (f === "front" ? "back" : "front"));
+            }}
+          >
+            <FlipHorizontal2 size={15} /> {face === "front" ? "View back" : "View front"}
+          </button>
+        )}
+        <div className={`lab__fit-advice lab__fit-advice--${advice.tone}`}>
+          {advice.tone === "warning" ? <AlertTriangle size={17} aria-hidden /> : advice.tone === "positive" ? <Check size={17} aria-hidden /> : <Info size={17} aria-hidden />}
+          <div><strong>{advice.title}</strong>
+            {state.trendRetargetWeek > state.week && <p>Demand shifts in {state.trendRetargetWeek - state.week} weeks.</p>}
+            <button className="mg-text-action" onClick={() => { setLabTab(advice.step); requestAnimationFrame(() => document.getElementById("lab-tabpanel")?.scrollIntoView({ block: "start", behavior: "instant" })); }}>{advice.action} <ArrowRight size={14} /></button>
+          </div>
+        </div>
+        {/* Item #8 — one-tap explainers for the three hero scores (Fit / Build / Projected verdict),
+            single-sourced from engine/glossary so the copy can't drift from the Help hub. */}
+        <details className="mg-disclosure"><summary>Market-fit details</summary>
+        <p>Buyer appeal: {fit}/100. Current price response: {liveSegments.effectivePriceFit.toFixed(2)}x. Component balance: {syn.factor.toFixed(2)}x.</p>
+        <p>These are separate factors in the launch model. Marketing and competition also affect the outcome.</p>
+        <SegmentBreakdown segments={liveSegments} week={state.week} />
+        {synState !== "balanced" && (
+          <p className="lab__verdict-note">
+            {synState === "flagship"
+              ? "Coherent high-end build, every part pulls its weight, earning a flagship bonus."
+              : `${capSlot(syn.weakest!)} is the weak link dragging this build down, raise it to lift the whole product.`}
+          </p>
+        )}
+        {competitionDrag && preview && (
+          <p className="lab__verdict-note">
+            {preview.betterRivals > 0
+              ? `${preview.betterRivals} rival${preview.betterRivals > 1 ? "s" : ""} currently outclass this, that's pulling the forecast down, not your design.`
+              : `${preview.matchingRivals} rival${preview.matchingRivals > 1 ? "s" : ""} match you right now, they'll split this market.`}
+          </p>
+        )}
+<Glossary entries={SCORE_INFO} label="What these scores mean" hideLabel="Hide score guide" /></details>
+      </Card>
+
+      {/* In-flow stage action agrees with the selected tab and never overlays the form. */}
+      {(() => {
+        const i = LAB_TABS.findIndex((t) => t.id === labTab);
+        const prev = i > 0 ? LAB_TABS[i - 1] : null;
+        const next = i < LAB_TABS.length - 1 ? LAB_TABS[i + 1] : null;
+        // The 3rd tab is "Specs" (not "Camera") on a device with no camera — keep the Next label in
+        // sync with the tab bar's own swap so they never contradict each other.
+        const nextLabel = next ? (next.id === "camera" ? (hasCamera ? "Camera" : "Specs") : next.label) : null;
+        return (
+          <div className="lab__nav">
+            {prev
+              ? <Button variant="secondary" onClick={() => { haptic.light(); setLabTab(prev.id); }}><ArrowLeft size={16} /> Back</Button>
+              : <span className="lab__nav-spacer" aria-hidden />}
+            {next
+              ? <Button onClick={() => { haptic.light(); setLabTab(next.id); }}>Next: {nextLabel} <ArrowRight size={16} /></Button>
+              // Last step: the fixed bar's right slot becomes the Build CTA, so "Plan production" is
+              // always one thumb-tap away instead of buried at the bottom of the Launch pane.
+              : <Button onClick={openWizard} disabled={missing.length > 0 || state.bankrupt} haptics="none"><Hammer size={16} /> Plan production</Button>}
+          </div>
+        );
+      })()}
+      <ProductComparison state={state} draft={draft} />
       {/* Production pipeline — launch finished products right here, so the whole loop
           (design → build → launch) stays in one place with no trip to HQ. */}
       {state.ready.length > 0 && (
@@ -666,126 +827,8 @@ export function DesignLab({
         </Card>
       )}
 
-      {/* Market hints — always visible */}
-      {topWantedDelta > 0.02 && (
-        <div className="lab__market-hint">
-          <span className="lab__market-hint-dot" />
-          <span>
-            <strong>{STAT_LABEL_FULL[topWanted]}</strong> is trending up, so build it into your next product for a demand boost.
-          </span>
-        </div>
-      )}
-      {(() => {
-        const weeksToShift = state.trendRetargetWeek - state.week;
-        if (weeksToShift > 5 || weeksToShift < 0) return null;
-        return (
-          <div className="lab__trend-shift">
-            <span className="lab__trend-shift-dot" />
-            <span>
-              Trends shift in <strong>{weeksToShift} week{weeksToShift !== 1 ? "s" : ""}</strong>, so launch before the shift to ride current demand, or hold for the next cycle.
-            </span>
-          </div>
-        );
-      })()}
-
-      {/* Hero device — always visible, updates live as you design. Two-column card:
-          device on a green glow (left), live design read-out (right). */}
-      <Card className="lab__hero">
-        <div className="lab__hero-grid">
-          <div className="lab__hero-stage">
-            <span className="lab__hero-backdrop" aria-hidden>
-              <span className="lab__hero-glow" />
-              <span className="lab__hero-dots" />
-              <CircuitMotif className="lab__hero-circuit" />
-            </span>
-            <DeviceRenderer product={draft} size={160} idle shimmer flip={handheld} face={face} />
-            {/* Read-only reflection of the current category — the ONE picker lives in the
-                Category card below (it carries the generation badges + market hints); a second
-                interactive strip here was the same control in a different coat. */}
-            <div className="lab__hero-cats">
-              <span className="lab__hero-cat lab__hero-cat--on">
-                <CategoryIcon id={draft.category} size={14} /> {cat.displayName}
-              </span>
-            </div>
-          </div>
-          <div className="lab__hero-info">
-            <div className="lab__hero-name-row">
-              <span className="lab__hero-name">{draft.name || "Untitled"}</span>
-              <span className="lab__hero-tag">Concept</span>
-              {franchises.length > 0 && (
-                <button className="lab__hero-newver" onClick={() => { haptic.light(); setStartPicker(true); }}>
-                  <Wand2 size={13} aria-hidden /> New version
-                </button>
-              )}
-            </div>
-            <div className="lab__hero-fit">
-              <span className="lab__hero-fit-label">Fit</span>
-              <span className="lab__hero-fit-val tnum">{fit} <span className="lab__den">/ 100</span></span>
-              <div className="lab__hero-bar"><div className="lab__hero-bar-fill" style={{ width: `${Math.max(0, Math.min(100, fit))}%` }} /></div>
-            </div>
-            <div className="lab__hero-line">
-              <span className="lab__hero-line-label">Build</span>
-              <span className={`lab__hero-line-val lab__hero-line-val--${synState}`}>
-                <Scale size={15} aria-hidden /> {synState === "flagship" ? `Flagship +${synPct}%` : synState === "weak" ? `Weak: ${capSlot(syn.weakest!)}` : "Balanced"}
-              </span>
-            </div>
-            {formMatters && (
-              <div className="lab__hero-line">
-                <span className="lab__hero-line-label">Design Language</span>
-                <span className="lab__hero-line-val">
-                  <Sparkles size={14} aria-hidden /> <strong>{styleLabel},</strong>{" "}
-                  <span className="lab__hero-line-hint">
-                    {styleLabel === "Striking" ? "lifts demand across every buyer"
-                      : styleLabel === "Clean" ? "refine the form to lift demand further"
-                      : CATEGORIES[draft.category].slots.includes("camera") ? "notch, cameras & layout shape desirability"
-                      : "the screen treatment shapes desirability"}
-                  </span>
-                </span>
-              </div>
-            )}
-            {archetypes.length > 0 && (
-              <div className="lab__archetypes">
-                {archetypes.map((a) => (
-                  <span key={a.id} className="lab__archetype" title={a.blurb}>
-                    <Sparkles size={11} aria-hidden /> {a.name}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-        {handheld && (
-          <button
-            className="lab__flip"
-            onClick={() => {
-              haptic.light();
-              setFace((f) => (f === "front" ? "back" : "front"));
-            }}
-          >
-            <FlipHorizontal2 size={15} /> {face === "front" ? "View back" : "View front"}
-          </button>
-        )}
-        {synState !== "balanced" && (
-          <p className="lab__verdict-note">
-            {synState === "flagship"
-              ? "Coherent high-end build, every part pulls its weight, earning a flagship bonus."
-              : `${capSlot(syn.weakest!)} is the weak link dragging this build down, raise it to lift the whole product.`}
-          </p>
-        )}
-        {competitionDrag && preview && (
-          <p className="lab__verdict-note">
-            {preview.betterRivals > 0
-              ? `${preview.betterRivals} rival${preview.betterRivals > 1 ? "s" : ""} currently outclass this, that's pulling the forecast down, not your design.`
-              : `${preview.matchingRivals} rival${preview.matchingRivals > 1 ? "s" : ""} match you right now, they'll split this market.`}
-          </p>
-        )}
-        {/* Item #8 — one-tap explainers for the three hero scores (Fit / Build / Projected verdict),
-            single-sourced from engine/glossary so the copy can't drift from the Help hub. */}
-        <Glossary entries={SCORE_INFO} label="What these scores mean" hideLabel="Hide score guide" />
-      </Card>
-
       {/* Category — always visible above the tab strip */}
-      <Card>
+      <details className="mg-disclosure lab__category"><summary>Product category: {cat.displayName}</summary><Card>
         <SectionHeader title="Category" accessory={`${unlockedCats.length} of ${allCats.length} unlocked`} />
         <div className="lab__cats">
           {allCats.map((c) => {
@@ -879,40 +922,13 @@ export function DesignLab({
             </div>
           );
         })()}
-      </Card>
-
-      {/* ── Development Stage lens ─────────────────────────────
-          A read of where this draft is. It is a LENS, not a gate: it never blocks a build, and only
-          stages that name an existing tab are interactive, so it can never strand you on a step with
-          no screen. Testing lights up once a prototype has actually been run for this draft. */}
-      {uiVersion === "next" && (
-        <div className="lab__tabs" role="group" aria-label="Development stage">
-          {DEVELOPMENT_STAGES.map((s, i) => {
-            const on = s.stage === devStage.stage;
-            const tab = STAGE_TAB[s.stage];
-            return (
-              <button
-                key={s.stage}
-                type="button"
-                className={`lab__tab${on ? " lab__tab--on" : ""}`}
-                aria-current={on ? "step" : undefined}
-                disabled={!tab}
-                title={tab ? `${s.label} — go to ${tab}` : `${s.label} — an optional lens step`}
-                style={tab ? undefined : { opacity: 0.5 }}
-                onClick={() => { if (!tab) return; haptic.light(); setLabTab(tab); }}
-              >
-                {i + 1} · {s.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      </Card></details>
 
       {/* ── Test Prototype (Silicon 2.0) ── a PLAYER action: pay cash ONCE PER DRAFT for a tighter
           forecast and a chance to flag the design's weakest stat. It is an instant lab pass — it does
           not advance the clock. Flag-gated, so a classic build renders the Design Lab exactly as
           before (no panel, testing step stays out of the ladder). */}
-      {uiVersion === "next" && (
+      {uiVersion === "next" && labTab === "launch" && (
         <Card className="lab__testing">
           <SectionHeader title="Testing" accessory={<span className="lab__testing-cost">{format(protoCost)}</span>} />
           <p className="lab__testing-lead">
@@ -961,31 +977,6 @@ export function DesignLab({
       )}
 
       {/* ── Section tab strip ───────────────────────────────── */}
-      <div className="lab__tabs" role="tablist" aria-label="Design sections">
-        {LAB_TABS.map((t) => {
-          // Turn the strip into a checklist: an amber dot flags the Components step while parts are
-          // still missing, and a check lands on Launch once the device is fully specced + named.
-          const needs = t.id === "components" && missing.length > 0;
-          const ready = t.id === "launch" && missing.length === 0 && !!draft.name.trim();
-          return (
-            <button
-              key={t.id}
-              role="tab"
-              id={`lab-tab-${t.id}`}
-              aria-controls="lab-tabpanel"
-              aria-selected={labTab === t.id}
-              className={`lab__tab${labTab === t.id ? " lab__tab--on" : ""}`}
-              onClick={() => { haptic.light(); setLabTab(t.id); }}
-            >
-              {/* The 3rd tab is "Camera" only when the device has one; otherwise it holds display/
-                  storage specs (a monitor's refresh, a desktop's capacity), so label it "Specs". */}
-              {t.id === "camera" ? (hasCamera ? "Camera" : "Specs") : t.label}
-              {needs && <span className="lab__tab-badge lab__tab-badge--warn" aria-label="components incomplete" />}
-              {ready && <span className="lab__tab-badge lab__tab-badge--ready" aria-hidden><Check size={10} /></span>}
-            </button>
-          );
-        })}
-      </div>
 
       {/* Tab content — key forces remount → CSS fade-in on every tab switch */}
       <div className="lab__pane" key={labTab} role="tabpanel" id="lab-tabpanel" aria-labelledby={`lab-tab-${labTab}`}>
@@ -1762,7 +1753,9 @@ export function DesignLab({
 
             <Card>
               <SectionHeader title="Name & build" accessory={`~${buildWeeksFor(state, draft)} wk to make`} />
-              {(() => {
+
+
+      {(() => {
                 // "Continue a line" — one-tap sequels: name the draft as the next entry in one of your
                 // existing lines (and inherit its brand equity). Same-category lines first.
                 const lines = playerFranchises(state.launched)
@@ -1873,30 +1866,6 @@ export function DesignLab({
         </div>
       </Card>
 
-      {/* Sticky step nav above the tab bar, Back (left) + Next (right) so the design flow reads
-          as clear steps. Fixed (stays put while the pane scrolls). The Launch step has its own
-          Build CTA, so Next hides there. Suppressed during the first-build tutorial, where the
-          Coach occupies the same bottom band and provides the guidance instead. */}
-      {state.tutorialDone && (() => {
-        const i = LAB_TABS.findIndex((t) => t.id === labTab);
-        const prev = i > 0 ? LAB_TABS[i - 1] : null;
-        const next = i < LAB_TABS.length - 1 ? LAB_TABS[i + 1] : null;
-        // The 3rd tab is "Specs" (not "Camera") on a device with no camera — keep the Next label in
-        // sync with the tab bar's own swap so they never contradict each other.
-        const nextLabel = next ? (next.id === "camera" ? (hasCamera ? "Camera" : "Specs") : next.label) : null;
-        return (
-          <div className="lab__nav">
-            {prev
-              ? <Button variant="secondary" onClick={() => { haptic.light(); setLabTab(prev.id); }}><ArrowLeft size={16} /> Back</Button>
-              : <span className="lab__nav-spacer" aria-hidden />}
-            {next
-              ? <Button onClick={() => { haptic.light(); setLabTab(next.id); }}>Next: {nextLabel} <ArrowRight size={16} /></Button>
-              // Last step: the fixed bar's right slot becomes the Build CTA, so "Plan production" is
-              // always one thumb-tap away instead of buried at the bottom of the Launch pane.
-              : <Button onClick={openWizard} disabled={missing.length > 0 || state.bankrupt} haptics="none"><Hammer size={16} /> Plan production</Button>}
-          </div>
-        );
-      })()}
 
       <Sheet open={wizard} onClose={() => setWizard(false)} label="Plan production run">
         {wizard && <BuildWizard draft={draft} state={state} onConfirm={confirmBuild} onClose={() => setWizard(false)} />}
@@ -2222,12 +2191,7 @@ function BuildWizard({
   // the two previously used different cut-offs and words for the same concept).
   const fairDollars = Math.max(1, plan.overall * toDollars(BALANCE.market.price.valueToPrice));
   const priceRatio = toDollars(draft.price) / fairDollars;
-  const priceFit =
-    priceRatio < 0.65 ? { label: "Underpriced", tone: "accent" as const }
-      : priceRatio < 0.95 ? { label: "Good value", tone: "positive" as const }
-        : priceRatio < 1.3 ? { label: "Fair", tone: "positive" as const }
-          : priceRatio < 1.8 ? { label: "Premium", tone: "neutral" as const }
-            : { label: `Overpriced −${Math.round((priceRatio - 1) * 100)}%`, tone: "negative" as const };
+  const priceFit = priceAssessment(priceRatio);
 
   const fitLabel = plan.demandFit >= 60 ? "Strong fit" : plan.demandFit >= 35 ? "Decent fit" : "Weak fit";
   const fitTone = plan.demandFit >= 60 ? "positive" : plan.demandFit >= 35 ? "accent" : "negative";

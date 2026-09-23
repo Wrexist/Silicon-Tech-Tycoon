@@ -180,6 +180,7 @@ export function DataChart({
   xLabel?: string;
   formatValue?: (n: number) => string;
 }) {
+  const [selected, setSelected] = useState<number | null>(null);
   const [range, setRange] = useState<ChartRangeId>("8w");
   const rangeWeeks = CHART_RANGES.find((r) => r.id === range)?.weeks ?? 8;
 
@@ -211,6 +212,8 @@ export function DataChart({
   const x = (i: number) =>
     visibleLen <= 1 ? CHART_W / 2 : (i / (visibleLen - 1)) * CHART_W;
 
+  const selectedIndex = Math.min(total - 1, Math.max(start, selected ?? total - 1));
+  const selectedOffset = selectedIndex - start;
   const seriesNames = series.map((s) => s.label).join(", ");
   const ariaLabel = `Growth chart, ${range === "all" ? "all weeks" : CHART_RANGES.find((r) => r.id === range)?.label}: ${seriesNames}`;
 
@@ -254,6 +257,7 @@ export function DataChart({
           preserveAspectRatio="none"
           role="img"
           aria-label={ariaLabel}
+          onClick={e => { const rect = e.currentTarget.getBoundingClientRect(); const fraction = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)); setSelected(start + Math.round(fraction * Math.max(0, visibleLen - 1))); }}
         >
           <line
             x1={0}
@@ -264,6 +268,7 @@ export function DataChart({
             strokeWidth="1"
             strokeDasharray="3 3"
           />
+          {visibleLen > 0 && <line x1={x(selectedOffset)} x2={x(selectedOffset)} y1={0} y2={CHART_H} stroke="var(--ink-3)" strokeDasharray="3 3" />}
           {visible.map((s) => {
             if (s.points.length === 0) return null;
             const path =
@@ -299,6 +304,12 @@ export function DataChart({
         ))}
       </div>
       <span className="ds-chart__xlabel">{xLabel}</span>
+      {visibleLen > 0 && <div className="ds-chart__inspect">
+        <label>{xLabel} {labelAt(selectedOffset)}<input type="range" aria-label="Inspect chart period" min={0} max={Math.max(0, visibleLen - 1)} value={selectedOffset} disabled={visibleLen < 2} onChange={e => setSelected(start + Number(e.target.value))} /></label>
+        <p aria-live="polite">{visible.map(s => `${s.label}: ${s.points[selectedOffset] == null ? "No data" : formatValue(s.points[selectedOffset])}`).join(" / ")}</p>
+        <details className="mg-disclosure"><summary>View recorded values</summary><div className="mg-table-scroll" tabIndex={0} role="region" aria-label="Recorded chart values"><table><caption>{ariaLabel}</caption><thead><tr><th scope="col">{xLabel}</th>{visible.map(s => <th scope="col" key={s.id}>{s.label}</th>)}</tr></thead><tbody>{Array.from({ length: visibleLen }, (_, i) => <tr key={i}><th scope="row">{labelAt(i)}</th>{visible.map(s => <td key={s.id}>{s.points[i] == null ? "No data" : formatValue(s.points[i])}</td>)}</tr>)}</tbody></table></div></details>
+      </div>}
+
     </div>
   );
 }

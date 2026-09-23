@@ -1,11 +1,12 @@
+import { WeeklyRecap } from "../components/WeeklyRecap.tsx";
 import {
   ArrowUp, Building2, Check, ChevronRight, ClipboardList, Clock, Coffee, Copy, Cpu, Factory, FlaskConical,
-  HelpCircle, Layers, ShoppingBag, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
+  HelpCircle, Layers, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
   Repeat, RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp, Trophy,
   Undo2, UserPlus, Users, Wand2, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, Crown, Swords, Target, Landmark,
   Activity, Scissors, HandCoins, Package, type LucideIcon,
 } from "lucide-react";
-import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/primitives.tsx";
+import { Button, Card, EmptyState, SectionHeader } from "../design/primitives.tsx";
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
 import { ChallengeTracker } from "../components/ChallengeTracker.tsx";
 import { DailyChallengeCard } from "../components/DailyChallengeCard.tsx";
@@ -63,7 +64,7 @@ const OFFICE_ADDITION: Record<UpgradeId, string> = {
 };
 import { projectById } from "../engine/research.ts";
 import { guidanceHints, INSIGHT_SHOWN, type InsightIconName } from "../state/insights.ts";
-import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, mandateFacts, nextRankRival, nemesisDuelSnapshot, marketingPushQuote, restockQuote, reorderLeadWeeks, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canAffordFurniture, canIPO, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, mandateFacts, nextRankRival, nemesisDuelSnapshot, marketingPushQuote, restockQuote, reorderLeadWeeks, type FeedItem, type GameState } from "../state/gameState.ts";
 import { CategoryIcon } from "../design/icons.tsx";
 import { priceFit } from "../engine/market.ts";
 import { productMomentum, harvestSettlement, type OpsPhase } from "../engine/liveOps.ts";
@@ -73,7 +74,6 @@ import { availableMegaprojects, mandateComplete, mandateProgress, mandateRewardS
 import { LEGACY_TREE, legacyPerkAvailable } from "../engine/legacyTree.ts";
 import { frontierCost, frontierBonuses, frontierBandName, FRONTIER_LANES, nextFrontierBandUnlock, type FrontierLaneId } from "../engine/frontier.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
-import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useGame, useGameActions, useGameControls } from "../state/useGame.tsx";
 import { getSettings, setSettings, useSettings } from "../state/settings.ts";
@@ -88,6 +88,8 @@ import { setOfficeLiveContext } from "../garage3d/officeLive.ts";
 import { ErrorBoundary } from "../components/ErrorBoundary.tsx";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import type { Tab } from "../components/BottomNav.tsx";
+import { Metric, MetricGrid } from "../design/management.tsx";
+import { resetOfficeCamera } from "../design/officeCamera.ts";
 import "./hq.css";
 
 const UPGRADE_ICONS: Record<string, LucideIcon> = { Cpu, PencilRuler, FlaskConical, Megaphone, Coffee, Factory };
@@ -155,6 +157,13 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         <OfficeScene use3d={use3d} reducedMotion={reducedMotion} hasProduction={hasProduction} active={active && world === "office"} onNavigate={onNavigate} onOpenBank={onOpenBank} />
       </div>
       {world === "factory" && <FactoryCard onNavigate={onNavigate} active={active} />}
+      <MetricGrid>
+        <Metric label="Staff" value={state.staff.length} hint={`${state.staff.filter((s) => s.assignment !== "idle").length} assigned to work`} />
+        <Metric label="Team morale" value={state.staff.length ? `${Math.round(state.staff.reduce((n, s) => n + s.mood, 0) / state.staff.length)}%` : "?"} hint={state.staff.length ? "Average across your team" : "Hire your first teammate"} />
+      </MetricGrid>
+      <WeeklyRecap state={state} />
+      {state.tutorialDone && <NextMoveCard state={state} onNavigate={onNavigate} />}
+
 
       {/* Item B1 — the "needs you now" priority zone: a finished product waiting to ship is the clearest
           "act now", so it's pinned at the very top instead of buried below the informational cards. */}
@@ -314,29 +323,12 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           decision, a milestone you've earned). From here down the screen is grouped into three
           labelled zones instead of one undifferentiated column of ~20 cards, so the scroll is
           navigable: where you STAND, how the business RUNS, and the RECORD of what happened. */}
-      <HqGroup label="Your company">
+      <details className="mg-disclosure"><summary>Company &amp; goals</summary><HqGroup label="Your company">
       {/* The vital signs — ONE row, cut to four. It used to be two rows of six, with the second
           negative-margined up to look like the first, and it led with trivia: "Products" duplicates
           the Performance card's own Shipped count, and "Team" is both the Company tab's whole subject
           and literally visible as desks in the office above. What's left is what you actually steer
           by, money first, because this is a game about not running out of it. */}
-      {(() => {
-        const wkRev = nextWeekRevenue(state);
-        const runway = runwayWeeks(state.cash, weeklyOutflow(state), wkRev);
-        // The pill is already labelled "Runway" — keep the value short so it doesn't read "Runway 7wk runway".
-        const runwayLabel = runway === Infinity ? "Profitable" : runway > 520 ? "10y+" : runway > 52 ? `${Math.round(runway / 52)}y` : `${runway} wk`;
-        const runwayTone = runway === Infinity ? "positive" : runway < 8 ? "negative" : runway < 20 ? "neutral" : "positive";
-        return (
-          <div className="hq__stats">
-            <StatPill label="Cash" value={format(state.cash)} tone={state.cash >= 0 ? "neutral" : "negative"} />
-            <StatPill label="Runway" value={runwayLabel} tone={runwayTone as "positive" | "negative" | "neutral"} />
-            <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
-            {state.era < maxEra()
-              ? <StatPill label="Era" value={`${state.era}/${maxEra()}`} tone="accent" />
-              : <StatPill label="Fans" value={formatCount(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />}
-          </div>
-        );
-      })()}
       {/* Item 5.3 — the live rank ladder: the named rival "boss" directly above, and the gap to pass
           them. A forward chase target on the home screen (the full board lives in Market). */}
       {state.launched.length >= 1 && (() => {
@@ -363,18 +355,14 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         <UnlockCard onOpenBank={onOpenBank} onOpenProgress={onOpenChallenges} />
       )}
 
-      {/* The persistent "Next Move" guidance — takes over once the first-build Coach hands off, so
-          the player always has one concrete next step (see engine/objectives.ts). */}
-      {state.tutorialDone && <NextMoveCard state={state} onNavigate={onNavigate} />}
-
       {/* Rolling contract board — live, regenerating goals that give the endgame a directed chase
           (engine/contracts.ts). Appears once you've shipped; each pays a claimable reward. */}
       {state.tutorialDone && <ContractsCard state={state} onClaim={claimContract} />}
-      </HqGroup>
+      </HqGroup></details>
 
       {/* ── Operations ── the machinery you tend between decisions. Empty in the early game (nothing
           is live yet), and the group label hides itself when so — see `.hq__group` in hq.css. */}
-      <HqGroup label="Operations">
+      <details className="mg-disclosure" open><summary>Production &amp; operations</summary><HqGroup label="Operations">
 
       {/* Legacy Era (item 4.1) — the post-IPO endgame: board mandates + moonshot megaprojects. */}
       {state.wentPublic && <LegacyEraCard state={state} onFund={fundMegaproject} onBuyPerk={buyLegacyPerk} onAdvanceFrontier={buyFrontierTier} />}{/* onAdvanceFrontier takes a lane (feature #6) */}
@@ -414,7 +402,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       )}
 
       <Upgrades />
-      </HqGroup>
+      </HqGroup></details>
 
       {/* ── Records ── the read-only tail: how the company has performed, and what happened. Nothing
           here needs an action, which is exactly why it sits last and under its own label. */}
@@ -423,7 +411,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           objective ladder. The ladder's first rung IS that checklist, with a progress bar and the same
           deep-link, and the Ready-to-launch / In-production cards carry its other two steps live — so
           it was a third copy of guidance the screen already gives twice.) */}
-      <HqGroup label="Records">
+      <details className="mg-disclosure"><summary>Records &amp; activity</summary><HqGroup label="Records">
       {state.launched.length > 0 && (
         <>
           <PerformanceCard state={state} onNavigate={onNavigate} />
@@ -432,7 +420,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           {state.feed.length > 0 && <FeedCard feed={state.feed} week={state.week} onNavigate={onNavigate} />}
         </>
       )}
-      </HqGroup>
+      </HqGroup></details>
     </div>
   );
 }
@@ -742,11 +730,12 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
     haptic.error();
   };
 
+  const [gestureUsed, setGestureUsed] = useState(false);
   const fallback = <OfficeFloorMap layout={state.layout} facilityTier={state.facilityTier} companyName={state.companyName} build={build} selectedIid={selectedIid} onSelect={builder.onSelectItem} onMove={builder.onMoveItem} />;
 
   return (
     <Card variant="flush" className={build ? "hq__deco" : undefined}>
-      <div className={`hq__scene${build ? " hq__scene--build" : ""}`}>
+      <div className={`hq__scene${build ? " hq__scene--build" : ""}`} onPointerDown={() => setGestureUsed(true)}>
         {use3d && !glLost ? (
           <ErrorBoundary fallback={fallback}>
             <Suspense fallback={fallback}>
@@ -765,7 +754,7 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
                 builder={builder}
                 roomStyle={state.roomStyle}
                 desktops={state.desktops}
-                height={build ? "100%" : 420}
+                height={build ? "100%" : "clamp(280px, 42svh, 410px)"}
                 paused={!active}
                 onTapStaff={handleTapStaff}
                 onTapBank={handleTapBank}
@@ -790,15 +779,14 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
             <Flame size={12} aria-hidden /> {ascensionName(state.ascensionLevel)}
           </div>
         )}
-        {/* WASD is keyboard-only — never show it on a touch device (the iOS target), where it's
-            both useless and confusing. Gate on a fine pointer (mouse/trackpad). */}
-        {use3d && !glLost && !build && FINE_POINTER && <div className="hq__camhint" aria-hidden>WASD to look around</div>}
+        {use3d && !glLost && !build && !gestureUsed && <div className="hq__gesture" aria-hidden>{FINE_POINTER ? "Drag sideways to orbit" : "Drag sideways or pinch to zoom"}</div>}
         {showTeamHint && <div className="hq__camhint" aria-hidden>Tap a teammate to manage</div>}
-        {!build && (
+        {!build && <>
           <button className="hq__decorate" onClick={() => { setBuild(true); haptic.light(); if (use3d && !glLost && !getSettings().decorateTutorialSeen) setTutorial(true); }}>
-            <ShoppingBag size={15} /> Shop
+            <PaintbrushVertical size={15} /> Edit office
           </button>
-        )}
+          {use3d && !glLost && <button className="hq__camera-reset" aria-label="Reset office camera" onClick={() => { resetOfficeCamera(); haptic.light(); }}><RotateCw size={18} /></button>}
+        </>}
         {build && (
           <div className="hqb__top">
             <div className="hqb__top-id">

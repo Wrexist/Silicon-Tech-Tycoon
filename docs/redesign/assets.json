@@ -1,0 +1,299 @@
+[
+  {
+    "assetId": "robot-engineer",
+    "classification": "Generate",
+    "screen": "Company role summaries",
+    "purpose": "robot-engineer",
+    "source": "GPT built-in image_gen",
+    "sourcePath": "C:\\Users\\IsacC\\.codex\\generated_images\\01a0cd04-5115-7a70-9b97-6fa4883fefd1\\exec-80bbdd0b-93ba-417b-b48d-6c99e385e653.png",
+    "path": "public/art/redesign/robot-engineer.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "aspectRatio": "1:1",
+    "transparency": "Required; verify decoded alpha",
+    "prompt": "Create a production raster asset for Silicon Tech Tycoon. Asset: reusable ENGINEER employee portrait. Reference role: the attached approved office mockup is the single robot identity and material reference; isolate the same friendly robot identity, not its UI. Style: premium approachable stylised 3D, clean readable forms, restrained detail. Subject: one orange engineer robot with rounded spherical head, short antenna with round tip, dark navy inset face panel, two large friendly white oval eyes with dark pupils, rounded toy-like torso, white small chest inset and small rounded arms. Composition: square portrait, centered head and upper torso, slightly three-quarter turned toward viewer's left, entire antenna visible, generous 12% margin, matching thumbnail-ready crop. Materials: satin orange shell, matte white joints, dark glass face. Lighting: soft neutral studio daylight, gentle shading. Background: genuinely transparent alpha, no backdrop, no pedestal, no cast shadow outside subject. Target use: 48-80px employee-role portrait in native UI. Constraints: no text, no watermark, no UI, no tools, no extra objects, no manufacturer logo. Preserve the robot's face, antenna, proportions and friendly eyes from the reference. Output one separate high quality square image.",
+    "references": [
+      "approved Office attachment aa73aa07-c03e-4fd0-bf7d-115641f7b54d-c9eaac72-5e51-451c-8ac4-e43531094855.png"
+    ],
+    "status": "Integrated via GameArt; alpha verified",
+    "sourceDimensions": [
+      1254,
+      1254
+    ],
+    "alphaVerified": true
+  },
+  {
+    "assetId": "robot-designer",
+    "classification": "Generate",
+    "screen": "Company role summaries",
+    "purpose": "robot-designer",
+    "source": "GPT built-in image_gen",
+    "sourcePath": "C:\\Users\\IsacC\\.codex\\generated_images\\01a0cd04-5115-7a70-9b97-6fa4883fefd1\\exec-77678a5c-0c51-40bd-8724-0b1b444a9e98.png",
+    "path": "public/art/redesign/robot-designer.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "aspectRatio": "1:1",
+    "transparency": "Required; verify decoded alpha",
+    "prompt": "Create a production raster asset for Silicon Tech Tycoon. Asset: designer employee role portrait. Reference role: attached engineer portrait is the approved robot-family identity, camera, crop and lighting reference derived from the approved office mockup. Generate a separate matching green shell robot portrait. Change ONLY orange shell colour to green; preserve dark navy glass face, two large friendly white oval eyes with dark pupils, round head, antenna ball, small white chest panel, rounded torso and arms, pose, camera and proportions. Premium approachable stylised 3D with satin shell and soft neutral studio lighting. Square head and upper torso portrait, whole antenna visible, 12% margin. Genuinely transparent alpha background, no pedestal or exterior shadow. Target use: 48-80px role portrait in native UI. No text, watermark, UI, tools, real manufacturer logo or additional objects.",
+    "references": [
+      "robot-engineer generated identity reference"
+    ],
+    "status": "Integrated via GameArt; alpha verified",
+    "sourceDimensions": [
+      1254,
+      1254
+    ],
+    "alphaVerified": true
+  },
+  {
+    "assetId": "robot-marketer",
+    "classification": "Generate",
+    "screen": "Company role summaries",
+    "purpose": "robot-marketer",
+    "source": "GPT built-in image_gen",
+    "sourcePath": "C:\\Users\\IsacC\\.codex\\generated_images\\01a0cd04-5115-7a70-9b97-6fa4883fefd1\\exec-82c995f8-62ea-49b5-8b55-b59be5559f1a.png",
+    "path": "public/art/redesign/robot-marketer.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "aspectRatio": "1:1",
+    "transparency": "Required; verify decoded alpha",
+    "prompt": "Create a production raster asset for Silicon Tech Tycoon. Asset: marketer employee role portrait. Reference role: attached engineer portrait is the approved robot-family identity, camera, crop and lighting reference derived from the approved office mockup. Generate a separate matching blue shell robot portrait. Change ONLY orange shell colour to blue; preserve dark navy glass face, two large friendly white oval eyes with dark pupils, round head, antenna ball, small white chest panel, rounded torso and arms, pose, camera and proportions. Premium approachable stylised 3D with satin shell and soft neutral studio lighting. Square head and upper torso portrait, whole antenna visible, 12% margin. Genuinely transparent alpha background, no pedestal or exterior shadow. Target use: 48-80px role portrait in native UI. No text, watermark, UI, tools, real manufacturer logo or additional objects.",
+    "references": [
+      "robot-engineer generated identity reference"
+    ],
+    "status": "Integrated via GameArt; alpha verified",
+    "sourceDimensions": [
+      1254,
+      1254
+    ],
+    "alphaVerified": true
+  },
+  {
+    "assetId": "robot-hr",
+    "classification": "Generate",
+    "screen": "Company role summaries",
+    "purpose": "robot-hr",
+    "source": "GPT built-in image_gen",
+    "sourcePath": "C:\\Users\\IsacC\\.codex\\generated_images\\01a0cd04-5115-7a70-9b97-6fa4883fefd1\\exec-0ec91343-0633-4be0-95b7-e9fe2f76090b.png",
+    "path": "public/art/redesign/robot-hr.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "aspectRatio": "1:1",
+    "transparency": "Required; verify decoded alpha",
+    "prompt": "Create a production raster asset for Silicon Tech Tycoon. Asset: hr employee role portrait. Reference role: attached engineer portrait is the approved robot-family identity, camera, crop and lighting reference derived from the approved office mockup. Generate a separate matching purple shell robot portrait. Change ONLY orange shell colour to purple; preserve dark navy glass face, two large friendly white oval eyes with dark pupils, round head, antenna ball, small white chest panel, rounded torso and arms, pose, camera and proportions. Premium approachable stylised 3D with satin shell and soft neutral studio lighting. Square head and upper torso portrait, whole antenna visible, 12% margin. Genuinely transparent alpha background, no pedestal or exterior shadow. Target use: 48-80px role portrait in native UI. No text, watermark, UI, tools, real manufacturer logo or additional objects.",
+    "references": [
+      "robot-engineer generated identity reference"
+    ],
+    "status": "Generated alternative; not integrated (reuse existing blue/orange role colours)",
+    "sourceDimensions": [
+      1254,
+      1254
+    ],
+    "alphaVerified": true
+  },
+  {
+    "assetId": "robot-researcher",
+    "classification": "Generate",
+    "screen": "Company role summaries",
+    "purpose": "robot-researcher",
+    "source": "GPT built-in image_gen",
+    "sourcePath": "C:\\Users\\IsacC\\.codex\\generated_images\\01a0cd04-5115-7a70-9b97-6fa4883fefd1\\exec-cf1e1e70-cf4a-4dcd-89fa-e53c7dd41410.png",
+    "path": "public/art/redesign/robot-researcher.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "aspectRatio": "1:1",
+    "transparency": "Required; verify decoded alpha",
+    "prompt": "Create a production raster asset for Silicon Tech Tycoon. Asset: researcher employee role portrait. Reference role: attached engineer portrait is the approved robot-family identity, camera, crop and lighting reference derived from the approved office mockup. Generate a separate matching amber yellow shell robot portrait. Change ONLY orange shell colour to amber yellow; preserve dark navy glass face, two large friendly white oval eyes with dark pupils, round head, antenna ball, small white chest panel, rounded torso and arms, pose, camera and proportions. Premium approachable stylised 3D with satin shell and soft neutral studio lighting. Square head and upper torso portrait, whole antenna visible, 12% margin. Genuinely transparent alpha background, no pedestal or exterior shadow. Target use: 48-80px role portrait in native UI. No text, watermark, UI, tools, real manufacturer logo or additional objects.",
+    "references": [
+      "robot-engineer generated identity reference"
+    ],
+    "status": "Generated alternative; not integrated (reuse existing blue/orange role colours)",
+    "sourceDimensions": [
+      1254,
+      1254
+    ],
+    "alphaVerified": true
+  },
+  {
+    "assetId": "research-components",
+    "classification": "Generate",
+    "screen": "Research",
+    "purpose": "research-components",
+    "source": "GPT built-in image_gen",
+    "sourcePath": "C:\\Users\\IsacC\\.codex\\generated_images\\01a0cd04-5115-7a70-9b97-6fa4883fefd1\\exec-d3e622f8-d346-489f-8885-2784d33c9cfa.png",
+    "path": "public/art/redesign/research-components.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "aspectRatio": "1:1",
+    "transparency": "Required; verify decoded alpha",
+    "prompt": "Create a production raster asset for Silicon Tech Tycoon. Asset: research-components, a small illustration for component technology research. Reference role: material direction from the approved Silicon mockups, independently generated object. Style: premium approachable stylised 3D, clean readable forms and restrained surface detail. Subject: a single cobalt blue and brushed silver microchip, four neat short rows of pins, clean central die with no markings. Composition: square, centered three-quarter isometric angle, fill 65% of image with 15% clear margin, readable at 48 pixels. Materials: matte white, brushed metal and muted cobalt. Lighting: soft neutral studio lighting, no dramatic glow. Background: genuinely transparent alpha with clean edges, no pedestal or background shadow. Target use: research list illustration beside native progress and text. Constraints: no text, numbers, lettering, watermark, UI, unrequested objects or real manufacturer logo. Preserve simple silhouette and restrained palette. One standalone asset, not a contact sheet.",
+    "references": [],
+    "status": "Integrated via GameArt; alpha verified",
+    "sourceDimensions": [
+      1254,
+      1254
+    ],
+    "alphaVerified": true
+  },
+  {
+    "assetId": "research-projects",
+    "classification": "Generate",
+    "screen": "Research",
+    "purpose": "research-projects",
+    "source": "GPT built-in image_gen",
+    "sourcePath": "C:\\Users\\IsacC\\.codex\\generated_images\\01a0cd04-5115-7a70-9b97-6fa4883fefd1\\exec-cbe42c74-087b-4baf-a10d-b63811edef24.png",
+    "path": "public/art/redesign/research-projects.webp",
+    "dimensions": [
+      256,
+      256
+    ],
+    "aspectRatio": "1:1",
+    "transparency": "Required; verify decoded alpha",
+    "prompt": "Create a production raster asset for Silicon Tech Tycoon. Asset: research-projects, a small illustration for company research projects. Reference role: material direction from the approved Silicon mockups, independently generated object. Style: premium approachable stylised 3D, clean readable forms and restrained surface detail. Subject: a small matte-white laboratory flask holding pale cobalt liquid beside one simple rounded cobalt cube, a compact single sculptural grouping. Composition: square, centered three-quarter isometric angle, fill 65% of image with 15% clear margin, readable at 48 pixels. Materials: matte white, brushed metal and muted cobalt. Lighting: soft neutral studio lighting, no dramatic glow. Background: genuinely transparent alpha with clean edges, no pedestal or background shadow. Target use: research list illustration beside native progress and text. Constraints: no text, numbers, lettering, watermark, UI, unrequested objects or real manufacturer logo. Preserve simple silhouette and restrained palette. One standalone asset, not a contact sheet.",
+    "references": [],
+    "status": "Integrated via GameArt; alpha verified",
+    "sourceDimensions": [
+      1254,
+      1254
+    ],
+    "alphaVerified": true
+  },
+  {
+    "assetId": "live-device",
+    "classification": "Reuse",
+    "screen": "Design / product lists",
+    "purpose": "Live parametric SVG for every supported device; no raster that misrepresents configuration.",
+    "source": "Existing repository / code refinement",
+    "path": "src/render/DeviceRenderer.tsx",
+    "dimensions": "Responsive geometry or vector",
+    "aspectRatio": "Adaptive",
+    "transparency": "Not applicable",
+    "prompt": null,
+    "references": [],
+    "status": "Integrated"
+  },
+  {
+    "assetId": "individual-avatars",
+    "classification": "Reuse",
+    "screen": "Company Team",
+    "purpose": "Keep personalised roster identities; generated portraits summarise roles only.",
+    "source": "Existing repository / code refinement",
+    "path": "src/components/Avatar.tsx",
+    "dimensions": "Responsive geometry or vector",
+    "aspectRatio": "Adaptive",
+    "transparency": "Not applicable",
+    "prompt": null,
+    "references": [],
+    "status": "Integrated"
+  },
+  {
+    "assetId": "office-kit",
+    "classification": "Refine",
+    "screen": "Office",
+    "purpose": "Existing GLB desks, chairs, monitors, keyboard, servers, storage, sofa, coffee table, rug and plants; shared pale oak and muted blue finishes.",
+    "source": "Existing repository / code refinement",
+    "path": "src/garage3d/palette.ts",
+    "dimensions": "Responsive geometry or vector",
+    "aspectRatio": "Adaptive",
+    "transparency": "Not applicable",
+    "prompt": null,
+    "references": [],
+    "status": "Integrated"
+  },
+  {
+    "assetId": "robot-geometry",
+    "classification": "Reuse",
+    "screen": "Office",
+    "purpose": "Existing procedural robot geometry and animation; keep interaction compatibility.",
+    "source": "Existing repository / code refinement",
+    "path": "src/garage3d/robotModels.ts",
+    "dimensions": "Responsive geometry or vector",
+    "aspectRatio": "Adaptive",
+    "transparency": "Not applicable",
+    "prompt": null,
+    "references": [],
+    "status": "Integrated"
+  },
+  {
+    "assetId": "office-windows",
+    "classification": "Build in 3D",
+    "screen": "Office",
+    "purpose": "Shallow window frames and panes using shared materials, wall culling, no extra lights or textures.",
+    "source": "Existing repository / code refinement",
+    "path": "src/garage3d/room.tsx",
+    "dimensions": "Responsive geometry or vector",
+    "aspectRatio": "Adaptive",
+    "transparency": "Not applicable",
+    "prompt": null,
+    "references": [],
+    "status": "Integrated"
+  },
+  {
+    "assetId": "office-layout",
+    "classification": "Reuse",
+    "screen": "Office",
+    "purpose": "Existing workstation groups, paths and automatic decoration reservations; player placements unchanged.",
+    "source": "Existing repository / code refinement",
+    "path": "src/garage3d/officeArrangement.ts",
+    "dimensions": "Responsive geometry or vector",
+    "aspectRatio": "Adaptive",
+    "transparency": "Not applicable",
+    "prompt": null,
+    "references": [],
+    "status": "Integrated"
+  },
+  {
+    "assetId": "shared-ui",
+    "classification": "Build in code",
+    "screen": "All",
+    "purpose": "Native metrics, progress, fallback icons and role illustrations; Lucide navigation and controls.",
+    "source": "Existing repository / code refinement",
+    "path": "src/design/management.tsx",
+    "dimensions": "Responsive geometry or vector",
+    "aspectRatio": "Adaptive",
+    "transparency": "Not applicable",
+    "prompt": null,
+    "references": [],
+    "status": "Integrated"
+  },
+  {
+    "assetId": "charts",
+    "classification": "Refine",
+    "screen": "Market / Company",
+    "purpose": "Actual recorded history with labelled weeks, dollar units and honest empty states. Selectable periods and an accessible recorded-values table.",
+    "source": "Existing repository / code refinement",
+    "path": "src/components/charts.tsx",
+    "dimensions": "Responsive geometry or vector",
+    "aspectRatio": "Adaptive",
+    "transparency": "Not applicable",
+    "prompt": null,
+    "references": [],
+    "status": "Integrated"
+  },
+  {
+    "assetId": "milestones-empty",
+    "classification": "Reuse",
+    "screen": "All",
+    "purpose": "Existing vector achievements, objectives and empty-state illustrations; no new raster needed.",
+    "source": "Existing repository / code refinement",
+    "path": "src/design/achievementIcons.tsx",
+    "dimensions": "Responsive geometry or vector",
+    "aspectRatio": "Adaptive",
+    "transparency": "Not applicable",
+    "prompt": null,
+    "references": [],
+    "status": "Integrated"
+  }
+]

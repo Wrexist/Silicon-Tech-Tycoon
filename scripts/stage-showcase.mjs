@@ -153,6 +153,9 @@ s = {
   fans: Math.max(s.fans, 240_000),
   cumulativeRevenue: Math.max(s.cumulativeRevenue, 90_000_000_000),
   cash: dollars(6_400_000), // healthy but human — the factory HUD reads a real wallet, not $80M
+  // The staged financial position above invalidates the prior simulation's valuation series.
+  // Let the UI show its honest empty state until this staged company records new weeks.
+  valuationHistory: [],
   pendingStrike: null, pendingAwards: null, pendingSideOrder: null,
   lastActive: Date.now(),
 };
