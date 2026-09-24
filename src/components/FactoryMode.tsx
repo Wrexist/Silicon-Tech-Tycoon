@@ -21,7 +21,7 @@ import { weeklyFinancials } from "../state/managementMetrics.ts";
 import { MAX_LAYOUTS, layoutDiff, layoutEditSummary } from "../engine/factoryLayout.ts";
 import { appOverlayOpen } from "../design/overlayGuard.ts";
 import { lockScroll } from "../design/scrollLock.ts";
-import { FACTORIES } from "../engine/factories.ts";
+import { unlockedFactories } from "../engine/factories.ts";
 import { nextUpgradeCost, upgradeLockedBy, upgradeLine } from "../engine/upgrades.ts";
 import { projectById } from "../engine/research.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
@@ -36,7 +36,7 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
-import { webglSupported } from "../garage3d/support.ts";
+import { isDarkTheme, webglSupported } from "../garage3d/support.ts";
 import { ErrorBoundary } from "./ErrorBoundary.tsx";
 import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, connectedChain, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineLayoutBreakdown, lineSpeedMult, lineUnitMult, machineCells, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
@@ -425,6 +425,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           <ErrorBoundary fallback={<FloorMinimap props={state.factoryProps} onCell={buildTool ? onTapCell : undefined} pending={pendingCell ? { ...pendingCell, valid: pendingValid } : null} floor={d.floor} lineOk={lineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />}>
           <Suspense fallback={<FloorMinimap props={state.factoryProps} onCell={buildTool ? onTapCell : undefined} pending={pendingCell ? { ...pendingCell, valid: pendingValid } : null} floor={d.floor} lineOk={lineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />}>
             <Factory3D
+              dark={isDarkTheme()}
               active={d.active}
               activeKind={d.activeKind}
               robotTier={d.robotTier}
@@ -503,9 +504,9 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
       <div className="fmode__left">
         {!lineOk && (
           <div className="fmode__panel fmode__stopped">
-            <span className="fmode__stopped-title"><Wrench size={14} aria-hidden /> Line offline</span>
-            <p className="fmode__empty">Connect the Intake to the Packer — build the line yourself, or tap Auto to lay a long conveyor track across the whole floor and line your machines up along it. A wired line builds every run faster.</p>
-            <button className="fmode__stopped-fix" onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Fix in Build</button>
+            <span className="fmode__stopped-title"><Wrench size={14} aria-hidden /> Workshop ready to connect</span>
+            <p className="fmode__empty">Connect Intake to Packer for a build-speed bonus. Start with belts or use Auto in Build.</p>
+            <button className="fmode__stopped-fix" onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Build your line</button>
           </div>
         )}
         <div className="fmode__panel">
@@ -513,22 +514,22 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             <span className="fmode__panel-title">Current order</span>
             <ChevronDown size={14} className={`fmode__panel-caret${orderOpen ? " fmode__panel-caret--open" : ""}`} aria-hidden />
           </button>
-          {!orderOpen ? null : d.lead ? (
+          {d.lead ? (
             <div className="fmode__order">
               <span className="fmode__order-thumb"><DeviceRenderer product={d.lead.product} size={42} /></span>
               <div className="fmode__order-info">
                 <span className="fmode__order-name">{d.lead.product.name}</span>
                 <span className="fmode__order-units tnum">{(d.lead.plannedUnits ?? 0).toLocaleString()} units</span>
-                <span className="fmode__order-track"><span className="fmode__order-fill" style={{ width: `${Math.round(d.progress * 100)}%` }} /></span>
-                <span className="fmode__order-eta">{d.stage?.label} · {d.weeksLeft} wk left</span>
-                <StageTrail category={d.lead.product.category} frac={d.progress} />
-                {d.util != null && (
+                <span className="fmode__order-track" role="progressbar" aria-label="Production progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(d.progress * 100)}><span className="fmode__order-fill" style={{ width: `${Math.round(d.progress * 100)}%` }} /></span>
+                <span className="fmode__order-eta">{Math.round(d.progress * 100)}% · {d.weeksLeft} wk left</span>
+                {orderOpen && <StageTrail category={d.lead.product.category} frac={d.progress} />}
+                {orderOpen && d.util != null && (
                   <span className={`fmode__cap-line${d.overtime ? " fmode__cap-line--hot" : ""}`}>
                     <span className="fmode__cap-bar"><span className="fmode__cap-fill" style={{ width: `${Math.min(100, Math.round(d.util * 100))}%` }} /></span>
                     {d.overtime ? "Above current capacity" : "Within current capacity"}
                   </span>
                 )}
-                {(d.linePct > 0 || !lineOk || d.missing.length > 0) && (
+                {orderOpen && (d.linePct > 0 || !lineOk || d.missing.length > 0) && (
                   <span className={`fmode__lineboon${d.linePct > 0 ? " fmode__lineboon--good" : " fmode__lineboon--bad"}`}>
                     <Zap size={12} aria-hidden />
                     {!lineOk
@@ -541,7 +542,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               </div>
             </div>
           ) : (
-            <p className="fmode__empty">No active order. Plan a production run in the Design Lab.</p>
+            <p className="fmode__empty">No active order. Design a product to start production.</p>
           )}
         </div>
 
@@ -933,16 +934,17 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
         <div className="fmode__sheet">
           <h3 className="fmode__sheet-title">Machine shop</h3>
           <p className="fmode__sheet-note">Production lines you can contract or buy outright — pick per product in the Design Lab's Advanced sourcing.</p>
-          {Object.values(FACTORIES).filter((f) => f.era <= state.era).map((f) => (
+          {unlockedFactories(state.era).map((f) => (
             <div key={f.id} className="fmode__upline">
               <span className="fmode__upline-glyph" aria-hidden><Hammer size={16} /></span>
               <div className="fmode__upline-info">
                 <span className="fmode__upline-name">{f.name}</span>
                 <span className="fmode__upline-sub">{f.blurb}</span>
               </div>
-              <span className="fmode__upline-max">
-                {f.kind === "owned" ? (state.ownedFactories.includes(f.id) ? "Owned" : format(f.acquireCost)) : "Contract"}
-              </span>
+              {f.kind === "owned" && !state.ownedFactories.includes(f.id)
+                ? <button className="fmode__buy" disabled={state.cash < f.acquireCost} aria-label={`Buy ${f.name} for ${format(f.acquireCost)}`} onClick={() => d.game.acquireFactory(f.id)}>Buy {format(f.acquireCost)}</button>
+                : <span className="fmode__upline-max">{f.kind === "owned" ? "Owned" : "Contract"}</span>}
+              {f.kind === "owned" && <span className="fmode__sheet-note">{format(f.weeklyUpkeep)}/wk upkeep, including idle weeks</span>}
             </div>
           ))}
           <p className="fmode__sheet-note">Want to place machines yourself? Use the Build tool on the rail to grow your own floor.</p>
@@ -1136,6 +1138,7 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
             <ErrorBoundary fallback={mini}>
             <Suspense fallback={mini}>
               <Factory3D
+              dark={isDarkTheme()}
                 preview
                 // The card keeps its WebGL context (returning to HQ is instant) but stops DRAWING
                 // whenever it can't be seen: another bottom tab, or the fullscreen build view open

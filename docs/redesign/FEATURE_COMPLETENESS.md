@@ -21,11 +21,12 @@ No clearly removed core feature was found in this scope. Some controls are condi
 1. Factory used `burn()` while Company/Market used the fuller weekly outflow. Its displayed surplus could omit debt payments and late-era overhead. Factory now uses the shared `weeklyFinancials` calculation and explicitly labels forecast outflow/cash surplus.
 2. Factory's Upgrades help incorrectly directed players to Company. It now points to Office upgrades, where those controls actually live.
 
-## Remaining improvements, not missing core mechanics
+## Follow-up improvements (completed 2026-09-24)
 
-- Factory framing leaves substantial empty space on a portrait phone; the scene and controls need a dedicated visual pass. Existing player-selected materials must remain respected.
-- The collapsed Current order header hides the product, progress and ETA. A compact always-visible summary would make production easier to monitor.
-- A library of multiple named product drafts would be useful. Current persistence deliberately holds one active draft per company/run, with backup recovery and undo/redo.
+- Factory now reserves separate layout rows for orders, the interactive scene and tools, with aspect-aware camera framing. Player-selected materials and placements remain intact.
+- Collapsed orders retain the product, progress and ETA.
+- A local library supports 12 named design snapshots per company/run, with backup recovery and preservation of the working design before switching.
+- Factory is reachable from game start. Owned lines require money rather than era progression; advanced contract lines retain their era gates. See [Factory continuation](FACTORY_CONTINUATION.md).
 
 Factory screenshots: `artifacts/redesign-implementation/feature-audit/factory-floor.png`, `factory-order.png`, `factory-build.png`, `factory-stats.png`, `factory-style.png` and `factory-overview.png`. These are actual browser renders of a staged company, not concept artwork or the player's save.
 

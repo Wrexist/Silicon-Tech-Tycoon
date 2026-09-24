@@ -1643,7 +1643,7 @@ export function negotiateContract(state: GameState, supplierId: SupplierId, term
 
 /** Buy an OWNED manufacturing line (engine/factories.ts): pay the one-time acquire cost; from then
  *  it carries weekly upkeep and can be selected for builds. No-op if it's not an owned line, already
- *  owned, era-locked, or unaffordable. */
+ *  owned or unaffordable. Owned lines are cash-gated from the first era. */
 export function acquireFactory(state: GameState, id: FactoryId): GameState {
   const fac = factoryFor(id);
   const owned = state.ownedFactories ?? [];

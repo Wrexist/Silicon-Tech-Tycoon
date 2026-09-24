@@ -246,7 +246,7 @@ function AppShell() {
     market: revealMore,
     company: state.staff.length >= 2 || state.era >= 2,
   };
-  // Once manufacturing starts, keep the factory reachable between runs as well.
+  // The workshop is reachable from day one, including between production runs.
   const showWorldTabs = hasFactoryAccess(state) || hqWorld === "factory";
 
   return (

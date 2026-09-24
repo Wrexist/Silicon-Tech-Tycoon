@@ -7,9 +7,9 @@ import { generateSideOrder } from '../engine/sideOrders.ts';
 import { hasFactoryAccess } from './factorySummary.ts';
 
 describe('factory ownership and transaction integrity', () => {
-  it('keeps the factory accessible after the first run completes and launches', () => {
+  it('opens the factory from week zero and keeps it accessible after production', () => {
     const fresh = newGame(7);
-    expect(hasFactoryAccess(fresh)).toBe(false);
+    expect(hasFactoryAccess(fresh)).toBe(true);
     expect(hasFactoryAccess({ ...fresh, building: [{}] })).toBe(true);
     expect(hasFactoryAccess({ ...fresh, ready: [{}] })).toBe(true);
     expect(hasFactoryAccess({ ...fresh, launched: [{}] })).toBe(true);

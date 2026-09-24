@@ -1,13 +1,12 @@
 import { DEFAULT_FACTORY_ID, factoryFor } from '../engine/factories.ts';
 import { effectiveCapacityPerWeek, type GameState } from './gameState.ts';
 
-/** Manufacturing access persists between runs, including the first ready-to-launch product. */
-export function hasFactoryAccess(state: {
+/** The workshop is available from a new company's first day; individual purchases cost cash. */
+export function hasFactoryAccess(_state: {
   era: number; ownedFactories: readonly unknown[]; building: readonly unknown[];
   ready: readonly unknown[]; launched: readonly unknown[];
 }): boolean {
-  return state.era >= 2 || state.ownedFactories.length > 0
-    || state.building.length + state.ready.length + state.launched.length > 0;
+  return true;
 }
 
 /** A current-capacity forecast for the displayed run, not an invented shared-factory scheduler. */

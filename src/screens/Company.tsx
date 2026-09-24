@@ -451,9 +451,8 @@ export function Company({ onOpenPlatform }: { onOpenPlatform: () => void }) {
         </Card>
       )}
 
-      {/* Operations — owned manufacturing lines (engine/factories.ts). Manufacturing lines are an
-          era-2+ system, so this is deferred alongside the other heavy ops layers. */}
-      {advanced && <OperationsSection state={state} onAcquire={acquireFactory} />}
+      {/* Operations — owned manufacturing lines (engine/factories.ts). Owned lines are available from the start when the company can afford them. */}
+      <OperationsSection state={state} onAcquire={acquireFactory} />
 
       {/* All-time top products */}
       {state.launched.length >= 2 && <TopProductsCard launched={state.launched} />}

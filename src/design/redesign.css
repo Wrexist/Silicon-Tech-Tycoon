@@ -201,3 +201,11 @@ body.hq-deco-open .app__dock { display: none; }
 .weekly-recap dd { margin: var(--sp-4) 0; font-weight: 650; font-size: var(--fs-caption); }
 .weekly-recap ul { padding-left: var(--sp-16); font-size: var(--fs-caption); line-height: 1.5; }
 .app .co-role-grid .game-art { width: 48px; height: 48px; }
+.draft-library form, .draft-library__actions { display: flex; flex-wrap: wrap; gap: var(--sp-8); align-items: end; margin: var(--sp-8) 0; }
+.draft-library label { flex: 1; min-width: 120px; font-size: var(--fs-caption); color: var(--ink-2); }
+.draft-library input { display: block; width: 100%; min-height: 44px; border: 1px solid var(--hairline); background: var(--surface); color: var(--ink); border-radius: var(--r-button); padding: var(--sp-8); }
+.draft-library button { min-height: 44px; padding: var(--sp-8); color: var(--primary); border: 1px solid var(--hairline); border-radius: var(--r-button); overflow-wrap: anywhere; }
+.draft-library button:disabled { opacity: .45; }
+.draft-library ul { list-style: none; padding: 0; }
+.draft-library li { border-top: 1px solid var(--hairline); padding: var(--sp-12) 0; overflow-wrap: anywhere; }
+.draft-library li > small { display: block; color: var(--ink-2); margin-top: var(--sp-4); }

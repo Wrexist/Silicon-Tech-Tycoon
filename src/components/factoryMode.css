@@ -360,6 +360,38 @@
 .fmode__stage { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; border-radius: var(--r-card); overflow: hidden; }
 .fmode__stage > canvas { border-radius: var(--r-card); }
 
+/* Reserve real layout space for the controls; the canvas never sits underneath them. */
+.fmode {
+  display: grid;
+  grid-template-areas: "top" "orders" "stage" "tools" "bottom";
+  grid-template-rows: auto auto minmax(140px, 1fr) auto auto;
+  gap: var(--sp-8);
+  padding: env(safe-area-inset-top) var(--sp-8) env(safe-area-inset-bottom);
+  overflow: auto;
+  align-items: stretch;
+  justify-content: stretch;
+}
+.fmode .fmode__top { grid-area: top; position: static; padding: var(--sp-8) var(--sp-4); }
+.fmode .fmode__left { grid-area: orders; position: static; width: auto; max-height: 28svh; overflow: auto; }
+.fmode .fmode__stage { grid-area: stage; min-height: 0; }
+.fmode .fmode__rail { grid-area: tools; position: static; display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: var(--sp-4); }
+.fmode .fmode__tool { width: 100%; min-height: 44px; padding: var(--sp-6) var(--sp-2); box-shadow: none; }
+.fmode .fmode__bottom, .fmode .fmode__build { grid-area: bottom; position: static; padding: var(--sp-8) var(--sp-4); min-width: 0; background: var(--surface); border-radius: var(--r-card); }
+.fmode .fmode__boost { box-shadow: none; }
+.fmode .fmode__panel { border: 1px solid var(--hairline); padding: var(--sp-8) var(--sp-12); }
+.fmode .fmode__panel-head { min-height: 44px; }
+.fmode .fmode__order-info { flex: 1; }
+.fmode .fmode__order-name { overflow-wrap: anywhere; }
+.fmode .fmode__order-track { background: var(--hairline); }
+.fmode .fmode__stopped { order: 1; }
+.fmode .fmode__camhint { top: 45%; max-width: calc(100% - 32px); white-space: normal; z-index: 1; }
+.fmode__upline:has(.fmode__buy) { flex-wrap: wrap; }
+.fmode__upline > .fmode__sheet-note { flex-basis: 100%; }
+@media (max-height: 650px) {
+  .fmode .fmode__left { max-height: 22svh; }
+  .fmode .fmode__order-thumb { display: none; }
+}
+
 /* ---------------- build mode: a calm icon palette ---------------- */
 .fmode__build {
   position: fixed; left: 0; right: 0;

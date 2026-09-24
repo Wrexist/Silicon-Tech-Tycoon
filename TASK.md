@@ -225,7 +225,7 @@ Run the AUDIT PROMPT (see plan §12) after P3 (engine+state) and after P5 (all s
 
 ## Backlog
 
-- 2026-09-23 feature review: improve Factory portrait framing and retain a compact order/progress/ETA summary when collapsed; consider a library of multiple named product drafts. Current core features are retained; see docs/redesign/FEATURE_COMPLETENESS.md.
+- [x] 2026-09-24: Factory portrait framing, always-visible order/progress/ETA and a library of 12 named product drafts implemented. Factory available from day one; owned lines money-gated. See docs/redesign/FACTORY_CONTINUATION.md.
 _(append out-of-scope improvements here as one-liners; do not act mid-session)_
 - [DONE 2026-08-24] **CSS token bug — `--spring-bounce` was undefined.** Ten call sites (eureka,
   community ask, staff moment, rivalry declared, regional event, review prompt, earnings call,

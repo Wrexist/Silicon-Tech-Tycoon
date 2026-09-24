@@ -1,4 +1,5 @@
 import { useReducedMotionLive } from "../garage3d/support.ts";
+import { factoryFrame } from "../garage3d/factoryFraming.ts";
 // Factory Mode's 3D floor — the PLAYER'S line rendered live, not a diorama: whatever they've
 // built, raw material enters at the intake hopper, rides their conveyor through their machines
 // (gantry press, robot arms, glass QA tunnel…) and leaves the packer as a boxed crate at the
@@ -69,6 +70,7 @@ const C = {
 };
 
 export interface Factory3DProps {
+  dark?: boolean;
   active: boolean;
   /** Which machine kind the current build stage is working (null when idle) — only that machine
    *  animates; every other machine on the floor stays still. */
@@ -1396,18 +1398,11 @@ function FloorDecals({ floorW, cx }: { floorW: number; cx: number }) {
  *  camera so the player can orbit/zoom with touch. */
 /** Frame the floor. `cx` is the building's east-shift from expansions, so the view follows the
  *  wider building (shifts + widens as bays are added). */
-function frameCamera(cam: THREE.PerspectiveCamera, portrait: boolean, cx = 0, zoomOut = 1) {
-  cam.fov = (portrait ? 54 : 30) + cx * 0.9;
-  if (portrait) cam.position.set(12.2 + cx, 16.6, 13.4);
-  else cam.position.set((10.6 + cx) * zoomOut, 13.1 * zoomOut, 11.6 * zoomOut);
-  const target = portrait ? new THREE.Vector3(0, -0.3, -cx) : new THREE.Vector3(cx, -0.3, 0);
-  const radius = Math.hypot(8.7 + cx, 5.7, 2);
-  const halfVertical = THREE.MathUtils.degToRad(cam.fov / 2);
-  const halfHorizontal = Math.atan(Math.tan(halfVertical) * cam.aspect);
-  const distance = radius / Math.sin(Math.min(halfVertical, halfHorizontal)) * 1.08;
-  const direction = cam.position.clone().sub(target).normalize();
-  cam.position.copy(target).addScaledVector(direction, distance * zoomOut);
-  cam.lookAt(target);
+function frameCamera(cam: THREE.PerspectiveCamera, _portrait: boolean, cx = 0, zoomOut = 1) {
+  const frame = factoryFrame(cam.aspect, cx, 1.08 * zoomOut);
+  cam.fov = frame.fov;
+  cam.position.copy(frame.position);
+  cam.lookAt(frame.target);
   cam.updateProjectionMatrix();
 }
 
@@ -1437,7 +1432,7 @@ function CameraReset({ signal, cx }: { signal: number; cx: number }) {
     if (seen.current === revision) return;
     seen.current = revision;
     frameCamera(camera as THREE.PerspectiveCamera, size.height > size.width, cx);
-    if (controls) { controls.target.set(size.height > size.width ? 0 : cx, -0.3, size.height > size.width ? -cx : 0); controls.update(); }
+    if (controls) { controls.target.copy(factoryFrame(size.width / size.height, cx).target); controls.update(); }
   });
   return null;
 }
@@ -1785,9 +1780,9 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       <pointLight position={dock ? [dock.road[0], 3.2, dock.road[2]] : [cx + 6, 3.2, 4]} intensity={p.overtime ? 11 : 7} distance={9} decay={2} color="#ffcf9a" />
 
       {/* grounds */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
-        <planeGeometry args={[44, 32]} />
-        <meshStandardMaterial color={C.grass} roughness={1} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[cx, -0.02, 0]} receiveShadow>
+        <planeGeometry args={[floorW + 8, FLOOR.h + 7]} />
+        <meshStandardMaterial color={p.dark ? C.grass : "#e2e7df"} roughness={1} />
       </mesh>
       {/* the building: concrete floor + painted walls (player-customisable), grows east with expansions */}
       <FactoryShell wallColor={p.wallColor ?? "#8a9099"} floorColor={p.floorColor ?? C.concrete} floorW={floorW} />
@@ -1993,7 +1988,7 @@ export default function Factory3D(p: Factory3DProps) {
   const reduced = useReducedMotionLive();
   // Building east-shift from expansions; when a LOCKED bay is previewed, frame slightly east of the
   // built floor so the ghost bay (and its lock pill) sit on screen instead of behind the tool rail.
-  const cx = ((p.floorW ?? FLOOR.w) - FLOOR.w) / 2 + (p.lockedBay ? p.lockedBay.cols / 4 : 0);
+  const cx = ((p.floorW ?? FLOOR.w) - FLOOR.w) / 2 + (p.lockedBay ? p.lockedBay.cols / 2 : 0);
   // Hold-to-move: while a piece is in hand the CAMERA freezes entirely, so the drag steers the
   // piece — not the view. Mirrored out to the caller for haptics/hints via onCarryChange.
   const [carrying, setCarrying] = useState(false);
@@ -2027,7 +2022,7 @@ export default function Factory3D(p: Factory3DProps) {
       {!p.preview && <OrbitControls
         makeDefault
         enabled={!carrying}
-        target={[cx, -0.3, 0]}
+        target={[cx, 0.8, 0]}
         enablePan={false}
         enableRotate={!p.paintBelts}
         enableDamping

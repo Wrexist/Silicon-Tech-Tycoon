@@ -1,5 +1,6 @@
 import { ProductComparison } from "../components/ProductComparison.tsx";
 import { useDesignDraft } from "../state/useDesignDraft.ts";
+import { DraftLibrary } from "../components/DraftLibrary.tsx";
 import { designAdvice, priceAssessment } from "../state/designAdvice.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Undo2, Redo2, Info, ArrowLeft, ArrowRight, Ban, Camera, Check, ChevronDown, CircleDollarSign, Clock, Cpu, FlaskConical, FlipHorizontal2, Globe, Hammer, Layers, Lock, Megaphone, Minus, Plus, Rocket, Scale, Search, Share2, ShieldCheck, Sparkles, Target, TrendingDown, TrendingUp, Trophy, Tv, Users, Factory, Wand2, X, type LucideIcon } from "lucide-react";
@@ -623,6 +624,7 @@ export function DesignLab({
         <button aria-label="Undo design change" disabled={!draftStore.canUndo} onClick={() => { draftStore.undo(); clearPrototype(); }}><Undo2 size={16} /></button>
         <button aria-label="Redo design change" disabled={!draftStore.canRedo} onClick={() => { draftStore.redo(); clearPrototype(); }}><Redo2 size={16} /></button>
       </div>
+      <DraftLibrary current={{ version: 1, run: `${state.seed}:${state.legacy}`, week: state.week, product: draft, step: labTab }} blocked={tabBlocked} onOpen={record => { draftStore.reset(record.product); setLabTab(record.step); clearPrototype(); }} />
       {draftStore.recovery === "recovered" && <p className="mg-advice">Recovered your previous saved draft.</p>}
       {draftStore.recovery === "invalid" && <p className="mg-advice">The saved draft was unreadable or belongs to a later week. A fresh draft is ready; your company save is unchanged.</p>}
       <div className="lab__tabs" role="tablist" aria-label="Design sections">
