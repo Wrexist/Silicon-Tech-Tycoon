@@ -408,6 +408,29 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   // the frequently-re-running keydown effect above can't churn it, and ref-counted so an inner
   // Sheet's own lock can't clobber ours and leak a permanent lock (stuck-scroll bug).
   useEffect(() => lockScroll(), []);
+  // Toasts use the actual tool band, including wrapped controls and larger text.
+  // The regular game's fixed bottom-chrome height is wrong inside Factory mode.
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    const update = () => {
+      const rail = root.querySelector(".fmode__rail");
+      if (rail) document.body.style.setProperty("--factory-controls-height", `${Math.max(0, window.innerHeight - rail.getBoundingClientRect().top)}px`);
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(root);
+    root.querySelectorAll(".fmode__stage, .fmode__rail").forEach(el => observer.observe(el));
+    root.addEventListener("scroll", update);
+    window.addEventListener("resize", update);
+    update();
+    return () => {
+      observer.disconnect();
+      root.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      document.body.style.removeProperty("--factory-controls-height");
+    };
+  }, []);
+
 
   const flow = sub(d.revenueWk, d.expensesWk);
   const flowD = toDollars(flow);
@@ -419,7 +442,12 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
 
   return createPortal(
     <div ref={ref} tabIndex={-1} className="fmode" role="dialog" aria-modal="true" aria-label="Factory mode">
-      <div className="fmode__stage">
+      <div className="fmode__stage" onPointerDown={() => setCamHint(false)}>
+      {camHint && !buildTool && (
+        <div className="fmode__camhint" role="status">
+          <Move3d size={15} aria-hidden /> Drag to look around · pinch to zoom
+        </div>
+      )}
         {use3d ? (
           /* Same degrade-don't-crash contract HQ's 3D office already had (screens/HQ.tsx): a throw
              from inside the WebGL scene — a driver-level failure, or the lazy chunk not arriving —
@@ -499,11 +527,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
         </button>
         <button className="fmode__close" aria-label="Close factory" onClick={() => { haptic.light(); onClose(); }}><X size={20} /></button>
       </div>
-      {camHint && !buildTool && (
-        <div className="fmode__camhint" role="status">
-          <Move3d size={15} aria-hidden /> Drag to look around · pinch to zoom
-        </div>
-      )}
+
 
       {/* left panels */}
       <div className="fmode__left">
@@ -687,7 +711,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                 return (
                   <>
                     <span className="fmode__autoquote-label">
-                      <Waypoints size={14} aria-hidden /> Lay the track · {quote.tiles} tiles
+                      <Waypoints size={14} aria-hidden /> Organize machines: {quote.tiles} belt tiles
                     </span>
                     <button
                       className="fmode__buy fmode__autoquote-go"
@@ -695,7 +719,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                       onClick={() => {
                         snapshot(); // the whole auto-route undoes in one tap, like any other build action
                         const res = d.game.autoConnectLine();
-                        if (res.ok) { haptic.success(); sfx("build"); showToast("Track laid — a long line routed; drop machines along it", { tone: "positive" }); }
+                        if (res.ok) { haptic.success(); sfx("build"); showToast("Factory organized", { tone: "positive" }); }
                         else { dropSnapshot(); haptic.warning(); showToast(res.reason ?? "Couldn't lay the track", { tone: "negative" }); }
                         setAutoArmed(false);
                       }}

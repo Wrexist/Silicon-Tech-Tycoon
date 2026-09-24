@@ -1,3 +1,5 @@
+import { FactoryGestureGuard } from "../garage3d/factoryGestures.ts";
+import { FACTORY_DOCK, deliveryPosition } from "../garage3d/factoryDock.ts";
 import { animationDelta, advanceFactoryItems } from "../garage3d/factoryMotion.ts";
 import { useReducedMotionLive } from "../garage3d/support.ts";
 import { machineMounts, type MachineMount } from "../garage3d/machineMounts.ts";
@@ -1213,7 +1215,7 @@ function Truck({ selling, position, yaw = 0 }: { selling: boolean; position: [nu
     if (grp.current) grp.current.position.y = selling ? Math.abs(Math.sin(clock.elapsedTime * 3)) * 0.012 : 0; // subtle idle rumble while shipping
   });
   return (
-    <group position={position} rotation={[0, yaw, 0]}>
+    <group name="factory-delivery-truck" position={position} rotation={[0, yaw, 0]}>
       <group ref={grp}>
         {/* box body (rear, toward the pallet) + cab (front) */}
         <RoundedBox args={[1.0, 1.1, 2.3]} radius={0.08} position={[0, 0.78, -0.35]} castShadow>
@@ -1237,38 +1239,24 @@ function Truck({ selling, position, yaw = 0 }: { selling: boolean; position: [nu
   );
 }
 
-function Agvs({ tier, overtime, tail, dock }: {
-  tier: number; overtime: boolean;
-  /** Belt tail (≈ the packer output) and the dock apron — the shuttle ferries crates between them. */
-  tail: [number, number] | null;
-  dock: { road: [number, number, number] } | null;
-}) {
+function Agvs({ tier, overtime, active }: { tier: number; overtime: boolean; active: boolean }) {
   const refs = useRef<THREE.Group[]>([]);
   const shuttle = useRef<THREE.Group>(null);
   const shuttleCrate = useRef<THREE.Group>(null);
   const t0 = useRef(0);
   useMotionFrame((_, dt) => {
-    t0.current += dt * 0.8;
+    if (active) t0.current += dt;
     refs.current.forEach((g, i) => {
       if (!g) return;
-      // patrol a wide oval around the whole line
-      const a = t0.current * 0.35 + (i * Math.PI * 2) / 3;
-      g.position.set(Math.cos(a) * 7.4, 0.16, Math.sin(a) * 4.4);
-      g.rotation.y = -a;
+      const p = deliveryPosition(t0.current, i + 1, overtime);
+      g.position.set(p.x, 0.16, p.z);
+      g.rotation.y = p.yaw;
     });
-    // The shuttle runs a fixed packer→dock→back loop (deterministic from the clock): a smoothstep
-    // ping-pong along the tail→dock segment, carrying a crate only on the OUTBOUND (loaded) leg.
-    if (shuttle.current && tail && dock) {
-      const period = overtime ? 3.2 : 5.0;
-      const phase = ((t0.current % period) + period) % period / period; // 0..1
-      const out = phase < 0.5;                                           // first half = outbound, loaded
-      const f = out ? phase * 2 : (1 - phase) * 2;                       // 0→1 ping-pong
-      const e = f * f * (3 - 2 * f);                                     // smoothstep ease
-      const [fx, fz] = tail;
-      const tx = dock.road[0], tz = dock.road[2];
-      shuttle.current.position.set(fx + (tx - fx) * e, 0.16, fz + (tz - fz) * e);
-      shuttle.current.rotation.y = Math.atan2(tx - fx, tz - fz) + (out ? 0 : Math.PI);
-      if (shuttleCrate.current) shuttleCrate.current.visible = out;
+    if (shuttle.current) {
+      const p = deliveryPosition(t0.current, 0, overtime);
+      shuttle.current.position.set(p.x, 0.16, p.z);
+      shuttle.current.rotation.y = p.yaw;
+      if (shuttleCrate.current) shuttleCrate.current.visible = active && p.outbound;
     }
   });
   const n = Math.max(0, Math.min(3, tier));
@@ -1291,8 +1279,8 @@ function Agvs({ tier, overtime, tail, dock }: {
         </group>
       ))}
       {/* the dock shuttle — always present (even at tier 0) so the floor has motion end-to-end */}
-      {tail && dock && (
-        <group ref={shuttle}>
+      {(
+        <group name="factory-delivery-shuttle" ref={shuttle}>
           <RoundedBox args={[0.55, 0.22, 0.4]} radius={0.08} castShadow>
             <meshStandardMaterial color={C.agv} roughness={0.5} />
           </RoundedBox>
@@ -1407,7 +1395,7 @@ function FloorDecals({ floorW, cx }: { floorW: number; cx: number }) {
 /** Frame the floor. `cx` is the building's east-shift from expansions, so the view follows the
  *  wider building (shifts + widens as bays are added). */
 function frameCamera(cam: THREE.PerspectiveCamera, _portrait: boolean, cx = 0, zoomOut = 1) {
-  const frame = factoryFrame(cam.aspect, cx, 1.08 * zoomOut);
+  const frame = factoryFrame(cam.aspect, cx, 1.08 * zoomOut, _portrait);
   cam.fov = frame.fov;
   cam.position.copy(frame.position);
   cam.lookAt(frame.target);
@@ -1430,17 +1418,18 @@ function VisibilityPause({ paused = false }: { paused?: boolean }) {
 }
 
 /** Re-frames the camera to its default when the HUD's recenter button bumps `signal`. */
-function CameraReset({ signal, cx }: { signal: number; cx: number }) {
+function CameraReset({ signal, cx, preview }: { signal: number; cx: number; preview?: boolean }) {
   const camera = useThree((s) => s.camera);
   const controls = useThree((s) => s.controls) as { target: THREE.Vector3; update: () => void } | null;
   const size = useThree((s) => s.size);
   const seen = useRef("");
   useFrame(() => {
-    const revision = `${signal}:${size.width}:${size.height}:${cx}`;
+    const portrait = preview ? size.height > size.width : window.innerHeight > window.innerWidth;
+    const revision = `${signal}:${size.width}:${portrait}:${cx}`;
     if (seen.current === revision) return;
     seen.current = revision;
-    frameCamera(camera as THREE.PerspectiveCamera, size.height > size.width, cx);
-    if (controls) { controls.target.copy(factoryFrame(size.width / size.height, cx).target); controls.update(); }
+    frameCamera(camera as THREE.PerspectiveCamera, portrait, cx);
+    if (controls) { controls.target.copy(factoryFrame(size.width / size.height, cx, 1.08, portrait).target); controls.update(); }
   });
   return null;
 }
@@ -1559,8 +1548,9 @@ function CarriedRig({ kind, position }: { kind: MachineKind; position: [number, 
 }
 
 function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
-  const { size } = useThree();
-  const portrait = size.height > size.width;
+  const { size, gl } = useThree();
+  const gesture = useRef(new FactoryGestureGuard());
+  const portrait = p.preview ? size.height > size.width : window.innerHeight > window.innerWidth;
   const world = useRef<THREE.Group>(null);
   const mounts = useMemo(() => { const route = connectedChain(p.floor); return machineMounts(p.floor, route.length ? route : p.floor.belts); }, [p.floor]);
   const connectedIds = useMemo(() => new Set(connectedMachines(p.floor).map(m => m.id)), [p.floor]);
@@ -1577,23 +1567,8 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   const pl = useMemo(() => makePolyline(beltPath(connectedChain(p.floor))), [p.floor]);
   const marks = useMemo(() => formMarks(p.floor, pl.pts, p.product?.category), [p.floor, pl.pts, p.product?.category]);
 
-  // The line ENDS at a dock: a pallet just past the belt tail with the delivery truck behind it,
-  // both aimed along the tail's flow — so wherever the player routes the line, it ships from its end.
-  const dock = useMemo(() => {
-    const n = pl.pts.length;
-    if (n < 2) return null;
-    const [tx, tz] = pl.pts[n - 1];
-    const [px, pz] = pl.pts[n - 2];
-    let dx = tx - px, dz = tz - pz;
-    const len = Math.hypot(dx, dz) || 1;
-    dx /= len; dz /= len;
-    return {
-      yaw: Math.atan2(dx, dz),
-      pallet: [tx + dx * 1.15, 0, tz + dz * 1.15] as [number, number, number],
-      truck: [tx + dx * 3.1, 0, tz + dz * 3.1] as [number, number, number],
-      road: [tx + dx * 2.4, 0, tz + dz * 2.4] as [number, number, number],
-    };
-  }, [pl]);
+  // The dock is part of the building, never an extension of an arbitrary belt heading.
+  const dock = FACTORY_DOCK;
 
   const look = useMemo(() => productLook(p.product), [p.product]);
   const itemsT = useRef<number[]>([0, 0.25, 0.5, 0.75].map((f) => f * Math.max(1, pl.total)));
@@ -1615,12 +1590,13 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   // position; on release place only if the pointer barely moved, so drag-to-rotate never drops a piece.
   const padDown = useRef<{ x: number; y: number } | null>(null);
   const onPadDown = (e: { nativeEvent: PointerEvent }) => {
+    if (gesture.current.blocked || e.nativeEvent.button !== 0) return;
     padDown.current = { x: e.nativeEvent.clientX, y: e.nativeEvent.clientY };
   };
   const onPadUp = (e: { point: THREE.Vector3; nativeEvent: PointerEvent }) => {
     const start = padDown.current;
     padDown.current = null;
-    if (!p.buildMode || !p.onTapCell || !start) return;
+    if (gesture.current.blocked || !p.buildMode || !p.onTapCell || !start) return;
     if (Math.hypot(e.nativeEvent.clientX - start.x, e.nativeEvent.clientY - start.y) > 10) return; // a drag, not a tap
     const cell = cellAt(e.point);
     if (cell) p.onTapCell(cell.c, cell.r);
@@ -1644,6 +1620,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
     }
   };
   const onPaintDown = (e: { point: THREE.Vector3; nativeEvent: PointerEvent; target?: { setPointerCapture?: (id: number) => void } }) => {
+    if (gesture.current.blocked || e.nativeEvent.button !== 0) return;
     const cell = cellAt(e.point);
     if (!cell) return;
     dragRef.current = [cell];
@@ -1663,7 +1640,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
     const cells = dragRef.current;
     dragRef.current = null;
     setGhost(null);
-    if (cells && cells.length) p.onPaintBelts?.(cells);
+    if (!gesture.current.blocked && cells && cells.length) p.onPaintBelts?.(cells);
   };
 
   // HOLD a machine or prop (~0.4s, finger still) to pick it up: it lifts off the floor and follows
@@ -1687,6 +1664,37 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   // Unmounting mid-long-press (sheet closed, tab switched) must clear the pending hold timer and
   // its window listeners, or the timeout would fire beginCarry against a dead scene.
   useEffect(() => () => holdCancel.current?.(), []);
+  const carryCallback = useRef(p.onCarryActive);
+  carryCallback.current = p.onCarryActive;
+  useEffect(() => {
+    const cancel = () => {
+      holdCancel.current?.();
+      padDown.current = null;
+      dragRef.current = null;
+      carryRef.current = null;
+      setGhost(null);
+      setCarry(null);
+      carryCallback.current?.(false);
+    };
+    const down = (e: PointerEvent) => { if (gesture.current.down(e.pointerId)) cancel(); };
+    const up = (e: PointerEvent) => gesture.current.up(e.pointerId);
+    const abort = () => { gesture.current.cancel(); cancel(); };
+    const hidden = () => { if (document.hidden) abort(); };
+    const canvas = gl.domElement;
+    canvas.addEventListener("pointerdown", down, true);
+    window.addEventListener("pointerup", up, true);
+    window.addEventListener("pointercancel", abort, true);
+    window.addEventListener("blur", abort);
+    document.addEventListener("visibilitychange", hidden);
+    return () => {
+      canvas.removeEventListener("pointerdown", down, true);
+      window.removeEventListener("pointerup", up, true);
+      window.removeEventListener("pointercancel", abort, true);
+      window.removeEventListener("blur", abort);
+      document.removeEventListener("visibilitychange", hidden);
+    };
+  }, [gl]);
+
 
   const beginCarry = (piece: { type: "machine" | "prop"; id: string }) => {
     const valid = new Set<string>();
@@ -1739,7 +1747,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   // Long-press detection: begins on a piece's pointer-down WITHOUT stopping propagation (quick taps
   // must still reach the pad for the upgrade/erase tools). Movement or an early release cancels it.
   const beginHold = (e: { nativeEvent: PointerEvent }, piece: { type: "machine" | "prop"; id: string }) => {
-    if (p.preview) return; // the HQ card is look-don't-touch
+    if (p.preview || p.paintBelts || gesture.current.blocked || e.nativeEvent.button !== 0) return; // painting must never pick up a machine
     holdCancel.current?.();
     const x = e.nativeEvent.clientX, y = e.nativeEvent.clientY;
     const timer = window.setTimeout(() => { cleanup(); beginCarry(piece); }, 420);
@@ -1807,7 +1815,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
 
       {/* grounds */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[cx, -0.02, 0]} receiveShadow>
-        <planeGeometry args={[floorW + 8, FLOOR.h + 7]} />
+        <planeGeometry args={[floorW + 12, FLOOR.h + 7]} />
         <meshStandardMaterial color={p.dark ? C.grass : "#e2e7df"} roughness={1} />
       </mesh>
       {/* the building: concrete floor + painted walls (player-customisable), grows east with expansions */}
@@ -2002,7 +2010,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {dock && <Truck selling={p.selling} position={dock.truck} yaw={dock.yaw} />}
       {/* a fresh-crate pop + beacon flash each time the ready count ticks up */}
       {dock && <CompletionPop count={p.readyCount} pallet={dock.pallet} truck={dock.truck} yaw={dock.yaw} />}
-      <Agvs tier={p.robotTier} overtime={p.overtime} tail={pl.pts.length ? pl.pts[pl.pts.length - 1] : null} dock={dock} />
+      <Agvs tier={p.robotTier} overtime={p.overtime} active={p.active && p.lineOk} />
 
       <ContactShadows key={JSON.stringify([p.floor, p.props, p.floorW])} position={[(floorW - FLOOR.w) / 2, 0.11, 0]} opacity={0.5} scale={Math.max(26, floorW + 2)} blur={2.2} far={4} frames={60} />
     </group>
@@ -2031,7 +2039,7 @@ export default function Factory3D(p: Factory3DProps) {
       gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
       camera={{ position: [10, 12.5, 11], fov: 28 }}
       onCreated={({ gl, camera, size }) => {
-        frameCamera(camera as THREE.PerspectiveCamera, size.height > size.width, cx, p.preview ? 1.22 : 1);
+        frameCamera(camera as THREE.PerspectiveCamera, p.preview ? size.height > size.width : window.innerHeight > window.innerWidth, cx, p.preview ? 1.22 : 1);
         gl.domElement.addEventListener(
           "webglcontextlost",
           (e) => { e.preventDefault(); p.onContextLost?.(); },
@@ -2041,7 +2049,7 @@ export default function Factory3D(p: Factory3DProps) {
     >
       <VisibilityPause paused={p.paused} />
       <Scene {...p} onCarryActive={(b) => { setCarrying(b); p.onCarryChange?.(b); }} />
-      <CameraReset signal={p.resetView ?? 0} cx={cx} />
+      <CameraReset signal={p.resetView ?? 0} cx={cx} preview={p.preview} />
       {/* touch/drag to orbit, pinch to zoom — pan disabled, kept above the floor. While the belt tool
           is active, one-finger ROTATE is suspended so a drag paints belt; pinch-zoom still works.
           While a piece is held, the whole control freezes so the drag moves the piece. */}

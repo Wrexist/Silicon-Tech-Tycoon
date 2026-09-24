@@ -82,7 +82,7 @@
 
 /* one-time camera gesture hint — a calm centred pill that fades itself out */
 .fmode__camhint {
-  position: fixed; left: 50%; top: calc(58px + env(safe-area-inset-top));
+  position: absolute; left: 50%; top: var(--sp-8); bottom: auto; height: fit-content;
   transform: translateX(-50%);
   display: inline-flex; align-items: center; gap: var(--sp-6);
   padding: 8px 14px; border-radius: var(--r-pill);
@@ -373,7 +373,7 @@
 }
 .fmode .fmode__top { grid-area: top; position: static; padding: var(--sp-8) var(--sp-4); }
 .fmode .fmode__left { grid-area: orders; position: static; width: auto; max-height: 28svh; overflow: auto; }
-.fmode .fmode__stage { grid-area: stage; min-height: 0; }
+.fmode .fmode__stage { grid-area: stage; min-height: 0; position: relative; }
 .fmode .fmode__rail { grid-area: tools; position: static; display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: var(--sp-4); }
 .fmode .fmode__tool { width: 100%; min-height: 44px; padding: var(--sp-6) var(--sp-2); box-shadow: none; }
 .fmode .fmode__bottom, .fmode .fmode__build { grid-area: bottom; position: static; padding: var(--sp-8) var(--sp-4); min-width: 0; background: var(--surface); border-radius: var(--r-card); }
@@ -384,7 +384,8 @@
 .fmode .fmode__order-name { overflow-wrap: anywhere; }
 .fmode .fmode__order-track { background: var(--hairline); }
 .fmode .fmode__stopped { order: 1; }
-.fmode .fmode__camhint { top: 45%; max-width: calc(100% - 32px); white-space: normal; z-index: 1; }
+.fmode .fmode__camhint { max-width: calc(100% - 32px); width: max-content; white-space: normal; text-align: center; z-index: 1; }
+.fmode__camhint svg { flex-shrink: 0; }
 .fmode__upline:has(.fmode__buy) { flex-wrap: wrap; }
 .fmode__upline > .fmode__sheet-note { flex-basis: 100%; }
 @media (max-height: 650px) {
@@ -512,7 +513,7 @@
 .fmode__sideorder-fill { display: block; height: 100%; border-radius: var(--r-pill); background: var(--positive); transition: width var(--spring-standard); }
 
 /* Reserve a separate hint band; neither order panels nor action rails occupy it. */
-.fmode__camhint { top: auto; bottom: calc(76px + env(safe-area-inset-bottom)); max-width: calc(100vw - 24px); white-space: normal; text-align: center; }
+
 .fmode__left { max-height: calc(100dvh - 240px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow-y: auto; }
 @media (max-width: 619px) {
   .fmode__panel { padding: 8px; }
@@ -528,3 +529,6 @@
 
 .fmode__bottom { flex-wrap: wrap; }
 .fmode__sim { flex-basis: 100%; }
+
+body:has(.fmode) .ds-toast-host { bottom: calc(var(--factory-controls-height, 240px) + var(--sp-8)); }
+.fmode__autoquote-label { white-space: normal; overflow: visible; flex-basis: 100%; }
