@@ -1,4 +1,5 @@
 import { useReducedMotionLive } from "../garage3d/support.ts";
+import { machineMounts, type MachineMount } from "../garage3d/machineMounts.ts";
 import { factoryFrame } from "../garage3d/factoryFraming.ts";
 // Factory Mode's 3D floor — the PLAYER'S line rendered live, not a diorama: whatever they've
 // built, raw material enters at the intake hopper, rides their conveyor through their machines
@@ -559,7 +560,7 @@ function Intake({ active, hot, position, yaw = 0, phase = 0 }: { active: boolean
 }
 
 /** Gantry press straddling the line — dual pistons stamp passing boards (Tooling). */
-function GantryPress({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; phase?: number; pl?: Polyline; itemsT?: ItemsRef }) {
+function GantryPress({ active, hot, position, yaw = 0, phase = 0, pl, itemsT, mounted = false }: { mounted?: boolean; active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; phase?: number; pl?: Polyline; itemsT?: ItemsRef }) {
   const accent = useAccent();
   const ram = useRef<THREE.Group>(null);
   const eng = useRef(0);
@@ -572,8 +573,8 @@ function GantryPress({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: 
     ram.current.position.y = 1.55 - (eng.current ** 1.4) * 0.82;
   });
   return (
-    <group position={position} rotation={[0, yaw, 0]}>
-      {[-0.9, 0.9].map((dx) => (
+    <group position={position} rotation={[0, yaw, 0]} scale={[0.72, 1, 0.72]}>
+      {!mounted && [-0.9, 0.9].map((dx) => (
         <mesh key={dx} position={[dx, 1.0, 0]} castShadow>
           <boxGeometry args={[0.28, 2.0, 0.5]} />
           <meshStandardMaterial color={C.machine} roughness={0.6} metalness={0.3} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.22 : 0} />
@@ -595,7 +596,7 @@ function GantryPress({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: 
           <meshStandardMaterial color={accent} roughness={0.45} />
         </RoundedBox>
       </group>
-      <HazardBase w={2.4} d={1.7} />
+      {!mounted && <HazardBase w={2.4} d={1.7} />}
       <HotLight on={hot} y={2.9} />
     </group>
   );
@@ -685,7 +686,7 @@ function RobotArm({ active, hot, position, phase = 0, pl, itemsT }: {
 }
 
 /** QA tunnel — a glass scanner the finished device passes through (Quality). */
-function QaTunnel({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; phase?: number; pl?: Polyline; itemsT?: ItemsRef }) {
+function QaTunnel({ active, hot, position, yaw = 0, phase = 0, pl, itemsT, mounted = false }: { mounted?: boolean; active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; phase?: number; pl?: Polyline; itemsT?: ItemsRef }) {
   const accent = useAccent();
   const beam = useRef<THREE.Mesh>(null);
   const eng = useRef(0);
@@ -700,12 +701,12 @@ function QaTunnel({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { a
     mat.emissiveIntensity = eng.current * 2.1;
   });
   return (
-    <group position={position} rotation={[0, yaw, 0]}>
+    <group position={position} rotation={[0, yaw, 0]} scale={[0.72, 1, 0.72]}>
       <RoundedBox args={[2.0, 1.15, 1.25]} radius={0.1} position={[0, 0.85, 0]} castShadow>
         <meshStandardMaterial color={C.glass} transparent opacity={0.22} roughness={0.15} metalness={0.1} />
       </RoundedBox>
       {/* frame ribs */}
-      {[-0.85, 0.85].map((dx) => (
+      {!mounted && [-0.85, 0.85].map((dx) => (
         <mesh key={dx} position={[dx, 0.85, 0]} castShadow>
           <boxGeometry args={[0.16, 1.2, 1.3]} />
           <meshStandardMaterial color={C.machine} roughness={0.55} metalness={0.3} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.25 : 0} />
@@ -717,7 +718,7 @@ function QaTunnel({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { a
         <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.6} transparent opacity={0.5} />
       </mesh>
       <AndonStrip hot={hot} phase={phase} args={[1.7, 0.08, 0.02]} position={[0, 1.5, 0]} />
-      <HazardBase w={2.3} d={1.8} />
+      {!mounted && <HazardBase w={2.3} d={1.8} />}
       <HotLight on={hot} y={2.2} />
     </group>
   );
@@ -760,7 +761,7 @@ function Packer({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { act
 
 /** CNC mill — a milling cell the chassis passes through; the spindle traverses + plunges + spins
  *  to cut the unibody (used for laptop / desktop chassis). */
-function CncMill({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; phase?: number; pl?: Polyline; itemsT?: ItemsRef }) {
+function CncMill({ active, hot, position, yaw = 0, phase = 0, pl, itemsT, mounted = false }: { mounted?: boolean; active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; phase?: number; pl?: Polyline; itemsT?: ItemsRef }) {
   const accent = useAccent();
   const spindle = useRef<THREE.Group>(null);
   const bit = useRef<THREE.Mesh>(null);
@@ -777,9 +778,9 @@ function CncMill({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { ac
     if (bit.current) bit.current.rotation.y += 0.6 * c;                          // tool spins while cutting
   });
   return (
-    <group position={position} rotation={[0, yaw, 0]}>
+    <group position={position} rotation={[0, yaw, 0]} scale={[0.72, 1, 0.72]}>
       {/* side walls form a cell the belt runs through */}
-      {[-0.85, 0.85].map((x) => (
+      {!mounted && [-0.85, 0.85].map((x) => (
         <mesh key={x} position={[x, 0.85, 0]} castShadow>
           <boxGeometry args={[0.22, 1.7, 1.2]} />
           <meshStandardMaterial color={C.machine} roughness={0.55} metalness={0.4} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.2 : 0} />
@@ -795,7 +796,7 @@ function CncMill({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { ac
         <mesh castShadow><boxGeometry args={[0.3, 0.42, 0.32]} /><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.55} /></mesh>
         <mesh ref={bit} position={[0, -0.34, 0]}><cylinderGeometry args={[0.05, 0.018, 0.3, 12]} /><meshStandardMaterial color="#c9ced6" roughness={0.25} metalness={0.85} /></mesh>
       </group>
-      <HazardBase w={2.2} d={1.5} />
+      {!mounted && <HazardBase w={2.2} d={1.5} />}
       <HotLight on={hot} y={2.2} />
     </group>
   );
@@ -803,7 +804,7 @@ function CncMill({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { ac
 
 /** Screen bonder — a laminating head lowers a display panel onto the device and cures it (used for
  *  phone / tablet screen bonding + monitor panel lamination). */
-function ScreenBonder({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; phase?: number; pl?: Polyline; itemsT?: ItemsRef }) {
+function ScreenBonder({ active, hot, position, yaw = 0, phase = 0, pl, itemsT, mounted = false }: { mounted?: boolean; active: boolean; hot: boolean; position: [number, number, number]; yaw?: number; phase?: number; pl?: Polyline; itemsT?: ItemsRef }) {
   const accent = useAccent();
   const head = useRef<THREE.Group>(null);
   const glow = useRef<THREE.Mesh>(null);
@@ -817,9 +818,9 @@ function ScreenBonder({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }:
     if (glow.current) (glow.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.25 + c * 1.7; // cure glow
   });
   return (
-    <group position={position} rotation={[0, yaw, 0]}>
+    <group position={position} rotation={[0, yaw, 0]} scale={[0.72, 1, 0.72]}>
       {/* uprights + crossbeam */}
-      {[-0.8, 0.8].map((x) => (
+      {!mounted && [-0.8, 0.8].map((x) => (
         <mesh key={x} position={[x, 0.9, 0]} castShadow>
           <boxGeometry args={[0.18, 1.8, 0.3]} />
           <meshStandardMaterial color={C.machine} roughness={0.55} metalness={0.4} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.2 : 0} />
@@ -834,7 +835,7 @@ function ScreenBonder({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }:
         <RoundedBox args={[1.1, 0.16, 0.7]} radius={0.04} castShadow><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.5} /></RoundedBox>
         <mesh ref={glow} position={[0, -0.1, 0]}><boxGeometry args={[0.9, 0.04, 0.6]} /><meshStandardMaterial color={C.screen} emissive={C.screen} emissiveIntensity={0.25} transparent opacity={0.85} roughness={0.15} metalness={0.1} /></mesh>
       </group>
-      <HazardBase w={2.0} d={1.3} />
+      {!mounted && <HazardBase w={2.0} d={1.3} />}
       <HotLight on={hot} y={2.2} />
     </group>
   );
@@ -1476,32 +1477,56 @@ function TierPips({ level, position }: { level: number; position: [number, numbe
   );
 }
 
-function MachineAt({ m, active, activeKind, pl, itemsT }: {
+function FloorGrid({ width, cx }: { width: number; cx: number }) {
+  const points = useMemo(() => {
+    const p: number[] = [];
+    for (let x=0; x<=width; x++) p.push(cx-width/2+x,.11,-FLOOR.h/2,cx-width/2+x,.11,FLOOR.h/2);
+    for (let z=0; z<=FLOOR.h; z++) p.push(cx-width/2,.11,z-FLOOR.h/2,cx+width/2,.11,z-FLOOR.h/2);
+    return new Float32Array(p);
+  }, [width,cx]);
+  return <lineSegments><bufferGeometry><bufferAttribute attach="attributes-position" args={[points,3]} /></bufferGeometry><lineBasicMaterial color={C.concreteJoint} /></lineSegments>;
+}
+
+function MachineAt({ m, active, activeKind, pl, itemsT, mount }: {
+  mount?: MachineMount;
   m: FactoryFloor["machines"][number]; active: boolean; activeKind: MachineKind | null; pl: Polyline; itemsT: ItemsRef;
 }) {
   const [cx, cz] = machineCenter(m);
-  // Geometry and picking must agree with the owned footprint. Belts never relocate a machine.
-  const onBelt: [number, number, number] = [cx, 0, cz];
-  const yaw = 0; // footprints have no rotation field; the model uses the same orientation as the ghost.
+  // The saved footprint is the service base; the working head spans its adjacent conveyor.
+  const through = ["mill", "press", "screen", "qa"].includes(m.kind);
+  const onBelt: [number, number, number] = through && mount ? [mount.point[0], 0, mount.point[1]] : [cx, 0, cz];
+  const yaw = mount?.yaw ?? 0;
   const hot = active && activeKind === m.kind; // only the machine working the current step animates
   const phase = (hashNum(m.id) % 628) / 100;   // stable per-machine andon hum phase (0..~6.28)
   let el: React.ReactElement | null = null;
   let pipPos = onBelt;
   switch (m.kind) {
     case "intake": el = <Intake active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} />; break;
-    case "mill": el = <CncMill active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} pl={pl} itemsT={itemsT} />; break;
-    case "press": el = <GantryPress active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} pl={pl} itemsT={itemsT} />; break;
-    case "screen": el = <ScreenBonder active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} pl={pl} itemsT={itemsT} />; break;
-    case "qa": el = <QaTunnel active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} pl={pl} itemsT={itemsT} />; break;
+    case "mill": el = <CncMill mounted={!!mount} active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} pl={pl} itemsT={itemsT} />; break;
+    case "press": el = <GantryPress mounted={!!mount} active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} pl={pl} itemsT={itemsT} />; break;
+    case "screen": el = <ScreenBonder mounted={!!mount} active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} pl={pl} itemsT={itemsT} />; break;
+    case "qa": el = <QaTunnel mounted={!!mount} active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} pl={pl} itemsT={itemsT} />; break;
     case "packer": el = <Packer active={active} hot={hot} position={onBelt} yaw={yaw} phase={phase} pl={pl} itemsT={itemsT} />; break;
     case "arm": {
-      const armPos: [number, number, number] = [cx, 0, cz];
+      const dx = mount ? mount.point[0] - cx : 0, dz = mount ? mount.point[1] - cz : 0;
+      const length = Math.hypot(dx,dz) || 1;
+      const armPos: [number, number, number] = [cx + dx / length * .55, 0, cz + dz / length * .55];
       el = <RobotArm active={active} hot={hot} position={armPos} phase={phase} pl={pl} itemsT={itemsT} />;
       pipPos = armPos;
       break;
     }
   }
-  return <group name={`factory-machine:${m.id}`}>{el}<TierPips level={machineLevel(m)} position={pipPos} /></group>;
+  return <group name={`factory-machine:${m.id}`}>
+    {through && mount && <>
+      <mesh position={[cx, .5, cz]} castShadow><boxGeometry args={[.65,1,.65]} /><meshStandardMaterial color={C.machineHi} roughness={.6} metalness={.3} /></mesh>
+      <mesh position={[cx,1.04,cz]}><boxGeometry args={[.4,.06,.4]} /><meshStandardMaterial color={C.screen} /></mesh>
+      <mesh position={[cx,1.2,cz]} castShadow><boxGeometry args={[.2,2.4,.2]} /><meshStandardMaterial color={C.rail} metalness={.5} roughness={.5} /></mesh>
+      <mesh position={[(cx+onBelt[0])/2,2.35,(cz+onBelt[2])/2]} rotation={[0,Math.atan2(onBelt[0]-cx,onBelt[2]-cz),0]}>
+        <boxGeometry args={[.2,.2,Math.hypot(onBelt[0]-cx,onBelt[2]-cz)+.2]} /><meshStandardMaterial color={C.rail} metalness={.5} roughness={.5} />
+      </mesh>
+    </>}
+    {through && mount && <mesh position={[onBelt[0],2.0,onBelt[2]]} castShadow><boxGeometry args={[.16,.7,.16]} /><meshStandardMaterial color={C.rail} roughness={.5} metalness={.5} /></mesh>}
+    {el}<TierPips level={machineLevel(m)} position={pipPos} /></group>;
 }
 
 /** The picked-up piece hovers with a soft bob — reads as "in hand", not placed. */
@@ -1530,6 +1555,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   const { size } = useThree();
   const portrait = size.height > size.width;
   const world = useRef<THREE.Group>(null);
+  const mounts = useMemo(() => { const route = connectedChain(p.floor); return machineMounts(p.floor, route.length ? route : p.floor.belts); }, [p.floor]);
   const connectedIds = useMemo(() => new Set(connectedMachines(p.floor).map(m => m.id)), [p.floor]);
   const floorW = p.floorW ?? FLOOR.w;      // buildable width in cells (grows east with expansions)
   const shadowTarget = useMemo(() => {
@@ -1789,7 +1815,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {/* deterministic wear/oil stains + painted walkways so the concrete isn't a flat sheet */}
       <FloorDecals floorW={floorW} cx={cx} />
       {/* expansion joints double as the build grid, subtle on the concrete */}
-      <gridHelper args={[floorW, floorW, C.concreteJoint, C.concreteJoint]} position={[cx, 0.11, 0]} />
+      <FloorGrid width={floorW} cx={cx} />
       {/* tap-catcher for build mode (invisible, above the pad) — belt tool paints on drag, others tap */}
       {/* raycast skips visible={false}, so the tap-catcher is transparent instead of hidden */}
       <mesh
@@ -1930,7 +1956,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
         .filter((m) => !(carry?.type === "machine" && carry.id === m.id))
         .map((m) => (
           <group key={m.id} onPointerDown={(e) => beginHold(e, { type: "machine", id: m.id })}>
-            <MachineAt m={m} active={p.active && connectedIds.has(m.id)} activeKind={p.activeKind} pl={pl} itemsT={itemsT} />
+            <MachineAt m={m} mount={mounts.get(m.id)} active={p.active && connectedIds.has(m.id)} activeKind={p.activeKind} pl={pl} itemsT={itemsT} />
           </group>
         ))}
       {p.props
@@ -1966,7 +1992,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
               <planeGeometry args={[def.w * 0.96, def.d * 0.96]} />
               <meshBasicMaterial color={p.pending.valid ? C.dropOk : C.dropBad} transparent opacity={0.45} depthWrite={false} />
             </mesh>
-            <Lift><CarriedRig kind={p.pending.kind} position={[fx, 0, fz]} /></Lift>
+            <MachineAt m={{ id: "pending", kind: p.pending.kind, c: p.pending.c, r: p.pending.r }} mount={machineMounts({ ...p.floor, machines: [...p.floor.machines, { id: "pending", kind: p.pending.kind, c: p.pending.c, r: p.pending.r }] }).get("pending")} active={false} activeKind={null} pl={pl} itemsT={itemsT} />
           </group>
         );
       })()}
