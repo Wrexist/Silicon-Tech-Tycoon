@@ -523,3 +523,8 @@
 .fmini__cell:focus-visible { outline: none; stroke: var(--accent); stroke-width: 3px; }
 
 .fmode__ptile--on, .fmode__ptile--on .fmode__ptile-icon, .fmode__ptile--on .fmode__ptile-cost { color: var(--accent-ink); }
+
+.fmode__sim { display: flex; align-items: center; justify-content: center; gap: var(--sp-8); min-height: 44px; padding: var(--sp-8); border: 1px solid var(--hairline); border-radius: var(--r-button); background: var(--surface); color: var(--ink); font: inherit; cursor: pointer; }
+
+.fmode__bottom { flex-wrap: wrap; }
+.fmode__sim { flex-basis: 100%; }

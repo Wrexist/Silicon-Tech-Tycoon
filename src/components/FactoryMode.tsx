@@ -1,3 +1,4 @@
+import { factoryAnimationKinds } from "../garage3d/factoryMotion.ts";
 import { factoryProductionSummary } from "../state/factorySummary.ts";
 // Factory Mode — the player's own 3D factory floor: Current Order + Factory Stats panels, a
 // right tool rail (Build/Upgrades/Research/Stats), BOOST (the real rushBuild lever), truck and
@@ -8,7 +9,7 @@ import { factoryProductionSummary } from "../state/factorySummary.ts";
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  ArrowUp, BarChart3, BatteryCharging, Bookmark, Bot, Boxes, Camera, Check, ChevronDown, CodeXml, Cpu, Drill, Eraser,
+  Play, Pause, ArrowUp, BarChart3, BatteryCharging, Bookmark, Bot, Boxes, Camera, Check, ChevronDown, CodeXml, Cpu, Drill, Eraser,
   FlaskConical, Hammer, HelpCircle, Layers3, Locate, Lock, Maximize2, Monitor, MonitorSmartphone, Move3d,
   Container, Library, PackageCheck, Palette, RotateCw, ScanLine, ShoppingCart, Sprout, Stamp,
   TrafficCone, Trash2, TriangleAlert, Truck, Undo2, Waypoints, Wrench, X, Zap, type LucideIcon,
@@ -93,6 +94,8 @@ function useFactoryData() {
   const progress = lead ? Math.min(1, lead.weeksElapsed / Math.max(1, lead.totalWeeks)) : 0;
   const stage = lead ? stageForLine(lead.product.category, progress) : null;
   const activeKind = stage ? stage.kind : null;
+  const workingKinds = factoryAnimationKinds(lead?.product.category, state.activeSideOrder?.requiredKinds);
+  const motionPaused = game.paused || game.suspended || game.tabBlocked;
   const weeksLeft = lead ? Math.max(0, Math.ceil(lead.totalWeeks - lead.weeksElapsed)) : 0;
   const readyCount = state.ready.length;
   const { fac, util, overtime, selling, unitsWk } = factoryProductionSummary(state);
@@ -152,7 +155,7 @@ function useFactoryData() {
   }, [state.factoryFloor, state.factoryProps, leadCategory]);
 
   return {
-    game, state, lead, active, progress, stage, activeKind, weeksLeft, readyCount, selling,
+    game, state, lead, active, progress, stage, activeKind, workingKinds, motionPaused, weeksLeft, readyCount, selling,
     fac, util, overtime, robotTier, unitsWk, revenueWk, expensesWk, profitWk, materials,
     floor: state.factoryFloor, lineSpeed, linePct, missing, lineCapPct, lineUnitPct, layoutPct, layout, layoutHint, decorPct, decorKinds,
   };
@@ -422,12 +425,14 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
              from inside the WebGL scene — a driver-level failure, or the lazy chunk not arriving —
              falls back to the 2D floor map instead of propagating to the root boundary and replacing
              the whole app with the crash card. Suspense alone catches neither case. */
-          <ErrorBoundary fallback={<FloorMinimap props={state.factoryProps} onCell={buildTool ? onTapCell : undefined} pending={pendingCell ? { ...pendingCell, valid: pendingValid } : null} floor={d.floor} lineOk={lineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />}>
-          <Suspense fallback={<FloorMinimap props={state.factoryProps} onCell={buildTool ? onTapCell : undefined} pending={pendingCell ? { ...pendingCell, valid: pendingValid } : null} floor={d.floor} lineOk={lineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />}>
+          <ErrorBoundary fallback={<FloorMinimap props={state.factoryProps} onCell={buildTool ? onTapCell : undefined} pending={pendingCell ? { ...pendingCell, valid: pendingValid } : null} floor={d.floor} lineOk={lineOk} running={d.active && !d.motionPaused} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />}>
+          <Suspense fallback={<FloorMinimap props={state.factoryProps} onCell={buildTool ? onTapCell : undefined} pending={pendingCell ? { ...pendingCell, valid: pendingValid } : null} floor={d.floor} lineOk={lineOk} running={d.active && !d.motionPaused} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />}>
             <Factory3D
               dark={isDarkTheme()}
               active={d.active}
               activeKind={d.activeKind}
+              workingKinds={d.workingKinds}
+              motionPaused={d.motionPaused}
               robotTier={d.robotTier}
               readyCount={d.readyCount}
               selling={d.selling}
@@ -471,7 +476,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           </Suspense>
           </ErrorBoundary>
         ) : (
-          <FloorMinimap props={state.factoryProps} onCell={buildTool ? onTapCell : undefined} pending={pendingCell ? { ...pendingCell, valid: pendingValid } : null} floor={d.floor} lineOk={lineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />
+          <FloorMinimap props={state.factoryProps} onCell={buildTool ? onTapCell : undefined} pending={pendingCell ? { ...pendingCell, valid: pendingValid } : null} floor={d.floor} lineOk={lineOk} running={d.active && !d.motionPaused} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />
         )}
       </div>
 
@@ -811,6 +816,10 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
       )}
       {buildTool == null && (
       <div className="fmode__bottom">
+        <button className="fmode__sim" disabled={d.game.suspended || d.game.tabBlocked} onClick={() => d.game.setPaused(!d.game.paused)}>
+          {d.game.paused ? <Play size={16} aria-hidden /> : <Pause size={16} aria-hidden />}
+          {d.game.suspended ? "Waiting for decision" : d.game.paused ? "Resume game" : "Pause game"}
+        </button>
         <BoostButton />
         <button
           className="fmode__side"
@@ -1128,7 +1137,7 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
   // The card shows the REAL factory — the live 3D line, your paint job, the locked bay — not an
   // abstract map. Look-don't-touch (preview mode): taps open fullscreen, drags scroll the page.
   const mini = (
-    <FloorMinimap props={state.factoryProps} floor={d.floor} lineOk={cardLineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />
+    <FloorMinimap props={state.factoryProps} floor={d.floor} lineOk={cardLineOk} running={d.active && !d.motionPaused} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />
   );
   return (
     <div className="fcard">
@@ -1147,6 +1156,8 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
                 paused={!active || open}
                 active={d.active}
                 activeKind={d.activeKind}
+              workingKinds={d.workingKinds}
+              motionPaused={d.motionPaused}
                 robotTier={d.robotTier}
                 readyCount={d.readyCount}
                 selling={d.selling}

@@ -1,3 +1,4 @@
+import { animationDelta, advanceFactoryItems } from "../garage3d/factoryMotion.ts";
 import { useReducedMotionLive } from "../garage3d/support.ts";
 import { machineMounts, type MachineMount } from "../garage3d/machineMounts.ts";
 import { factoryFrame } from "../garage3d/factoryFraming.ts";
@@ -22,19 +23,22 @@ import { PROP_DEFS, canPlaceProp, propCells, propCenter, type PlacedProp, type P
 import { FINISH_SWATCHES } from "../render/deviceStyle.ts";
 import type { CategoryId, Product } from "../engine/types.ts";
 
-const MotionContext = createContext({ reduced: false, revision: "" });
+const MotionContext = createContext({ reduced: false, stopped: false, revision: "" });
 function useMotionFrame(callback: Parameters<typeof useFrame>[0]) {
-  const { reduced, revision } = useContext(MotionContext);
+  const { reduced, stopped, revision } = useContext(MotionContext);
   const initialize = useRef(true);
-  useEffect(() => { initialize.current = true; }, [reduced, revision]);
+  const elapsed = useRef(0);
+  useEffect(() => { initialize.current = true; }, [revision]);
   useFrame((state, delta, frame) => {
-    if (!reduced) callback(state, delta, frame);
-    else if (initialize.current) {
-      initialize.current = false;
-      callback({ ...state, clock: { ...state.clock, elapsedTime: 0, getElapsedTime: () => 0 } as typeof state.clock }, 0, frame);
-    }
+    if ((reduced || stopped) && !initialize.current) return;
+    const dt = animationDelta(delta, stopped, reduced);
+    elapsed.current += dt;
+    // Local animation time never jumps after pause, a hidden tab or a suspended overlay.
+    callback({ ...state, clock: { ...state.clock, elapsedTime: elapsed.current, getElapsedTime: () => elapsed.current } as typeof state.clock }, dt, frame);
+    initialize.current = false;
   });
 }
+
 
 /* palette — intrinsic object colours, the garage3d precedent */
 const C = {
@@ -73,6 +77,8 @@ const C = {
 export interface Factory3DProps {
   dark?: boolean;
   active: boolean;
+  motionPaused?: boolean;
+  workingKinds?: MachineKind[];
   /** Which machine kind the current build stage is working (null when idle) — only that machine
    *  animates; every other machine on the floor stays still. */
   activeKind: MachineKind | null;
@@ -272,6 +278,7 @@ function Roller({ z = 0, len = RUBBER_W + 0.03, meshRef }: { z?: number; len?: n
  *  each on the HQ card. It also skips their per-frame animation, since there's nothing left to spin. */
 function BeltTiles({ floor, lineOk, active, overtime, detail = "full" }: { floor: FactoryFloor; lineOk: boolean; active: boolean; overtime: boolean; detail?: "full" | "low" }) {
   const fine = detail === "full";
+  const connected = useMemo(() => new Set(connectedChain(floor).map(b => `${b.c},${b.r}`)), [floor]);
   const at = useMemo(() => new Map(floor.belts.map((b) => [`${b.c},${b.r}`, b])), [floor.belts]);
   /** The direction of the neighbour that flows INTO this tile (null if it's a head). */
   const inflowDir = (b: FactoryFloor["belts"][number]): BeltDir | null => {
@@ -331,7 +338,7 @@ function BeltTiles({ floor, lineOk, active, overtime, detail = "full" }: { floor
         const [x, z] = worldOf(b.c, b.r);
         const inDir = inflowDir(b);
         const isCorner = inDir != null && inDir !== b.dir && inDir !== OPP[b.dir];
-        const live = lineOk;
+        const live = lineOk && connected.has(`${b.c},${b.r}`);
 
         if (isCorner && inDir) {
           const [ix, iz] = DIR_STEP[inDir]; // item enters travelling this way
@@ -362,9 +369,9 @@ function BeltTiles({ floor, lineOk, active, overtime, detail = "full" }: { floor
                 })}
               {/* curved flow: entry arrow → corner roller → exit arrow */}
               {fine && <>
-                <group position={[-ix * 0.3, 0, -iz * 0.3]} rotation={[0, DIR_YAW[inDir], 0]}><FlowArrow live={live} groupRef={regArrow(bi)} /></group>
-                <mesh ref={regRoller} position={[0, SURF_Y + 0.01, 0]}><cylinderGeometry args={[0.06, 0.06, 0.1, 16]} /><meshStandardMaterial color={C.rollerHi} roughness={0.3} metalness={0.7} /></mesh>
-                <group position={[ox * 0.3, 0, oz * 0.3]} rotation={[0, DIR_YAW[b.dir], 0]}><FlowArrow live={live} groupRef={regArrow(bi)} /></group>
+                <group position={[-ix * 0.3, 0, -iz * 0.3]} rotation={[0, DIR_YAW[inDir], 0]}><FlowArrow live={live} groupRef={live ? regArrow(bi) : undefined} /></group>
+                <mesh ref={live ? regRoller : undefined} position={[0, SURF_Y + 0.01, 0]}><cylinderGeometry args={[0.06, 0.06, 0.1, 16]} /><meshStandardMaterial color={C.rollerHi} roughness={0.3} metalness={0.7} /></mesh>
+                <group position={[ox * 0.3, 0, oz * 0.3]} rotation={[0, DIR_YAW[b.dir], 0]}><FlowArrow live={live} groupRef={live ? regArrow(bi) : undefined} /></group>
               </>}
             </group>
           );
@@ -385,11 +392,11 @@ function BeltTiles({ floor, lineOk, active, overtime, detail = "full" }: { floor
             </mesh>
             {fine && <>
               {/* polished seam rollers — pair up at each tile join */}
-              <Roller z={-0.45} meshRef={regRoller} />
-              <Roller z={0.45} meshRef={regRoller} />
+              <Roller z={-0.45} meshRef={live ? regRoller : undefined} />
+              <Roller z={0.45} meshRef={live ? regRoller : undefined} />
               {/* subtle painted chevrons */}
-              <FlowArrow live={live} z={-0.18} groupRef={regArrow(bi)} />
-              <FlowArrow live={live} z={0.18} groupRef={regArrow(bi)} />
+              <FlowArrow live={live} z={-0.18} groupRef={live ? regArrow(bi) : undefined} />
+              <FlowArrow live={live} z={0.18} groupRef={live ? regArrow(bi) : undefined} />
             </>}
           </group>
         );
@@ -490,7 +497,7 @@ function TravelingItem({ index, itemsT, pl, marks, look }: {
     forms.current.forEach((g, i) => { if (g) g.visible = i === f; });
   });
   return (
-    <group ref={grp}>
+    <group name={`conveyor-item:${index}`} ref={grp}>
       {/* 0 — raw slab */}
       <group ref={(g) => { if (g) forms.current[0] = g; }}>
         <mesh castShadow><boxGeometry args={[0.5, 0.1, 0.4]} /><meshStandardMaterial color={C.slab} roughness={0.4} metalness={0.6} /></mesh>
@@ -564,12 +571,12 @@ function GantryPress({ active, hot, position, yaw = 0, phase = 0, pl, itemsT, mo
   const accent = useAccent();
   const ram = useRef<THREE.Group>(null);
   const eng = useRef(0);
-  useMotionFrame(() => {
+  useMotionFrame((_, dt) => {
     if (!ram.current) return;
-    // Only the machine working the current stage moves; it slams DOWN as the item reaches the ram.
+    // The connected press reacts to a passing unit, independent of the batch progress label.
     const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
     const target = active && hot ? Math.max(0, 1 - Math.max(0, d - 1.5) / 0.95) : 0;
-    eng.current += (target - eng.current) * 0.5;
+    eng.current += (target - eng.current) * (1 - Math.exp(-30.0 * dt));
     ram.current.position.y = 1.55 - (eng.current ** 1.4) * 0.82;
   });
   return (
@@ -585,7 +592,7 @@ function GantryPress({ active, hot, position, yaw = 0, phase = 0, pl, itemsT, mo
       </RoundedBox>
       {/* status strip — steady accent while pressing, gentle amber hum otherwise */}
       <AndonStrip hot={hot} phase={phase} args={[1.6, 0.1, 0.02]} position={[0, 2.15, 0.42]} />
-      <group ref={ram} position={[0, 1.55, 0]}>
+      <group name="press-ram" ref={ram} position={[0, 1.55, 0]}>
         {[-0.45, 0.45].map((dx) => (
           <mesh key={dx} position={[dx, 0, 0]} castShadow>
             <cylinderGeometry args={[0.1, 0.1, 0.9, 12]} />
@@ -612,7 +619,7 @@ function RobotArm({ active, hot, position, phase = 0, pl, itemsT }: {
   const elbow = useRef<THREE.Group>(null);
   const wrist = useRef<THREE.Group>(null);
   const eng = useRef(0);
-  useMotionFrame(({ clock }) => {
+  useMotionFrame(({ clock }, dt) => {
     // Find the nearest item + its offset, so the arm can turn TOWARD it and reach down as it arrives.
     let d = Infinity, ix = position[0], iz = position[2];
     if (pl && itemsT) {
@@ -622,15 +629,15 @@ function RobotArm({ active, hot, position, phase = 0, pl, itemsT }: {
         if (dd < d) { d = dd; ix = x; iz = z; }
       }
     }
-    // Only works during its own (assembly) stage; otherwise it rests, perfectly still.
+    // A connected assembly station reaches toward passing units; unused machinery rests.
     const target = active && hot ? Math.max(0, 1 - d / 1.7) : 0;
-    eng.current += (target - eng.current) * 0.22;
+    eng.current += (target - eng.current) * (1 - Math.exp(-13.2 * dt));
     const reach = eng.current;
     const face = Math.atan2(ix - position[0], iz - position[2]); // yaw toward the item, only while reaching
     if (yaw.current) yaw.current.rotation.y = face * reach;
     if (shoulder.current) shoulder.current.rotation.x = -0.3 - reach * 0.7 + Math.sin(clock.elapsedTime * 4) * 0.06 * reach; // dip to the belt + work jitter (only while reaching)
     if (elbow.current) elbow.current.rotation.x = 0.85 + reach * 0.55;
-    if (wrist.current) wrist.current.rotation.x = -0.45 - reach * 0.35;
+    if (wrist.current) wrist.current.rotation.x = -0.45 - reach * (1 - Math.exp(-21.0 * dt));
   });
   return (
     <group position={position}>
@@ -641,7 +648,7 @@ function RobotArm({ active, hot, position, phase = 0, pl, itemsT }: {
       </mesh>
       {/* base andon — powered-on hum even when the cell is resting */}
       <AndonStrip hot={hot} phase={phase} args={[0.3, 0.06, 0.02]} position={[0, 0.2, 0.5]} />
-      <group ref={yaw} position={[0, 0.28, 0]}>
+      <group name="arm-yaw" ref={yaw} position={[0, 0.28, 0]}>
         <mesh position={[0, 0.12, 0]} castShadow>
           <cylinderGeometry args={[0.34, 0.42, 0.26, 20]} />
           <meshStandardMaterial color={C.amber} roughness={0.5} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.18 : 0} />
@@ -690,11 +697,11 @@ function QaTunnel({ active, hot, position, yaw = 0, phase = 0, pl, itemsT, mount
   const accent = useAccent();
   const beam = useRef<THREE.Mesh>(null);
   const eng = useRef(0);
-  useMotionFrame(({ clock }) => {
+  useMotionFrame(({ clock }, dt) => {
     if (!beam.current) return;
     const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
     const target = active && hot ? Math.max(0, 1 - Math.max(0, d - 1.5) / 1.1) : 0;   // only scans during its own (QA) stage
-    eng.current += (target - eng.current) * 0.3;
+    eng.current += (target - eng.current) * (1 - Math.exp(-18.0 * dt));
     beam.current.position.x = Math.sin(clock.elapsedTime * 3) * 0.55 * eng.current; // sweeps only while a unit is inside
     const mat = beam.current.material as THREE.MeshStandardMaterial;
     mat.opacity = 0.08 + eng.current * 0.62;        // the scan lights up while a device is inside, dark otherwise
@@ -713,7 +720,7 @@ function QaTunnel({ active, hot, position, yaw = 0, phase = 0, pl, itemsT, mount
         </mesh>
       ))}
       {/* sweeping scan sheet */}
-      <mesh ref={beam} position={[0, 0.85, 0]}>
+      <mesh name="qa-beam" ref={beam} position={[0, 0.85, 0]}>
         <boxGeometry args={[0.03, 1.0, 1.1]} />
         <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.6} transparent opacity={0.5} />
       </mesh>
@@ -730,10 +737,10 @@ function Packer({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { act
   const l = useRef<THREE.Mesh>(null);
   const r = useRef<THREE.Mesh>(null);
   const eng = useRef(0);
-  useMotionFrame(() => {
+  useMotionFrame((_, dt) => {
     const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
     const target = active && hot ? Math.max(0, 1 - Math.max(0, d - 1.5) / 0.95) : 0;   // only folds during its own (packaging) stage
-    eng.current += (target - eng.current) * 0.4;
+    eng.current += (target - eng.current) * (1 - Math.exp(-24.0 * dt));
     const c = eng.current; // plates fold shut around the device as it reaches the packer
     if (l.current) l.current.rotation.z = -0.2 - c * 0.95;
     if (r.current) r.current.rotation.z = 0.2 + c * 0.95;
@@ -743,7 +750,7 @@ function Packer({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { act
       <RoundedBox args={[1.5, 0.5, 1.2]} radius={0.07} position={[0, 0.55, 0]} castShadow>
         <meshStandardMaterial color={C.machine} roughness={0.6} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.22 : 0} />
       </RoundedBox>
-      <mesh ref={l} position={[-0.6, 0.95, 0]} castShadow>
+      <mesh name="packer-left" ref={l} position={[-0.6, 0.95, 0]} castShadow>
         <boxGeometry args={[0.08, 0.7, 1.0]} />
         <meshStandardMaterial color={C.hazard} roughness={0.6} />
       </mesh>
@@ -766,16 +773,16 @@ function CncMill({ active, hot, position, yaw = 0, phase = 0, pl, itemsT, mounte
   const spindle = useRef<THREE.Group>(null);
   const bit = useRef<THREE.Mesh>(null);
   const eng = useRef(0);
-  useMotionFrame(({ clock }) => {
+  useMotionFrame(({ clock }, dt) => {
     const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
     const target = active && hot ? Math.max(0, 1 - Math.max(0, d - 1.5) / 1.0) : 0;   // only cuts during its own (milling) stage
-    eng.current += (target - eng.current) * 0.3;
+    eng.current += (target - eng.current) * (1 - Math.exp(-18.0 * dt));
     const c = eng.current;
     if (spindle.current) {
       spindle.current.position.x = Math.sin(clock.elapsedTime * 2.2) * 0.45 * c; // traverses across the work
       spindle.current.position.y = 1.15 - c * 0.33;                              // plunges onto it
     }
-    if (bit.current) bit.current.rotation.y += 0.6 * c;                          // tool spins while cutting
+    if (bit.current) bit.current.rotation.y += 36 * dt * c;                          // tool spins while cutting
   });
   return (
     <group position={position} rotation={[0, yaw, 0]} scale={[0.72, 1, 0.72]}>
@@ -792,7 +799,7 @@ function CncMill({ active, hot, position, yaw = 0, phase = 0, pl, itemsT, mounte
       </RoundedBox>
       <AndonStrip hot={hot} phase={phase} args={[1.5, 0.08, 0.02]} position={[0, 1.75, 0.27]} />
       {/* spindle head — traverses + plunges; the bit spins */}
-      <group ref={spindle} position={[0, 1.15, 0]}>
+      <group name="mill-spindle" ref={spindle} position={[0, 1.15, 0]}>
         <mesh castShadow><boxGeometry args={[0.3, 0.42, 0.32]} /><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.55} /></mesh>
         <mesh ref={bit} position={[0, -0.34, 0]}><cylinderGeometry args={[0.05, 0.018, 0.3, 12]} /><meshStandardMaterial color="#c9ced6" roughness={0.25} metalness={0.85} /></mesh>
       </group>
@@ -809,10 +816,10 @@ function ScreenBonder({ active, hot, position, yaw = 0, phase = 0, pl, itemsT, m
   const head = useRef<THREE.Group>(null);
   const glow = useRef<THREE.Mesh>(null);
   const eng = useRef(0);
-  useMotionFrame(() => {
+  useMotionFrame((_, dt) => {
     const d = pl && itemsT ? nearestItemDist(pl, itemsT.current, position[0], position[2]) : Infinity;
     const target = active && hot ? Math.max(0, 1 - Math.max(0, d - 1.5) / 0.9) : 0;   // only bonds during its own (screen) stage
-    eng.current += (target - eng.current) * 0.35;
+    eng.current += (target - eng.current) * (1 - Math.exp(-21.0 * dt));
     const c = eng.current;
     if (head.current) head.current.position.y = 1.5 - c * 0.92;                                  // lowers the panel
     if (glow.current) (glow.current.material as THREE.MeshStandardMaterial).emissiveIntensity = 0.25 + c * 1.7; // cure glow
@@ -831,7 +838,7 @@ function ScreenBonder({ active, hot, position, yaw = 0, phase = 0, pl, itemsT, m
       </RoundedBox>
       <AndonStrip hot={hot} phase={phase} args={[1.4, 0.08, 0.02]} position={[0, 1.85, 0.29]} />
       {/* descending laminator head holding a glass panel */}
-      <group ref={head} position={[0, 1.5, 0]}>
+      <group name="screen-head" ref={head} position={[0, 1.5, 0]}>
         <RoundedBox args={[1.1, 0.16, 0.7]} radius={0.04} castShadow><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.5} /></RoundedBox>
         <mesh ref={glow} position={[0, -0.1, 0]}><boxGeometry args={[0.9, 0.04, 0.6]} /><meshStandardMaterial color={C.screen} emissive={C.screen} emissiveIntensity={0.25} transparent opacity={0.85} roughness={0.15} metalness={0.1} /></mesh>
       </group>
@@ -1487,7 +1494,7 @@ function FloorGrid({ width, cx }: { width: number; cx: number }) {
   return <lineSegments><bufferGeometry><bufferAttribute attach="attributes-position" args={[points,3]} /></bufferGeometry><lineBasicMaterial color={C.concreteJoint} /></lineSegments>;
 }
 
-function MachineAt({ m, active, activeKind, pl, itemsT, mount }: {
+function MachineAt({ m, active, activeKind: _activeKind, pl, itemsT, mount }: {
   mount?: MachineMount;
   m: FactoryFloor["machines"][number]; active: boolean; activeKind: MachineKind | null; pl: Polyline; itemsT: ItemsRef;
 }) {
@@ -1496,7 +1503,7 @@ function MachineAt({ m, active, activeKind, pl, itemsT, mount }: {
   const through = ["mill", "press", "screen", "qa"].includes(m.kind);
   const onBelt: [number, number, number] = through && mount ? [mount.point[0], 0, mount.point[1]] : [cx, 0, cz];
   const yaw = mount?.yaw ?? 0;
-  const hot = active && activeKind === m.kind; // only the machine working the current step animates
+  const hot = active; // this connected recipe machine works when a unit reaches its station
   const phase = (hashNum(m.id) % 628) / 100;   // stable per-machine andon hum phase (0..~6.28)
   let el: React.ReactElement | null = null;
   let pipPos = onBelt;
@@ -1591,14 +1598,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   const look = useMemo(() => productLook(p.product), [p.product]);
   const itemsT = useRef<number[]>([0, 0.25, 0.5, 0.75].map((f) => f * Math.max(1, pl.total)));
   useMotionFrame((_, dt) => {
-    // Items exist only on a wired line (rendered below when lineOk). When the line is wired but NOT
-    // actively producing, they still CREEP at ~10% so a stopped belt reads as "warming up" rather
-    // than showing parts frozen mid-conveyor. Advance IN PLACE — no per-frame array allocation.
-    if (pl.total === 0 || !p.lineOk) return;
-    const base = p.overtime ? 2.1 : 1.25;
-    const v = (p.active ? base : base * 0.1) * dt;
-    const arr = itemsT.current;
-    for (let i = 0; i < arr.length; i++) arr[i] = (arr[i] + v) % pl.total;
+    advanceFactoryItems(itemsT.current, pl.total, dt, p.active, p.lineOk, p.overtime);
   });
 
   // The grid cell under a pad-space intersection point (read in the WORLD group's local space, so the
@@ -1949,14 +1949,14 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       })()}
 
       <BeltTiles floor={p.floor} lineOk={p.lineOk} active={p.active} overtime={p.overtime} detail={p.preview ? "low" : "full"} />
-      {p.lineOk && pl.total > 0 && [0, 1, 2, 3].map((i) => <TravelingItem key={i} index={i} itemsT={itemsT} pl={pl} marks={marks} look={look} />)}
+      {p.active && p.lineOk && pl.total > 0 && [0, 1, 2, 3].map((i) => <TravelingItem key={i} index={i} itemsT={itemsT} pl={pl} marks={marks} look={look} />)}
       {p.flash && <TapFlash flash={p.flash} />}
 
       {p.floor.machines
         .filter((m) => !(carry?.type === "machine" && carry.id === m.id))
         .map((m) => (
           <group key={m.id} onPointerDown={(e) => beginHold(e, { type: "machine", id: m.id })}>
-            <MachineAt m={m} mount={mounts.get(m.id)} active={p.active && connectedIds.has(m.id)} activeKind={p.activeKind} pl={pl} itemsT={itemsT} />
+            <MachineAt m={m} mount={mounts.get(m.id)} active={p.active && connectedIds.has(m.id) && (p.workingKinds?.includes(m.kind) ?? p.activeKind === m.kind)} activeKind={p.activeKind} pl={pl} itemsT={itemsT} />
           </group>
         ))}
       {p.props
@@ -2019,7 +2019,7 @@ export default function Factory3D(p: Factory3DProps) {
   // piece — not the view. Mirrored out to the caller for haptics/hints via onCarryChange.
   const [carrying, setCarrying] = useState(false);
   return (
-    <MotionContext.Provider value={{ reduced, revision: JSON.stringify([p.floor, p.props, p.floorW]) }}><Canvas
+    <MotionContext.Provider value={{ reduced, stopped: !!p.motionPaused, revision: JSON.stringify([p.floor, p.props, p.floorW]) }}><Canvas
       role="img"
       aria-label="Factory floor, 3D view"
       frameloop={p.paused ? "never" : "always"}
