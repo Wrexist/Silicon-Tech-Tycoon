@@ -85,12 +85,14 @@ try {
       await p.getByRole('button', { name: 'Recenter view', exact: true }).click();
       // Software-rendered CI can take longer than a wall-clock delay to present the reset.
       // Require the exact requested pose first; then the next check rejects residual drift.
-      const resetPose = await p.evaluate(async () => {
+      const resetPose = await p.evaluate(async expansion => {
         const { factoryFrame } = await import('/src/garage3d/factoryFraming.ts');
         const s = window.__auditStore.getState();
-        const frame = factoryFrame(s.size.width / s.size.height, 0, 1.08, innerHeight > innerWidth);
+        const { floorWidth, FLOOR, EXPAND_STEP, MAX_EXPANSION } = await import('/src/engine/factoryFloor.ts');
+        const cx = (floorWidth(expansion) - FLOOR.w) / 2 + (expansion < MAX_EXPANSION ? EXPAND_STEP / 2 : 0);
+        const frame = factoryFrame(s.size.width / s.size.height, cx, 1.08, innerHeight > innerWidth);
         return { position: frame.position.toArray(), target: frame.target.toArray() };
-      });
+      }, before.factoryExpansion);
       await p.waitForFunction(pose => {
         const s = window.__auditStore.getState();
         return Math.hypot(...s.camera.position.toArray().map((v,i) => v - pose.position[i])) < .001
