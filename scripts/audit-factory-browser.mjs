@@ -83,6 +83,19 @@ try {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
       await p.mouse.move(b.x + b.width / 2, b.y + b.height / 2); await p.mouse.down(); await p.mouse.move(b.x + b.width / 2 + 35, b.y + b.height / 2 + 20, { steps: 8 }); await p.mouse.up();
       await p.getByRole('button', { name: 'Recenter view', exact: true }).click();
+      // Software-rendered CI can take longer than a wall-clock delay to present the reset.
+      // Require the exact requested pose first; then the next check rejects residual drift.
+      const resetPose = await p.evaluate(async () => {
+        const { factoryFrame } = await import('/src/garage3d/factoryFraming.ts');
+        const s = window.__auditStore.getState();
+        const frame = factoryFrame(s.size.width / s.size.height, 0, 1.08, innerHeight > innerWidth);
+        return { position: frame.position.toArray(), target: frame.target.toArray() };
+      });
+      await p.waitForFunction(pose => {
+        const s = window.__auditStore.getState();
+        return Math.hypot(...s.camera.position.toArray().map((v,i) => v - pose.position[i])) < .001
+          && Math.hypot(...s.controls.target.toArray().map((v,i) => v - pose.target[i])) < .001;
+      }, resetPose);
     }
     await p.waitForTimeout(250); const after = await read();
     assert(JSON.stringify(before.factoryFloor) === JSON.stringify(after.factoryFloor) && before.cash === after.cash, 'Gesture edited save');

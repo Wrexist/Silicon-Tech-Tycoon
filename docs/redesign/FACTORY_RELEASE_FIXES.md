@@ -34,3 +34,7 @@ Measured dense-fixture frame cost decreased from **862 to 700 draw calls** and a
 ## Still requires a physical device
 
 Windows/Chromium cannot establish iOS thermal behavior, frame pacing, memory pressure, native app suspension, VoiceOver behavior or upgrade-from-build-74 save retention. Use the physical-device checklist in the original audit before declaring release readiness. No claim of native-device verification or a new TestFlight binary is made.
+
+## Build 75 release-gate follow-up
+
+The first CI run detected a timing error in the camera probe: the first sample preceded the reset frame, followed by four identical reset poses. The audit now waits for the exact requested camera position and target before checking for subsequent drift, rather than assuming a 250 ms delay means a software-rendered frame has completed. The drift tolerance is unchanged; no game behavior or release gate is bypassed.
