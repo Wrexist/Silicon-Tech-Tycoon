@@ -33,6 +33,13 @@ jobs:
       - name: Resolve installed browser
         run: |
           node --input-type=module -e 'import { chromium } from "playwright-core"; import { appendFileSync } from "node:fs"; appendFileSync(process.env.GITHUB_ENV, "SHOTS_CHROME=" + chromium.executablePath() + "\n");'
+      - name: Factory interactive release regressions
+        run: |
+          npx esbuild scripts/audit-factory-release.ts --bundle --platform=node --format=cjs --outfile=artifacts/pre-testflight-audit/engine.cjs
+          node artifacts/pre-testflight-audit/engine.cjs
+          npm run dev -- --host 127.0.0.1 --port 5181 > /tmp/factory-vite.log 2>&1 &
+          for i in $(seq 1 60); do curl -fsS http://127.0.0.1:5181/ >/dev/null && break; sleep 1; done
+          node scripts/audit-factory-browser.mjs
       - name: Fresh default interface
         run: node scripts/verify-onboarding-ui2.mjs | tee onboarding.log
       - name: Save recovery interaction
@@ -51,6 +58,7 @@ jobs:
         with:
           name: release-gates-${{ github.sha }}
           path: |
+            artifacts/pre-testflight-audit/
             artifacts/release-prep/
             save-recovery.log
             factory-integrity.log

@@ -22,3 +22,11 @@ describe('conveyor working heads', () => {
     expect(mounts.get('a')!.point).not.toEqual(mounts.get('b')!.point);
   });
 });
+
+it('parks a conflicting head instead of sharing the only adjacent tile', () => {
+  const floor: FactoryFloor = { machines: [{id:'a',kind:'mill',c:0,r:0},{id:'b',kind:'screen',c:3,r:0}], belts:[{c:2,r:0,dir:'s'}] };
+  const mounts = machineMounts(floor);
+  expect(mounts.size).toBe(1);
+  expect(mounts.has('b')).toBe(false);
+  expect(floor.machines).toHaveLength(2);
+});

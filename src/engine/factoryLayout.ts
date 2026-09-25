@@ -114,5 +114,5 @@ export function layoutEditSummary(current: FactoryFloor, currentProps: readonly 
     + targetProps.filter(t => { const c = props.get(t.id); return c && (c.c !== t.c || c.r !== t.r); }).length;
   const levels = target.machines.filter(t => { const c = machines.get(t.id); return c && machineLevel(c) !== machineLevel(t); }).length;
   const aimed = target.belts.filter(t => current.belts.some(c => c.c === t.c && c.r === t.r && c.dir !== t.dir)).length;
-  return [`${diff.added} added`, `${diff.removed} removed`, `${moved} moved`, `${levels} level changes`, `${aimed} belts redirected`].join(" ? ");
+  return [`${diff.added} added`, `${diff.removed} removed`, `${moved} moved`, `${levels} level changes`, `${aimed} belts redirected`].join("; ");
 }

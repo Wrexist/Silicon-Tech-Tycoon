@@ -4228,6 +4228,22 @@ export function saveFactoryLayout(state: GameState, name: string): ActionResult 
   return { state: { ...state, factoryLayouts: [...layouts, layout], factoryLayoutCounter: state.factoryLayoutCounter + 1 }, ok: true };
 }
 
+/** Edit only a saved design: never changes the owned floor or wallet. */
+export function editFactoryLayout(state: GameState, id: string, name: string, update = false): ActionResult {
+  const original = state.factoryLayouts.find(l => l.id === id);
+  if (!original) return { state, ok: false, reason: "Layout no longer exists." };
+  const clean = name.trim().slice(0, 24);
+  if (!clean) return { state, ok: false, reason: "Enter a layout name." };
+  const saved = update ? saveFactoryLayout({ ...state, factoryLayouts: [] }, clean).state.factoryLayouts[0] : original;
+  return { ok: true, state: { ...state, factoryLayouts: state.factoryLayouts.map(l => l.id === id ? { ...saved, id, name: clean } : l) } };
+}
+
+export function restoreFactoryLayout(state: GameState, layout: FactoryLayout): ActionResult {
+  if (state.factoryLayouts.length >= MAX_LAYOUTS || state.factoryLayouts.some(l => l.id === layout.id))
+    return { state, ok: false, reason: "No free slot for this layout." };
+  return { ok: true, state: { ...state, factoryLayouts: [...state.factoryLayouts, layout] } };
+}
+
 /** Delete a saved layout by id. */
 export function deleteFactoryLayout(state: GameState, id: string): GameState {
   const layouts = state.factoryLayouts ?? [];

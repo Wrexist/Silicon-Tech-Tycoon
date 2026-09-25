@@ -2,7 +2,9 @@
 
 Audit completed: 2026-09-25 (checks began 2026-09-24). Application revision: `e23f3c9` (marketing version 1.4.0).
 
-**Recommendation: fix F01-F05 before the next upload.** The build and existing tests pass, but the additional interactive/geometry checks found defects the existing suite does not catch. No player save was used or changed. This audit adds diagnostic scripts and this checklist; it does not change gameplay or upload a binary.
+**Follow-up:** Software fixes and improvements are implemented; see [Factory release fixes](FACTORY_RELEASE_FIXES.md) for current results and remaining physical-device checks. The findings below preserve the original audit evidence.
+
+**Original recommendation: fix F01-F05 before the next upload.** The build and existing tests pass, but the additional interactive/geometry checks found defects the existing suite does not catch. No player save was used or changed. This audit adds diagnostic scripts and this checklist; it does not change gameplay or upload a binary.
 
 ## Confirmed fixes needed
 
@@ -74,6 +76,6 @@ npm run dev -- --host 127.0.0.1 --port 5181
 node scripts/audit-factory-browser.mjs
 ```
 
-The browser audit intentionally returns a nonzero exit code while F01/F03 remain. F02's legal shared-station coordinates are retained in `engine.json`. First-pass touch failures were investigated: fresh-scene editing passes, and the repeated-orbit sequence exposes the separate residual-camera-motion defect. They are not counted as additional independent placement bugs.
+The original browser audit returned a nonzero exit code for F01/F03; the maintained script now verifies their fixes. F02's legal shared-station coordinates are retained in `engine.json`. First-pass touch failures were investigated: fresh-scene editing passes, and the repeated-orbit sequence exposes the separate residual-camera-motion defect. They are not counted as additional independent placement bugs.
 
 No new TestFlight upload was made by this audit.

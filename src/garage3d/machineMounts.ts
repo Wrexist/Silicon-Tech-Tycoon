@@ -11,12 +11,12 @@ export function machineMounts(floor: FactoryFloor, route: BeltTile[] = floor.bel
   for (const m of floor.machines) {
     const cells = machineCells(m).map(s => s.split(',').map(Number));
     const [cx,cz] = machineCenter(m);
-    const candidates = route.filter(b => cells.some(([c,r]) => Math.abs(c-b.c)+Math.abs(r-b.r) === 1));
+    const candidates = route.filter(b => !used.has(`${b.c},${b.r}`) && cells.some(([c,r]) => Math.abs(c-b.c)+Math.abs(r-b.r) === 1));
     const score = (b: BeltTile) => {
       const [dx,dz] = step[b.dir], prev = at.get(`${b.c-dx},${b.r-dz}`);
       const straight = prev?.dir === b.dir;
       const [x,z] = worldOf(b.c,b.r);
-      return (used.has(`${b.c},${b.r}`) ? 1000 : 0) + (straight ? 0 : 100) + (x-cx)**2+(z-cz)**2;
+      return (straight ? 0 : 100) + (x-cx)**2+(z-cz)**2;
     };
     candidates.sort((a,b) => score(a)-score(b) || a.r-b.r || a.c-b.c);
     const b = candidates[0];

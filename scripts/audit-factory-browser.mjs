@@ -16,10 +16,10 @@ async function check(name, fn) {
   catch (e) { report.checks.push({ name, passed: false, error: String(e), stack: e.stack }); console.log('FAIL', name, String(e)); await shot(`failure-${report.checks.length}`).catch(() => {}); const cdp = await ctx.newCDPSession(p); await cdp.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] }).catch(() => {}); await p.mouse.up().catch(() => {}); }
   await writeFile(resolve(out, 'browser.json'), JSON.stringify(report, null, 2));
 }
-async function boot(file, width = 390, height = 844, textScale = 100, theme = 'light') {
+async function boot(file, width = 390, height = 844, textScale = 100, theme = 'light', preserveDecisions = false) {
   if (ctx) await ctx.close();
   const save = JSON.parse(await readFile(file, 'utf8'));
-  for (const key of Object.keys(save)) if (key.startsWith('pending')) save[key] = Array.isArray(save[key]) ? [] : null;
+  for (const key of Object.keys(save)) if (!preserveDecisions && key.startsWith('pending')) save[key] = Array.isArray(save[key]) ? [] : null;
   save.lastActive = Date.now(); save.valuationHistory = [];
   ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: 2, hasTouch: true });
   await ctx.addInitScript(({ save, textScale, theme }) => {
@@ -44,7 +44,7 @@ async function boot(file, width = 390, height = 844, textScale = 100, theme = 'l
 async function pause() {
   for (let i = 0; i < 3; i++) {
     const button = p.getByRole('button', { name: 'Pause', exact: true });
-    if (!await button.count()) break;
+    if (!await button.count() || await button.isDisabled()) break;
     await button.click(); await p.waitForTimeout(80);
   }
 }
@@ -197,6 +197,53 @@ try {
   });
   await boot('artifacts/pre-testflight-audit/shared-belt.json', 390, 844);
   await check('Capture legal shared-belt head placement', async () => { await shot('shared-belt-heads'); report.observations.push({ sharedBelt: await stateSample() }); });
+  await boot('artifacts/pre-testflight-audit/multi-save.json', 390, 844);
+  await check('Select and rush the chosen production job only', async () => {
+    const before = await read(), second = before.building[1];
+    assert(second, 'Fixture needs two jobs');
+    await p.getByLabel('Active production job').selectOption(second.product.id);
+    assert((await p.locator('.fmode__order').innerText()).includes(second.product.name), 'Wrong order shown');
+    await p.locator('.fmode__boost').click();
+    await p.waitForFunction(({id,weeks}) => { const s = JSON.parse(localStorage.getItem('silicon.save.v1')); const b = s.building.find(b => b.product.id === id); return !b || b.weeksElapsed > weeks; }, {id:second.product.id,weeks:second.weeksElapsed});
+    const after = await read();
+    assert(after.building.find(b => b.product.id === before.building[0].product.id)?.weeksElapsed === before.building[0].weeksElapsed, 'Rushed wrong job');
+  });
+  await check('Machine focus, route and clear selection work while paused', async () => {
+    await p.getByText('Inspect machines and route', {exact:true}).click();
+    const save = await read(); await p.getByLabel('Inspect machine', {exact:true}).selectOption(save.factoryFloor.machines[0].id);
+    const before = await stateSample(); await p.getByRole('button', {name:'Focus machine',exact:true}).click(); await p.waitForTimeout(400);
+    const focused = await stateSample(); assert(JSON.stringify(before.camera) !== JSON.stringify(focused.camera), 'Focus did not move camera');
+    await p.getByRole('checkbox', {name:/Highlight route/}).check();
+    await shot('machine-focus'); await p.getByRole('button', {name:'Clear selection',exact:true}).click(); await p.waitForTimeout(400);
+    assert(await p.getByLabel('Inspect machine', {exact:true}).inputValue() === '', 'Selection not cleared');
+    const frames = await p.evaluate(() => window.__auditStore.getState().gl.info.render.frame); await p.waitForTimeout(400);
+    assert(await p.evaluate(() => window.__auditStore.getState().gl.info.render.frame) === frames, 'Paused renderer keeps drawing');
+    await p.getByText('Inspect machines and route', {exact:true}).click();
+  });
+  await check('Rename, update and undo deletion preserve cash and owned floor', async () => {
+    await p.getByRole('button',{name:'Style',exact:true}).click();
+    await p.getByLabel('Layout name',{exact:true}).fill('Layout management'); await p.getByRole('button',{name:'Save current',exact:true}).click();
+    await p.waitForFunction(() => JSON.parse(localStorage.getItem('silicon.save.v1')).factoryLayouts.some(l => l.name === 'Layout management'));
+    const before = await read(); const row = p.locator('.fmode__layout').filter({hasText:'Layout management'});
+    await row.getByRole('button',{name:'Rename',exact:true}).click(); await p.getByLabel('Rename layout',{exact:true}).fill('Renamed layout'); await p.getByRole('button',{name:'Save name',exact:true}).click();
+    const renamed = p.locator('.fmode__layout').filter({hasText:'Renamed layout'});
+    await renamed.getByRole('button',{name:'Update from floor',exact:true}).click();
+    await p.getByRole('button',{name:'Delete Renamed layout',exact:true}).click();
+    await p.getByRole('button',{name:'Undo deletion: Renamed layout',exact:true}).click();
+    await p.waitForFunction(() => JSON.parse(localStorage.getItem('silicon.save.v1')).factoryLayouts.some(l => l.name === 'Renamed layout'));
+    const after = await read(); assert(after.cash === before.cash && JSON.stringify(after.factoryFloor) === JSON.stringify(before.factoryFloor), 'Management changed owned assets');
+    const targets = await p.locator('.fmode__layout button').evaluateAll(es => es.map(e => e.getBoundingClientRect().toJSON()));
+    assert(targets.every(r => r.width >= 44 && r.height >= 44), 'Small layout target');
+    await shot('layout-management');
+  });
+  await boot('artifacts/pre-testflight-audit/decision-save.json', 390, 844, 100, 'light', true);
+  await check('Review company decision from Factory opens reachable choices', async () => {
+    await p.getByRole('button', {name:'Review decision',exact:true}).click();
+    await p.locator('.fmode').waitFor({state:'detached'});
+    const choice = p.locator('.hq__choice').first(); await choice.waitFor();
+    assert(await choice.getByRole('button').count() > 0, 'Decision has no actions');
+    await shot('review-decision');
+  });
 } finally {
   await writeFile(resolve(out, 'browser.json'), JSON.stringify(report, null, 2));
   await browser.close();

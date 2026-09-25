@@ -1,0 +1,20 @@
+import { expect, it } from 'vitest';
+import { newGame, saveFactoryLayout, editFactoryLayout, deleteFactoryLayout, restoreFactoryLayout } from './gameState.ts';
+it('renames, updates and restores saved designs without changing ownership or money', () => {
+  let s = saveFactoryLayout(newGame(42), 'Original').state;
+  const original = s.factoryLayouts[0];
+  const cash = s.cash, floor = s.factoryFloor, counter = s.factoryLayoutCounter;
+  s = editFactoryLayout(s, original.id, 'Renamed').state;
+  expect(s.factoryLayouts[0].name).toBe('Renamed');
+  s = { ...s, week: s.week + 1 };
+  s = editFactoryLayout(s, original.id, 'Updated', true).state;
+  expect(s.factoryLayouts[0].savedWeek).toBe(s.week);
+  const updated = s.factoryLayouts[0];
+  s = deleteFactoryLayout(s, original.id);
+  s = restoreFactoryLayout(s, updated).state;
+  expect(s.factoryLayouts).toEqual([updated]);
+  expect(restoreFactoryLayout(s, updated).ok).toBe(false);
+  expect(editFactoryLayout(s, original.id, '  ').ok).toBe(false);
+  expect(editFactoryLayout(s, 'missing', 'x').ok).toBe(false);
+  expect(s.cash).toBe(cash); expect(s.factoryFloor).toBe(floor); expect(s.factoryLayoutCounter).toBe(counter);
+});

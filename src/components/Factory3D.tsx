@@ -12,7 +12,7 @@ import { factoryFrame } from "../garage3d/factoryFraming.ts";
 // renders calm and idle — the invitation to build.
 // Same stack + discipline as the 3D office: r3f/drei primitives, lazy chunk, DPR cap,
 // context-loss downgrade. Zero image assets.
-import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, Html, OrbitControls, RoundedBox } from "@react-three/drei";
 import { Maximize2 } from "lucide-react";
@@ -107,6 +107,9 @@ export interface Factory3DProps {
   era?: number;
   /** Bumped by the HUD's recenter button — re-frames the camera to its default. */
   resetView?: number;
+  selectedMachine?: string;
+  focusMachine?: string;
+  showRoute?: boolean;
   onTapCell?: (c: number, r: number) => void;
   /** A machine being placed as a movable ghost (before it's bought): rendered translucent at (c,r),
    *  tinted by `valid`. Tapping the pad moves it (via onTapCell); the HUD's Place/Cancel commits. */
@@ -278,6 +281,21 @@ function Roller({ z = 0, len = RUBBER_W + 0.03, meshRef }: { z?: number; len?: n
  *  `detail: "low"` keeps the bed and the rubber pad — the shapes that read the line — and drops the
  *  seam rollers and painted chevrons, which are 6 of every tile's 8 meshes and land under a pixel
  *  each on the HQ card. It also skips their per-frame animation, since there's nothing left to spin. */
+function BeltBeds({ belts }: { belts: FactoryFloor["belts"] }) {
+  const frames = useRef<THREE.InstancedMesh>(null);
+  const rubber = useRef<THREE.InstancedMesh>(null);
+  useLayoutEffect(() => {
+    const dummy = new THREE.Object3D();
+    belts.forEach((b, i) => {
+      const [x,z] = worldOf(b.c,b.r);
+      dummy.rotation.y = 0; dummy.position.set(x,0.2,z); dummy.scale.set(BED,0.3,BED); dummy.updateMatrix(); frames.current?.setMatrixAt(i,dummy.matrix);
+      dummy.position.y = SURF_Y - 0.01; dummy.rotation.y = DIR_YAW[b.dir]; dummy.scale.set(RUBBER_W,0.05,BED); dummy.updateMatrix(); rubber.current?.setMatrixAt(i,dummy.matrix);
+    });
+    for (const mesh of [frames.current,rubber.current]) if (mesh) { mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere(); }
+  }, [belts]);
+  return <group><instancedMesh ref={frames} args={[undefined,undefined,belts.length]} receiveShadow><boxGeometry /><meshStandardMaterial color={C.beltFrame} roughness={0.5} metalness={0.45} /></instancedMesh><instancedMesh ref={rubber} args={[undefined,undefined,belts.length]} receiveShadow><boxGeometry /><meshStandardMaterial color={C.beltRubber} roughness={0.9} metalness={0.05} /></instancedMesh></group>;
+}
+
 function BeltTiles({ floor, lineOk, active, overtime, detail = "full" }: { floor: FactoryFloor; lineOk: boolean; active: boolean; overtime: boolean; detail?: "full" | "low" }) {
   const fine = detail === "full";
   const connected = useMemo(() => new Set(connectedChain(floor).map(b => `${b.c},${b.r}`)), [floor]);
@@ -336,6 +354,7 @@ function BeltTiles({ floor, lineOk, active, overtime, detail = "full" }: { floor
 
   return (
     <group>
+      <BeltBeds belts={floor.belts} />
       {floor.belts.map((b, bi) => {
         const [x, z] = worldOf(b.c, b.r);
         const inDir = inflowDir(b);
@@ -348,14 +367,9 @@ function BeltTiles({ floor, lineOk, active, overtime, detail = "full" }: { floor
           return (
             <group key={`${b.c},${b.r}`} position={[x, 0, z]}>
               {/* same bed + frame as a straight tile → flush, symmetric join */}
-              <RoundedBox args={[BED, 0.3, BED]} radius={0.05} position={[0, 0.2, 0]} receiveShadow>
-                <meshStandardMaterial color={C.beltFrame} roughness={0.5} metalness={0.45} />
-              </RoundedBox>
+
               {/* rubber turn pad */}
-              <mesh position={[0, SURF_Y - 0.01, 0]} receiveShadow>
-                <boxGeometry args={[0.84, 0.04, 0.84]} />
-                <meshStandardMaterial color={C.beltRubber} roughness={0.9} metalness={0.05} />
-              </mesh>
+
               {/* outer rails: the two edges that are NOT entry or exit */}
               {(["e", "w", "s", "n"] as BeltDir[])
                 .filter((d) => d !== inDir && d !== OPP[b.dir])
@@ -383,15 +397,10 @@ function BeltTiles({ floor, lineOk, active, overtime, detail = "full" }: { floor
         return (
           <group key={`${b.c},${b.r}`} position={[x, 0, z]} rotation={[0, DIR_YAW[b.dir], 0]}>
             {/* metal frame bed */}
-            <RoundedBox args={[BED, 0.3, BED]} radius={0.05} position={[0, 0.2, 0]} receiveShadow>
-              <meshStandardMaterial color={C.beltFrame} roughness={0.5} metalness={0.45} />
-            </RoundedBox>
+
             {/* dark rubber belt surface, full length → seamless between tiles; the frame either
                 side reads as the rails */}
-            <mesh position={[0, SURF_Y - 0.01, 0]} receiveShadow>
-              <boxGeometry args={[RUBBER_W, 0.05, BED]} />
-              <meshStandardMaterial color={C.beltRubber} roughness={0.9} metalness={0.05} />
-            </mesh>
+
             {fine && <>
               {/* polished seam rollers — pair up at each tile join */}
               <Roller z={-0.45} meshRef={live ? regRoller : undefined} />
@@ -1406,30 +1415,38 @@ function frameCamera(cam: THREE.PerspectiveCamera, _portrait: boolean, cx = 0, z
  *  office scene. It also re-asserts the caller's `paused` flag: because `frameloop` is a Canvas prop
  *  that only re-applies when it CHANGES, an imperative resume here would otherwise un-pause a canvas
  *  that is paused for being off-screen the moment the tab regains focus. */
-function VisibilityPause({ paused = false }: { paused?: boolean }) {
+function VisibilityPause({ paused = false, idle = false }: { paused?: boolean; idle?: boolean }) {
   const setFrameloop = useThree((s) => s.setFrameloop);
   useEffect(() => {
-    const apply = () => setFrameloop(paused || document.hidden ? "never" : "always");
+    const apply = () => setFrameloop(paused || document.hidden ? "never" : idle ? "demand" : "always");
     apply();
     document.addEventListener("visibilitychange", apply);
     return () => document.removeEventListener("visibilitychange", apply);
-  }, [setFrameloop, paused]);
+  }, [setFrameloop, paused, idle]);
   return null;
 }
 
 /** Re-frames the camera to its default when the HUD's recenter button bumps `signal`. */
-function CameraReset({ signal, cx, preview }: { signal: number; cx: number; preview?: boolean }) {
+function CameraReset({ signal, cx, preview, focus }: { signal: number; cx: number; preview?: boolean; focus?: [number, number] }) {
   const camera = useThree((s) => s.camera);
-  const controls = useThree((s) => s.controls) as { target: THREE.Vector3; update: () => void } | null;
+  const controls = useThree((s) => s.controls) as { target: THREE.Vector3; enableDamping: boolean; update: () => void } | null;
   const size = useThree((s) => s.size);
   const seen = useRef("");
   useFrame(() => {
     const portrait = preview ? size.height > size.width : window.innerHeight > window.innerWidth;
-    const revision = `${signal}:${size.width}:${portrait}:${cx}`;
+    const revision = `${signal}:${size.width}:${portrait}:${cx}:${focus?.join(",") ?? ""}`;
     if (seen.current === revision) return;
     seen.current = revision;
+    // Flush accumulated orbit deltas before writing the final reset pose.
+    if (controls) { const damping = controls.enableDamping; controls.enableDamping = false; controls.update(); controls.enableDamping = damping; }
     frameCamera(camera as THREE.PerspectiveCamera, portrait, cx);
-    if (controls) { controls.target.copy(factoryFrame(size.width / size.height, cx, 1.08, portrait).target); controls.update(); }
+    const target = factoryFrame(size.width / size.height, cx, 1.08, portrait).target;
+    if (focus) {
+      target.set(focus[0], 0.8, focus[1]).applyAxisAngle(new THREE.Vector3(0, 1, 0), portrait ? Math.PI / 2 : 0);
+      camera.position.copy(target).add(new THREE.Vector3(6, 9, 7));
+      camera.lookAt(target);
+    }
+    if (controls) { controls.target.copy(target); controls.update(); }
   });
   return null;
 }
@@ -1483,7 +1500,7 @@ function FloorGrid({ width, cx }: { width: number; cx: number }) {
   return <lineSegments><bufferGeometry><bufferAttribute attach="attributes-position" args={[points,3]} /></bufferGeometry><lineBasicMaterial color={C.concreteJoint} /></lineSegments>;
 }
 
-function MachineAt({ m, active, activeKind: _activeKind, pl, itemsT, mount }: {
+function MachineAt({ m, active: requestedActive, activeKind: _activeKind, pl, itemsT, mount }: {
   mount?: MachineMount;
   m: FactoryFloor["machines"][number]; active: boolean; activeKind: MachineKind | null; pl: Polyline; itemsT: ItemsRef;
 }) {
@@ -1492,6 +1509,7 @@ function MachineAt({ m, active, activeKind: _activeKind, pl, itemsT, mount }: {
   const through = ["mill", "press", "screen", "qa"].includes(m.kind);
   const onBelt: [number, number, number] = through && mount ? [mount.point[0], 0, mount.point[1]] : [cx, 0, cz];
   const yaw = mount?.yaw ?? 0;
+  const active = requestedActive && (!through || !!mount);
   const hot = active; // this connected recipe machine works when a unit reaches its station
   const phase = (hashNum(m.id) % 628) / 100;   // stable per-machine andon hum phase (0..~6.28)
   let el: React.ReactElement | null = null;
@@ -1553,6 +1571,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   const portrait = p.preview ? size.height > size.width : window.innerHeight > window.innerWidth;
   const world = useRef<THREE.Group>(null);
   const mounts = useMemo(() => { const route = connectedChain(p.floor); return machineMounts(p.floor, route.length ? route : p.floor.belts); }, [p.floor]);
+  const routeCells = useMemo(() => new Set(connectedChain(p.floor).map(b => `${b.c},${b.r}`)), [p.floor]);
   const connectedIds = useMemo(() => new Set(connectedMachines(p.floor).map(m => m.id)), [p.floor]);
   const floorW = p.floorW ?? FLOOR.w;      // buildable width in cells (grows east with expansions)
   const shadowTarget = useMemo(() => {
@@ -1956,6 +1975,8 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
         );
       })()}
 
+      {p.showRoute && p.floor.belts.map(b => { const [x,z] = worldOf(b.c,b.r); const live = routeCells.has(`${b.c},${b.r}`); return <mesh key={`route-${b.c}-${b.r}`} position={[x,0.48,z]} rotation={[-Math.PI/2,0,0]} raycast={() => null}><planeGeometry args={[0.8,0.8]} /><meshBasicMaterial color={live ? "#079a73" : "#b66a08"} transparent opacity={0.35} depthWrite={false} /></mesh>; })}
+      {p.floor.machines.filter(m => m.id === p.selectedMachine).map(m => { const [x,z] = machineCenter(m); return <mesh key="selection" position={[x,0.18,z]} rotation={[-Math.PI/2,0,0]} raycast={() => null}><ringGeometry args={[1.45,1.6,32]} /><meshBasicMaterial color="#2463eb" side={THREE.DoubleSide} /></mesh>; })}
       <BeltTiles floor={p.floor} lineOk={p.lineOk} active={p.active} overtime={p.overtime} detail={p.preview ? "low" : "full"} />
       {p.active && p.lineOk && pl.total > 0 && [0, 1, 2, 3].map((i) => <TravelingItem key={i} index={i} itemsT={itemsT} pl={pl} marks={marks} look={look} />)}
       {p.flash && <TapFlash flash={p.flash} />}
@@ -2012,7 +2033,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {dock && <CompletionPop count={p.readyCount} pallet={dock.pallet} truck={dock.truck} yaw={dock.yaw} />}
       <Agvs tier={p.robotTier} overtime={p.overtime} active={p.active && p.lineOk} />
 
-      <ContactShadows key={JSON.stringify([p.floor, p.props, p.floorW])} position={[(floorW - FLOOR.w) / 2, 0.11, 0]} opacity={0.5} scale={Math.max(26, floorW + 2)} blur={2.2} far={4} frames={60} />
+      {!p.preview && <ContactShadows key={JSON.stringify([p.floor, p.props, p.floorW])} position={[(floorW - FLOOR.w) / 2, 0.11, 0]} opacity={0.5} scale={Math.max(26, floorW + 2)} blur={2.2} far={4} frames={1} />}
     </group>
     </AccentContext.Provider>
   );
@@ -2030,7 +2051,7 @@ export default function Factory3D(p: Factory3DProps) {
     <MotionContext.Provider value={{ reduced, stopped: !!p.motionPaused, revision: JSON.stringify([p.floor, p.props, p.floorW]) }}><Canvas
       role="img"
       aria-label="Factory floor, 3D view"
-      frameloop={p.paused ? "never" : "always"}
+      frameloop={p.paused ? "never" : p.motionPaused || reduced ? "demand" : "always"}
       dpr={p.preview ? [1, 1.4] : [1, 1.75]}
       // The HQ card is ~490×300 — a quarter of the fullscreen pixels — but the shadow pass costs the
       // same either way, and at that size a contact shadow under a roller is invisible. Dropping the
@@ -2047,9 +2068,9 @@ export default function Factory3D(p: Factory3DProps) {
         );
       }}
     >
-      <VisibilityPause paused={p.paused} />
+      <VisibilityPause paused={p.paused} idle={p.motionPaused || reduced} />
       <Scene {...p} onCarryActive={(b) => { setCarrying(b); p.onCarryChange?.(b); }} />
-      <CameraReset signal={p.resetView ?? 0} cx={cx} preview={p.preview} />
+      <CameraReset signal={p.resetView ?? 0} cx={cx} preview={p.preview} focus={p.floor.machines.some(m => m.id === p.focusMachine) ? machineCenter(p.floor.machines.find(m => m.id === p.focusMachine)!) : undefined} />
       {/* touch/drag to orbit, pinch to zoom — pan disabled, kept above the floor. While the belt tool
           is active, one-finger ROTATE is suspended so a drag paints belt; pinch-zoom still works.
           While a piece is held, the whole control freezes so the drag moves the piece. */}

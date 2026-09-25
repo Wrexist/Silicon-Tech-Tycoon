@@ -87,7 +87,7 @@ import {
   moveFactoryProp,
   autoConnectLine,
   clearFloorCell,
-  saveFactoryLayout,
+  saveFactoryLayout, editFactoryLayout, restoreFactoryLayout,
   applyFactoryLayout,
   deleteFactoryLayout,
   giveRaise,
@@ -668,6 +668,8 @@ interface GameActionsValue {
   moveFactoryProp: (id: string, c: number, r: number) => { ok: boolean; reason?: string };
   autoConnectLine: () => { ok: boolean; reason?: string };
   clearFloorCell: (c: number, r: number) => boolean;
+  editFactoryLayout: (id: string, name: string, update?: boolean) => { ok: boolean; reason?: string };
+  restoreFactoryLayout: (layout: import("../engine/factoryLayout.ts").FactoryLayout) => { ok: boolean; reason?: string };
   saveFactoryLayout: (name: string) => { ok: boolean; reason?: string };
   applyFactoryLayout: (id: string) => { ok: boolean; reason?: string };
   deleteFactoryLayout: (id: string) => void;
@@ -1767,6 +1769,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
     return { ok: result.ok, reason: result.reason };
   }, []);
+  const editFactoryLayoutCb = useCallback((id: string, name: string, update = false) => {
+    const result = editFactoryLayout(gs(), id, name, update);
+    if (result.ok) store.set(result.state);
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const restoreFactoryLayoutCb = useCallback((layout: import("../engine/factoryLayout.ts").FactoryLayout) => {
+    const result = restoreFactoryLayout(gs(), layout);
+    if (result.ok) store.set(result.state);
+    return { ok: result.ok, reason: result.reason };
+  }, []);
   const saveFactoryLayoutCb = useCallback((name: string) => {
     const result = saveFactoryLayout(gs(), name);
     if (result.ok) store.set(result.state);
@@ -2066,6 +2078,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       moveFactoryProp: moveFactoryPropCb,
       autoConnectLine: autoConnectLineCb,
       clearFloorCell: clearFloorCellCb,
+      editFactoryLayout: editFactoryLayoutCb, restoreFactoryLayout: restoreFactoryLayoutCb,
       saveFactoryLayout: saveFactoryLayoutCb,
       applyFactoryLayout: applyFactoryLayoutCb,
       deleteFactoryLayout: deleteFactoryLayoutCb,
@@ -2078,7 +2091,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, attemptMoonshotCb, announceKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, dismissNemesisTrophyCb, investigateSecretCb, markVaultSeenCb, dismissSecretRevealCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, fundMegaprojectCb, buyLegacyPerkCb, buyFrontierTierCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, chooseMandate, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, replayCoach, markUnlocksSeen, exportSave, importSave, setCompanyNameCb, setSandboxActive, setInterruptPaceCb, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, negotiateLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, applyFactorySnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, boardNudgeCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, setReorderRateCb, harvestProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, runPrototypeCb, clearPrototype, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb, setTeamFocusCb],
+    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, attemptMoonshotCb, announceKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, dismissNemesisTrophyCb, investigateSecretCb, markVaultSeenCb, dismissSecretRevealCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, fundMegaprojectCb, buyLegacyPerkCb, buyFrontierTierCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, chooseMandate, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, replayCoach, markUnlocksSeen, exportSave, importSave, setCompanyNameCb, setSandboxActive, setInterruptPaceCb, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, negotiateLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, applyFactorySnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, boardNudgeCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, setReorderRateCb, harvestProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, editFactoryLayoutCb, restoreFactoryLayoutCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, runPrototypeCb, clearPrototype, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb, setTeamFocusCb],
   );
 
   // F36 — three contexts instead of one combined value. Controls change rarely (pace toggles,

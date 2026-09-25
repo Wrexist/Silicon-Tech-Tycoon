@@ -77,6 +77,9 @@ check('Production completes, survives reload every week, launches once and recor
   const started = startBuild(s, product, 100);
   assert(started.ok); s = roundtrip(started.state);
   writeFileSync(`${out}/active-save.json`, JSON.stringify(s));
+  const second = startBuild(s, { ...product, id: 'release-audit-second', name: 'Second Audit Phone' }, 100);
+  assert(second.ok);
+  writeFileSync(`${out}/multi-save.json`, JSON.stringify(roundtrip(second.state)));
   const job = s.building.find(b => b.product.name === product.name)!;
   assert(job); const id = job.product.id;
   for (let i = 0; i < 30 && !s.ready.some(p => p.id === id); i++) s = roundtrip(advanceOneWeek(s));
@@ -101,9 +104,18 @@ check('Inspect legal shared-belt machine mount geometry', () => {
     { id: 'b', kind: 'screen' as const, c: 3, r: 0 },
   ], belts: [{ c: 2, r: 0, dir: 's' as const }] };
   assert(validFactoryPlacement(floor, [], 0));
+  const mounts = [...machineMounts(floor).values()];
+  assert.equal(new Set(mounts.map(m => m.point.join(","))).size, mounts.length);
+  assert.equal(mounts.length, 1);
   results.push({ sharedBelt: [...machineMounts(floor)], floor });
   writeFileSync(`${out}/shared-belt.json`, JSON.stringify({ ...newGame(51), onboarded: true, tutorialDone: true, cash: dollars(1_000_000), factoryFloor: floor }));
 });
 writeFileSync(`${out}/engine.json`, JSON.stringify({ checks, results }, null, 2));
 console.log(JSON.stringify({ passed: checks.filter(c => c.passed).length, failed: checks.filter(c => !c.passed), results }, null, 2));
 if (checks.some(c => !c.passed)) process.exitCode = 1;
+
+const decisionFixture = JSON.parse(readFileSync('scripts/fixtures/save-release-review.json', 'utf8'));
+const decisionSave = JSON.parse(readFileSync(`${out}/active-save.json`, 'utf8'));
+for (const key of Object.keys(decisionSave)) if (key.startsWith("pending")) decisionSave[key] = Array.isArray(decisionSave[key]) ? [] : null;
+decisionSave.pendingChoice = decisionFixture.pendingChoice;
+writeFileSync(`${out}/decision-save.json`, JSON.stringify(decisionSave));
