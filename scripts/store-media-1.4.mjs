@@ -88,7 +88,10 @@ try {
       const {data}=await cdp.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
       await writeFile(path,Buffer.from(data,'base64'));
     };
-    if(process.env.MEDIA_VIDEO==='1') await page.clock.install();
+    // Keep native RAF for the office: Chromium's Linux WebGL compositor can retain a
+    // stale surface under Playwright's mocked animation clock even after camera input.
+    const controlledClock=frame.id!=='office';
+    if(process.env.MEDIA_VIDEO==='1' && controlledClock) await page.clock.install();
     page.on('pageerror',e=>report.errors.push(`${device.id}/${frame.id}: ${e.message}`));
     await page.goto(url,{waitUntil:'networkidle'});
     await page.locator('.bnav__item:visible, .railnav__item:visible').first().waitFor();
@@ -123,9 +126,9 @@ try {
       // Advance the browser clock one video frame at a time: rendering speed cannot drop frames.
       // Leave a generous future margin for a busy software renderer. A 100ms target can
       // already be in the past by the time Chromium processes the pause command.
-      await page.clock.pauseAt(await page.evaluate(()=>Date.now()+60000));
+      if(controlledClock) await page.clock.pauseAt(await page.evaluate(()=>Date.now()+60000));
       const resume=page.getByRole('button',{name:frame.id==='factory'?'Resume game':'Resume',exact:true});
-      if(await resume.count()) await resume.dispatchEvent('click');
+      if(controlledClock && await resume.count()) await resume.dispatchEvent('click');
       const count=Number(process.env.MEDIA_FRAME_COUNT || 120);
       const hashes=new Set();
       const officeCanvas=frame.id==='office' ? await page.locator('.hq__scene canvas').boundingBox() : null;
@@ -145,7 +148,8 @@ try {
           if(frame.id==='research') await page.getByRole('tab',{name:'Components',exact:true}).dispatchEvent('click');
           if(frame.id==='company') await page.getByRole('tab',{name:'Team',exact:true}).dispatchEvent('click');
         }
-        await page.clock.runFor(1000/30);
+        if(controlledClock) await page.clock.runFor(1000/30);
+        else await page.waitForTimeout(1000/30);
         const path=join(videoDir,`${String(i).padStart(4,'0')}.png`);
         await screenshot(path);
         hashes.add(createHash('sha256').update(await readFile(path)).digest('hex'));

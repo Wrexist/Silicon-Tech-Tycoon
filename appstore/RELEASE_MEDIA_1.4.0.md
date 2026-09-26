@@ -24,8 +24,9 @@ Output is under `appstore/release-1.4.0/`:
 - `preview/Silicon-1.4.0-iPhone.mp4`: real gameplay, 886 × 1920, 30 fps, H.264 High 4.0.
 - `preview/poster.png`, `preview/ffprobe.json`, and `capture-report.json`: review evidence.
 
-The preview contains five four-second gameplay scenes with short captions. Browser time advances
-one frame at a time so software-rendering speed does not change the intended animation speed.
+The preview contains five four-second gameplay scenes with short captions. Most scenes advance
+browser time one frame at a time; the office uses native animation timing to avoid a Linux
+Chromium stale-surface issue, with the business simulation paused during the camera gesture.
 It records an office camera gesture, device front/back control, working factory, and research/team
 navigation. Capture and encoding reject static clips. Captions sit above the full game view.
 Its stereo AAC track is silent; no soundtrack is invented or licensed by this process.
