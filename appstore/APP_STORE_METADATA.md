@@ -279,12 +279,7 @@ on-device `localStorage` and never leave the device. Everything else is **not co
 No tracking (`NSPrivacyTracking` is false) and no other required-reason APIs. RevenueCat is the only
 third-party **SDK**, used solely to process purchases — see `REVENUECAT_SETUP.md` §8.
 
-**Purchase data has two recipients, not one.** Besides RevenueCat, this project's own stateless
-endpoint at `silicon-refund-verify.vercel.app` receives the device's signed `AppTransaction` and
-returns a single `{ revoked: bool }` — used *only* for the legacy paid-era "Founding Owner" grant
-(`ios/App/App/RefundVerifyConfig.swift:25,38–53`). It does not change the ASC answers (still Purchase
-History + Device ID, app functionality, unlinked, non-tracking), but it is disclosed in both
-`PrivacyInfo.xcprivacy` and `docs/privacy/`, so this section names it too.
+**Version 1.4.0 purchase data flow:** RevenueCat processes in-app purchases. Founding Owner eligibility uses Apple's verified original AppTransaction locally. The unavailable Vercel refund endpoint has been removed; Apple's refund-history API covers in-app purchases rather than paid-app downloads. No claim of paid-app refund verification is made.
 
 These answers must match `ios/App/App/PrivacyInfo.xcprivacy`, `docs/privacy/` and
 `public/privacy.html` exactly. The full code-cited derivation, including what was searched to prove

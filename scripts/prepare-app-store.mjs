@@ -51,14 +51,32 @@ if (process.env.UPLOAD_STORE_MEDIA === '1') {
   if (!root) throw Error('Missing reviewed media directory');
   const capture = JSON.parse(readFileSync(join(root, 'capture-report.json'), 'utf8'));
   if (capture.errors.length || capture.captures.length !== 12) throw Error('Expected 12 successful screenshot captures');
+  // Back up all current draft screenshots before making room in Apple's ten-image sets.
+  const backup = join(out, 'previous-screenshots'); mkdirSync(backup, { recursive: true });
+  for (const set of before.media.appScreenshotSets) for (const asset of set.assets) {
+    const image = asset.attributes.imageAsset;
+    if (!image?.templateUrl) throw Error(`Cannot back up existing image ${asset.id}`);
+    const url = image.templateUrl.replace('{w}', image.width).replace('{h}', image.height).replace('{f}', 'png');
+    const response = await fetch(url, { signal: AbortSignal.timeout(60000) });
+    if (!response.ok) throw Error(`Screenshot backup failed: ${response.status}`);
+    writeFileSync(join(backup, `${asset.id}.png`), Buffer.from(await response.arrayBuffer()));
+  }
   async function upload(set, sets, assets, files) {
     const relationship = sets === 'appScreenshotSets' ? 'appScreenshotSet' : 'appPreviewSet';
     const old = (await asc(`/v1/${sets}/${set.id}/${assets}?limit=50`)).data;
     const completed = [];
+    const removed = new Set();
     for (const file of files) {
       const bytes = readFileSync(file), checksum = createHash('md5').update(bytes).digest('hex');
       const same = old.find(a => a.attributes.sourceFileChecksum === checksum && a.attributes.assetDeliveryState?.state === 'COMPLETE');
       if (same) { completed.push(same); continue; }
+      // A full screenshot set cannot accept an eleventh image. Retire one backed-up old
+      // image at a time, retaining the rest until every replacement is processed.
+      if (assets === 'appScreenshots' && old.length - removed.size + completed.filter(a => !old.some(o => o.id === a.id)).length >= 10) {
+        const replace = old.find(a => !removed.has(a.id) && !completed.some(c => c.id === a.id));
+        if (!replace) throw Error('No replaceable screenshot slot');
+        await asc(`/v1/${assets}/${replace.id}`, 'DELETE'); removed.add(replace.id);
+      }
       const attributes = { fileName: basename(file), fileSize: bytes.length, ...(assets === 'appPreviews' ? { mimeType: 'video/mp4', previewFrameTimeCode: '00:00:05:00' } : {}) };
       const reservation = (await asc(`/v1/${assets}`, 'POST', { type: assets, attributes, relationships: { [relationship]: { data: { type: sets, id: set.id } } } })).data;
       // Persist safe reservation IDs immediately so an interrupted upload is diagnosable.
@@ -82,7 +100,7 @@ if (process.env.UPLOAD_STORE_MEDIA === '1') {
     }
     // Only superseded files in the two target sizes are replaced; their original URLs and
     // metadata are preserved in before.json. Live 1.3.0 media is never touched.
-    for (const asset of old) if (!completed.some(a => a.id === asset.id)) await asc(`/v1/${assets}/${asset.id}`, 'DELETE');
+    for (const asset of old) if (!removed.has(asset.id) && !completed.some(a => a.id === asset.id)) await asc(`/v1/${assets}/${asset.id}`, 'DELETE');
     await asc(`/v1/${sets}/${set.id}/relationships/${assets}`, 'PATCH', completed.map(a => ({ type: assets, id: a.id })));
   }
   for (const [device, displayType] of [['iphone', 'APP_IPHONE_67'], ['ipad', 'APP_IPAD_PRO_3GEN_129']]) {
@@ -91,6 +109,11 @@ if (process.env.UPLOAD_STORE_MEDIA === '1') {
     const files = readdirSync(join(root, device)).filter(f => /^\d\d-.*\.png$/.test(f)).sort().map(f => join(root, device, f));
     if (files.length !== 6) throw Error(`Expected six ${device} screenshots`);
     await upload(set, 'appScreenshotSets', 'appScreenshots', files);
+  }
+  // The reviewed 6.9-inch set now supplies Apple's smaller iPhone sizes. Remove the
+  // superseded 6.5-inch override from this draft so users don't see stale marketing.
+  for (const set of before.media.appScreenshotSets.filter(s => s.attributes.screenshotDisplayType === 'APP_IPHONE_65')) {
+    await asc(`/v1/appScreenshotSets/${set.id}`, 'DELETE');
   }
   let previews = before.media.appPreviewSets.find(s => s.attributes.previewType === 'IPHONE_67');
   if (!previews) previews = (await asc('/v1/appPreviewSets', 'POST', { type: 'appPreviewSets', attributes: { previewType: 'IPHONE_67' }, relationships: { appStoreVersionLocalization: { data: { type: 'appStoreVersionLocalizations', id: locale.id } } } })).data;

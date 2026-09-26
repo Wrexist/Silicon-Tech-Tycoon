@@ -1,3 +1,11 @@
+# Current 1.4.0 correction — 26 September 2026
+
+The audit below is historical. Version 1.4.0 removes `RefundVerifyConfig.swift` and its network request. The endpoint returned HTTP 404 and the Vercel project deploys this game repository, which contains no verification function. Apple's [Get Refund History](https://developer.apple.com/documentation/appstoreserverapi/get-refund-history) describes in-app purchases, not the original paid-app download. Founding Owner access now explicitly uses the locally verified production AppTransaction and the unchanged build-5 boundary. Subscription/non-consumable revocation handling is unchanged.
+
+Current purchase collection is through RevenueCat and Apple. The former backend's no-retention assertions below are withdrawn: no backend source or hosting logs were available to establish them. Earlier installed versions may still attempt that request. RevenueCat retention/linkage and the live App Privacy questionnaire still require account-level verification. The compiled manifest collection fields are unchanged.
+
+---
+
 # Privacy Disclosure Inputs — Silicon: Tech Tycoon
 
 **Purpose.** Factual, code-cited technical input for the owner to complete Apple's **App Store
