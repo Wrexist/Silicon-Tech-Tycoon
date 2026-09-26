@@ -119,9 +119,11 @@ try {
       const videoDir=join(out,'preview-frames',frame.id);await mkdir(videoDir,{recursive:true});
       if(!videoOnly) await cdp.send('Emulation.setDeviceMetricsOverride',{width:device.width,height:device.height,deviceScaleFactor:2,mobile:false});
       // Advance the browser clock one video frame at a time: rendering speed cannot drop frames.
+      // Leave a generous future margin for a busy software renderer. A 100ms target can
+      // already be in the past by the time Chromium processes the pause command.
+      await page.clock.pauseAt(await page.evaluate(()=>Date.now()+60000));
       const resume=page.getByRole('button',{name:frame.id==='factory'?'Resume game':'Resume',exact:true});
       if(await resume.count()) await resume.dispatchEvent('click');
-      await page.clock.pauseAt(await page.evaluate(()=>Date.now()+100));
       for(let i=0;i<120;i++) {
         await page.clock.runFor(1000/30);
         await screenshot(join(videoDir,`${String(i).padStart(4,'0')}.png`));

@@ -34,6 +34,7 @@ jobs:
           MARKETING_VERSION: ${{ inputs.marketing_version }}
       - run: npm run typecheck
       - run: npm test -- --maxWorkers=2
+      - run: node --test scripts/verify-store-preparation.mjs
       - run: node appstore/localizations/validate.mjs --all
       - run: npm run build
       - run: npx playwright-core install --with-deps chromium
