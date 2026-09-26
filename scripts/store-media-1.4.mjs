@@ -108,7 +108,7 @@ try {
       const videoDir=join(out,'preview-frames',frame.id);await mkdir(videoDir,{recursive:true});
       // Advance the browser clock one video frame at a time: rendering speed cannot drop frames.
       const resume=page.getByRole('button',{name:frame.id==='factory'?'Resume game':'Resume',exact:true});
-      if(await resume.count()) await resume.click();
+      if(await resume.count()) await resume.dispatchEvent('click');
       await page.clock.pauseAt(await page.evaluate(()=>Date.now()+100));
       for(let i=0;i<120;i++) {
         await page.clock.runFor(1000/30);
