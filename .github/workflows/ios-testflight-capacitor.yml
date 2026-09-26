@@ -43,19 +43,112 @@ on:
         required: false
         default: true
         type: boolean
+      inspect_only:
+        description: "Read live App Store state without building or uploading"
+        required: false
+        default: false
+        type: boolean
+      prepare_store:
+        description: "Update editable draft notes and select the specified valid build (inspection mode)"
+        required: false
+        default: false
+        type: boolean
+      media_run_id:
+        description: "Reviewed Store media run ID to upload (inspection mode; blank leaves media alone)"
+        required: false
+        type: string
+      encode_media:
+        description: "Encode preserved captures from media_run_id; do not upload them to Apple"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
-  group: ios-testflight-${{ github.ref }}
+  group: ios-testflight-${{ github.ref }}-${{ inputs.inspect_only && 'store' || 'build' }}
   cancel-in-progress: true
 
 env:
   TEAM_ID: S3U8B8HH96
 
 jobs:
+  store-inspection:
+    if: ${{ inputs.inspect_only }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+      - name: Read version, builds and purchase configuration
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        run: node scripts/inspect-app-store.mjs
+      - name: Download explicitly reviewed media
+        if: ${{ inputs.media_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: silicon-store-media-1.4.0
+          path: reviewed-media
+          run-id: ${{ inputs.media_run_id }}
+          github-token: ${{ github.token }}
+      - name: Inspect or prepare editable store draft
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          PREPARE_STORE: ${{ inputs.prepare_store && '1' || '0' }}
+          STORE_BUILD_NUMBER: ${{ inputs.build_number }}
+          UPLOAD_STORE_MEDIA: ${{ inputs.media_run_id != '' && !inputs.encode_media && '1' || '0' }}
+          STORE_MEDIA_DIR: reviewed-media
+        run: node scripts/prepare-app-store.mjs
+      - name: Download preserved preview frames
+        if: ${{ inputs.encode_media && inputs.media_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: silicon-preview-source-frames
+          path: reviewed-media/preview-frames
+          run-id: ${{ inputs.media_run_id }}
+          github-token: ${{ github.token }}
+      - name: Encode preserved preview
+        if: ${{ inputs.encode_media && inputs.media_run_id != '' }}
+        env:
+          STORE_MEDIA_DIR: reviewed-media
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+          node scripts/encode-store-preview.mjs
+          ffprobe -v error -show_streams -show_format -of json reviewed-media/preview/Silicon-1.4.0-iPhone.mp4 > reviewed-media/preview/ffprobe.json
+      - uses: actions/upload-artifact@v4
+        if: ${{ inputs.encode_media && inputs.media_run_id != '' }}
+        with:
+          name: silicon-store-media-1.4.0
+          path: |
+            reviewed-media/iphone/
+            reviewed-media/ipad/
+            reviewed-media/preview/
+            reviewed-media/capture-report.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-store-inspection
+          path: |
+            artifacts/app-store-inspection/
+            artifacts/app-store-preparation/
+  validation:
+    if: ${{ !inputs.inspect_only }}
+    uses: ./.github/workflows/release-gates.yml
+    with:
+      marketing_version: ${{ inputs.marketing_version }}
   testflight:
+    needs: validation
     runs-on: macos-26
     timeout-minutes: 45
 
@@ -166,6 +259,9 @@ jobs:
         run: |
           xcodebuild -version
           xcode-select -p
+          XCODE_MAJOR=$(xcodebuild -version | head -1 | awk '{print $2}' | cut -d. -f1)
+          SDK_MAJOR=$(xcrun --sdk iphoneos --show-sdk-version | cut -d. -f1)
+          test "$XCODE_MAJOR" -ge 26 && test "$SDK_MAJOR" -ge 26 || { echo "::error::Xcode/iOS SDK 26 or later required"; exit 1; }
 
       - name: Install App Store Connect API key
         env:
@@ -237,6 +333,7 @@ jobs:
             archive
 
       - name: Export IPA
+        id: export_ipa
         env:
           KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
@@ -266,7 +363,7 @@ jobs:
             --apiKey "$KEY_ID" --apiIssuer "$ISSUER_ID"
 
       - name: Upload IPA artifact
-        if: success()
+        if: always() && steps.export_ipa.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: silicon-ios-ipa

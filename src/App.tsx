@@ -1,3 +1,6 @@
+import { continueWithPreservedRecovery } from "./state/persistence.ts";
+import { useSaveHealth } from "./state/saveHealth.ts";
+import { hasFactoryAccess } from "./state/factorySummary.ts";
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, Check, CircuitBoard, CircleX, Compass, Copy, Cpu, Crown, Factory, Flame, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
 import { GameProvider, useGame, useGameActions } from "./state/useGame.tsx";
@@ -36,6 +39,7 @@ import { resolvePlatformSection } from "./state/platformSections.ts";
 // Sheet-hosted screens. `Sheet` returns null while closed, so React never renders these and their
 // chunks are not fetched until the player actually opens the sheet — which for Settings, Progress and
 // Scenarios is rarely, and for many runs never.
+const SaveRecoveryScreen = lazy(() => import("./screens/Settings.tsx").then((m) => ({ default: m.SaveRecoveryScreen })));
 const Settings = lazy(() => import("./screens/Settings.tsx").then((m) => ({ default: m.Settings })));
 const ProgressSheet = lazy(() => import("./screens/Progress.tsx").then((m) => ({ default: m.ProgressSheet })));
 const ScenariosSheet = lazy(() => import("./screens/Scenarios.tsx").then((m) => ({ default: m.ScenariosSheet })));
@@ -77,7 +81,9 @@ const DesignLab = lazy(() => import("./screens/DesignLab.tsx").then((m) => ({ de
 const Research = lazy(() => import("./screens/Research.tsx").then((m) => ({ default: m.Research })));
 const Market = lazy(() => import("./screens/Market.tsx").then((m) => ({ default: m.Market })));
 const Company = lazy(() => import("./screens/Company.tsx").then((m) => ({ default: m.Company })));
+import { BottomDock } from "./components/BottomDock.tsx";
 import "./App.css";
+import "./design/redesign.css";
 
 const TAB_TITLE: Record<Tab, string> = {
   hq: "Silicon",
@@ -86,11 +92,7 @@ const TAB_TITLE: Record<Tab, string> = {
   market: "Market",
   company: "Company",
 };
-const TAB_TINT: Partial<Record<Tab, string>> = {
-  design: "var(--fn-design)",
-  research: "var(--fn-eng)",
-  market: "var(--fn-mkt)",
-};
+const TAB_TINT: Partial<Record<Tab, string>> = {};
 
 export function App() {
   return (
@@ -106,6 +108,7 @@ function AppShell() {
   const { state, tabBlocked, takeOverHere } = useGame();
   const [tab, setTab] = useState<Tab>("hq");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const saveIssue = useSaveHealth();
   const [progressOpen, setProgressOpen] = useState(false);
   // Which view the Progress sheet opens on — "challenges" when HQ's daily-challenge card deep-links.
   const [progressView, setProgressView] = useState<"hub" | "challenges">("hub");
@@ -139,6 +142,8 @@ function AppShell() {
   // Transient "design a successor" seed — set from a launched product's detail sheet, consumed by
   // the Design Lab on the next render, then cleared. Lives in React (never persisted) so it's a
   // pure UI hand-off and survives no reloads.
+  const designVisited = useRef(false);
+  if (tab === "design") designVisited.current = true;
   const [successorSeed, setSuccessorSeed] = useState<Product | null>(null);
   const designSuccessor = (p: Product) => {
     setSuccessorSeed(p);
@@ -211,6 +216,16 @@ function AppShell() {
   // "what just unlocked" card renders on HQ (UnlockCard) until the player taps it, so nothing is lost.
   const hasShippedNow = state.launched.length >= 1 || state.legacy > 0;
 
+  if (!state.onboarded && saveIssue) return <div className="app"><main className="app__main">
+    <div className="app__save-notice" role="alert">{saveIssue}</div>
+    <ErrorBoundary fallback={<ScreenError onHome={() => window.location.reload()} />}>
+      <Suspense fallback={<ScreenLoading title="Save recovery" />}>
+        <SaveRecoveryScreen onContinue={() => {
+          if (!continueWithPreservedRecovery()) showToast("Export the protected copy and resolve recovery before starting another company.", { tone: "negative" });
+        }} />
+      </Suspense>
+    </ErrorBoundary>
+  </main><ToastHost /></div>;
   if (!state.onboarded) return <Onboarding onStart={() => setTab("design")} />;
 
   // Progress hub (achievements/scenarios/challenges/museum) is surfaced once the player has shipped
@@ -231,10 +246,8 @@ function AppShell() {
     market: revealMore,
     company: state.staff.length >= 2 || state.era >= 2,
   };
-  // The Office/Factory world toggle only matters once there's a manufacturing floor to visit —
-  // defer it until the player owns a factory or reaches era 2. Kept visible whenever the factory
-  // world is already open (e.g. entered via HQ's "Build your factory line") so there's always a way back.
-  const showWorldTabs = state.era >= 2 || (state.ownedFactories?.length ?? 0) > 0 || hqWorld === "factory";
+  // The workshop is reachable from day one, including between production runs.
+  const showWorldTabs = hasFactoryAccess(state) || hqWorld === "factory";
 
   return (
     <div className={`app${uiVersion === "next" ? " app--next" : ""}`}>
@@ -248,6 +261,10 @@ function AppShell() {
         <RailNav active={tab} onChange={changeTab} badge={navAttention(state)} visible={tabVisible} />
       )}
       <main className="app__main">
+        {saveIssue && <div className="app__save-notice" role="status">
+          <span>{saveIssue}</span>
+          <button type="button" onClick={() => uiVersion === "next" ? push("settings") : setSettingsOpen(true)}>Save recovery</button>
+        </div>}
         {/* Wave 1a: the new shell owns the page title. It lives INSIDE main so it inherits the
             content column's edge inset (rather than re-adding it) and is not a second banner
             landmark beside <Hud>. With the flag off this renders nothing and each screen keeps
@@ -291,14 +308,21 @@ function AppShell() {
             <HQ onNavigate={setTab} onOpenBank={openBank} onOpenChallenges={() => (uiVersion === "next" ? push("progress", { section: "challenges" }) : openProgress("challenges"))} onViewFactory={() => { setHqWorld("factory"); haptic.light(); }} active={tab === "hq" && page == null} world={hqWorld} />
           </ErrorBoundary>
         </div>
+        {designVisited.current && <div className="app__screen" hidden={page != null || tab !== "design"}>
+          {uiVersion !== "next" && <h1 className="app__title">Design Lab</h1>}
+          <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
+            <Suspense fallback={<ScreenLoading />}>
+              <DesignLab key={gameId} active={tab === "design" && page == null} seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} />
+            </Suspense>
+          </ErrorBoundary>
+        </div>}
         {/* The other screens are light (no WebGL), so they keep the snappy keyed remount that
             replays the `app__screen` enter animation on each navigation. */}
-        {!page && tab !== "hq" && (
+        {!page && tab !== "hq" && tab !== "design" && (
           <div className="app__screen" key={tab}>
             <h1 className="app__title" style={TAB_TINT[tab] ? { color: TAB_TINT[tab] } : undefined}>{TAB_TITLE[tab]}</h1>
             <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
               <Suspense fallback={<ScreenLoading />}>
-                {tab === "design" && <DesignLab seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} />}
                 {tab === "research" && <Research onNavigate={setTab} />}
                 {tab === "market" && (
                   <Market
@@ -365,9 +389,9 @@ function AppShell() {
 
       <Coach tab={tab} onNavigate={setTab} />
 
-      {/* Thumb-reachable speed control, post-tutorial. Hidden on Design (the build wizard owns the
-          bottom band there) and during the tutorial (the controls stay in the top HUD then). */}
-      {state.tutorialDone && tab !== "design" && <SpeedDial />}
+      {/* Shared continuous-time controls reserve their measured height on every screen. */}
+      <BottomDock>
+      <SpeedDial />
 
       <BottomNav
         active={tab}
@@ -375,6 +399,7 @@ function AppShell() {
         badge={navAttention(state)}
         visible={tabVisible}
       />
+      </BottomDock>
 
       <GainFX />
       <Confetti />

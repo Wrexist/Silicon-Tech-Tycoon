@@ -1,3 +1,4 @@
+import { weeklyFinancials } from "../state/managementMetrics.ts";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Activity, Award, Building2, Check, ChevronRight, Clock, Crown, Eye, Globe, History, Landmark, Lightbulb, Lock, Megaphone, Minus, Newspaper, Package, Plus, Rocket, RotateCw, Sparkles, Star, Swords, Target, TrendingDown, TrendingUp, Undo2, Wand2, X, type LucideIcon } from "lucide-react";
 import { Button, Card, EmptyState, Sheet, SectionHeader, Slider, Stat, StatPill } from "../design/primitives.tsx";
@@ -14,13 +15,11 @@ import type { RivalRelease } from "../engine/rivalAI.ts";
 import { eraName } from "../engine/eras.ts";
 import { overallScore } from "../engine/product.ts";
 import { dollars, format, formatCount, formatShortDollars, sub, toDollars, cents } from "../engine/money.ts";
-import { AnimatedMoney } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { postMortem, verdictOf, launchDrivers, launchTips } from "../engine/postmortem.ts";
 import { criticReviews } from "../engine/reviews.ts";
 import { buyCost, holdingsValue, sellProceeds, weeklyDividends } from "../engine/stocks.ts";
 import {
-  burn,
   canList,
   canAcquire,
   acquisitionCost,
@@ -37,7 +36,6 @@ import {
   industryRank,
   nextRankRival,
   netWorth,
-  nextWeekRevenue,
   osDisplayName,
   osTierInfo,
   productStats,
@@ -57,7 +55,7 @@ import { factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { StatGlossary } from "../components/StatGlossary.tsx";
-import { Sparkline, SalesCurveChart } from "../components/charts.tsx";
+import { DataChart, Sparkline, SalesCurveChart } from "../components/charts.tsx";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { Celebration } from "../design/Celebration.tsx";
 import "./market.css";
@@ -162,8 +160,8 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
   const valuation = companyValuation(state);
   const stake = founderStakeValue(state);
   const net = netWorth(state);
-  const wkFlow = sub(nextWeekRevenue(state), burn(state));
-  const wkFlowD = toDollars(wkFlow);
+  const finances = weeklyFinancials(state);
+  const wkFlow = finances.profit;
   const listable = canList(state);
 
   // Market opportunity synthesis
@@ -195,20 +193,6 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
 
   return (
     <div className="mkt">
-      {/* Net worth banner */}
-      <Card className="mkt__networth">
-        <div className="mkt__nw-main">
-          <span className="mkt__nw-label">Net worth</span>
-          <AnimatedMoney value={net} className="mkt__nw-value rounded" />
-        </div>
-        <div className="mkt__nw-row">
-          <StatPill label="Cash" value={format(state.cash)} />
-          <StatPill label="Fans" value={formatCount(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />
-          <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
-          <StatPill label="Weekly" value={`${wkFlowD >= 0 ? "+" : ""}${format(wkFlow)}`} tone={wkFlowD >= 0 ? "positive" : "negative"} />
-        </div>
-      </Card>
-
       {/* Sub-navigation — Standing (you vs. the field) · Products (your catalogue) · Demand (the market). */}
       <div className="mkt__subnav" role="tablist" aria-label="Market sections">
         {([["standing", "Standing"], ["products", "Products"], ["demand", "Demand"]] as const).map(([id, label]) => (
@@ -226,33 +210,30 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
         ))}
       </div>
 
+      {mktTab === "standing" && <Card className="mkt__valuation">
+        <SectionHeader title="Company valuation" accessory={`#${industryRank(state)} of ${comps.length + 1}`} />
+        <strong className="mkt__valuation-value tnum">{format(valuation)}</strong>
+        <p className="mg-footnote">Estimated total company equity value. Your {Math.round(state.ownership * 100)}% stake is worth {format(stake)}.</p>
+        {(state.valuationHistory?.length ?? 0) >= 2 ? <DataChart series={[{ id: "valuation", label: "Valuation", colour: "var(--positive)", points: state.valuationHistory! }]} weeks={state.valuationHistory!.map((_, i, rows) => state.week - rows.length + 1 + i)} xLabel="Week" formatValue={formatShortDollars} /> : <p className="mg-empty-inline">No valuation history yet. Recorded weeks will appear here as your company grows.</p>}
+        <div className="mkt__financial-row"><span>Revenue / wk<strong>{format(finances.revenue)}</strong></span><span>Outflow / wk<strong>{format(finances.costs)}</strong></span><span>Cash surplus / wk<strong>{format(wkFlow)}</strong></span></div>
+        <p className="mg-footnote">Next-week estimates, including debt service and overhead.</p>
+      </Card>
+      }
       {/* One swapped tabpanel for the whole strip — labelled by whichever tab is active. */}
-      <div className="mkt__pane" role="tabpanel" id="mkt-tabpanel" aria-labelledby={`mkt-tab-${mktTab}`}>
+      <div className={`mkt__pane mkt__pane--${mktTab}`} role="tabpanel" id="mkt-tabpanel" aria-labelledby={`mkt-tab-${mktTab}`}>
 
       {mktTab === "standing" && (<>
       {/* Your company (equity) */}
-      <Card className="mkt__co">
+      <details className="mg-disclosure mkt__equity"><summary>Ownership &amp; stock exchange</summary><Card className="mkt__co">
         <SectionHeader title={state.companyName} accessory={state.listed ? "publicly traded" : "private"} />
-        {(state.valuationHistory?.length ?? 0) >= 2 && (() => {
-          const hist = state.valuationHistory!;
-          const ch = changePct(hist);
-          return (
-            <div className="mkt__co-spark">
-              <Sparkline data={hist} stroke={ch >= 0 ? "var(--positive)" : "var(--negative)"} height={38} />
-              <span className={`mkt__co-change mkt__co-change--${ch >= 0 ? "up" : "down"}`}>
-                {ch >= 0 ? <TrendingUp size={12} aria-hidden /> : <TrendingDown size={12} aria-hidden />} {Math.abs(ch).toFixed(1)}%
-              </span>
-            </div>
-          );
-        })()}
         <div className="mkt__co-grid">
-          <Stat label="Valuation" value={format(valuation)} />
+          <Stat label="Net worth" value={format(net)} />
           <Stat label="You own" value={`${Math.round(state.ownership * 100)}%`} />
           <Stat label="Your stake" value={format(stake)} tone="positive" />
         </div>
         {!state.listed ? (
           listable ? (
-            <Button block onClick={() => { setIpo(true); haptic.light(); }}>
+            <Button block variant="secondary" onClick={() => { setIpo(true); haptic.light(); }}>
               <Building2 size={16} /> List on the stock exchange
             </Button>
           ) : (() => {
@@ -313,7 +294,7 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
             </div>
           </>
         )}
-      </Card>
+      </Card></details>
 
       {/* Brand awareness — a company-wide marketing meter that lifts every launch's hype. It's a
           STANDING, decaying investment (not a per-launch campaign), so keeping it up is a real call.

@@ -6,9 +6,8 @@
 //   hair      -> crest / antenna style (0..5)
 //   hairColor -> antenna-tip accent when idle
 //   skin      -> visor tint variant
-//   accessory -> bolt-on module (visor goggles, audio cans, top plate, dome, stud bolts)
 import { DEFAULT_APPEARANCE } from "../engine/staff.ts";
-import type { Accessory, Appearance } from "../engine/types.ts";
+import type { Appearance } from "../engine/types.ts";
 
 // Vivid chassis colours, theme-stable. Indexed by appearance.shirt (0..7) for per-robot variety.
 export const ROBOT_BODY = [
@@ -46,7 +45,6 @@ export interface RobotLook {
   metal: string; // neck ring / antenna stalk
   trim: string; // antenna-tip accent
   headStyle: number; // 0..5 — crest / antenna variant
-  accessory: Accessory;
 }
 
 const METAL = "#c7cdd6";
@@ -61,7 +59,6 @@ export function robotLook(appearance: Appearance | undefined): RobotLook {
     metal: METAL,
     trim: ROBOT_TRIM[ap.hairColor % ROBOT_TRIM.length],
     headStyle: ap.hair % 6,
-    accessory: ap.accessory,
   };
 }
 

@@ -224,6 +224,8 @@ one facility upgrade, financials. Remaining categories are render-ready but game
 Run the AUDIT PROMPT (see plan §12) after P3 (engine+state) and after P5 (all screens).
 
 ## Backlog
+
+- [x] 2026-09-24: Factory portrait framing, always-visible order/progress/ETA and a library of 12 named product drafts implemented. Factory available from day one; owned lines money-gated. See docs/redesign/FACTORY_CONTINUATION.md.
 _(append out-of-scope improvements here as one-liners; do not act mid-session)_
 - [DONE 2026-08-24] **CSS token bug — `--spring-bounce` was undefined.** Ten call sites (eureka,
   community ask, staff moment, rivalry declared, regional event, review prompt, earnings call,

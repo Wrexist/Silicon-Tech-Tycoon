@@ -1,3 +1,5 @@
+import { lineFor } from "./assemblyLine.ts";
+import type { CategoryId } from "./types.ts";
 // Factory floor grid — the player-buildable machine & conveyor layout (Factory Mode F2).
 // PURE: grid math, placement validation, the machine catalog, and belt path-chaining that
 // the 3D scene renders and the traveling items follow. Mirrors the furniture.ts discipline.
@@ -86,7 +88,7 @@ export function floorWidth(expansion: number): number {
 
 export function canPlaceMachine(floor: FactoryFloor, kind: MachineKind, c: number, r: number, maxW: number = FLOOR.w): boolean {
   const def = MACHINE_DEFS[kind];
-  if (c < 0 || r < 0 || c + def.w > maxW || r + def.d > FLOOR.h) return false;
+  if (!Number.isSafeInteger(c) || !Number.isSafeInteger(r) || c < 0 || r < 0 || c + def.w > maxW || r + def.d > FLOOR.h) return false;
   const want = new Set(machineCells({ kind, c, r }));
   for (const m of floor.machines) for (const cell of machineCells(m)) if (want.has(cell)) return false;
   for (const b of floor.belts) if (want.has(`${b.c},${b.r}`)) return false;
@@ -94,7 +96,7 @@ export function canPlaceMachine(floor: FactoryFloor, kind: MachineKind, c: numbe
 }
 
 export function canPlaceBelt(floor: FactoryFloor, c: number, r: number, maxW: number = FLOOR.w): boolean {
-  if (c < 0 || r < 0 || c >= maxW || r >= FLOOR.h) return false;
+  if (!Number.isSafeInteger(c) || !Number.isSafeInteger(r) || c < 0 || r < 0 || c >= maxW || r >= FLOOR.h) return false;
   for (const m of floor.machines) if (machineCells(m).includes(`${c},${r}`)) return false;
   return true; // an existing belt at the cell is replaced (re-aim), not blocked
 }
@@ -173,7 +175,7 @@ export function beltPath(belts: BeltTile[]): [number, number][] {
 
 /** Fractions along the path where the item transforms — the nearest path point to each of
  *  press → arm → qa, in that order (fallbacks keep the story sane on partial layouts). */
-export function formMarks(floor: FactoryFloor, path: [number, number][]): [number, number, number] {
+export function formMarks(floor: FactoryFloor, path: [number, number][], category?: CategoryId): [number, number, number] {
   const frac = (kind: MachineKind, fallback: number): number => {
     const m = floor.machines.find((mm) => mm.kind === kind);
     if (!m || path.length < 2) return fallback;
@@ -186,9 +188,12 @@ export function formMarks(floor: FactoryFloor, path: [number, number][]): [numbe
     });
     return bestI / (path.length - 1);
   };
-  const a = frac("press", 0.18);
-  const b = Math.max(frac("arm", 0.5), a + 0.05);
-  const c = Math.max(frac("qa", 0.8), b + 0.05);
+  const recipe = category ? lineFor(category).filter(s => s.kind !== "intake" && s.kind !== "packer") : null;
+  const forming = recipe?.[0]?.kind ?? "press";
+  const assembly = recipe?.find(s => s.kind === "arm" || s.kind === "screen")?.kind ?? "arm";
+  const a = Math.min(0.8, Math.max(0, frac(forming, 0.18)));
+  const b = Math.min(0.9, Math.max(frac(assembly, 0.5), a + 0.05));
+  const c = Math.min(0.98, Math.max(frac("qa", 0.8), b + 0.05));
   return [a, b, c];
 }
 
@@ -241,7 +246,7 @@ function nearMachine(floor: FactoryFloor, kind: MachineKind, c: number, r: numbe
     if (m.kind !== kind) continue;
     for (const cell of machineCells(m)) {
       const [mc, mr] = cell.split(",").map(Number);
-      if (Math.abs(mc - c) <= 1 && Math.abs(mr - r) <= 1) return true;
+      if (Math.abs(mc - c) + Math.abs(mr - r) === 1) return true;
     }
   }
   return false;
@@ -249,12 +254,36 @@ function nearMachine(floor: FactoryFloor, kind: MachineKind, c: number, r: numbe
 
 /** A line RUNS only when the longest belt chain starts beside an Intake and ends beside a
  *  Packer — the factory-tycoon rule that makes layouts meaningful (F3). */
+/** Prefer a valid directed source-to-sink route, never an unrelated longer belt. */
+export function connectedChain(floor: FactoryFloor): BeltTile[] {
+  const at = new Map(floor.belts.map(b => [`${b.c},${b.r}`, b]));
+  const fed = new Set(floor.belts.map(b => `${b.c + STEP[b.dir][0]},${b.r + STEP[b.dir][1]}`));
+  const starts = floor.belts.filter(b => !fed.has(`${b.c},${b.r}`) && nearMachine(floor, "intake", b.c, b.r))
+    .sort((a,b) => a.r-b.r || a.c-b.c);
+  let best: BeltTile[] = [];
+  for (const start of starts) {
+    const chain: BeltTile[] = [], seen = new Set<string>();
+    let cur: BeltTile | undefined = start;
+    while (cur && !seen.has(`${cur.c},${cur.r}`)) {
+      chain.push(cur); seen.add(`${cur.c},${cur.r}`);
+      cur = at.get(`${cur.c + STEP[cur.dir][0]},${cur.r + STEP[cur.dir][1]}`);
+    }
+    const tail = chain.at(-1)!;
+    if (!cur && chain.length > 1 && nearMachine(floor, "packer", tail.c, tail.r) && chain.length > best.length) best = chain;
+  }
+  return best;
+}
+/** Equipment participating in the selected route; remote equipment remains owned and visible. */
+export function connectedMachines(floor: FactoryFloor): PlacedMachine[] {
+  const chain = connectedChain(floor);
+  return floor.machines.filter(m => chain.some(b => machineCells(m).some(cell => {
+    const [c,r] = cell.split(",").map(Number);
+    return Math.abs(c-b.c) + Math.abs(r-b.r) === 1;
+  })));
+}
+
 export function lineComplete(floor: FactoryFloor): boolean {
-  const chain = beltChain(floor.belts);
-  if (chain.length < 2) return false;
-  const head = chain[0];
-  const tail = chain[chain.length - 1];
-  return nearMachine(floor, "intake", head.c, head.r) && nearMachine(floor, "packer", tail.c, tail.r);
+  return connectedChain(floor).length > 1;
 }
 
 // Auto-route tuning: a turn costs as much as ROUTE_TURN_COST extra tiles, so legs prefer long
@@ -353,7 +382,7 @@ export function autoRouteBelts(floor: FactoryFloor, maxW: number = FLOOR.w, bloc
   // Deterministic: fixed start order, strict < so ties keep the earliest.
   let bestPath: [number, number][] | null = null;
   let bestTotal = Infinity;
-  for (const start of besideCells(intake)) {
+  starts: for (const start of besideCells(intake)) {
     const path: [number, number][] = [start];
     const used = new Set<string>([K(start[0], start[1])]);
     let cur = start, curDir = -1, total = 0;
@@ -371,7 +400,7 @@ export function autoRouteBelts(floor: FactoryFloor, maxW: number = FLOOR.w, bloc
           const leg = legSearch(cur, curDir, goals, used);
           if (leg && (!best || leg.cost < best.cost)) { best = leg; bestIdx = i; }
         }
-        if (!best) break; // the rest of this stage is unreachable — carry on with the next stage
+        if (!best) continue starts; // Reject this tour: every station must be reachable.
         for (const c of best.cells.slice(1)) { path.push(c); used.add(K(c[0], c[1])); }
         cur = best.cells[best.cells.length - 1];
         curDir = best.endDir;
@@ -456,7 +485,7 @@ export function autoTidyFloor(floor: FactoryFloor, maxW: number = FLOOR.w, block
   // Intake → processing (recipe order) → any unknown/extra kinds; the Packer is anchored separately.
   const processing = ROUTE_STAGE_ORDER.flatMap((k) => floor.machines.filter((m) => m.kind === k));
   const extras = floor.machines.filter(
-    (m) => m.kind !== "intake" && m.kind !== "packer" && !ROUTE_STAGE_ORDER.includes(m.kind),
+    (m) => m.id !== intake.id && m.id !== packer.id && !ROUTE_STAGE_ORDER.includes(m.kind),
   );
   const proc = [...processing, ...extras];
 
@@ -486,7 +515,7 @@ function tidyAlongTrack(
   const cellsOf = (kind: MachineKind, c: number, r: number) => machineCells({ kind, c, r });
   const fits = (kind: MachineKind, c: number, r: number): boolean => {
     const def = MACHINE_DEFS[kind];
-    if (c < 0 || r < 0 || c + def.w > W || r + def.d > FLOOR.h) return false;
+    if (!Number.isSafeInteger(c) || !Number.isSafeInteger(r) || c < 0 || r < 0 || c + def.w > W || r + def.d > FLOOR.h) return false;
     for (const cell of cellsOf(kind, c, r)) {
       if (props.has(cell) || beltSet.has(cell)) return false;
       for (const p of placed) if (machineCells(p).includes(cell)) return false;
@@ -568,7 +597,7 @@ function tidyCompact(
  *  bonus-scaler below, and surfaces as a 0–100% "layout" meter in Factory Mode. */
 export function lineEfficiency(floor: FactoryFloor): number {
   if (!lineComplete(floor)) return 0;
-  const chain = beltChain(floor.belts);
+  const chain = connectedChain(floor);
   if (chain.length < 2) return 0;
   // Straightness — fraction of belt steps that DON'T turn (a long lane is all one heading).
   let straight = 0;
@@ -576,16 +605,16 @@ export function lineEfficiency(floor: FactoryFloor): number {
   const straightness = straight / (chain.length - 1);
   // Recipe order — each present processing machine's nearest point along the belt path should
   // advance in recipe sequence; score = fraction of adjacent present-stage pairs that don't regress.
-  const path = beltPath(floor.belts);
+  const path = beltPath(connectedChain(floor));
   const nearestFrac = (kind: MachineKind): number => {
-    const m = floor.machines.find((mm) => mm.kind === kind);
+    const m = connectedMachines(floor).find((mm) => mm.kind === kind);
     if (!m || path.length < 2) return -1;
     const [mx, mz] = machineCenter(m);
     let bestI = 0, bestD = Infinity;
     path.forEach(([x, z], i) => { const d = (x - mx) ** 2 + (z - mz) ** 2; if (d < bestD) { bestD = d; bestI = i; } });
     return bestI / (path.length - 1);
   };
-  const present = ROUTE_STAGE_ORDER.filter((k) => floor.machines.some((m) => m.kind === k));
+  const present = ROUTE_STAGE_ORDER.filter((k) => connectedMachines(floor).some((m) => m.kind === k));
   let orderScore = 1;
   if (present.length >= 2) {
     const fracs = present.map(nearestFrac);
@@ -624,7 +653,7 @@ const ZERO_LAYOUT_BREAKDOWN: LineLayoutBreakdown = {
 
 export function lineLayoutBreakdown(floor: FactoryFloor): LineLayoutBreakdown {
   if (!lineComplete(floor)) return ZERO_LAYOUT_BREAKDOWN;
-  const chain = beltChain(floor.belts);
+  const chain = connectedChain(floor);
   if (chain.length < 2) return ZERO_LAYOUT_BREAKDOWN;
 
   let corners = 0;
@@ -632,16 +661,16 @@ export function lineLayoutBreakdown(floor: FactoryFloor): LineLayoutBreakdown {
   const steps = chain.length - 1;
   const straightness = (steps - corners) / steps;
 
-  const path = beltPath(floor.belts);
+  const path = beltPath(connectedChain(floor));
   const nearestFrac = (kind: MachineKind): number => {
-    const m = floor.machines.find((mm) => mm.kind === kind);
+    const m = connectedMachines(floor).find((mm) => mm.kind === kind);
     if (!m || path.length < 2) return -1;
     const [mx, mz] = machineCenter(m);
     let bestI = 0, bestD = Infinity;
     path.forEach(([x, z], i) => { const d = (x - mx) ** 2 + (z - mz) ** 2; if (d < bestD) { bestD = d; bestI = i; } });
     return bestI / (path.length - 1);
   };
-  const stages = ROUTE_STAGE_ORDER.filter((k) => floor.machines.some((m) => m.kind === k));
+  const stages = ROUTE_STAGE_ORDER.filter((k) => connectedMachines(floor).some((m) => m.kind === k));
   let order = 1;
   let swapped: [MachineKind, MachineKind] | null = null;
   if (stages.length >= 2) {
@@ -680,12 +709,12 @@ function layoutBonusScale(floor: FactoryFloor): number {
  *  Pure + bounded ≤1 (never a penalty); no RNG, so the determinism pin is untouched. */
 export function lineSpeedMult(floor: FactoryFloor, requiredKinds?: Iterable<MachineKind>): number {
   if (!lineComplete(floor)) return 1;
-  const arms = floor.machines.filter((m) => m.kind === "arm").length;
-  const upg = floor.machines.reduce((s, m) => s + (machineLevel(m) - 1), 0);
+  const arms = connectedMachines(floor).filter((m) => m.kind === "arm").length;
+  const upg = connectedMachines(floor).reduce((s, m) => s + (machineLevel(m) - 1), 0);
   const raw = Math.max(0.55, 0.92 - 0.05 * Math.max(0, arms - 1) - 0.02 * upg);
   let bonus = 1 - raw; // the full-toolkit bonus this floor has earned
   if (requiredKinds) {
-    const present = new Set(floor.machines.map((m) => m.kind));
+    const present = new Set(connectedMachines(floor).map((m) => m.kind));
     let total = 0, covered = 0;
     for (const k of requiredKinds) { total++; if (present.has(k)) covered++; }
     if (total > 0) bonus *= 0.25 + 0.75 * (covered / total);
@@ -703,9 +732,9 @@ export function lineSpeedMult(floor: FactoryFloor, requiredKinds?: Iterable<Mach
  *  For an unlimited-capacity factory this is a harmless no-op (Infinity × k = Infinity). */
 export function lineCapacityMult(floor: FactoryFloor): number {
   if (!lineComplete(floor)) return 1;
-  const arms = floor.machines.filter((m) => m.kind === "arm").length;
-  const qas = floor.machines.filter((m) => m.kind === "qa").length;
-  const upg = floor.machines.reduce((s, m) => s + (machineLevel(m) - 1), 0);
+  const arms = connectedMachines(floor).filter((m) => m.kind === "arm").length;
+  const qas = connectedMachines(floor).filter((m) => m.kind === "qa").length;
+  const upg = connectedMachines(floor).reduce((s, m) => s + (machineLevel(m) - 1), 0);
   const mult = 1.15 + 0.12 * Math.max(0, arms - 1) + 0.08 * Math.max(0, qas - 1) + 0.03 * upg;
   const scaled = 1 + (Math.min(2.0, mult) - 1) * layoutBonusScale(floor); // item 3.2 — tidy layout earns more
   return Math.min(2.0, Math.max(1, scaled));
@@ -717,8 +746,8 @@ export function lineCapacityMult(floor: FactoryFloor): number {
  *  (neutral), so the baseline economy and the pinned sim are byte-identical. Pure. */
 export function lineUnitMult(floor: FactoryFloor): number {
   if (!lineComplete(floor)) return 1;
-  const qas = floor.machines.filter((m) => m.kind === "qa").length;
-  const upg = floor.machines.reduce((s, m) => s + (machineLevel(m) - 1), 0);
+  const qas = connectedMachines(floor).filter((m) => m.kind === "qa").length;
+  const upg = connectedMachines(floor).reduce((s, m) => s + (machineLevel(m) - 1), 0);
   const raw = Math.max(0.85, 0.97 - 0.02 * Math.max(0, qas - 1) - 0.01 * upg);
   const bonus = (1 - raw) * layoutBonusScale(floor); // item 3.2 — tidy layout earns more of the discount
   return Math.min(1, Math.max(0.85, 1 - bonus));
@@ -727,7 +756,7 @@ export function lineUnitMult(floor: FactoryFloor): number {
 /** Which of a device's required machine kinds are NOT on the floor — surfaced in the HUD so the
  *  player knows what to build to speed a given product up. Pure. */
 export function missingMachineKinds(floor: FactoryFloor, requiredKinds: Iterable<MachineKind>): MachineKind[] {
-  const present = new Set(floor.machines.map((m) => m.kind));
+  const present = new Set(connectedMachines(floor).map((m) => m.kind));
   const out: MachineKind[] = [];
   for (const k of requiredKinds) if (!present.has(k)) out.push(k);
   return out;

@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { resolveUiVersion } from "./uiVersion.ts";
 
-// The flag resolves from a URL param -> stored value -> the shipped game. "classic" is the default
-// and the safe answer for anything unrecognised: a typo must never strand a player in a half-built UI.
+// URL overrides an explicit saved choice; otherwise the release defaults to next.
 describe("resolveUiVersion", () => {
   it("defaults to the shipped game when nothing is set", () => {
-    expect(resolveUiVersion(null, null)).toBe("classic");
+    expect(resolveUiVersion(null, null)).toBe("next");
   });
 
   it("lets the URL param win over storage", () => {
@@ -24,8 +23,8 @@ describe("resolveUiVersion", () => {
   });
 
   it("treats an unrecognised value as unset instead of trusting it", () => {
-    expect(resolveUiVersion("banana", null)).toBe("classic");
+    expect(resolveUiVersion("banana", null)).toBe("next");
     expect(resolveUiVersion("banana", "next")).toBe("next");
-    expect(resolveUiVersion("", "")).toBe("classic");
+    expect(resolveUiVersion("", "")).toBe("next");
   });
 });

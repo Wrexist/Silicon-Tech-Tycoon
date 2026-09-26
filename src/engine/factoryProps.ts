@@ -69,7 +69,7 @@ export function propCenter(p: PlacedProp): [number, number] {
 /** A prop may sit only on empty cells — never overlapping a machine, a belt, or another prop. */
 export function canPlaceProp(floor: FactoryFloor, props: PlacedProp[], kind: PropKind, c: number, r: number, maxW: number = FLOOR.w): boolean {
   const def = PROP_DEFS[kind];
-  if (c < 0 || r < 0 || c + def.w > maxW || r + def.d > FLOOR.h) return false;
+  if (!Number.isSafeInteger(c) || !Number.isSafeInteger(r) || c < 0 || r < 0 || c + def.w > maxW || r + def.d > FLOOR.h) return false;
   const want = new Set(propCells({ kind, c, r }));
   for (const m of floor.machines) for (const cell of machineCells(m)) if (want.has(cell)) return false;
   for (const b of floor.belts) if (want.has(`${b.c},${b.r}`)) return false;

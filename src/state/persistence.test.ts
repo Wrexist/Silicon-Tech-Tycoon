@@ -109,7 +109,7 @@ describe("F2 — unreadable / newer save is preserved, not destroyed", () => {
 });
 
 describe("F3 — quota-exceeded falls back to a trimmed save", () => {
-  it("drops cashHistory + caps feed and still persists when the full save hits quota", async () => {
+  it("preserves gameplay history and caps only feed when the full save hits quota", async () => {
     const { save, loadResult } = await freshPersistence();
     const s: GameState = {
       ...newGame(5),
@@ -132,9 +132,74 @@ describe("F3 — quota-exceeded falls back to a trimmed save", () => {
     const r = loadResult();
     expect(r.status).toBe("ok");
     if (r.status === "ok") {
-      expect(r.state.cashHistory.length).toBeLessThanOrEqual(1);
+      expect(r.state.cashHistory).toEqual(s.cashHistory);
       expect(r.state.feed.length).toBeLessThanOrEqual(20);
     }
+  });
+});
+
+describe("release save protection", () => {
+  it("does not mistake an inaccessible save for an empty slot", async () => {
+    mem.setItem(SAVE_KEY, "existing company");
+    const read = vi.spyOn(mem, "getItem").mockImplementationOnce(() => { throw new Error("read denied"); });
+    const { loadResult, save, continueWithPreservedRecovery } = await freshPersistence();
+    expect(loadResult().status).toBe("unreadable");
+    read.mockRestore();
+    save(newGame(42));
+    expect(mem.getItem(SAVE_KEY)).toBe("existing company");
+    expect(continueWithPreservedRecovery()).toBe(false);
+  });
+
+  it("reports denied storage and clears the warning only after a successful retry", async () => {
+    const { save } = await freshPersistence();
+    const { getSaveHealth } = await import("./saveHealth.ts");
+    const write = vi.spyOn(mem, "setItem").mockImplementationOnce(() => { throw new Error("denied"); });
+    expect(save(newGame(42))).toBe(false);
+    expect(getSaveHealth()).toContain("Progress could not be saved");
+    write.mockRestore();
+    expect(save(newGame(42))).toBe(true);
+    expect(getSaveHealth()).toBe("");
+  });
+
+  it("does not overwrite the first recovery copy or a second unreadable primary", async () => {
+    mem.setItem(BACKUP_KEY, "first unreadable company");
+    mem.setItem(SAVE_KEY, "second unreadable company");
+    const { loadResult, save, recoveryCopies } = await freshPersistence();
+    expect(loadResult().status).toBe("unreadable");
+    save(newGame(42));
+    expect(mem.getItem(BACKUP_KEY)).toBe("first unreadable company");
+    expect(mem.getItem(SAVE_KEY)).toBe("second unreadable company");
+    expect(recoveryCopies()).toHaveLength(2);
+  });
+
+  it("protects the primary when a backup cannot be written", async () => {
+    mem.setItem(SAVE_KEY, "valuable broken bytes");
+    const real = mem.setItem.bind(mem);
+    vi.spyOn(mem, "setItem").mockImplementation((key, value) => {
+      if (key === BACKUP_KEY) throw new Error("storage denied");
+      real(key, value);
+    });
+    const { loadResult, save, recoveryCopies } = await freshPersistence();
+    loadResult(); save(newGame(99));
+    expect(mem.getItem(SAVE_KEY)).toBe("valuable broken bytes");
+    expect(recoveryCopies()[0].id).toBe("protected");
+  });
+
+  it("keeps every launched product and its economics in the quota fallback", async () => {
+    const { save } = await freshPersistence();
+    const state = newGame(12);
+    state.launched = Array.from({ length: 20 }, (_, i) => ({
+      product: { ...goodPhone(), id: `p${i}` }, stats: { performance: 50, quality: 50, battery: 50, design: 50, ecosystem: 50 },
+      unitCost: dollars(80), launchScore: 88, launchedWeek: 2, totalUnits: 9000,
+      weeklyUnits: [1000], unitsSold: 1000, weeksElapsed: 1, revenueToDate: dollars(140000), verdict: "hit",
+    })) as GameState["launched"];
+    const real = mem.setItem.bind(mem);
+    vi.spyOn(mem, "setItem").mockImplementationOnce(() => { throw Object.assign(new Error("quota"), { name: "QuotaExceededError" }); }).mockImplementation(real);
+    save(state);
+    const stored = JSON.parse(mem.getItem(SAVE_KEY)!);
+    expect(stored.launched).toEqual(state.launched);
+    expect(stored.factoryFloor).toEqual(state.factoryFloor);
+    expect(stored.cash).toBe(state.cash);
   });
 });
 

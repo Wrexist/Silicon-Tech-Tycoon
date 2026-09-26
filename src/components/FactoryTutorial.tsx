@@ -97,21 +97,21 @@ const STEPS: TStep[] = [
     icon: Factory,
     accent: "var(--accent)",
     title: "Your factory, your line",
-    text: "This floor starts with just an Intake and a Packer — the beginning and the end. Wire a belt between them and your real builds will ride it: material in, through your machines, shipped by truck.",
+    text: "Connect Intake to Packer with a belt. Your products travel through the machines; deliveries leave from the loading bay outside.",
     visual: <FlowVisual />,
   },
   {
     icon: Hand,
     accent: "var(--fn-eng)",
     title: "Build the floor",
-    text: "Tap Build, pick a machine or a belt, then tap or drag on the floor to lay it down. In a hurry? The Auto button quotes a price and routes the whole line for you. Hold any placed machine to pick it up and move it — green cells show where it belongs. Mis-tapped? Undo takes the last build back, money and all.",
+    text: "Tap Build to place machines or paint belts. Auto quotes a price to organize your machines and belts. Hold a machine to move it. Undo restores your last edit and its cost.",
     visual: <GestureVisual />,
   },
   {
     icon: Zap,
     accent: "var(--fn-team)",
     title: "A wired line ships faster",
-    text: "An unbroken belt from Intake to Packer earns a build-speed bonus from your very first run. Every machine your product's recipe calls for grows it, and assembly arms and upgrades deepen it further. How TIDILY you lay it counts too — Stats breaks that down into straight lanes and recipe order.",
+    text: "A connected line earns a build-speed bonus. Add the required machines and upgrade them to improve it. Stats explains your recipe, routing and speed bonuses.",
     visual: <LineVisual />,
   },
   {
@@ -159,7 +159,7 @@ export function FactoryTutorial({ open, onClose }: { open: boolean; onClose: () 
     <div className="dtut-scrim" onClick={onClose}>
       <div
         ref={cardRef}
-        className="dtut"
+        className="dtut dtut--factory"
         style={{ "--dtut-accent": step.accent } as CSSProperties}
         role="dialog"
         aria-modal="true"

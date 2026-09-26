@@ -1,11 +1,12 @@
+import { WeeklyRecap } from "../components/WeeklyRecap.tsx";
 import {
   ArrowUp, Building2, Check, ChevronRight, ClipboardList, Clock, Coffee, Copy, Cpu, Factory, FlaskConical,
-  HelpCircle, Layers, ShoppingBag, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
+  HelpCircle, Layers, Lock, Megaphone, Monitor, Newspaper, PaintbrushVertical, PencilRuler,
   Repeat, RotateCw, Rocket, Search, Shapes, Sparkles, Trash2, TrendingDown, TrendingUp, Trophy,
   Undo2, UserPlus, Users, Wand2, Wrench, X, Zap, Smile, Crosshair, Heart, Flame, Crown, Swords, Target, Landmark,
-  Activity, Scissors, HandCoins, Package, Info, type LucideIcon,
+  Activity, Scissors, HandCoins, Package, type LucideIcon,
 } from "lucide-react";
-import { Button, Card, EmptyState, SectionHeader, StatPill } from "../design/primitives.tsx";
+import { Button, Card, EmptyState, SectionHeader } from "../design/primitives.tsx";
 import { ScenarioTracker } from "../components/ScenarioTracker.tsx";
 import { ChallengeTracker } from "../components/ChallengeTracker.tsx";
 import { DailyChallengeCard } from "../components/DailyChallengeCard.tsx";
@@ -63,7 +64,7 @@ const OFFICE_ADDITION: Record<UpgradeId, string> = {
 };
 import { projectById } from "../engine/research.ts";
 import { guidanceHints, INSIGHT_SHOWN, type InsightIconName } from "../state/insights.ts";
-import { canAdvance, canAffordFurniture, canIPO, weeklyOutflow, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, mandateFacts, nextRankRival, nemesisDuelSnapshot, marketingPushQuote, restockQuote, reorderLeadWeeks, type FeedItem, type GameState } from "../state/gameState.ts";
+import { canAdvance, canAffordFurniture, canIPO, nextWeekRevenue, facility, upgradeCost, upgradeGate, deskCapacity, officeComfortMoodBonus, officeFocusMult, officeInspoBonus, contractFacts, communitySnapshot, mandateFacts, nextRankRival, nemesisDuelSnapshot, marketingPushQuote, restockQuote, reorderLeadWeeks, type FeedItem, type GameState } from "../state/gameState.ts";
 import { CategoryIcon } from "../design/icons.tsx";
 import { priceFit } from "../engine/market.ts";
 import { productMomentum, harvestSettlement, type OpsPhase } from "../engine/liveOps.ts";
@@ -73,11 +74,10 @@ import { availableMegaprojects, mandateComplete, mandateProgress, mandateRewardS
 import { LEGACY_TREE, legacyPerkAvailable } from "../engine/legacyTree.ts";
 import { frontierCost, frontierBonuses, frontierBandName, FRONTIER_LANES, nextFrontierBandUnlock, type FrontierLaneId } from "../engine/frontier.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
-import { runwayWeeks } from "../engine/economy.ts";
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useGame, useGameActions, useGameControls } from "../state/useGame.tsx";
 import { getSettings, setSettings, useSettings } from "../state/settings.ts";
-import { IsoScene } from "../components/IsoScene.tsx";
+import { OfficeFloorMap } from "../components/OfficeFloorMap.tsx";
 import { DecorateTutorial } from "../components/DecorateTutorial.tsx";
 import { BuildProgress } from "../components/BuildProgress.tsx";
 import { KeynoteControl } from "../components/KeynoteControl.tsx";
@@ -88,10 +88,9 @@ import { setOfficeLiveContext } from "../garage3d/officeLive.ts";
 import { ErrorBoundary } from "../components/ErrorBoundary.tsx";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import type { Tab } from "../components/BottomNav.tsx";
+import { Metric, MetricGrid } from "../design/management.tsx";
+import { resetOfficeCamera } from "../design/officeCamera.ts";
 import "./hq.css";
-
-/** prefers-reduced-motion, kept LIVE: enabling it mid-session downgrades the always-animating 3D
- *  office to the static IsoScene without a reload (the one-shot read only covered mount time). */
 
 const UPGRADE_ICONS: Record<string, LucideIcon> = { Cpu, PencilRuler, FlaskConical, Megaphone, Coffee, Factory };
 // Each upgrade line is colour-coded by the company function it powers.
@@ -158,6 +157,13 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         <OfficeScene use3d={use3d} reducedMotion={reducedMotion} hasProduction={hasProduction} active={active && world === "office"} onNavigate={onNavigate} onOpenBank={onOpenBank} />
       </div>
       {world === "factory" && <FactoryCard onNavigate={onNavigate} active={active} />}
+      <MetricGrid>
+        <Metric label="Staff" value={state.staff.length} hint={`${state.staff.filter((s) => s.assignment !== "idle").length} assigned to work`} />
+        <Metric label="Team morale" value={state.staff.length ? `${Math.round(state.staff.reduce((n, s) => n + s.mood, 0) / state.staff.length)}%` : "?"} hint={state.staff.length ? "Average across your team" : "Hire your first teammate"} />
+      </MetricGrid>
+      <WeeklyRecap state={state} />
+      {state.tutorialDone && <NextMoveCard state={state} onNavigate={onNavigate} />}
+
 
       {/* Item B1 — the "needs you now" priority zone: a finished product waiting to ship is the clearest
           "act now", so it's pinned at the very top instead of buried below the informational cards. */}
@@ -317,29 +323,12 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           decision, a milestone you've earned). From here down the screen is grouped into three
           labelled zones instead of one undifferentiated column of ~20 cards, so the scroll is
           navigable: where you STAND, how the business RUNS, and the RECORD of what happened. */}
-      <HqGroup label="Your company">
+      <details className="mg-disclosure"><summary>Company &amp; goals</summary><HqGroup label="Your company">
       {/* The vital signs — ONE row, cut to four. It used to be two rows of six, with the second
           negative-margined up to look like the first, and it led with trivia: "Products" duplicates
           the Performance card's own Shipped count, and "Team" is both the Company tab's whole subject
           and literally visible as desks in the office above. What's left is what you actually steer
           by, money first, because this is a game about not running out of it. */}
-      {(() => {
-        const wkRev = nextWeekRevenue(state);
-        const runway = runwayWeeks(state.cash, weeklyOutflow(state), wkRev);
-        // The pill is already labelled "Runway" — keep the value short so it doesn't read "Runway 7wk runway".
-        const runwayLabel = runway === Infinity ? "Profitable" : runway > 520 ? "10y+" : runway > 52 ? `${Math.round(runway / 52)}y` : `${runway} wk`;
-        const runwayTone = runway === Infinity ? "positive" : runway < 8 ? "negative" : runway < 20 ? "neutral" : "positive";
-        return (
-          <div className="hq__stats">
-            <StatPill label="Cash" value={format(state.cash)} tone={state.cash >= 0 ? "neutral" : "negative"} />
-            <StatPill label="Runway" value={runwayLabel} tone={runwayTone as "positive" | "negative" | "neutral"} />
-            <StatPill label="Reputation" value={Math.round(state.reputation)} tone={state.reputation >= 50 ? "positive" : "neutral"} />
-            {state.era < maxEra()
-              ? <StatPill label="Era" value={`${state.era}/${maxEra()}`} tone="accent" />
-              : <StatPill label="Fans" value={formatCount(state.fans)} tone={state.fans >= 500 ? "positive" : "neutral"} />}
-          </div>
-        );
-      })()}
       {/* Item 5.3 — the live rank ladder: the named rival "boss" directly above, and the gap to pass
           them. A forward chase target on the home screen (the full board lives in Market). */}
       {state.launched.length >= 1 && (() => {
@@ -366,18 +355,14 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
         <UnlockCard onOpenBank={onOpenBank} onOpenProgress={onOpenChallenges} />
       )}
 
-      {/* The persistent "Next Move" guidance — takes over once the first-build Coach hands off, so
-          the player always has one concrete next step (see engine/objectives.ts). */}
-      {state.tutorialDone && <NextMoveCard state={state} onNavigate={onNavigate} />}
-
       {/* Rolling contract board — live, regenerating goals that give the endgame a directed chase
           (engine/contracts.ts). Appears once you've shipped; each pays a claimable reward. */}
       {state.tutorialDone && <ContractsCard state={state} onClaim={claimContract} />}
-      </HqGroup>
+      </HqGroup></details>
 
       {/* ── Operations ── the machinery you tend between decisions. Empty in the early game (nothing
           is live yet), and the group label hides itself when so — see `.hq__group` in hq.css. */}
-      <HqGroup label="Operations">
+      <details className="mg-disclosure" open><summary>Production &amp; operations</summary><HqGroup label="Operations">
 
       {/* Legacy Era (item 4.1) — the post-IPO endgame: board mandates + moonshot megaprojects. */}
       {state.wentPublic && <LegacyEraCard state={state} onFund={fundMegaproject} onBuyPerk={buyLegacyPerk} onAdvanceFrontier={buyFrontierTier} />}{/* onAdvanceFrontier takes a lane (feature #6) */}
@@ -417,7 +402,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       )}
 
       <Upgrades />
-      </HqGroup>
+      </HqGroup></details>
 
       {/* ── Records ── the read-only tail: how the company has performed, and what happened. Nothing
           here needs an action, which is exactly why it sits last and under its own label. */}
@@ -426,7 +411,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           objective ladder. The ladder's first rung IS that checklist, with a progress bar and the same
           deep-link, and the Ready-to-launch / In-production cards carry its other two steps live — so
           it was a third copy of guidance the screen already gives twice.) */}
-      <HqGroup label="Records">
+      <details className="mg-disclosure"><summary>Records &amp; activity</summary><HqGroup label="Records">
       {state.launched.length > 0 && (
         <>
           <PerformanceCard state={state} onNavigate={onNavigate} />
@@ -435,7 +420,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           {state.feed.length > 0 && <FeedCard feed={state.feed} week={state.week} onNavigate={onNavigate} />}
         </>
       )}
-      </HqGroup>
+      </HqGroup></details>
     </div>
   );
 }
@@ -449,29 +434,6 @@ function HqGroup({ label, children }: { label: string; children: ReactNode }) {
       <h2 className="hq__group-label">{label}</h2>
       {children}
     </div>
-  );
-}
-
-/** The one-line explanation under the fallback office.
- *
- *  This now appears in exactly one situation: the device has no WebGL2, so there is no 3D office to
- *  draw. It is not a preference and not a mode — nobody can reach it by choice any more.
- *
- *  It still needs saying, because the fallback is an AUTHORED garage: it renders the team and the
- *  facility and knows nothing about placed furniture, so a player who has furnished an office sees
- *  none of it. Unexplained that reads as "my purchases did nothing", which is both wrong and the kind
- *  of doubt that stops people spending in the office shop at all. The layout bonuses (comfort, focus,
- *  inspiration, desk zoning) are computed in the engine from `state.layout` and never touch the
- *  renderer, so the honest thing is to say so. */
-function SimplifiedSceneNote({ glLost }: { glLost: boolean }) {
-  // Context loss already shows its own "Try 3D again" button right here — don't stack two
-  // explanations of the same missing picture.
-  if (glLost) return null;
-  return (
-    <p className="hq__scene-note">
-      <Info size={11} aria-hidden />
-      <span>This device can't run the 3D office — your office bonuses still apply.</span>
-    </p>
   );
 }
 
@@ -578,9 +540,8 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
   const [search, setSearch] = useState("");
   const [roomTab, setRoomTab] = useState(false);
   const [tutorial, setTutorial] = useState(false); // first-run Decorate coach (or replayed via ?)
-  // Undo snapshots carry BOTH layout and cash, so undoing a purchase refunds in full (a true
-  // reversal); Sell is the separate, deliberate 50%-refund path.
-  const history = useRef<{ layout: PlacedItem[]; cash: Money }[]>([]);
+  // Reverse only furniture transactions; unrelated spending and income stay intact.
+  const history = useRef<{ layout: PlacedItem[]; editCash: number }[]>([]);
   const [histLen, setHistLen] = useState(0); // mirror of history depth so Undo's disabled state stays live
   const dark = isDarkTheme();
   // Challenge-Season room finishes unlocked so far (cosmetic-only; gates SELECTION in the decorate
@@ -614,10 +575,25 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
   layoutRef.current = state.layout;
   const cashRef = useRef(state.cash);
   cashRef.current = state.cash;
+  const editCashRef = useRef(state.officeEditCash ?? 0);
+  editCashRef.current = state.officeEditCash ?? 0;
   const snapshot = useCallback(() => {
-    history.current.push({ layout: layoutRef.current, cash: cashRef.current });
+    history.current.push({ layout: layoutRef.current, editCash: editCashRef.current });
     if (history.current.length > 40) history.current.shift();
     setHistLen(history.current.length);
+  }, []);
+  // Capture before the action, but consume history only after the reducer accepts it.
+  const edit = useCallback((action: () => boolean, failure: string) => {
+    const prev = { layout: layoutRef.current, editCash: editCashRef.current };
+    if (!action()) {
+      showToast(failure, { tone: "negative" });
+      haptic.warning();
+      return false;
+    }
+    history.current.push(prev);
+    if (history.current.length > 40) history.current.shift();
+    setHistLen(history.current.length);
+    return true;
   }, []);
   // Tidy up — the office's answer to the factory's Auto route. Rearranges ONLY what the player already
   // owns (no purchase, no sale), so it's free, and it lands amenities beside desks — which is the zone
@@ -643,14 +619,18 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
   };
 
   const undo = () => {
-    const prev = history.current.pop();
-    setHistLen(history.current.length);
-    if (prev) {
-      applyLayoutSnapshot(prev);
-      setSelectedIid(null);
-      setPlacingType(null);
-      haptic.medium();
+    const prev = history.current.at(-1);
+    if (!prev) return;
+    if (!applyLayoutSnapshot(prev)) {
+      showToast("Cannot undo: the refunded cash has already been spent.", { tone: "negative" });
+      haptic.warning();
+      return;
     }
+    history.current.pop();
+    setHistLen(history.current.length);
+    setSelectedIid(null);
+    setPlacingType(null);
+    haptic.medium();
   };
 
   // Memoized: the 1s/8s sim tick re-renders this component, and a fresh builder object every
@@ -680,21 +660,22 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
         haptic.error();
         return;
       }
-      snapshot();
-      placeFurniture(placingType, c, r, placeRot);
+      if (!edit(() => placeFurniture(placingType, c, r, placeRot), "Not enough space here. Choose a clear spot.")) return;
       haptic.light();
       sfx("tap");
     },
     onMoveItem: (iid, c, r) => {
-      snapshot();
-      moveFurniture(iid, c, r);
+      const item = layoutRef.current.find(x => x.iid === iid);
+      if (item?.c === c && item.r === r) return;
+      if (!edit(() => moveFurniture(iid, c, r), "Not enough space here. Your furniture stayed in place.")) return;
       haptic.light();
+      showToast("Furniture moved", { tone: "positive" });
     },
     onSelectItem: (iid) => {
       setSelectedIid(iid);
       if (iid) setPlacingType(null);
     },
-  }), [build, state.layout, placingType, placeRot, selectedIid, zonedIids, snapshot, placeFurniture, moveFurniture]);
+  }), [build, state.layout, placingType, placeRot, selectedIid, zonedIids, edit, placeFurniture, moveFurniture]);
 
   // Narrowed staff snapshot for the 3D scene: per-tick mood drift/XP gives every staff object a
   // NEW identity each week, which would re-reconcile the whole scene. The scene only shows
@@ -707,13 +688,10 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
   const staff3d = useMemo(() => state.staff, [staffSceneKey]);
   // GPU dropped the WebGL context: fall back to the 2D office silently — no error toast (the
   // swap speaks for itself and a "Try 3D again" affordance sits on the scene). Leave Decorate
-  // cleanly: the 2D fallback has no editor, so lingering place/select state would point at UI
-  // that no longer exists.
+  // in the saved-layout editor, preserving selection and Undo history.
   const onGlLost = useCallback(() => {
+    // The fallback shares selection and Undo; a driver reset must not dismiss an edit session.
     setGlLost(true);
-    setBuild(false);
-    setPlacingType(null);
-    setSelectedIid(null);
   }, []);
 
   const exit = () => {
@@ -739,8 +717,7 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
         const fp = footprint(def, 0);
         if (c + fp.w > n || r + fp.d > n) continue;
         if (canPlace(state.layout, type, c, r, 0, undefined, state.facilityTier)) {
-          snapshot();
-          placeFurniture(type, c, r, 0);
+          if (!edit(() => placeFurniture(type, c, r, 0), "Could not place this item. Check your cash and available space.")) return;
           setSelectedIid(`f${state.furnitureCounter}`);
           setPlacingType(null);
           haptic.success();
@@ -753,12 +730,15 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
     haptic.error();
   };
 
+  const [gestureUsed, setGestureUsed] = useState(false);
+  const fallback = <OfficeFloorMap layout={state.layout} facilityTier={state.facilityTier} companyName={state.companyName} build={build} selectedIid={selectedIid} onSelect={builder.onSelectItem} onMove={builder.onMoveItem} />;
+
   return (
     <Card variant="flush" className={build ? "hq__deco" : undefined}>
-      <div className={`hq__scene${build ? " hq__scene--build" : ""}`}>
+      <div className={`hq__scene${build ? " hq__scene--build" : ""}`} onPointerDown={() => setGestureUsed(true)}>
         {use3d && !glLost ? (
-          <ErrorBoundary fallback={<IsoScene staff={state.staff} staffCount={state.staff.length} facilityTier={state.facilityTier} hasProduction={hasProduction} />}>
-            <Suspense fallback={<IsoScene staff={state.staff} staffCount={state.staff.length} facilityTier={state.facilityTier} hasProduction={hasProduction} />}>
+          <ErrorBoundary fallback={fallback}>
+            <Suspense fallback={fallback}>
               <Garage3D
                 staff={staff3d}
                 staffCount={staff3d.length}
@@ -774,7 +754,7 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
                 builder={builder}
                 roomStyle={state.roomStyle}
                 desktops={state.desktops}
-                height={build ? "100%" : 420}
+                height={build ? "100%" : "clamp(280px, 42svh, 410px)"}
                 paused={!active}
                 onTapStaff={handleTapStaff}
                 onTapBank={handleTapBank}
@@ -783,18 +763,10 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
           </ErrorBoundary>
         ) : (
           <>
-            <IsoScene staff={state.staff} staffCount={state.staff.length} facilityTier={state.facilityTier} hasProduction={hasProduction} />
-            {/* The 2D scene is an AUTHORED garage, not a render of the player's room — it knows the
-                team and the facility tier, but nothing about the 86-item furniture catalogue or where
-                anything was placed. So a player on this path buys a $12k Design Suite, arranges it,
-                and sees the picture not change. Worse, most people here never chose it: Reduce Motion
-                (a very common accessibility setting) silently routes them here, as does an old GPU.
-                Say so, and say the office still works — the bonuses are computed from the layout in
-                the engine and are entirely unaffected by which renderer drew the picture. */}
-            {!build && <SimplifiedSceneNote glLost={glLost} />}
+            {fallback}
             {/* Context loss is recoverable — let the player re-attempt the 3D view without
                 relaunching the app (a fresh Canvas mount usually gets a new GPU context). */}
-            {glLost && (
+            {glLost && !build && (
               <button className="hq__retry3d" onClick={() => { setGlLost(false); haptic.light(); }}>
                 <RotateCw size={13} aria-hidden /> Try 3D again
               </button>
@@ -807,15 +779,14 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
             <Flame size={12} aria-hidden /> {ascensionName(state.ascensionLevel)}
           </div>
         )}
-        {/* WASD is keyboard-only — never show it on a touch device (the iOS target), where it's
-            both useless and confusing. Gate on a fine pointer (mouse/trackpad). */}
-        {use3d && !build && FINE_POINTER && <div className="hq__camhint" aria-hidden>WASD to look around</div>}
+        {use3d && !glLost && !build && !gestureUsed && <div className="hq__gesture" aria-hidden>{FINE_POINTER ? "Drag sideways to orbit" : "Drag sideways or pinch to zoom"}</div>}
         {showTeamHint && <div className="hq__camhint" aria-hidden>Tap a teammate to manage</div>}
-        {use3d && !build && (
-          <button className="hq__decorate" onClick={() => { setBuild(true); haptic.light(); if (!getSettings().decorateTutorialSeen) setTutorial(true); }}>
-            <ShoppingBag size={15} /> Shop
+        {!build && <>
+          <button className="hq__decorate" onClick={() => { setBuild(true); haptic.light(); if (use3d && !glLost && !getSettings().decorateTutorialSeen) setTutorial(true); }}>
+            <PaintbrushVertical size={15} /> Edit office
           </button>
-        )}
+          {use3d && !glLost && <button className="hq__camera-reset" aria-label="Reset office camera" onClick={() => { resetOfficeCamera(); haptic.light(); }}><RotateCw size={18} /></button>}
+        </>}
         {build && (
           <div className="hqb__top">
             <div className="hqb__top-id">
@@ -850,12 +821,12 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
             <div className="hqb__toolbar">
               <div className="hqb__sel">
                 <span className="hqb__sel-name">{furnitureDef(selected.type).name}</span>
-                <span className="hqb__sel-hint">Drag it to move · or use the buttons</span>
+                <span className="hqb__sel-hint">Move it in the view above, or use the buttons</span>
               </div>
               <div className="hqb__row">
-                <button className="hqb__tool" onClick={() => { snapshot(); rotateFurniture(selected.iid); haptic.light(); }}><RotateCw size={16} /> Rotate</button>
-                <button className="hqb__tool" onClick={() => { snapshot(); duplicateFurniture(selected.iid); haptic.light(); }}><Copy size={16} /> Duplicate</button>
-                <button className="hqb__tool hqb__tool--danger" onClick={() => { snapshot(); removeFurniture(selected.iid); setSelectedIid(null); haptic.medium(); sfx("cash"); }}><Trash2 size={16} /> Sell · +{format(dollars(Math.round(furnitureCost(selected.type) * BALANCE.shop.resaleRate)))}</button>
+                <button className="hqb__tool" onClick={() => { if (edit(() => rotateFurniture(selected.iid), "Not enough space to rotate. Move this item to a clear spot first.")) haptic.light(); }}><RotateCw size={16} /> Rotate</button>
+                <button className="hqb__tool" onClick={() => { if (edit(() => duplicateFurniture(selected.iid), cashRef.current < dollars(furnitureCost(selected.type)) ? "Not enough cash to duplicate this item." : "No nearby space for a duplicate. Move this item to a clear spot first.")) haptic.light(); }}><Copy size={16} /> Duplicate</button>
+                <button className="hqb__tool hqb__tool--danger" onClick={() => { if (!edit(() => removeFurniture(selected.iid), "This item is no longer in the office.")) return; setSelectedIid(null); haptic.medium(); sfx("cash"); }}><Trash2 size={16} /> Sell · +{format(dollars(Math.round(furnitureCost(selected.type) * BALANCE.shop.resaleRate)))}</button>
                 <button className="hqb__tool" onClick={() => setSelectedIid(null)}><X size={16} /> Deselect</button>
               </div>
             </div>

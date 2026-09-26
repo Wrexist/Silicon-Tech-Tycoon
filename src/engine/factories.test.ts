@@ -47,8 +47,8 @@ describe("factory resolution + gating", () => {
     expect(f.capacityPerWeek).toBe(Infinity);
   });
 
-  it("gates factories by era", () => {
-    expect(unlockedFactories(1).every((f) => f.era === 1)).toBe(true);
+  it("gates contracts by era but owned lines only by affordability", () => {
+    expect(unlockedFactories(1).every((f) => f.kind === "owned" || f.era === 1)).toBe(true);
     expect(unlockedFactories(3).length).toBe(FACTORY_LIST.length);
     expect(isFactoryUnlocked("apex", 1)).toBe(false);
     expect(isFactoryUnlocked("apex", 3)).toBe(true);
@@ -150,10 +150,10 @@ describe("owned lines (P3)", () => {
     expect(toDollars(burn(s2))).toBeCloseTo(before + toDollars(FACTORIES.homeline.weeklyUpkeep), 0);
   });
 
-  it("acquireFactory is a no-op when unaffordable, era-locked, or already owned", () => {
+  it("acquireFactory is a no-op when unaffordable or already owned", () => {
     const rich: GameState = { ...newGame(8), era: 3, cash: dollars(20_000_000) };
     expect(acquireFactory({ ...rich, cash: dollars(10) }, "homeline").ownedFactories).toEqual([]);
-    expect(acquireFactory({ ...newGame(8), era: 1, cash: dollars(20_000_000) }, "homeline").ownedFactories).toEqual([]);
+    expect(acquireFactory({ ...newGame(8), era: 1, cash: dollars(20_000_000) }, "homeline").ownedFactories).toEqual(["homeline"]);
     const owned = acquireFactory(rich, "homeline");
     expect(acquireFactory(owned, "homeline").ownedFactories).toEqual(["homeline"]); // unchanged
   });

@@ -541,7 +541,9 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(96px + env(safe-area-inset-bottom));
+  /* The toast LANE: a full `--bottom-chrome` above the safe area, i.e. above the persistent-control
+     band (SpeedDial). It used to sit at 96px — inside the band, on top of the speed controls. */
+  bottom: calc(var(--bottom-chrome) + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   align-items: center;

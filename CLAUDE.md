@@ -71,7 +71,17 @@ celebration style — leave them as-is.
   401/419/421/433/439 = office presentation streams (Wave 7, cosmetic-only, never read by the engine):
   401 = per-character work-target pick (idle vs working); 419 = bubble count per slot;
   421 = bubble character pick; 433 = bubble line pick; 439 = bubble position jitter. Bubble timing
-  advances with active play time, not the sim clock, so these hashes fix the content, not the second.)
+  advances with active play time, not the sim clock, so these hashes fix the content, not the second.);
+  443/449/457/461/463 = office ROAMING presentation (cosmetic-only, never read by the engine):
+  443 = who steps away from a desk this week; 449 = which break spot they claim; 457 = away priority
+  when more characters want a break than the room allows; 461/463 = overflow drifter heading/radius.
+  The plan is a pure fold over (seed, week, character), so a week always leaves the same desks.;
+  467 = the office ARRANGER's cosmetic pick (which free right-wall row the culture arcade lands on).
+  The arrangement is a pure fold of (tier, headcount, player layout, seed, week, era) — the player's
+  layout is never written, and the engine never reads it.;
+  479 = the workstation MODULE's cosmetic variation (item 5): screen layout + the one small desk
+  prop, a pure fold over (seed, per-desk station key). Presentation-only; the module adds no grid
+  cells and the engine never reads it.)
 - **Opportunistic full-screen interrupts share a budget.** Any card that fires on its own cadence
   (strike / eureka / community / earnings / rivalry / staff moment / regional event / licensing
   contract offer) must gate on
@@ -109,17 +119,11 @@ celebration style — leave them as-is.
   Privacy answers, and `docs/privacy/` + `public/privacy.html` must always agree — and must revert
   together if `RevenueCatConfig.forceStoreKit2` is ever flipped back. Still true and worth saying:
   no tracking, no analytics, no ads, no accounts, and the game's own data never leaves the device.
-- **One narrow exception to "no backend": refund verification for legacy paid-era owners.**
-  `AppTransaction` has no `revocationDate` (only `Transaction` does), and the app's own paid-era
-  purchase never appears in `Transaction.currentEntitlements`/`.all` — there is no on-device signal
-  for "was the app itself refunded." `ios/App/App/RefundVerifyConfig.swift` sends the signed
-  `AppTransaction` (its `jwsRepresentation`) to a small stateless Vercel function
-  (`silicon-refund-verify`, source in that project, not this repo) that holds an App Store Connect
-  API key and asks Apple's App Store Server API for the authoritative answer. The function stores
-  nothing and answers only `{ revoked: bool }`; a network failure fails OPEN (never revokes on an
-  ambiguous result, same as every other check in `SiliconStoreKit.swift`). This only fires for
-  production paid-era `originalPurchase()` calls — RevenueCat/subscription/lifetime paths are
-  unaffected and still fully on-device-to-RevenueCat. Any change to this flow must keep
-  `PrivacyInfo.xcprivacy` / `docs/privacy/` / `public/privacy.html` in sync, same rule as RevenueCat
-  above.
+- **Founding Owner eligibility is verified locally.** `originalPurchase()` accepts only Apple's
+  verified production AppTransaction and reports its original build; `FIRST_FREE_BUILD = 5`
+  remains the paid-era boundary. AppTransaction has no `revocationDate`. Apple's refund-history
+  API covers in-app purchases, not the paid app download. The former Vercel call returned 404
+  and failed open; 1.4.0 removes it rather than claiming unsupported refund verification.
+  Subscription and non-consumable revocation remain handled by StoreKit/RevenueCat. Keep
+  `PrivacyInfo.xcprivacy`, `docs/privacy/` and `public/privacy.html` aligned with actual data flows.
 - Run `npm test` (Vitest) before committing; keep the determinism pin green.

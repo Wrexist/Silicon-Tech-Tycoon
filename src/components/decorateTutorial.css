@@ -259,3 +259,15 @@
 .dtut__zone-cell--empty {
   border-style: dashed;
 }
+
+/* Factory help stays usable on short phones and at larger text sizes. Only the
+   explanation scrolls; close and navigation remain reachable. */
+.dtut--factory { max-height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 48px); display: flex; flex-direction: column; }
+.dtut--factory .dtut__hero { flex-shrink: 0; margin-bottom: var(--sp-8); }
+.dtut--factory .dtut__glyph { width: 44px; height: 44px; }
+.dtut--factory .dtut__body { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.dtut--factory .dtut__footer { flex-shrink: 0; flex-wrap: wrap; gap: var(--sp-8); margin-top: var(--sp-16); }
+.dtut--factory .dtut__btn { min-height: 44px; }
+.dtut--factory .dtut__nav { flex-wrap: wrap; }
+
+.dtut--factory { background: color-mix(in srgb, var(--surface) 94%, transparent); }

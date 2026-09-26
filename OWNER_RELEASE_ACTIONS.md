@@ -1,3 +1,5 @@
+> Current 1.4.0 status supersedes this historical handoff: see [docs/releases/1.4.0.md](docs/releases/1.4.0.md). The dead legacy refund-verification request has been removed; it is not a backend deployment requirement for this candidate.
+
 # Silicon: Tech Tycoon — Owner Release Actions
 
 Everything between this branch and App Store submission that **only you can do**.

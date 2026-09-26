@@ -1,9 +1,1 @@
-Silicon je teraz zadarmo – a pribudol Stroj času.
-
-• Zadarmo na stiahnutie, zadarmo na hranie. Celá slučka navrhni → vydaj → čítaj trh → reinvestuj, Garážová a Rastová éra od začiatku do konca, dva scenáre a každý deň nová výzva. Stále žiadne reklamy, žiadne časovače, žiadna energia, žiadne meny, žiadne loot boxy. Toto sa nikdy nezmení.
-• Silicon Pro, ak chceš zvyšok: Platformová éra a éra AI, všetky scenáre, Nová hra+ a rebrík Ascension, Platformová divízia, Kreatívny režim, Trezor, Múzeum zariadení, Majstrovstvo kategórií a tvoja Zakladateľská legenda. Mesačne alebo ročne s bezplatnou skúšobnou dobou, alebo Pro Lifetime, ak radšej kúpiš raz a máš pokoj.
-• Stroj času. Pro potichu ukladá stav tvojej firmy každý štvrťrok a drží posledných päť. Jedno katastrofálne vydanie, jeden rok s príliš veľa nábormi, jedna továreň kúpená v nesprávnej chvíli – pretoč späť a vyber druhú cestu. Len v kampani: scenáre a výzvy sa ďalej hodnotia podľa vlastných pravidiel.
-• Kúpil si Silicon už skôr? Zostáva tvoj navždy. Každý, kto za aplikáciu zaplatil, kým sa stala bezplatnou, je automaticky rozpoznaný a získa status Zakladajúci vlastník – celé Pro, natrvalo, bez ďalších platieb. Osobitne kúpený Kreatívny režim ti zostáva tiež.
-• Nič, čo si môžeš kúpiť, nemení simuláciu v tvoj prospech. Pro odomyká obsah a režimy, nikdy výhodu vnútri behu.
-
-Na začiatku sa ťa zakladateľský brief spýta, čo si prišiel postaviť, a hra tým začne.
+Verzia 1.4.0 prináša prepracovanú kanceláriu a vylepšuje ovládanie továrne, uložené návrhy, zobrazenie priebehu výskumu a obnovu uložených hier.

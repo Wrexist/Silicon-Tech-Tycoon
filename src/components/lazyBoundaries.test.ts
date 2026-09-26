@@ -56,8 +56,8 @@ describe("lazy-loaded components are bounded", () => {
       "components/FactoryMode.tsx",
       "components/HeroFrame.tsx",
       "components/Interrupts.tsx",
-      "garage3d/Garage3D.tsx",
       "garage3d/furniture3d.tsx",
+      "garage3d/robotCharacter.tsx",
       "screens/HQ.tsx",
     ]);
   });
@@ -67,8 +67,8 @@ describe("lazy-loaded components are bounded", () => {
     "components/FactoryMode.tsx",
     "components/HeroFrame.tsx",
     "components/Interrupts.tsx",
-    "garage3d/Garage3D.tsx",
     "garage3d/furniture3d.tsx",
+    "garage3d/robotCharacter.tsx",
     "screens/HQ.tsx",
   ])("%s bounds its lazy mounts", (path) => {
     const mod = lazyModules.find((f) => f.path === path);

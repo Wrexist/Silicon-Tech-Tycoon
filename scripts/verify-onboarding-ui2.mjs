@@ -1,6 +1,4 @@
-// Verify the Silicon 2.0 shell does not break FIRST RUN: complete onboarding with the flag on and
-// confirm React never throws a hook-order error. The flag is forced by the URL param, so no storage
-// seeding is needed and the run also proves the param path works.
+// Verify a clean installation defaults to the new shell, without URL or saved UI overrides.
 //   npm run build && node scripts/verify-onboarding-ui2.mjs
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
@@ -24,7 +22,7 @@ const server = createServer(async (req, res) => {
   res.end(b);
 });
 await new Promise((r) => server.listen(0, r));
-const URL = `http://localhost:${server.address().port}/?ui=next`;
+const URL = `http://localhost:${server.address().port}/`;
 
 const CHROME_ARGS = ["--no-sandbox", "--use-gl=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist"];
 const PINNED = "/opt/pw-browsers/chromium-1194/chrome-linux/chrome";
@@ -85,4 +83,4 @@ if (errors.length) { console.error("FAIL: console/page errors during first run:\
 if (!rail) { console.error("FAIL: flag on at 1024x768 but the rail never rendered."); process.exit(1); }
 if (counts.titles !== 1) { console.error(`FAIL: expected exactly one visible page title, found ${counts.titles}.`); process.exit(1); }
 if (counts.navs !== 1) { console.error(`FAIL: expected exactly one visible primary nav, found ${counts.navs}.`); process.exit(1); }
-console.log("PASS: onboarding completed with the flag on, no hook/console errors, rail rendered.");
+console.log("PASS: clean installation defaults to the new interface; onboarding completed, no hook/console errors, rail rendered.");

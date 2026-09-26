@@ -1,3 +1,8 @@
+import { machineMounts } from "../garage3d/machineMounts.ts";
+import { inboxPendingKey, higherPriorityPending } from "../design/interruptPriority.ts";
+import { openDecision, useDecisionOpen } from "../design/decisionInbox.ts";
+import { factoryAnimationKinds } from "../garage3d/factoryMotion.ts";
+import { factoryProductionSummary } from "../state/factorySummary.ts";
 // Factory Mode — the player's own 3D factory floor: Current Order + Factory Stats panels, a
 // right tool rail (Build/Upgrades/Research/Stats), BOOST (the real rushBuild lever), truck and
 // Shop along the bottom. Fully data-driven off the live sim. The floor starts bare (Intake +
@@ -7,7 +12,7 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
-  ArrowUp, BarChart3, BatteryCharging, Bookmark, Bot, Boxes, Camera, Check, ChevronDown, CodeXml, Cpu, Drill, Eraser,
+  Play, Pause, ArrowUp, BarChart3, BatteryCharging, Bookmark, Bot, Boxes, Camera, Check, ChevronDown, CodeXml, Cpu, Drill, Eraser,
   FlaskConical, Hammer, HelpCircle, Layers3, Locate, Lock, Maximize2, Monitor, MonitorSmartphone, Move3d,
   Container, Library, PackageCheck, Palette, RotateCw, ScanLine, ShoppingCart, Sprout, Stamp,
   TrafficCone, Trash2, TriangleAlert, Truck, Undo2, Waypoints, Wrench, X, Zap, type LucideIcon,
@@ -15,16 +20,17 @@ import {
   Construction, FireExtinguisher, Fence, Fan, Lamp, Box, Gauge, PocketKnife, SearchCheck, Forklift,
 } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
-import { burn, industryRank, nextWeekRevenue, nextExpansionCost, factoryLayoutCost, autoConnectQuote } from "../state/gameState.ts";
-import { MAX_LAYOUTS, layoutDiff } from "../engine/factoryLayout.ts";
+import { industryRank, nextExpansionCost, factoryLayoutCost, autoConnectQuote } from "../state/gameState.ts";
+import { weeklyFinancials } from "../state/managementMetrics.ts";
+import { MAX_LAYOUTS, layoutDiff, layoutEditSummary } from "../engine/factoryLayout.ts";
 import { appOverlayOpen } from "../design/overlayGuard.ts";
 import { lockScroll } from "../design/scrollLock.ts";
-import { factoryFor, DEFAULT_FACTORY_ID, FACTORIES } from "../engine/factories.ts";
+import { unlockedFactories } from "../engine/factories.ts";
 import { nextUpgradeCost, upgradeLockedBy, upgradeLine } from "../engine/upgrades.ts";
 import { projectById } from "../engine/research.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
 import { format, formatCount, sub, toDollars } from "../engine/money.ts";
-import type { ComponentKind, FactoryId } from "../engine/types.ts";
+import type { ComponentKind } from "../engine/types.ts";
 import type { Tab } from "./BottomNav.tsx";
 import { StageTrail } from "./BuildProgress.tsx";
 import { stageForLine } from "../engine/assemblyLine.ts";
@@ -34,9 +40,9 @@ import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
-import { webglSupported } from "../garage3d/support.ts";
+import { isDarkTheme, webglSupported } from "../garage3d/support.ts";
 import { ErrorBoundary } from "./ErrorBoundary.tsx";
-import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, beltChain, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineLayoutBreakdown, lineSpeedMult, lineUnitMult, machineCells, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
+import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, connectedChain, connectedMachines, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineLayoutBreakdown, lineSpeedMult, lineUnitMult, machineCells, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { PROP_DEFS, propCellSet, factoryDecorSpeedMult, utilityDecorKinds, type PropKind } from "../engine/factoryProps.ts";
 import { sideOrderPayout, SIDE_ORDER_CANCEL_PCT } from "../engine/sideOrders.ts";
@@ -82,34 +88,24 @@ const FACTORY_FLOORS: { name: string; hex: string }[] = [
   { name: "Graphite", hex: "#565b63" }, { name: "Pale", hex: "#9aa1a9" },
 ];
 
-function useFactoryData() {
+function useFactoryData(selectedJob?: string) {
   const game = useGame();
   const { state } = game;
-  const lead = state.building[0] ?? null;
+  const lead = state.building.find(b => b.product.id === selectedJob) ?? state.building[0] ?? null;
   // A running client commission keeps the LINE alive too — belts roll, machines work.
   const active = state.building.length > 0 || !!state.activeSideOrder;
   const progress = lead ? Math.min(1, lead.weeksElapsed / Math.max(1, lead.totalWeeks)) : 0;
   const stage = lead ? stageForLine(lead.product.category, progress) : null;
   const activeKind = stage ? stage.kind : null;
+  const workingKinds = [...new Set(state.building.length ? state.building.flatMap(b => factoryAnimationKinds(b.product.category, state.activeSideOrder?.requiredKinds)) : factoryAnimationKinds(undefined, state.activeSideOrder?.requiredKinds))];
+  const motionPaused = game.paused || game.suspended || game.tabBlocked;
   const weeksLeft = lead ? Math.max(0, Math.ceil(lead.totalWeeks - lead.weeksElapsed)) : 0;
   const readyCount = state.ready.length;
-  const liveProducts = state.launched.filter((l) => l.weeksElapsed < l.weeklyUnits.length);
-  const selling = liveProducts.length > 0;
-
-  const facId = (lead?.product.factoryId ?? state.ownedFactories[0] ?? DEFAULT_FACTORY_ID) as FactoryId;
-  const fac = factoryFor(facId);
-  const weeklyLoad = state.building.reduce((sum, b) => sum + (b.plannedUnits ?? 0) / Math.max(1, b.totalWeeks), 0);
-  const util = Number.isFinite(fac.capacityPerWeek) && fac.capacityPerWeek > 0 ? weeklyLoad / fac.capacityPerWeek : null;
-  const overtime = util != null && util > 1;
+  const { fac, util, overtime, selling, unitsWk } = factoryProductionSummary(state);
   const robotTier = state.upgrades.assembly ?? 0;
+  const { revenue: revenueWk, costs: expensesWk, profit: profitWk } = weeklyFinancials(state);
 
-  // Factory stats — per week, because that IS the sim (no invented per-minute numbers).
-  const unitsWk = liveProducts.reduce((a, l) => a + (l.weeklyUnits[l.weeksElapsed] ?? 0), 0);
-  const revenueWk = nextWeekRevenue(state);
-  const expensesWk = burn(state);
-  const profitWk = sub(revenueWk, expensesWk);
-
-  // Raw materials — parts committed to active runs, per component kind of each product.
+  // Estimated committed parts — parts committed to active runs, per component kind of each product.
   const materials = new Map<ComponentKind, number>();
   for (const b of state.building) {
     const remaining = Math.round((b.plannedUnits ?? 0) * (1 - b.weeksElapsed / Math.max(1, b.totalWeeks)));
@@ -142,7 +138,7 @@ function useFactoryData() {
       ? null
       : brk.swapped
         ? `${MACHINE_DEFS[brk.swapped[1]].name} sits before ${MACHINE_DEFS[brk.swapped[0]].name} along the belt — the item reaches them out of recipe order.`
-        : brk.corners > 0 && brk.straightness < 0.85
+        : brk.corners > 0
           ? `${brk.corners} corner${brk.corners === 1 ? "" : "s"} in a ${brk.steps}-step run — longer straight lanes score higher.`
           : "Straight lanes, machines in recipe order. This line is as tidy as it gets.";
     return {
@@ -162,7 +158,7 @@ function useFactoryData() {
   }, [state.factoryFloor, state.factoryProps, leadCategory]);
 
   return {
-    game, state, lead, active, progress, stage, activeKind, weeksLeft, readyCount, selling,
+    game, state, lead, active, progress, stage, activeKind, workingKinds, motionPaused, weeksLeft, readyCount, selling,
     fac, util, overtime, robotTier, unitsWk, revenueWk, expensesWk, profitWk, materials,
     floor: state.factoryFloor, lineSpeed, linePct, missing, lineCapPct, lineUnitPct, layoutPct, layout, layoutHint, decorPct, decorKinds,
   };
@@ -183,7 +179,7 @@ const MACHINE_TINT: Record<MachineKind, string> = {
   packer: "var(--fmini-packer)",
 };
 
-export function FloorMinimap({ floor, lineOk, running, floorW = FLOOR.w, lockedBayW = 0 }: { floor: GameFloor; lineOk: boolean; running: boolean; floorW?: number; lockedBayW?: number }) {
+export function FloorMinimap({ floor, lineOk, running, floorW = FLOOR.w, lockedBayW = 0, props = [], onCell, pending }: { props?: import("../engine/factoryProps.ts").PlacedProp[]; onCell?: (c: number, r: number) => void; pending?: { c: number; r: number; valid: boolean } | null; floor: GameFloor; lineOk: boolean; running: boolean; floorW?: number; lockedBayW?: number }) {
   const K = 20; // px per cell
   // The viewBox tracks the buildable width so expansion bays (columns ≥16) aren't clipped off-canvas.
   const W = Math.max(FLOOR.w, floorW) * K;
@@ -191,9 +187,9 @@ export function FloorMinimap({ floor, lineOk, running, floorW = FLOOR.w, lockedB
   // The NEXT (unbought) bay shows as a dimmed, padlocked strip — see the bigger factory, want it.
   const LW = lockedBayW * K;
   const lockX = W + LW / 2, lockY = H / 2 - 8;
-  const chain = new Set(beltChain(floor.belts).map((b) => `${b.c},${b.r}`));
+  const chain = new Set(connectedChain(floor).map((b) => `${b.c},${b.r}`));
   return (
-    <svg className={`fmini${running ? " fmini--run" : ""}`} viewBox={`0 0 ${W + LW} ${H}`} preserveAspectRatio="xMidYMid meet" role="img"
+    <svg className={`fmini${running ? " fmini--run" : ""}`} viewBox={`0 0 ${W + LW} ${H}`} preserveAspectRatio="xMidYMid meet" role={onCell ? "group" : "img"}
       aria-label={lineOk ? "Factory layout, line connected" : "Factory layout, line incomplete"}>
       <rect x={0} y={0} width={W} height={H} rx={10} className="fmini__pad" />
       {lockedBayW > 0 && (
@@ -227,6 +223,13 @@ export function FloorMinimap({ floor, lineOk, running, floorW = FLOOR.w, lockedB
           />
         );
       })}
+      {props.map(p => <rect key={p.id} x={p.c*K+2} y={p.r*K+2} width={PROP_DEFS[p.kind].w*K-4} height={PROP_DEFS[p.kind].d*K-4} fill="var(--positive)" stroke="var(--ink)"><title>{PROP_DEFS[p.kind].name}</title></rect>)}
+      {pending && <rect x={pending.c*K} y={pending.r*K} width={K} height={K} fill="none" stroke={pending.valid ? "var(--positive)" : "var(--negative)"} strokeWidth={3} />}
+      {onCell && Array.from({ length: floorW * FLOOR.h }, (_, i) => {
+        const c = i % floorW, r = Math.floor(i / floorW);
+        const machine = floor.machines.find(m => machineCells(m).includes(`${c},${r}`));
+        return <rect key={`hit-${i}`} role="button" tabIndex={0} aria-label={`Column ${c+1}, row ${r+1}${machine ? `, ${MACHINE_DEFS[machine.kind].name}` : ""}`} x={c*K} y={r*K} width={K} height={K} fill="transparent" className="fmini__cell" onClick={() => onCell(c,r)} onKeyDown={e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onCell(c,r); } }} />;
+      })}
     </svg>
   );
 }
@@ -234,30 +237,22 @@ export function FloorMinimap({ floor, lineOk, running, floorW = FLOOR.w, lockedB
 
 /* ----------------------------- fullscreen mode ----------------------------- */
 
-/** The "you can't build right now" nudge. `use3d` goes false for two unrelated reasons and they need
- *  different words: a device with no WebGL2 will never run the builder, whereas a lost GPU context is
- *  temporary and recoverable — telling that player their device can't run 3D is simply false, and
- *  sends them off to replace hardware that works. Shared so the three call sites can't drift. */
-function needs3dMessage(glLost: boolean): string {
-  return glLost
-    ? "Building the line needs the 3D view — the graphics context was lost. Reopen the factory to retry."
-    : "Building the line needs the 3D view, which this device can't run.";
-}
-
 export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNavigate?: (t: Tab) => void }) {
-  const d = useFactoryData();
+  const [selectedJob, setSelectedJob] = useState<string>();
+  const d = useFactoryData(selectedJob);
   const { state } = d;
+  const decisionOpen = useDecisionOpen();
+  const pendingDecision = inboxPendingKey(state);
+  const companyDecision = !!(state.pendingChoice || state.pendingPoach);
+  const canReviewDecision = !d.game.tabBlocked && companyDecision && !appOverlayOpen() || !d.game.tabBlocked && !!pendingDecision && !higherPriorityPending(state, pendingDecision) && !decisionOpen;
   const { buyUpgrade } = d.game;
   const [sheet, setSheet] = useState<null | "upgrades" | "stats" | "shop" | "decor">(null);
   const [glLost, setGlLost] = useState(false);
   const use3d = webglSupported() && !glLost;
   // F2 Build mode — the selected tool paints cells on the 3D pad.
   const [buildTool, setBuildTool] = useState<null | MachineKind | PropKind | "belt" | "erase" | "upgrade">(null);
-  // Placement is wired to the 3D pad; in the 2D fallback (3D off / no-WebGL / context lost) a palette
-  // tile would arm a tool that can never drop, so route the same "needs 3D" nudge the Build button
-  // shows instead of silently arming it. (Reachable when the GL context is lost mid-build.)
+  // Both the 3D pad and accessible fallback grid use the same placement actions.
   const armTool = (t: MachineKind | PropKind | "belt" | "erase" | "upgrade") => {
-    if (!use3d) { showToast(needs3dMessage(glLost), { tone: "neutral" }); return; }
     setBuildTool(t);
   };
   const [buildCat, setBuildCat] = useState<"machine" | "decor">("machine");
@@ -268,16 +263,13 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const [autoArmed, setAutoArmed] = useState(false);
   useEffect(() => { setAutoArmed(false); }, [buildTool, buildCat]);
   const [layoutName, setLayoutName] = useState("");
+  const [editingLayout, setEditingLayout] = useState<string | null>(null);
+  const [editedName, setEditedName] = useState("");
+  const [deletedLayout, setDeletedLayout] = useState<import("../engine/factoryLayout.ts").FactoryLayout | null>(null);
   const [confirmLayout, setConfirmLayout] = useState<string | null>(null); // arms a layout's Apply → shows the diff + Confirm
   const [flash, setFlash] = useState<{ c: number; r: number; ok: boolean; n: number } | null>(null);
   // Tapping the expansion bay buys it directly: first tap arms the pill (confirm), second commits.
   // The arm decays so a stray tap can't leave a live $50K+ trigger sitting on the floor.
-  const [expandArm, setExpandArm] = useState(false);
-  useEffect(() => {
-    if (!expandArm) return;
-    const t = setTimeout(() => setExpandArm(false), 4000);
-    return () => clearTimeout(t);
-  }, [expandArm]);
   // Cancelling a commission forfeits a chunk of the payout — arm the button first so one stray tap
   // can't burn the fee. Decays like the expand arm.
   const [cancelArm, setCancelArm] = useState(false);
@@ -288,11 +280,13 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   }, [cancelArm]);
   // Disarm the bay whenever the floor actually grows — buying an expansion via the Style sheet
   // would otherwise leave the arm live, so one stray bay tap buys the NEXT tier with no confirm.
-  useEffect(() => { setExpandArm(false); }, [state.factoryExpansion]);
   // Panels fold so the floor stays visible on portrait — the scene is the star, not the chrome.
-  const [orderOpen, setOrderOpen] = useState(true);
+  const [orderOpen, setOrderOpen] = useState(() => window.innerWidth >= 620);
   // Camera: drag/touch to orbit, pinch to zoom (Factory3D owns OrbitControls); the recenter button
   // bumps this to re-frame. A one-time hint teaches the gesture on first open.
+  const [selectedMachine, setSelectedMachine] = useState("");
+  const [focusMachine, setFocusMachine] = useState("");
+  const [showRoute, setShowRoute] = useState(false);
   const [resetView, setResetView] = useState(0);
   const [camHint, setCamHint] = useState(false);
   // First-run Factory coach — shown once, the first time the player opens Factory mode. It already
@@ -309,11 +303,9 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const { buyFloorMachine, buyFloorBelt, buyFactoryProp, clearFloorCell, upgradeFloorMachine } = d.game;
   const lineOk = lineComplete(d.floor);
 
-  // UNDO — the office builder has always had this (a layout+cash snapshot that refunds a purchase in
-  // full); the floor had nothing, so a mis-tapped $18K arm was unrecoverable. Same shape, same depth:
-  // a UI-level ring of {floor, props, cash} snapshots taken before each mutating action. Not persisted
-  // — undo is for the edit you just made, not for last week.
-  const history = useRef<{ floor: GameFloor; props: typeof state.factoryProps; cash: typeof state.cash }[]>([]);
+  // Undo stores geometry plus the reversible edit ledger. It never snapshots the company wallet.
+  // Permanent expansion and unrelated income/spending remain outside the reversal.
+  const history = useRef<{ floor: GameFloor; props: typeof state.factoryProps; editCash: number }[]>([]);
   const [histLen, setHistLen] = useState(0);
   // Live refs, the same shape the office builder uses: the reducers land asynchronously, so a
   // snapshot has to read the values as of THIS render, not as of the closure that armed the tool.
@@ -321,10 +313,10 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   floorRef.current = state.factoryFloor;
   const propsRef = useRef(state.factoryProps);
   propsRef.current = state.factoryProps;
-  const cashRef = useRef(state.cash);
-  cashRef.current = state.cash;
+  const cashRef = useRef(state.factoryEditCash ?? 0);
+  cashRef.current = state.factoryEditCash ?? 0;
   const snapshot = () => {
-    history.current.push({ floor: floorRef.current, props: propsRef.current, cash: cashRef.current });
+    history.current.push({ floor: floorRef.current, props: propsRef.current, editCash: cashRef.current });
     if (history.current.length > 40) history.current.shift();
     setHistLen(history.current.length);
   };
@@ -335,10 +327,10 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
     setHistLen(history.current.length);
   };
   const undoBuild = () => {
-    const prev = history.current.pop();
-    setHistLen(history.current.length);
+    const prev = history.current.at(-1);
     if (!prev) return;
-    d.game.applyFactorySnapshot(prev);
+    if (!d.game.applyFactorySnapshot(prev)) { showToast("Cannot undo: the refunded cash has already been spent.", { tone: "negative" }); return; }
+    history.current.pop(); setHistLen(history.current.length);
     setPendingCell(null);
     // No toast: the floor visibly snaps back to the previous layout, which says "undone" better than
     // the word does. The haptic is the confirmation.
@@ -380,7 +372,12 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
     if (pendingKind) { setPendingCell({ c, r }); haptic.light(); return; } // machine: tap moves the ghost, Place commits
     if (buildTool === "erase") {
       snapshot();
-      clearFloorCell(c, r);
+      if (!clearFloorCell(c, r)) {
+        dropSnapshot();
+        haptic.warning();
+        showToast("Nothing to erase here", { tone: "neutral" });
+        return;
+      }
       haptic.light();
       setFlash((f) => ({ c, r, ok: true, n: (f?.n ?? 0) + 1 }));
       return;
@@ -425,6 +422,29 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   // the frequently-re-running keydown effect above can't churn it, and ref-counted so an inner
   // Sheet's own lock can't clobber ours and leak a permanent lock (stuck-scroll bug).
   useEffect(() => lockScroll(), []);
+  // Toasts use the actual tool band, including wrapped controls and larger text.
+  // The regular game's fixed bottom-chrome height is wrong inside Factory mode.
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    const update = () => {
+      const rail = root.querySelector(".fmode__rail");
+      if (rail) document.body.style.setProperty("--factory-controls-height", `${Math.max(0, window.innerHeight - rail.getBoundingClientRect().top)}px`);
+    };
+    const observer = new ResizeObserver(update);
+    observer.observe(root);
+    root.querySelectorAll(".fmode__stage, .fmode__rail").forEach(el => observer.observe(el));
+    root.addEventListener("scroll", update);
+    window.addEventListener("resize", update);
+    update();
+    return () => {
+      observer.disconnect();
+      root.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      document.body.style.removeProperty("--factory-controls-height");
+    };
+  }, []);
+
 
   const flow = sub(d.revenueWk, d.expensesWk);
   const flowD = toDollars(flow);
@@ -436,17 +456,25 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
 
   return createPortal(
     <div ref={ref} tabIndex={-1} className="fmode" role="dialog" aria-modal="true" aria-label="Factory mode">
-      <div className="fmode__stage">
+      <div className="fmode__stage" onPointerDown={() => setCamHint(false)}>
+      {camHint && !buildTool && (
+        <div className="fmode__camhint" role="status">
+          <Move3d size={15} aria-hidden /> Drag to look around · pinch to zoom
+        </div>
+      )}
         {use3d ? (
           /* Same degrade-don't-crash contract HQ's 3D office already had (screens/HQ.tsx): a throw
              from inside the WebGL scene — a driver-level failure, or the lazy chunk not arriving —
              falls back to the 2D floor map instead of propagating to the root boundary and replacing
              the whole app with the crash card. Suspense alone catches neither case. */
-          <ErrorBoundary fallback={<FloorMinimap floor={d.floor} lineOk={lineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />}>
-          <Suspense fallback={<FloorMinimap floor={d.floor} lineOk={lineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />}>
+          <ErrorBoundary fallback={<FloorMinimap props={state.factoryProps} onCell={buildTool ? onTapCell : undefined} pending={pendingCell ? { ...pendingCell, valid: pendingValid } : null} floor={d.floor} lineOk={lineOk} running={d.active && !d.motionPaused} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />}>
+          <Suspense fallback={<FloorMinimap props={state.factoryProps} onCell={buildTool ? onTapCell : undefined} pending={pendingCell ? { ...pendingCell, valid: pendingValid } : null} floor={d.floor} lineOk={lineOk} running={d.active && !d.motionPaused} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />}>
             <Factory3D
+              dark={isDarkTheme()}
               active={d.active}
               activeKind={d.activeKind}
+              workingKinds={d.workingKinds}
+              motionPaused={d.motionPaused}
               robotTier={d.robotTier}
               readyCount={d.readyCount}
               selling={d.selling}
@@ -456,6 +484,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               lineOk={lineOk}
               buildMode={buildTool != null}
               pending={pendingKind && pendingCell ? { kind: pendingKind, c: pendingCell.c, r: pendingCell.r, valid: pendingValid } : null}
+              selectedMachine={selectedMachine} focusMachine={focusMachine} showRoute={showRoute}
               resetView={resetView}
               wallColor={(FACTORY_WALLS[state.factoryDecor.wall] ?? FACTORY_WALLS[0]).hex}
               floorColor={(FACTORY_FLOORS[state.factoryDecor.floor] ?? FACTORY_FLOORS[0]).hex}
@@ -465,24 +494,9 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               lockedBay={(() => {
                 const cost = nextExpansionCost(state.factoryExpansion);
                 if (cost == null) return null;
-                return expandArm
-                  ? { cols: EXPAND_STEP, label: `Tap again \u00b7 ${format(cost)}`, armed: true }
-                  : { cols: EXPAND_STEP, label: `Expand \u00b7 ${format(cost)}` };
+                return { cols: EXPAND_STEP, label: `Expand - ${format(cost)}` };
               })()}
-              onTapLockedBay={() => {
-                const cost = nextExpansionCost(state.factoryExpansion);
-                if (cost == null) return;
-                if (state.cash < cost) {
-                  haptic.warning();
-                  showToast(`Need ${format(sub(cost, state.cash))} more to expand the floor.`, { tone: "negative" });
-                  return;
-                }
-                if (!expandArm) { haptic.light(); setExpandArm(true); return; }
-                setExpandArm(false);
-                const res = d.game.buyFloorExpansion();
-                if (res.ok) { haptic.success(); sfx("build"); emitCelebrate(); setResetView((v) => v + 1); showToast("New bay unlocked \u2014 the floor grows east", { tone: "positive" }); }
-                else { haptic.warning(); showToast(res.reason ?? "Can't expand", { tone: "negative" }); }
-              }}
+              onTapLockedBay={() => { haptic.light(); setSheet("decor"); }}
               onTapCell={onTapCell}
               paintBelts={buildTool === "belt"}
               onPaintBelts={(cells) => {
@@ -505,7 +519,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           </Suspense>
           </ErrorBoundary>
         ) : (
-          <FloorMinimap floor={d.floor} lineOk={lineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />
+          <FloorMinimap props={state.factoryProps} onCell={buildTool ? onTapCell : undefined} pending={pendingCell ? { ...pendingCell, valid: pendingValid } : null} floor={d.floor} lineOk={lineOk} running={d.active && !d.motionPaused} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />
         )}
       </div>
 
@@ -519,7 +533,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           </span>
         </span>
         {use3d && (
-          <button className="fmode__icons" aria-label="Recenter view" title="Recenter view" onClick={() => { haptic.light(); setResetView((v) => v + 1); }}>
+          <button className="fmode__icons" aria-label="Recenter view" title="Recenter view" onClick={() => { haptic.light(); setFocusMachine(""); setResetView((v) => v + 1); }}>
             <Locate size={18} />
           </button>
         )}
@@ -528,19 +542,15 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
         </button>
         <button className="fmode__close" aria-label="Close factory" onClick={() => { haptic.light(); onClose(); }}><X size={20} /></button>
       </div>
-      {camHint && (
-        <div className="fmode__camhint" role="status">
-          <Move3d size={15} aria-hidden /> Drag to look around · pinch to zoom
-        </div>
-      )}
+
 
       {/* left panels */}
       <div className="fmode__left">
         {!lineOk && (
           <div className="fmode__panel fmode__stopped">
-            <span className="fmode__stopped-title"><Wrench size={14} aria-hidden /> Line offline</span>
-            <p className="fmode__empty">Connect the Intake to the Packer — build the line yourself, or tap Auto to lay a long conveyor track across the whole floor and line your machines up along it. A wired line builds every run faster.</p>
-            <button className="fmode__stopped-fix" onClick={() => { haptic.light(); if (!use3d) { showToast(needs3dMessage(glLost), { tone: "neutral" }); return; } setBuildCat("machine"); setBuildTool("belt"); }}>Fix in Build</button>
+            <span className="fmode__stopped-title"><Wrench size={14} aria-hidden /> Workshop ready to connect</span>
+            <p className="fmode__empty">Connect Intake to Packer for a build-speed bonus. Start with belts or use Auto in Build.</p>
+            <button className="fmode__stopped-fix" onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Build your line</button>
           </div>
         )}
         <div className="fmode__panel">
@@ -548,42 +558,50 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             <span className="fmode__panel-title">Current order</span>
             <ChevronDown size={14} className={`fmode__panel-caret${orderOpen ? " fmode__panel-caret--open" : ""}`} aria-hidden />
           </button>
-          {!orderOpen ? null : d.lead ? (
+          {d.lead ? (
             <div className="fmode__order">
               <span className="fmode__order-thumb"><DeviceRenderer product={d.lead.product} size={42} /></span>
               <div className="fmode__order-info">
                 <span className="fmode__order-name">{d.lead.product.name}</span>
                 <span className="fmode__order-units tnum">{(d.lead.plannedUnits ?? 0).toLocaleString()} units</span>
-                <span className="fmode__order-track"><span className="fmode__order-fill" style={{ width: `${Math.round(d.progress * 100)}%` }} /></span>
-                <span className="fmode__order-eta">{d.stage?.label} · {d.weeksLeft} wk left</span>
-                <StageTrail category={d.lead.product.category} frac={d.progress} />
-                {d.util != null && (
+                <span className="fmode__order-track" role="progressbar" aria-label="Production progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(d.progress * 100)}><span className="fmode__order-fill" style={{ width: `${Math.round(d.progress * 100)}%` }} /></span>
+                <span className="fmode__order-eta">{Math.round(d.progress * 100)}% · {d.weeksLeft > 0 ? `${d.weeksLeft} wk left` : "Finishing on next simulation tick"}</span>
+                {orderOpen && <StageTrail category={d.lead.product.category} frac={d.progress} />}
+                {orderOpen && d.util != null && (
                   <span className={`fmode__cap-line${d.overtime ? " fmode__cap-line--hot" : ""}`}>
                     <span className="fmode__cap-bar"><span className="fmode__cap-fill" style={{ width: `${Math.min(100, Math.round(d.util * 100))}%` }} /></span>
-                    {d.overtime ? "Overtime" : "On schedule"}
+                    {d.overtime ? "Above current capacity" : "Within current capacity"}
                   </span>
                 )}
-                {(d.linePct > 0 || !lineOk || d.missing.length > 0) && (
+                {orderOpen && (d.linePct > 0 || !lineOk || d.missing.length > 0) && (
                   <span className={`fmode__lineboon${d.linePct > 0 ? " fmode__lineboon--good" : " fmode__lineboon--bad"}`}>
                     <Zap size={12} aria-hidden />
                     {!lineOk
                       ? "Wire Intake → Packer for a build-speed bonus"
                       : d.missing.length
                         ? `Line +${d.linePct}% · add ${MACHINE_DEFS[d.missing[0]].name}${d.missing.length > 1 ? ` +${d.missing.length - 1}` : ""} for more`
-                        : `Line builds ${d.linePct}% faster`}
+                        : `Assembly time reduced ${d.linePct}%`}
                   </span>
                 )}
               </div>
             </div>
           ) : (
-            <p className="fmode__empty">No active order. Plan a production run in the Design Lab.</p>
+            <p className="fmode__empty">No active order. {onNavigate && <button className="fmode__layout-apply" onClick={() => { onClose(); onNavigate("design"); }}>Design a product</button>}</p>
           )}
         </div>
+
+        {state.building.length > 1 && <label className="fmode__empty">Active jobs ({state.building.length})<select aria-label="Active production job" className="fmode__layout-input" value={d.lead?.product.id} onChange={e => setSelectedJob(e.target.value)}>{state.building.map(b => <option key={b.product.id} value={b.product.id}>{b.product.name}</option>)}</select></label>}
+
+        <details className="fmode__panel"><summary>Inspect machines and route</summary>
+          <label className="fmode__layout-save">Machine<select className="fmode__layout-input" aria-label="Inspect machine" value={selectedMachine} onChange={e => setSelectedMachine(e.target.value)}><option value="">Select a machine</option>{d.floor.machines.map(m => <option value={m.id} key={m.id}>{MACHINE_DEFS[m.kind].name} ({m.c + 1}, {m.r + 1})</option>)}</select></label>
+          {selectedMachine && (() => { const m = d.floor.machines.find(m => m.id === selectedMachine); if (!m) return null; const connected = connectedMachines(d.floor).some(x => x.id === m.id); const route = connectedChain(d.floor); const mounted = machineMounts(d.floor, route.length ? route : d.floor.belts).has(m.id); const through = ["mill","press","screen","qa"].includes(m.kind); return <><p className="fmode__sheet-note">{!mounted && through ? "No free adjacent working station. Move this machine beside a separate belt tile; its head remains parked at its owned footprint." : !connected ? "Not connected to the production route. Connect the Intake to the Packer beside this machine." : !d.active ? "Connected. Waiting for a production order." : !d.workingKinds.includes(m.kind) ? "Connected. Not required by active orders." : d.motionPaused ? "Connected. Simulation paused." : "Connected and working."}</p><button className="fmode__layout-apply" disabled={!use3d} onClick={() => { setFocusMachine(m.id); setResetView(v => v + 1); }}>Focus machine</button><button className="fmode__layout-savebtn" onClick={() => { setSelectedMachine(""); setFocusMachine(""); setResetView(v => v + 1); }}>Clear selection</button></>; })()}
+          <label className="fmode__route-toggle"><input type="checkbox" checked={showRoute} onChange={e => setShowRoute(e.target.checked)} /> <span>Highlight route: green connected, amber unused</span></label>
+        </details>
 
         {/* Side order — a client commission on offer, or the one running on the line. */}
         {state.pendingSideOrder && !state.activeSideOrder && (() => {
           const offer = state.pendingSideOrder;
-          const missingKinds = offer.requiredKinds.filter((k) => !state.factoryFloor.machines.some((m) => m.kind === k));
+          const missingKinds = missingMachineKinds(state.factoryFloor, offer.requiredKinds);
           const wired = lineComplete(state.factoryFloor);
           const can = wired && missingKinds.length === 0;
           const expiresIn = Math.max(0, offer.expiresWeek - state.week);
@@ -592,11 +610,11 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             <div className="fmode__panel fmode__sideorder">
               <span className="fmode__sideorder-head"><Truck size={14} aria-hidden /> Client order · expires in {expiresIn} wk</span>
               <p className="fmode__sideorder-body">
-                <b>{offer.clientName}</b> wants {offer.blurb}: {offer.units.toLocaleString()} units in {offer.weeksNeeded} wk — <b>{format(payout)}</b> on delivery. Your own builds run +1 wk meanwhile.
+                <b>{offer.clientName}</b> wants {offer.blurb}: {offer.units.toLocaleString()} units in {offer.weeksNeeded} productive wk — <b>{format(payout)}</b> on delivery. Your own builds run +1 wk meanwhile.
               </p>
               {!can && (
                 <p className="fmode__sideorder-warn">
-                  {!wired ? "Needs a wired Intake → Packer line." : `Needs a ${MACHINE_DEFS[missingKinds[0]]?.name ?? "machine"} on the floor.`}
+                  {!wired ? "Needs a wired Intake → Packer line." : `Needs a ${MACHINE_DEFS[missingKinds[0]]?.name ?? "machine"} connected to the line.`}
                 </p>
               )}
               <div className="fmode__sideorder-actions">
@@ -610,15 +628,16 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
         })()}
         {state.activeSideOrder && (() => {
           const so = state.activeSideOrder;
-          const weeksLeft = Math.max(0, so.startedWeek + so.weeksNeeded - state.week);
-          const frac = Math.max(0, Math.min(1, (state.week - so.startedWeek) / Math.max(1, so.weeksNeeded)));
+          const completed = so.completedWeeks ?? Math.max(0, state.week - so.startedWeek);
+          const weeksLeft = Math.max(0, so.weeksNeeded - completed);
+          const frac = Math.max(0, Math.min(1, completed / Math.max(1, so.weeksNeeded)));
           const payout = sideOrderPayout(so);
           const feePct = Math.round(SIDE_ORDER_CANCEL_PCT * 100);
           return (
             <div className="fmode__panel fmode__sideorder fmode__sideorder--live">
               <span className="fmode__sideorder-head"><Truck size={14} aria-hidden /> Running {so.clientName}'s order</span>
               <span className="fmode__sideorder-track"><span className="fmode__sideorder-fill" style={{ width: `${Math.round(frac * 100)}%` }} /></span>
-              <p className="fmode__sideorder-body tnum">{weeksLeft} wk left · {format(payout)} on delivery</p>
+              <p className="fmode__sideorder-body tnum">{!lineOk || missingMachineKinds(state.factoryFloor, so.requiredKinds).length ? "Paused; connect required equipment. " : ""}{weeksLeft} productive wk left · {format(payout)} on delivery</p>
               <button
                 className="fmode__sideorder-x"
                 onClick={() => {
@@ -643,8 +662,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             haptic.light();
             // Placement is wired to the 3D pad; the 2D fallback can't drop machines, so tell the
             // player instead of arming a tool that silently does nothing.
-            if (!use3d) { showToast(needs3dMessage(glLost), { tone: "neutral" }); return; }
-            if (buildTool != null) { setBuildTool(null); } else { setBuildCat("machine"); setBuildTool("belt"); }
+                    if (buildTool != null) { setBuildTool(null); } else { setBuildCat("machine"); setBuildTool("belt"); }
           }}
         >
           <Hammer size={18} /><span>Build</span>
@@ -716,7 +734,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                 return (
                   <>
                     <span className="fmode__autoquote-label">
-                      <Waypoints size={14} aria-hidden /> Lay the track · {quote.tiles} tiles
+                      <Waypoints size={14} aria-hidden /> Organize machines: {quote.tiles} belt tiles
                     </span>
                     <button
                       className="fmode__buy fmode__autoquote-go"
@@ -724,7 +742,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                       onClick={() => {
                         snapshot(); // the whole auto-route undoes in one tap, like any other build action
                         const res = d.game.autoConnectLine();
-                        if (res.ok) { haptic.success(); sfx("build"); showToast("Track laid — a long line routed; drop machines along it", { tone: "positive" }); }
+                        if (res.ok) { haptic.success(); sfx("build"); showToast("Factory organized", { tone: "positive" }); }
                         else { dropSnapshot(); haptic.warning(); showToast(res.reason ?? "Couldn't lay the track", { tone: "negative" }); }
                         setAutoArmed(false);
                       }}
@@ -782,7 +800,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                   onClick={() => {
                     haptic.light();
                     if (autoArmed) { setAutoArmed(false); return; }
-                    if (!autoConnectQuote(state)) { haptic.warning(); showToast("Place an Intake and a Packer first — then Auto tidies the rest.", { tone: "negative" }); return; }
+                    if (!autoConnectQuote(state)) { haptic.warning(); showToast(state.factoryFloor.machines.some(m => m.kind === "intake") && state.factoryFloor.machines.some(m => m.kind === "packer") ? "Not enough clear space to organize this line. Move props, remove equipment or expand the factory." : "Place an Intake and a Packer first, then Auto tidies the rest.", { tone: "negative" }); return; }
                     setAutoArmed(true);
                   }}
                 >
@@ -845,7 +863,11 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
       )}
       {buildTool == null && (
       <div className="fmode__bottom">
-        <BoostButton />
+        <button className="fmode__sim" disabled={(d.game.suspended || d.game.tabBlocked) && !canReviewDecision} onClick={() => { if (canReviewDecision) { onClose(); if (companyDecision) { onNavigate?.("hq"); requestAnimationFrame(() => { const card = document.querySelector<HTMLElement>(".hq__choice"); card?.scrollIntoView({ block: "center" }); card?.querySelector<HTMLButtonElement>("button")?.focus(); }); } else openDecision(); } else d.game.setPaused(!d.game.paused); }}>
+          {d.game.paused ? <Play size={16} aria-hidden /> : <Pause size={16} aria-hidden />}
+          {canReviewDecision ? "Review decision" : d.game.tabBlocked ? "Running in another tab" : d.game.suspended ? "Waiting for decision" : d.game.paused ? "Resume game" : "Pause game"}
+        </button>
+        <BoostButton selectedJob={d.lead?.product.id} />
         <button
           className="fmode__side"
           title={`${d.readyCount} ready to launch`}
@@ -884,7 +906,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               </button>
             )}
           </div>
-          <p className="fmode__sheet-note">Design Suite, Test Lab, Marketing and the rest live on the Company tab.</p>
+          <p className="fmode__sheet-note">Design Suite, Test Lab, Marketing and the rest live under Office upgrades.</p>
         </div>
       </Sheet>
 
@@ -894,15 +916,16 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           <div className="fmode__stat"><span>Line</span><span>{d.fac.name} · {d.fac.kind === "owned" ? "owned" : "contract"}</span></div>
           <div className="fmode__stat"><span>Runs in production</span><span className="tnum">{state.building.length}</span></div>
           <div className="fmode__stat"><span>Ready to launch</span><span className="tnum">{d.readyCount}</span></div>
-          <div className="fmode__stat"><span>Units/wk</span><span className="tnum">{d.unitsWk.toLocaleString()}</span></div>
-          <div className="fmode__stat"><span>Revenue/wk</span><span className="tnum">{format(d.revenueWk)}</span></div>
-          <div className="fmode__stat"><span>Expenses/wk</span><span className="tnum">{format(d.expensesWk)}</span></div>
-          <div className="fmode__stat"><span>Profit/wk</span><span className={`tnum ${toDollars(d.profitWk) >= 0 ? "fmode__pos" : "fmode__neg"}`}>{format(d.profitWk)}</span></div>
-          {d.util != null && <div className="fmode__stat"><span>Capacity used</span><span className="tnum">{Math.round(d.util * 100)}%</span></div>}
+          <div className="fmode__stat"><span>Retail units / next wk</span><span className="tnum">{d.unitsWk.toLocaleString()}</span></div>
+          <div className="fmode__stat"><span>Company revenue / wk</span><span className="tnum">{format(d.revenueWk)}</span></div>
+          <div className="fmode__stat"><span>Company outflow / wk</span><span className="tnum">{format(d.expensesWk)}</span></div>
+          <div className="fmode__stat"><span>Company cash surplus / wk</span><span className={`tnum ${toDollars(d.profitWk) >= 0 ? "fmode__pos" : "fmode__neg"}`}>{format(d.profitWk)}</span></div>
+          <p className="fmode__sheet-note">Forecast next week, including loan payments and overhead. Upfront production investment is separate.</p>
+          {d.util != null && <div className="fmode__stat"><span>Lead run / current capacity</span><span className="tnum">{Math.round(d.util * 100)}%</span></div>}
           <div className="fmode__stat">
-            <span>Line build speed</span>
+            <span>Assembly time reduction</span>
             <span className={`tnum ${d.linePct > 0 ? "fmode__pos" : ""}`}>
-              {d.linePct > 0 ? `+${d.linePct}%` : "baseline"}
+              {d.linePct > 0 ? `-${d.linePct}%` : "baseline"}
             </span>
           </div>
           <div className="fmode__stat">
@@ -948,7 +971,8 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           ) : (
             <p className="fmode__sheet-note">Wire Intake → Packer for a build-speed bonus; cover the product's recipe and add Arms or Upgrades to deepen it.</p>
           )}
-          <div className="fmode__matsline" aria-label="Parts committed to production">
+          <p className="fmode__sheet-note">Estimated parts remaining in committed runs; these are not warehouse stock.</p>
+          <div className="fmode__matsline" aria-label="Estimated parts committed to production">
             {(Object.keys(MATERIAL_ICONS) as ComponentKind[]).map((kind) => {
               const Icon = MATERIAL_ICONS[kind];
               const n = d.materials.get(kind) ?? 0;
@@ -966,16 +990,17 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
         <div className="fmode__sheet">
           <h3 className="fmode__sheet-title">Machine shop</h3>
           <p className="fmode__sheet-note">Production lines you can contract or buy outright — pick per product in the Design Lab's Advanced sourcing.</p>
-          {Object.values(FACTORIES).filter((f) => f.era <= state.era).map((f) => (
+          {unlockedFactories(state.era).map((f) => (
             <div key={f.id} className="fmode__upline">
               <span className="fmode__upline-glyph" aria-hidden><Hammer size={16} /></span>
               <div className="fmode__upline-info">
                 <span className="fmode__upline-name">{f.name}</span>
                 <span className="fmode__upline-sub">{f.blurb}</span>
               </div>
-              <span className="fmode__upline-max">
-                {f.kind === "owned" ? (state.ownedFactories.includes(f.id) ? "Owned" : format(f.acquireCost)) : "Contract"}
-              </span>
+              {f.kind === "owned" && !state.ownedFactories.includes(f.id)
+                ? <button className="fmode__buy" disabled={state.cash < f.acquireCost} aria-label={`Buy ${f.name} for ${format(f.acquireCost)}`} onClick={() => d.game.acquireFactory(f.id)}>Buy {format(f.acquireCost)}</button>
+                : <span className="fmode__upline-max">{f.kind === "owned" ? "Owned" : "Contract"}</span>}
+              {f.kind === "owned" && <span className="fmode__sheet-note">{format(f.weeklyUpkeep)}/wk upkeep, including idle weeks</span>}
             </div>
           ))}
           <p className="fmode__sheet-note">Want to place machines yourself? Use the Build tool on the rail to grow your own floor.</p>
@@ -1035,6 +1060,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           </div>
 
           <span className="fmode__decor-label">Saved layouts</span>
+          {deletedLayout && <button className="fmode__layout-savebtn" onClick={() => { const result = d.game.restoreFactoryLayout(deletedLayout); if (result.ok) setDeletedLayout(null); else showToast(result.reason ?? "Cannot restore", { tone: "negative" }); }}>Undo deletion: {deletedLayout.name}</button>}
           <div className="fmode__layouts">
             {state.factoryLayouts.length === 0 && (
               <p className="fmode__sheet-note">Snapshot this floor to save its design, then switch between layouts anytime. Applying one charges (or refunds) only the difference.</p>
@@ -1051,12 +1077,13 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               return (
                 <div className={`fmode__layout${confirming ? " fmode__layout--armed" : ""}`} key={l.id}>
                   <div className="fmode__layout-info">
-                    <span className="fmode__layout-name">{l.name}</span>
+                    {editingLayout === l.id ? <div className="fmode__layout-save"><input className="fmode__layout-input" aria-label="Rename layout" maxLength={24} value={editedName} onChange={e => setEditedName(e.target.value)} /><button className="fmode__layout-apply" disabled={!editedName.trim()} onClick={() => { const result = d.game.editFactoryLayout(l.id, editedName); if (result.ok) setEditingLayout(null); }}>Save name</button><button className="fmode__layout-del" aria-label="Cancel rename" onClick={() => setEditingLayout(null)}><X size={15} /></button></div> : <span className="fmode__layout-name">{l.name}</span>}
+                    {!confirming && <div className="fmode__layout-save"><button className="fmode__layout-savebtn" onClick={() => { setEditingLayout(l.id); setEditedName(l.name); }}>Rename</button><button className="fmode__layout-savebtn" onClick={() => { const result = d.game.editFactoryLayout(l.id, l.name, true); showToast(result.ok ? "Saved design updated to this floor" : result.reason ?? "Cannot update", { tone: result.ok ? "positive" : "negative" }); }}>Update from floor</button></div>}
                     {confirming && diff ? (
                       <span className="fmode__layout-sub">
-                        {diff.added === 0 && diff.removed === 0
-                          ? "No changes to the floor"
-                          : [diff.added ? `+${diff.added} added` : null, diff.removed ? `−${diff.removed} removed` : null].filter(Boolean).join(" · ")}
+                        {layoutEditSummary(state.factoryFloor, state.factoryProps, l.floor, l.props)}
+                        {l.expansion > state.factoryExpansion ? `; expand to bay ${l.expansion}` : ""}
+                        {l.decor.wall !== state.factoryDecor.wall || l.decor.floor !== state.factoryDecor.floor ? "; room finishes change" : ""}
                       </span>
                     ) : (
                       <span className="fmode__layout-sub">{l.floor.machines.length} machines · saved wk {l.savedWeek}</span>
@@ -1069,6 +1096,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                         disabled={tooPricey}
                         onClick={() => {
                           const res = d.game.applyFactoryLayout(l.id);
+                          if (res.ok) { history.current = []; setHistLen(0); }
                           if (res.ok) { haptic.success(); sfx("build"); showToast(`Floor set to “${l.name}”`, { tone: "positive" }); }
                           else { haptic.warning(); showToast(res.reason ?? "Can't apply that layout", { tone: "negative" }); }
                           setConfirmLayout(null);
@@ -1083,7 +1111,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                         disabled={tooPricey}
                         onClick={() => { haptic.light(); setConfirmLayout(l.id); }}
                       >{cost <= 0 ? <Check size={13} /> : null}{costLabel}</button>
-                      <button className="fmode__layout-del" aria-label={`Delete ${l.name}`} onClick={() => { haptic.light(); if (confirmLayout) setConfirmLayout(null); d.game.deleteFactoryLayout(l.id); }}><Trash2 size={15} /></button>
+                      <button className="fmode__layout-del" aria-label={`Delete ${l.name}`} onClick={() => { haptic.light(); if (confirmLayout) setConfirmLayout(null); setDeletedLayout(l); d.game.deleteFactoryLayout(l.id); }}><Trash2 size={15} /></button>
                     </>
                   )}
                 </div>
@@ -1123,8 +1151,8 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
 
 /** BOOST — the reference's paid time boost, translated honestly: rushBuild completes one week
  *  of the lead run for an overtime premium. Disabled when idle or unaffordable. */
-function BoostButton() {
-  const d = useFactoryData();
+function BoostButton({ selectedJob }: { selectedJob?: string }) {
+  const d = useFactoryData(selectedJob);
   const { rushBuild } = d.game;
   if (!d.lead || d.weeksLeft <= 0) {
     const why = "No build running — plan a production run to rush it";
@@ -1158,7 +1186,7 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
   // The card shows the REAL factory — the live 3D line, your paint job, the locked bay — not an
   // abstract map. Look-don't-touch (preview mode): taps open fullscreen, drags scroll the page.
   const mini = (
-    <FloorMinimap floor={d.floor} lineOk={cardLineOk} running={d.active} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />
+    <FloorMinimap props={state.factoryProps} floor={d.floor} lineOk={cardLineOk} running={d.active && !d.motionPaused} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />
   );
   return (
     <div className="fcard">
@@ -1168,6 +1196,7 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
             <ErrorBoundary fallback={mini}>
             <Suspense fallback={mini}>
               <Factory3D
+              dark={isDarkTheme()}
                 preview
                 // The card keeps its WebGL context (returning to HQ is instant) but stops DRAWING
                 // whenever it can't be seen: another bottom tab, or the fullscreen build view open
@@ -1176,6 +1205,8 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
                 paused={!active || open}
                 active={d.active}
                 activeKind={d.activeKind}
+              workingKinds={d.workingKinds}
+              motionPaused={d.motionPaused}
                 robotTier={d.robotTier}
                 readyCount={d.readyCount}
                 selling={d.selling}

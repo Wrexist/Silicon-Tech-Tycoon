@@ -38,15 +38,12 @@ import StoreKit
 ///
 /// `requestReview()` is not a purchase concern at all — it is the App Store rating prompt.
 ///
-/// `originalPurchase()` is the paid-era grandfathering check, and RevenueCat's equivalent
-/// (`CustomerInfo.originalApplicationVersion`) is strictly WEAKER than `AppTransaction`:
-///   • it is an unauthenticated string with no `revocationDate`, so a refunded original download
-///     cannot be distinguished from an honoured one, and
-///   • it is derived from the same receipt field, so it carries the identical sandbox hazard
-///     (`"1.0"` for every sandbox and TestFlight install) with less context to guard against it.
-/// `AppTransaction` is Apple-signed, on-device, free, and already correct — including the
-/// production-only guard that stops every TestFlight tester reading as a paid-era owner. Swapping a
-/// stronger signal for a weaker one to satisfy tidiness would be a regression. It stays.
+/// `originalPurchase()` uses Apple's verified AppTransaction and its environment to determine
+/// paid-era eligibility locally. The production-only guard prevents the sandbox original version
+/// ("1.0") from granting every TestFlight tester Founding Owner access. RevenueCat's
+/// `CustomerInfo.originalApplicationVersion` is not used for this decision.
+/// AppTransaction has no revocationDate and this check does not detect refunds of paid-app
+/// downloads. In-app purchase and subscription revocation handling is separate.
 extension SiliconStoreKitPlugin {
 
     // MARK: - Configuration

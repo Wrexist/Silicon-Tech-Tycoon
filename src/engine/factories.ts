@@ -123,20 +123,21 @@ export function factoryFor(id?: FactoryId): Factory {
 }
 
 export function unlockedFactories(era: number): Factory[] {
-  return FACTORY_LIST.filter((f) => f.era <= era);
+  return FACTORY_LIST.filter((f) => f.kind === "owned" || f.era <= era);
 }
 
 export function isFactoryUnlocked(id: FactoryId, era: number): boolean {
-  return factoryFor(id).era <= era;
+  const factory = factoryFor(id);
+  return factory.kind === "owned" || factory.era <= era;
 }
 
 /** Factories the player can build at right now: every era-unlocked CONTRACT line, plus any OWNED
- *  line they've acquired. (Owned lines must be bought in Operations before they can be selected.) */
+ *  line they've acquired. (Owned lines must be bought in Factory or Operations before they can be selected.) */
 export function availableFactories(era: number, owned: FactoryId[] = []): Factory[] {
   return unlockedFactories(era).filter((f) => f.kind === "contract" || owned.includes(f.id));
 }
 
-/** Owned lines available to acquire at this era that the player doesn't already own. */
+/** Cash-gated owned lines available to acquire that the player doesn't already own. */
 export function acquirableFactories(era: number, owned: FactoryId[] = []): Factory[] {
   return unlockedFactories(era).filter((f) => f.kind === "owned" && !owned.includes(f.id));
 }

@@ -27,7 +27,7 @@ export default defineConfig({
       workbox: {
         // Precache the app shell + all first-party static assets. .glb models are large and
         // many, so they're handled by a runtime CacheFirst route below instead of precache.
-        globPatterns: ["**/*.{js,css,html,svg,png,webmanifest}"],
+        globPatterns: ["**/*.{js,css,html,svg,png,webp,webmanifest}"],
         globIgnores: ["**/furniture/*.glb"],
         navigateFallback: "index.html",
         // Three's lazy chunk can be sizeable; raise the precache limit so the shell is complete.

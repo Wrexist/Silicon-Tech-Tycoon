@@ -41,7 +41,7 @@
     </div>
 
     <h1>Privacy Policy</h1>
-    <p class="updated">Last updated: July 2026</p>
+    <p class="updated">Last updated: 26 September 2026</p>
 
     <div class="card">
       <h2>The short version</h2>
@@ -63,7 +63,7 @@
       identifier is created by the app; it is not your Apple ID, your advertising identifier, or
       anything that identifies you as a person. None of it is used for tracking, none of it is sold,
       and none of it is combined with data from other apps or companies.</p>
-      <p>If you never make a purchase, nothing at all is collected.</p>
+      <p>The purchase service initializes when the iOS app starts. RevenueCat can process the anonymous installation identifier and check purchase status even if you do not buy anything.</p>
     </div>
 
     <div class="card">
@@ -88,11 +88,7 @@
         — validates purchases and makes them restorable across reinstalls. It receives your purchase
         history and the anonymous installation identifier described above, and acts as our data
         processor. Nothing about how you play is sent to it.</li>
-        <li>Our own purchase-verification endpoint — used only for the small legacy population who
-        bought the app outright before it went free-to-download. It relays your device's signed
-        purchase receipt to Apple's App Store Server API to confirm that purchase was never
-        refunded, and returns a yes/no answer. It does not store anything, has no database, and
-        receives nothing else.</li>
+        <li>Founding Owner access in version 1.4.0 is checked locally using Apple's verified original purchase. This version no longer sends the original app receipt to our former verification endpoint. Earlier versions may still attempt that request; the endpoint is unavailable.</li>
       </ul>
     </div>
 

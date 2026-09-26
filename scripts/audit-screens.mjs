@@ -93,7 +93,7 @@ const ROW_MARKUP = {
   "Achievements": ".ach",
   "Scenarios": ".scn",
   "Challenges": ".scn",
-  "Device Museum": ".mus",
+  "Device Museum": ".mus, .mus__collections",
   "Help & Guide": ".help",
 };
 // The four Silicon Pro rows. Without an entitlement these open the PAYWALL instead of a view, which
@@ -350,6 +350,9 @@ async function sweep(label, saveJson, pro = false) {
       view: m ? !!document.querySelector(m) : false,
       leftHub: !document.querySelector(".prog__row"),
     }), [marker, PAYWALL]);
+    // The routed museum renders the shared panel without the classic .mus sheet wrapper.
+    // Its empty-state heading is real loaded content, unlike the generic page title/loading UI.
+    if (title === "Device Museum" && await p.locator(".ds-empty__title").filter({ hasText: /^No devices yet$/ }).isVisible()) shown.view = true;
     if (!marker) {
       note("nav", `unknown Progress row "${title}" — add it to ROW_MARKUP so its view gets checked`);
     } else if (shown.paywall) {

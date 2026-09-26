@@ -1,9 +1,1 @@
-Silicon ara és gratuït – i hi ha una Màquina del Temps.
-
-• Gratuït de descarregar, gratuït de jugar. Tot el cicle de dissenyar → llançar → llegir el mercat → reinvertir, les eres del Garatge i del Creixement de cap a cap, dos escenaris i un repte nou cada dia. Encara sense anuncis, sense temporitzadors, sense energia, sense monedes i sense caixes de botí. Això no canviarà mai.
-• Silicon Pro, si vols la resta: les eres de la Plataforma i de la IA, tots els escenaris, Nova partida+ i l'escala d'Ascensió, la Divisió de Plataforma, el mode Creatiu, la Cambra, el Museu de Dispositius, la Mestria de Categoria i la teva Llegenda de Fundador. Mensual o anual amb prova gratuïta, o Pro Lifetime si prefereixes comprar una vegada i prou.
-• La Màquina del Temps. Pro desa discretament l'estat de la teva empresa cada trimestre i en conserva els cinc darrers. Un llançament catastròfic, un any contractant de més, una fàbrica comprada en el pitjor moment: rebobina i pren l'altre camí. Només a la campanya: els escenaris i els reptes continuen puntuant-se amb les seves pròpies regles.
-• Ja has comprat Silicon? És teu per sempre. Qui va pagar per l'app abans que fos gratuïta es reconeix automàticament i rep l'estat de Propietari Fundador: tot Pro, de manera permanent i sense cap cost addicional. El mode Creatiu comprat a part també continua sent teu.
-• Res del que puguis comprar no canvia la simulació al teu favor. Pro desbloqueja contingut i modes, mai un avantatge dins d'una partida.
-
-En començar, una breu pregunta de fundació et demana ara què has vingut a construir, i el joc hi arrenca.
+La versió 1.4.0 renova l’oficina i millora els controls de la fàbrica, els dissenys desats, la visualització del progrés de la recerca i la recuperació de partides.

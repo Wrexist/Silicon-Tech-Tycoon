@@ -1,0 +1,83 @@
+name: Store media
+on:
+  workflow_dispatch:
+    inputs:
+      screenshot_run_id:
+        description: Reuse reviewed screenshots from this media artifact run; recapture preview only
+        required: false
+        type: string
+  pull_request:
+    paths:
+      - scripts/store-media-1.4.mjs
+      - scripts/encode-store-preview.mjs
+      - scripts/stage-showcase.mjs
+      - .github/workflows/store-media.yml
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: store-media-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run shots:stage:showcase
+      - run: npx playwright-core install --with-deps chromium
+      - name: Install preview encoder
+        run: sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+      - name: Capture all store screenshots
+        if: ${{ inputs.screenshot_run_id == '' }}
+        run: node scripts/store-media-1.4.mjs
+      - name: Reuse reviewed screenshots
+        if: ${{ inputs.screenshot_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: silicon-store-media-1.4.0
+          path: appstore/release-1.4.0
+          run-id: ${{ inputs.screenshot_run_id }}
+          github-token: ${{ github.token }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: silicon-store-screenshots-1.4.0
+          path: |
+            appstore/release-1.4.0/iphone/
+            appstore/release-1.4.0/ipad/
+            appstore/release-1.4.0/capture-report.json
+      - name: Capture real gameplay video
+        env:
+          MEDIA_VIDEO: '1'
+          MEDIA_VIDEO_ONLY: '1'
+          MEDIA_DEVICES: iphone
+          MEDIA_ONLY: office,factory,design,research,company
+        run: node scripts/store-media-1.4.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: silicon-preview-source-frames
+          path: appstore/release-1.4.0/preview-frames/
+          retention-days: 7
+      - name: Encode App Store preview
+        run: node scripts/encode-store-preview.mjs
+      - name: Verify preview encoding
+        run: ffprobe -v error -show_streams -show_format -of json appstore/release-1.4.0/preview/Silicon-1.4.0-iPhone.mp4 > appstore/release-1.4.0/preview/ffprobe.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: silicon-store-media-1.4.0
+          path: |
+            appstore/release-1.4.0/iphone/
+            appstore/release-1.4.0/ipad/
+            appstore/release-1.4.0/preview/
+            appstore/release-1.4.0/capture-report.json
+          if-no-files-found: warn

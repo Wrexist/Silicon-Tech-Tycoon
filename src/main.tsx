@@ -7,7 +7,7 @@ import { App } from "./App.tsx";
 import { initSettings, resolvedTheme } from "./state/settings.ts";
 import { initUiVersion } from "./state/uiVersion.ts";
 import { initNative } from "./native.ts";
-import { hydrateFromNative } from "./state/nativeStore.ts";
+import { hydrateFromNative, markNativeBootRead } from "./state/nativeStore.ts";
 import { refreshDailyReminders } from "./state/notifications.ts";
 import { stampFirstLaunch } from "./state/paywall.ts";
 
@@ -22,6 +22,7 @@ async function boot(): Promise<void> {
     new Promise<void>((resolve) => setTimeout(resolve, 1200)),
   ]);
 
+  markNativeBootRead();
   initSettings();
   // Which chrome the app renders. Must run before React mounts so the first paint is already
   // on the correct version — flipping after mount would flash the classic shell first.

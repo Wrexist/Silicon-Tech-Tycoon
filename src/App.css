@@ -56,9 +56,10 @@
   margin: var(--sp-4) 0 var(--sp-12);
 }
 .app__spacer {
-  /* Clears the fixed bottom chrome. 96px only cleared the tab bar, so the floating speed dial
-     (which sits ~72–140px up, bottom-left) covered the last card's text on every scroll screen. */
-  height: calc(152px + env(safe-area-inset-bottom));
+  /* Clears the fixed bottom chrome — the same `--bottom-chrome` band the SpeedDial lives in and the
+     toast lane stacks above (design/tokens.css). 96px only cleared the tab bar, so the floating
+     speed dial covered the last card's text on every scroll screen. */
+  height: calc(var(--bottom-chrome) + env(safe-area-inset-bottom));
 }
 
 /* Onboarding */
@@ -1109,3 +1110,6 @@
 /* Wave 1a/1b: the shell owns the title when the new UI is on, so Settings' own heading stands down
    in page mode. The classic Settings sheet portals to <body> and is unaffected. */
 .app--next .set__title { display: none; }
+
+.app__save-notice { display: flex; flex-wrap: wrap; gap: var(--sp-8); padding: var(--sp-12); margin-block: var(--sp-8); background: var(--surface); color: var(--ink); border: 1px solid var(--hairline); border-radius: var(--r-button); }
+.app__save-notice button { color: var(--accent); background: transparent; border: 0; min-height: 44px; cursor: pointer; font: inherit; }

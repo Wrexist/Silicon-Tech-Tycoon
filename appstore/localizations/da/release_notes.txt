@@ -1,9 +1,1 @@
-Silicon er nu gratis at spille – og der er en Tidsmaskine.
-
-• Gratis at hente, gratis at spille. Hele løkken designe → lancere → læse markedet → geninvestere, Garage- og Vækstæraen fra start til slut, to scenarier og en ny udfordring hver eneste dag. Stadig ingen reklamer, ingen timere, ingen energi, ingen valutaer, ingen loot boxes. Den del ændrer sig aldrig.
-• Silicon Pro, hvis du vil have resten: Platform- og AI-æraen, alle scenarier, New Game+ og Ascension-stigen, Platformsdivisionen, Kreativ tilstand, Boksen, Enhedsmuseet, Kategorimesterskab og din Grundlæggerlegende. Månedligt eller årligt med gratis prøveperiode, eller Pro Lifetime hvis du hellere vil købe én gang og være færdig.
-• Tidsmaskinen. Pro tager stille et øjebliksbillede af din virksomhed hvert kvartal og gemmer de fem seneste. En katastrofal lancering, et år med for mange ansættelser, en fabrik købt på det forkerte tidspunkt – spol tilbage og tag den anden vej. Kun i kampagnen: scenarier og udfordringer bedømmes fortsat på deres egne præmisser.
-• Har du allerede købt Silicon? Det er dit for altid. Alle, der betalte for appen, før den blev gratis, genkendes automatisk og får status som Grundlæggerejer – hele Pro, permanent, uden yderligere omkostninger. Den separat købte Kreative tilstand forbliver også din.
-• Intet, du kan købe, ændrer simulationen til din fordel. Pro låser op for indhold og tilstande, aldrig en fordel inde i et gennemspil.
-
-Ved start spørger en grundlæggerbriefing nu, hvad du er her for at bygge, og spillet fører med det.
+Version 1.4.0 giver kontoret et nyt design og forbedrer fabriksstyring, gemte designs, visning af forskningsfremskridt og gendannelse af gemte spil.

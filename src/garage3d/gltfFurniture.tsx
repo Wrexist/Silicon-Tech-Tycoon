@@ -10,6 +10,42 @@ import { useMemo, type ReactNode } from "react";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import type { ModelAsset } from "./furnitureModels.ts";
+import { surfaceAnchorY } from "./furnitureModels.ts";
+import { desaturatedColor } from "./palette.ts";
+import { catalogFinish } from "./furnitureFinish.ts";
+import { publishSeatSurface } from "./seatAnchors.ts";
+import { applyMaterialFamily } from "./materialFamilies.ts";
+
+// ---- Material identity for the fitted glTF catalog --------------------------------------------------
+// The Kenney models ship with baked, saturated paint. Instead of one blanket desaturation, each
+// material is mapped BY NAME to a MATERIAL FAMILY (see materialFamilies.ts) that keeps the source
+// hue/value at the family's saturation budget and sets its roughness/metalness — so wood, painted
+// metal, fabric and foliage stay distinguishable by touch as well as tone. Shared between clones, and
+// a WeakSet stops the pass compounding on models that mount more than once. No new materials.
+const familyApplied = new WeakSet<THREE.Material>();
+
+function applyFamilies(root: THREE.Object3D, asset: ModelAsset): void {
+  const tint=asset.tint;
+  const blend = tint ? new THREE.Color(tint.color) : null;
+  root.traverse((o) => {
+    const mesh = o as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    for (const mat of mats) {
+      if (!mat || familyApplied.has(mat)) continue;
+      familyApplied.add(mat);
+      const family = applyMaterialFamily(mat as THREE.MeshStandardMaterial, desaturatedColor);
+      // Optional per-asset finish: blend the family's colour toward the piece's tint. The family
+      // pass is shared (a WeakSet), so a tint only ever reaches materials this asset introduced.
+      const std = mat as THREE.MeshStandardMaterial;
+      const finish=catalogFinish(mat.name,asset.url);
+      if(finish && std.color)std.color.set(finish);
+      if (blend && std.color && (!tint!.families || tint!.families.includes(family))) {
+        std.color.lerp(blend, tint!.amount);
+      }
+    }
+  });
+}
 
 function resolveUrl(url: string): string {
   if (/^(https?:)?\/\//.test(url) || url.startsWith("data:")) return url;
@@ -27,6 +63,7 @@ export default function GltfFurniture({
   footprintW,
   footprintD,
   children,
+  dressing,
 }: {
   asset: ModelAsset;
   // grid footprint of the item in metres (w*GRID.cell, d*GRID.cell)
@@ -35,6 +72,9 @@ export default function GltfFurniture({
   /** Rendered at the model's fitted TOP surface — for desk-top kit (monitor, keyboard) that has to
    *  sit on a model whose real height is only known once it's measured and scaled. */
   children?: ReactNode;
+  /** Rendered at the model's fitted LOCAL origin with the fitted height in metres — for dressing
+   *  that lives at heights INSIDE the model (books on a bookcase's shelves). */
+  dressing?: (height: number) => ReactNode;
 }) {
   const { scene } = useGLTF(resolveUrl(asset.url));
 
@@ -42,6 +82,8 @@ export default function GltfFurniture({
   // when the asset or its placement size changes.
   const object = useMemo(() => {
     const clone = scene.clone(true);
+    // Keep the source family response, then match the catalog's intrinsic finish tokens.
+    applyFamilies(clone, asset);
 
     // Measure the raw model.
     const box = new THREE.Box3().setFromObject(clone);
@@ -78,17 +120,23 @@ export default function GltfFurniture({
     return wrapper;
   }, [scene, footprintW, footprintD]);
 
-  // Fitted height of the piece, so callers can put things ON it (the desk-top kit).
+  // Fitted height of the piece (the model's own top), so shelf dressing can size itself.
   const topY = useMemo(() => {
     const box = new THREE.Box3().setFromObject(object);
+    if(asset.seatSurfaceFraction !== undefined)publishSeatSurface(asset.url,box.max.y*asset.seatSurfaceFraction*(asset.scale??1)+(asset.offset?.[1]??0));
     return box.max.y;
   }, [object]);
+
+  // Desk-top kit rests on the declared SURFACE, not the model's bbox top (which a taller part —
+  // screen, rail, shelf — would push too high). Falls back to the measured top for bare pieces.
+  const anchorY = surfaceAnchorY(asset, topY);
 
   const [ox, oy, oz] = asset.offset ?? [0, 0, 0];
   return (
     <group position={[ox, oy, oz]} rotation-y={asset.yaw ?? 0} scale={asset.scale ?? 1}>
       <primitive object={object} />
-      {children != null && <group position={[0, topY, 0]}>{children}</group>}
+      {dressing != null && <group>{dressing(topY)}</group>}
+      {children != null && <group position={[0, anchorY, 0]}>{children}</group>}
     </group>
   );
 }

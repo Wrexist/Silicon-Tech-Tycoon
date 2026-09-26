@@ -1,9 +1,1 @@
-Silicon ora è gratis – e c'è una Macchina del Tempo.
-
-• Gratis da scaricare, gratis da giocare. Tutto il ciclo progetta → lancia → leggi il mercato → reinvesti, le ere del Garage e della Crescita dall'inizio alla fine, due scenari e una sfida nuova ogni giorno. Ancora nessuna pubblicità, nessun timer, nessuna energia, nessuna valuta, nessuna loot box. Quello non cambierà mai.
-• Silicon Pro, se vuoi il resto: le ere della Piattaforma e dell'IA, tutti gli scenari, Nuova partita+ e la scala dell'Ascensione, la Divisione Piattaforma, la modalità Creativa, il Caveau, il Museo dei Dispositivi, la Maestria di Categoria e la tua Leggenda di Fondatore. Mensile o annuale con prova gratuita, oppure Pro Lifetime se preferisci comprare una volta e basta.
-• La Macchina del Tempo. Pro salva silenziosamente la tua azienda ogni trimestre e ne conserva gli ultimi cinque stati. Un lancio disastroso, un anno di assunzioni di troppo, una fabbrica comprata al momento sbagliato: riavvolgi e prendi l'altra strada. Solo in campagna: scenari e sfide restano valutati secondo le loro regole.
-• Hai già comprato Silicon? È tuo per sempre. Chi ha pagato l'app prima che diventasse gratuita viene riconosciuto automaticamente e riceve lo stato di Proprietario Fondatore: tutto Pro, per sempre, senza altri costi. Anche la modalità Creativa acquistata a parte resta tua.
-• Niente di ciò che puoi comprare cambia la simulazione a tuo favore. Pro sblocca contenuti e modalità, mai un vantaggio dentro una partita.
-
-All'avvio un briefing di fondazione ti chiede ora che cosa sei venuto a costruire, e il gioco parte da lì.
+La versione 1.4.0 rinnova l’ufficio e migliora i comandi della fabbrica, i progetti salvati, la visualizzazione dei progressi della ricerca e il recupero dei salvataggi.

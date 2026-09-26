@@ -1,8 +1,8 @@
 // Front-on robot portrait for the roster — the team are friendly mascot robots, never humans.
 // Same identity (Appearance + mood) as the isometric office figure and the 3D robots, drawn larger
 // so personality reads: a rounded chassis head, dark face-screen visor with glowing eyes whose
-// shape tracks mood, an antenna with a mood-coloured tip, and bolt-on modules from `accessory`.
-// Pure SVG (zero image assets).
+// shape tracks mood, and an antenna with a mood-coloured tip. Pure SVG (zero image assets).
+import { useId } from "react";
 import { MOOD_COLOR, moodBand } from "../engine/staff.ts";
 import type { Appearance } from "../engine/types.ts";
 import { eyeShapeFor, robotLook, shade } from "./robotKit.ts";
@@ -12,7 +12,7 @@ export function Avatar({ appearance, mood, size = 44 }: { appearance: Appearance
   const band = moodBand(mood);
   const moodCol = MOOD_COLOR[band];
   const eyes = eyeShapeFor(band);
-  const id = `rb${look.body.slice(1)}${look.headStyle}${look.accessory}`;
+  const id = useId().replace(/[^a-zA-Z0-9_-]/g, "");
 
   const cx = 22;
   const headCy = 18;
@@ -60,17 +60,6 @@ export function Avatar({ appearance, mood, size = 44 }: { appearance: Appearance
         <rect x={visorX + 1} y={visorY + 1} width={visorW - 2} height={2.4} rx={1.2} fill="#ffffff" opacity={0.08} />
         {/* glowing eyes by mood */}
         <RobotEyes shape={eyes} cx={cx} eyeY={eyeY} dx={eyeDX} glow={eyeGlow} accent={moodCol} />
-
-        {/* bolt-on modules */}
-        <RobotModule
-          accessory={look.accessory}
-          cx={cx}
-          headCy={headCy}
-          visorY={visorY}
-          visorH={visorH}
-          metal={look.metal}
-          trim={look.trim}
-        />
       </g>
       {/* mood ring */}
       <circle cx={22} cy={22} r={21} fill="none" stroke={moodCol} strokeWidth={2.5} />
@@ -157,59 +146,4 @@ function RobotEyes({ shape, cx, eyeY, dx, glow, accent }: { shape: ReturnType<ty
       <ellipse cx={cx + dx} cy={eyeY} rx={1.8} ry={ry} />
     </g>
   );
-}
-
-/** Bolt-on modules, reinterpreting the stored accessory as robot hardware. */
-function RobotModule({
-  accessory, cx, headCy, visorY, visorH, metal, trim,
-}: {
-  accessory: Appearance["accessory"];
-  cx: number; headCy: number; visorY: number; visorH: number; metal: string; trim: string;
-}) {
-  if (accessory === "glasses") {
-    // goggle rings framing the eyes
-    const eyeY = visorY + visorH / 2;
-    return (
-      <g stroke={trim} strokeWidth={1} fill="none" opacity={0.9}>
-        <circle cx={cx - 4.4} cy={eyeY} r={3.2} />
-        <circle cx={cx + 4.4} cy={eyeY} r={3.2} />
-        <line x1={cx - 1.2} y1={eyeY} x2={cx + 1.2} y2={eyeY} />
-      </g>
-    );
-  }
-  if (accessory === "headphones") {
-    // side audio cans + headband
-    return (
-      <g>
-        <path d={`M ${cx - 12.5} ${headCy} Q ${cx} ${headCy - 16} ${cx + 12.5} ${headCy}`} stroke={metal} strokeWidth={2.4} fill="none" />
-        <rect x={cx - 15.5} y={headCy - 3} width={5} height={9} rx={2.4} fill={metal} />
-        <rect x={cx + 10.5} y={headCy - 3} width={5} height={9} rx={2.4} fill={metal} />
-        <circle cx={cx - 13} cy={headCy + 1.5} r={1} fill={trim} />
-        <circle cx={cx + 13} cy={headCy + 1.5} r={1} fill={trim} />
-      </g>
-    );
-  }
-  if (accessory === "cap") {
-    // top plate visor
-    return <rect x={cx - 12} y={headCy - 11} width={24} height={5} rx={4} fill={metal} opacity={0.9} />;
-  }
-  if (accessory === "beanie") {
-    // dome cap
-    return (
-      <g>
-        <path d={`M ${cx - 12} ${headCy - 6} Q ${cx} ${headCy - 18} ${cx + 12} ${headCy - 6} Z`} fill={metal} opacity={0.9} />
-        <rect x={cx - 12} y={headCy - 7.5} width={24} height={2.6} rx={1.3} fill="#ffffff" opacity={0.16} />
-      </g>
-    );
-  }
-  if (accessory === "earrings") {
-    // stud bolts low on the head sides
-    return (
-      <g fill={trim}>
-        <circle cx={cx - 11.5} cy={headCy + 6} r={1.4} />
-        <circle cx={cx + 11.5} cy={headCy + 6} r={1.4} />
-      </g>
-    );
-  }
-  return null;
 }

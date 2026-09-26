@@ -1,3 +1,4 @@
+import { validFactoryPlacement } from "../engine/factoryValidation.ts";
 // localStorage persistence with schema versioning + migration. The save is the
 // player's company — never wipe it on an unknown-but-recoverable shape.
 import { makeRng } from "../engine/rng.ts";
@@ -12,7 +13,8 @@ import { toDollars } from "../engine/money.ts";
 import { deriveFacts, evaluateAchievements } from "../engine/achievements.ts";
 import { satisfiedObjectiveIds } from "../engine/objectives.ts";
 import { showToast } from "../design/toast.tsx";
-import { mirrorToNative } from "./nativeStore.ts";
+import { mirrorToNative, nativeSaveWritable } from "./nativeStore.ts";
+import { setSaveIssue } from "./saveHealth.ts";
 
 function hashId(id: string): number {
   let h = 2166136261;
@@ -33,27 +35,44 @@ export type LoadResult =
   | { status: "ok"; state: GameState };
 
 let quotaWarned = false;
+let protectedRaw: string | null = null;
+let readBlocked = false;
 
 /**
  * F3 — quota-safe save. On a QuotaExceededError, retry with a trimmed copy (drop the heavy
- * cashHistory + cap launched/feed). If even that fails, surface a one-time non-fatal signal so
- * the player knows progress may not persist — vs. silent data loss on iOS/WKWebView. Non-quota
- * errors (private mode, storage disabled) stay silent; the in-memory game continues.
+ * cosmetic feed only). If even that fails, surface a one-time non-fatal signal so
+ * the player knows progress may not persist — vs. silent data loss on iOS/WKWebView. Other write failures also remain visible in the save-health notice.
  */
-export function save(state: GameState): void {
+/** Returns local persistence success; native backup completion is reported separately. */
+export function save(state: GameState): boolean {
+  if (readBlocked || !nativeSaveWritable()) {
+    setSaveIssue("write", "Device save recovery is not finished. Saving is paused; reload or export the current session in Settings.");
+    return false;
+  }
+  if (protectedRaw !== null) {
+    setSaveIssue("recovery", "An unreadable company is protected. Open Settings to export it before saving a new company.");
+    return false;
+  }
   const write = (s: GameState) => {
     const json = JSON.stringify(s);
     localStorage.setItem(KEY, json);
     // Durable copy on native (WKWebView localStorage is OS-evictable). Fire-and-forget.
-    mirrorToNative(KEY, json);
+    void mirrorToNative(KEY, json);
+    setSaveIssue("write", "");
   };
   try {
     write(state);
+    return true;
   } catch (e) {
-    if (!isQuotaError(e)) return; // storage unavailable — fail silent, in-memory game continues
+    if (!isQuotaError(e)) {
+      setSaveIssue("write", "Progress could not be saved. Retry in Settings or export your company before closing.");
+      return false;
+    }
     try {
       write(trimState(state));
+      return true;
     } catch {
+      setSaveIssue("write", "Storage is full. Progress could not be saved; export your company in Settings.");
       if (!quotaWarned) {
         quotaWarned = true;
         try {
@@ -64,16 +83,15 @@ export function save(state: GameState): void {
         }
         console.warn("[silicon] Save failed: storage quota exceeded. Progress may not persist.");
       }
+      return false;
     }
   }
 }
 
-/** Trimmed save: drop the heaviest, least-critical fields so a near-full quota still fits. */
+/** Trimmed save: compact cosmetic feed without changing gameplay history so a near-full quota still fits. */
 function trimState(state: GameState): GameState {
   return {
     ...state,
-    cashHistory: state.cashHistory.slice(-1),
-    launched: state.launched.slice(0, 12),
     feed: state.feed.slice(-20),
   };
 }
@@ -102,8 +120,10 @@ export function loadResult(): LoadResult {
   try {
     raw = localStorage.getItem(KEY);
   } catch {
-    // Storage unavailable: report absent so the game still runs, but never claim a readable save.
-    return { status: "absent" };
+    // An inaccessible slot is not an empty slot. Do not overwrite an unknown company.
+    readBlocked = true;
+    setSaveIssue("recovery", "Saved data could not be read. Reload when storage is available; saving is paused to protect your company.");
+    return { status: "unreadable" };
   }
   if (raw === null) return { status: "absent" };
 
@@ -115,13 +135,51 @@ export function loadResult(): LoadResult {
   }
   if (migrated) return { status: "ok", state: migrated };
 
-  // Present but unreadable: preserve the raw bytes before the caller starts a new game.
+  // Keep the first recovery copy. Never overwrite another unreadable company to make room.
+  protectedRaw = raw;
   try {
-    localStorage.setItem(BACKUP_KEY, raw);
-  } catch {
-    /* best-effort backup */
-  }
+    const previous = localStorage.getItem(BACKUP_KEY);
+    if (previous === null || previous === raw) {
+      localStorage.setItem(BACKUP_KEY, raw);
+      void mirrorToNative(BACKUP_KEY, raw).then((ok) => {
+        if (ok && protectedRaw === raw) {
+          protectedRaw = null;
+          setSaveIssue("recovery", "An earlier company could not be opened. Its recovery copy is available in Settings.");
+        }
+      });
+    }
+  } catch { /* keep the primary bytes protected from autosave */ }
+  setSaveIssue("recovery", protectedRaw === null
+    ? "An earlier company could not be opened. Its recovery copy is available in Settings."
+    : "An unreadable company is protected. Open Settings to export it before saving a new company.");
   return { status: "unreadable" };
+}
+
+/** Raw bytes remain exportable even when this version cannot migrate them. */
+export function recoveryCopies(): { id: "backup" | "protected"; data: string }[] {
+  const copies: { id: "backup" | "protected"; data: string }[] = [];
+  try {
+    const raw = localStorage.getItem(BACKUP_KEY);
+    if (raw !== null) copies.push({ id: "backup", data: EXPORT_PREFIX + toBase64(raw) });
+  } catch { /* a protected in-memory copy can still be exported */ }
+  if (protectedRaw !== null) copies.push({ id: "protected", data: EXPORT_PREFIX + toBase64(protectedRaw) });
+  return copies;
+}
+
+export function continueWithPreservedRecovery(): boolean {
+  if (readBlocked || protectedRaw !== null || !nativeSaveWritable()) return false;
+  setSaveIssue("recovery", "");
+  return true;
+}
+
+/** Explicit user decision after exporting; never called by autosave/import/restart. */
+export async function discardRecoveryCopies(): Promise<boolean> {
+  // Native deletion must finish before unblocking writes to the primary native save.
+  if (!await mirrorToNative(BACKUP_KEY, null)) return false;
+  try { localStorage.removeItem(BACKUP_KEY); } catch { return false; }
+  protectedRaw = null;
+  setSaveIssue("recovery", "");
+  return true;
 }
 
 /**
@@ -734,7 +792,7 @@ function migrate(state: GameState): GameState | null {
   const cleanMachines = (list: unknown): FactoryFloor["machines"] =>
     (Array.isArray(list) ? list : []).filter(
       (m): m is FactoryFloor["machines"][number] =>
-        !!m && typeof m.id === "string" && typeof m.kind === "string" && m.kind in MACHINE_DEFS && finite(m.c) && finite(m.r),
+        !!m && typeof m.id === "string" && typeof m.kind === "string" && Object.hasOwn(MACHINE_DEFS, m.kind) && finite(m.c) && finite(m.r),
     ).map((m) => {
       if (m.level === undefined) return { ...m };
       const level = finite(m.level) ? Math.max(1, Math.min(MACHINE_MAX_LEVEL, Math.floor(m.level))) : 1;
@@ -747,7 +805,7 @@ function migrate(state: GameState): GameState | null {
     ).map((b) => ({ ...b }));
   const cleanProps = (list: unknown): PlacedProp[] =>
     (Array.isArray(list) ? list : []).filter(
-      (p): p is PlacedProp => !!p && typeof p.id === "string" && typeof p.kind === "string" && p.kind in PROP_DEFS && finite(p.c) && finite(p.r),
+      (p): p is PlacedProp => !!p && typeof p.id === "string" && typeof p.kind === "string" && Object.hasOwn(PROP_DEFS, p.kind) && finite(p.c) && finite(p.r),
     ).map((p) => ({ ...p }));
   if (!s.factoryFloor || !Array.isArray(s.factoryFloor.machines) || !Array.isArray(s.factoryFloor.belts)) {
     s.factoryFloor = starterFloor();
@@ -778,21 +836,21 @@ function migrate(state: GameState): GameState | null {
       savedWeek: finite(l.savedWeek) ? l.savedWeek : 0,
     }));
   // Monotonic id source — start past the largest existing "layout-N" so a re-save never collides.
-  if (typeof s.factoryLayoutCounter !== "number" || !Number.isFinite(s.factoryLayoutCounter)) {
+  {
     s.factoryLayoutCounter = s.factoryLayouts.reduce((m: number, l: { id?: string }) => {
       const n = parseInt(String(l.id ?? "").replace(/\D/g, ""), 10);
-      return Number.isFinite(n) ? Math.max(m, n + 1) : m;
-    }, s.factoryLayouts.length);
+      return Number.isSafeInteger(n + 1) ? Math.max(m, n + 1) : m;
+    }, Number.isSafeInteger(s.factoryLayoutCounter) ? Math.max(0, s.factoryLayoutCounter) : 0);
   }
   // Monotonic id source for machines + props — seeded past the largest trailing "-N" ever minted
   // (including ids frozen inside saved layouts, which can be re-applied) so a new buy can never
   // collide with an existing piece. Pre-counter saves derived ids from array length.
-  if (typeof s.factoryPieceCounter !== "number" || !Number.isFinite(s.factoryPieceCounter)) {
+  {
     const tail = (id: unknown): number => {
       const n = parseInt(String(id ?? "").split("-").pop() ?? "", 10);
-      return Number.isFinite(n) ? n + 1 : 0;
+      return Number.isSafeInteger(n + 1) ? n + 1 : 0;
     };
-    let seed = 0;
+    let seed = Number.isSafeInteger(s.factoryPieceCounter) ? Math.max(0, s.factoryPieceCounter) : 0;
     for (const m of s.factoryFloor.machines) seed = Math.max(seed, tail(m.id));
     for (const p of s.factoryProps) seed = Math.max(seed, tail(p.id));
     for (const l of s.factoryLayouts as { floor: { machines: { id?: string }[] }; props: { id?: string }[] }[]) {
@@ -801,6 +859,19 @@ function migrate(state: GameState): GameState | null {
     }
     s.factoryPieceCounter = seed;
   }
+  if (!validFactoryPlacement(s.factoryFloor, s.factoryProps, s.factoryExpansion)) return null;
+  const layoutIds = new Set<string>();
+  if (s.factoryLayouts.length > 6) return null;
+  for (const l of s.factoryLayouts) {
+    if (layoutIds.has(l.id) || !validFactoryPlacement(l.floor, l.props, l.expansion)) return null;
+    layoutIds.add(l.id);
+    l.name = l.name.trim().slice(0, 24) || "Saved layout";
+  }
+  const palette = (n: unknown, length: number) => Number.isSafeInteger(n) && Number(n) >= 0 && Number(n) < length ? Number(n) : 0;
+  s.factoryDecor = { wall: palette(s.factoryDecor.wall, 6), floor: palette(s.factoryDecor.floor, 5) };
+  for (const l of s.factoryLayouts) l.decor = { wall: palette(l.decor.wall, 6), floor: palette(l.decor.floor, 5) };
+  if (!Number.isSafeInteger(s.factoryEditCash)) s.factoryEditCash = 0;
+  if (!Number.isSafeInteger(s.officeEditCash)) s.officeEditCash = 0;
   // Side orders (v111): drop malformed offers/actives from imports — a NaN feePerUnit would
   // otherwise ride units×fee straight into the wallet.
   const soOk = (o: unknown): boolean => {
@@ -814,6 +885,10 @@ function migrate(state: GameState): GameState | null {
   if (s.pendingSideOrder != null && !(soOk(s.pendingSideOrder) && Number.isFinite((s.pendingSideOrder as { expiresWeek?: number }).expiresWeek))) s.pendingSideOrder = null;
   if (s.activeSideOrder != null && !(soOk(s.activeSideOrder) && Number.isFinite((s.activeSideOrder as { startedWeek?: number }).startedWeek))) s.activeSideOrder = null;
 
+  if (s.activeSideOrder?.completedWeeks !== undefined) {
+    const n = s.activeSideOrder.completedWeeks;
+    s.activeSideOrder.completedWeeks = Number.isSafeInteger(n) ? Math.max(0, Math.min(s.activeSideOrder.weeksNeeded, n)) : 0;
+  }
   // Contract board (added later) — default to an empty board, and scrub malformed entries so a corrupt
   // reward can never NaN the wallet on claim. The board refills deterministically on the next tick.
   s.contracts = (Array.isArray(s.contracts) ? s.contracts : []).filter((c: unknown) => {
@@ -842,12 +917,11 @@ function migrate(state: GameState): GameState | null {
   }
 
   if (typeof s.bankrupt !== "boolean") s.bankrupt = false;
-  if (typeof s.furnitureCounter !== "number") {
-    s.furnitureCounter = s.layout.reduce((m: number, it: { iid?: string }) => {
-      const n = parseInt(String(it.iid ?? "").replace(/\D/g, ""), 10);
-      return Number.isFinite(n) ? Math.max(m, n + 1) : m;
-    }, 20);
-  }
+  s.furnitureCounter = s.layout.reduce((m: number, it: { iid?: string }) => {
+    const match = /^f(\d+)$/.exec(String(it.iid ?? ""));
+    const next = match ? Number(match[1]) + 1 : 0;
+    return Number.isSafeInteger(next) ? Math.max(m, next) : m;
+  }, Number.isSafeInteger(s.furnitureCounter) && s.furnitureCounter >= 0 ? s.furnitureCounter : 20);
   // v17: desks are seats — hiring is desk-gated and robots sit at PLACED desks. Saves from the
   // auto-workstation era may own fewer desks than employees: grant the missing desks at free
   // cells so nobody loses a hire they already paid for. If the room is genuinely full the

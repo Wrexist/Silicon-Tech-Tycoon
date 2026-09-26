@@ -1,10 +1,11 @@
+import { researchEraView } from "../state/researchView.ts";
 import { useState } from "react";
-import { Check, ChevronRight, Clock, FlaskConical, Lightbulb, Lock, MapPin, Rocket, TriangleAlert, Users } from "lucide-react";
+import { Check, ChevronRight, Clock, FlaskConical, Lock, MapPin, Rocket, TriangleAlert, Users } from "lucide-react";
 import { Button, Card, SectionHeader } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { ComponentIcon } from "../design/icons.tsx";
-import { CircuitMotif } from "../design/CircuitMotif.tsx";
+import { GameArt } from "../design/management.tsx";
 import type { Tab } from "../components/BottomNav.tsx";
 import { AnimatedInt } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
@@ -15,7 +16,7 @@ import { RESEARCH_PROJECTS, forkLockedBy, prereqsMissing, projectById } from "..
 import { MOONSHOTS, moonshotCooldownLeft, moonshotRefund, type Moonshot } from "../engine/moonshots.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
 import { FINISH_ORDER, STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
-import { KEYNOTE_FANS, KEYNOTE_REP, KEYNOTE_RP_COST, moonshotAttemptable, rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost, eurekaInsight, researchQueueFull, tierResearchStatus, projectResearchStatus, type ResearchSlotStatus } from "../state/gameState.ts";
+import { KEYNOTE_FANS, KEYNOTE_REP, KEYNOTE_RP_COST, moonshotAttemptable, rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost, eurekaInsight, researchQueueFull, researchWeeksFor, tierResearchStatus, projectResearchStatus, type ResearchSlotStatus } from "../state/gameState.ts";
 import { ResearchProgress } from "../components/ResearchProgress.tsx";
 import { useGame } from "../state/useGame.tsx";
 import "./research.css";
@@ -144,9 +145,10 @@ function ResearchAction({ status, cost, affordable, queueFull, weeksAway, onStar
   return (
     <>
       <Button size="sm" variant={affordable && !queueFull ? "primary" : "tertiary"} disabled={!affordable || queueFull} haptics="none" onClick={onStart}>
-        {queueFull ? "Queue full" : cost !== null ? `${cost} RP` : "—"}
+        {cost !== null ? `${cost} RP` : "—"}
       </Button>
-      {!queueFull && !affordable && weeksAway != null && <span className="rd__weeks-away">~{weeksAway}wk</span>}
+      {cost !== null && <span className="rd__weeks-away">{researchWeeksFor(cost)} weeks{queueFull ? " - queue full" : ""}</span>}
+      {!queueFull && !affordable && weeksAway != null && <span className="rd__weeks-away">~{weeksAway}wk to save</span>}
     </>
   );
 }
@@ -271,8 +273,9 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
   const nextGoal = RESEARCH_PROJECTS
     .filter((p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp < p.rpCost && !forkLockedBy(state.completedProjects, p.id) && prereqsMissing(state.completedProjects, p.id).length === 0)
     .sort((a, b) => a.rpCost - b.rpCost)[0] ?? null;
-  const goalPct = nextGoal ? Math.min(100, Math.round((rp / nextGoal.rpCost) * 100)) : 0;
-  const goalWeeks = nextGoal && perWeek > 0 ? Math.ceil((nextGoal.rpCost - rp) / perWeek) : null;
+  const pendingRefs = new Set([state.activeResearch?.ref, ...(state.researchQueue ?? []).map((q) => q.ref)]);
+  const availableProjects = RESEARCH_PROJECTS.filter((p) => p.era <= state.era && !state.completedProjects.includes(p.id) && !pendingRefs.has(p.id) && !forkLockedBy(state.completedProjects, p.id) && prereqsMissing(state.completedProjects, p.id).length === 0);
+
 
   return (
     <div className="rd">
@@ -281,89 +284,19 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         <p className="rd__subtitle">Spend Research Points to unlock new tech and abilities.</p>
         <span className="rd__era-badge"><FlaskConical size={13} aria-hidden /> {eraName(state.era)}</span>
       </div>
-      {/* Active research — the hero when the lab is developing something (a filling progress ring). */}
-      {state.activeResearch && (
-        <Card className="rd__active">
-          <ResearchProgress research={state.activeResearch} />
-        </Card>
-      )}
-      {/* RP banner */}
-      <Card className="rd__bank">
-        <div className="rd__bank-backdrop" aria-hidden>
-          <span className="rd__bank-glow" />
-          <span className="rd__bank-grid" />
-          <CircuitMotif className="rd__bank-circuit" />
-        </div>
-        <div className="rd__bank-main">
-          <FlaskConical size={22} style={{ color: "var(--fn-eng)", flexShrink: 0 }} />
-          <div>
-            <div className="rd__bank-value tnum" style={{ color: "var(--fn-eng)" }}><AnimatedInt value={rp} /> RP</div>
-            <div className="rd__bank-sub">+{perWeek.toFixed(1)}/wk</div>
-          </div>
-          {(() => {
-            const buyableNow = RESEARCH_PROJECTS.filter(
-              (p) => p.era <= state.era && !state.completedProjects.includes(p.id) && rp >= p.rpCost && !forkLockedBy(state.completedProjects, p.id) && prereqsMissing(state.completedProjects, p.id).length === 0,
-            ).length;
-            if (buyableNow === 0) return null;
-            return (
-              <span className="rd__bank-ready">
-                <Check size={10} strokeWidth={3} /> {buyableNow} unlock{buyableNow > 1 ? "s" : ""} ready
-              </span>
-            );
-          })()}
-        </div>
-        {perWeek === 0 ? (
-          <div className="rd__bank-cta">
-            <p className="rd__bank-hint">No R&amp;D output yet. Assign staff to the R&amp;D task to start earning Research Points.</p>
-            {onNavigate && (
-              <Button size="sm" variant="secondary" onClick={() => onNavigate("company")}>
-                <Users size={14} /> Manage team
-              </Button>
-            )}
-          </div>
-        ) : nextGoal ? (
-          <>
-          <div className="rd__bank-goal">
-            <div className="rd__bank-goal-head">
-              <span className="rd__bank-goal-label">Saving toward</span>
-              <span className="rd__bank-goal-name">{nextGoal.name}</span>
-              {goalWeeks !== null && <span className="rd__bank-goal-eta">~{goalWeeks}wk</span>}
-            </div>
-            <div className="rd__bank-goal-track">
-              <div className="rd__bank-goal-fill" style={{ width: `${goalPct}%` }} />
-            </div>
-            <div className="rd__bank-goal-nums">
-              <span className="tnum">{rp} / {nextGoal.rpCost} RP</span>
-              <span className="tnum">{goalPct}%</span>
-            </div>
-          </div>
-          {rp >= KEYNOTE_RP_COST && (
-            <div className="rd__bank-cta">
-              <KeynoteButton rp={rp} onHost={() => { hostKeynote(); haptic.success(); }} />
-            </div>
-          )}
-          </>
-        ) : (
-          // Every project in this era is researched and RP still flows — give the surplus a real,
-          // repeatable outlet (the developer keynote) alongside the remaining one-time sinks.
-          <div className="rd__bank-cta">
-            <p className="rd__bank-hint">
-              Every project here is researched. Spend RP on component tech below{state.platformUnlocked ? ", OS modules in Platform," : ""} or rally the community with a keynote{state.era < maxEra() ? " — new projects arrive with the next era" : ""}.
-            </p>
-            <KeynoteButton rp={rp} onHost={() => { hostKeynote(); haptic.success(); }} />
-          </div>
-        )}
-        {/* Eureka insight meter — a funded lab occasionally has a flash of insight (a bank-or-chase
-            breakthrough). This gauge shows it priming; only meaningful once the lab is active + past era 1. */}
-        {state.era >= BALANCE.research.eureka.minEra && perWeek > 0 && (
-          <div className="rd__insight" title="A funded lab occasionally has a flash of insight — a bank-or-chase breakthrough.">
-            <span className="rd__insight-label"><Lightbulb size={12} aria-hidden /> Insight</span>
-            <div className="rd__insight-track"><i style={{ width: `${Math.round(eurekaInsight(state) * 100)}%` }} /></div>
-            <span className="rd__insight-hint">the lab is onto something</span>
-          </div>
-        )}
+      <Card className="rd__balance">
+        <GameArt asset="research-projects" />
+        <div><span>Research points</span><strong className="tnum"><AnimatedInt value={rp} /> RP</strong></div>
+        <span className="rd__generation">+{perWeek.toFixed(1)}/wk</span>
       </Card>
-
+      {state.activeResearch ? <Card className="rd__active"><ResearchProgress research={state.activeResearch} /></Card> : <p className="mg-empty-inline">Your lab is ready. Choose a project or component below.</p>}
+      {perWeek === 0 && <div className="mg-advice">Assign staff to R&amp;D to earn Research Points. {onNavigate && <Button size="sm" variant="secondary" onClick={() => onNavigate("company")}>Manage team</Button>}</div>}
+      <details className="mg-disclosure"><summary>{availableProjects.length} projects available{queueFull ? " - queue full" : ""}</summary>
+        <p>{availableProjects.length ? "Choose an available project below, or explore component technology." : state.activeResearch ? "Research is in progress. Explore component technology or future era unlocks below." : "No new projects are available in this era. Check prerequisites and component technology below."}</p>
+        {nextGoal && <p>Saving for {nextGoal.name}: {rp} / {nextGoal.rpCost} RP.</p>}
+        <KeynoteButton rp={rp} onHost={() => { hostKeynote(); haptic.success(); }} />
+        {state.era >= BALANCE.research.eureka.minEra && perWeek > 0 && <p>Lab insight: {Math.round(eurekaInsight(state) * 100)}%</p>}
+      </details>
       {/* Sub-navigation — Projects (strategy + income) · Components (device tech tiers). */}
       <div className="rd__subnav" role="tablist" aria-label="Research sections">
         {([["projects", "Projects"], ["components", "Components"]] as const).map(([id, label]) => (
@@ -385,13 +318,81 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
       <div className="rd__pane" role="tabpanel" id="rd-tabpanel" aria-labelledby={`rd-tab-${rdTab}`}>
 
       {rdTab === "projects" && (<>
+      {/* Research projects — grouped by era. Progressive disclosure: only the eras you've reached
+          render (the EraRoadmap above already previews what's ahead), so a first-time researcher
+          isn't staring at a wall of locked future-era project cards. */}
+      <SectionHeader title="Available & locked projects" accessory="evolve the company" />
+      {Array.from({ length: maxEra() }, (_, i) => i + 1).filter((era) => era <= state.era).map((era) => {
+        const eraView = researchEraView(era, state.completedProjects, pendingRefs);
+        const eraProjects = eraView.visible;
+        if (eraView.total === 0) return null;
+        const eraLocked = era > state.era;
+        const eraDone = eraView.completed;
+        return (
+          <div key={era} className="rd__era-group">
+            <span className={`rd__era-label${eraLocked ? " rd__era-label--locked" : ""}`}>
+              {eraLocked ? <Lock size={11} /> : null}
+              {eraName(era)}
+              {!eraLocked && <span className="rd__era-progress">{eraDone}/{eraView.total}</span>}
+            </span>
+            {eraProjects.length === 0 && <p className="rd__contrib">{eraDone === eraView.total ? "All projects in this era completed." : "Remaining projects are active or queued."}</p>}
+            {eraProjects.map((p) => {
+              const done = state.completedProjects.includes(p.id);
+              const locked = p.era > state.era;
+              // Research-tree fork (Track D): a forked project is locked once a sibling doctrine is chosen.
+              const forkLock = !done ? forkLockedBy(state.completedProjects, p.id) : null;
+              // Item 4.2 — prerequisites: a capstone is locked until its required projects are done.
+              const prereqLock = !done && !locked && !forkLock ? prereqsMissing(state.completedProjects, p.id) : [];
+              const affordable = rp >= p.rpCost && !locked && !forkLock && prereqLock.length === 0;
+              const weeksAway = !affordable && !locked && !forkLock && prereqLock.length === 0 && perWeek > 0 ? Math.ceil((p.rpCost - rp) / perWeek) : null;
+              return (
+                <Card key={p.id} className={`rd__project${p.fork ? " rd__project--fork" : ""}${p.capstone ? " rd__project--capstone" : ""}`}>
+                  <div className="rd__project-info">
+                    <span className="rd__next-name">
+                      {p.name}
+                      {p.fork && <span className="rd__fork-tag" title="A doctrine — choosing one locks out the others">Pick one</span>}
+                      {p.capstone && <span className="rd__fork-tag" title="A capstone — the end of this era's tree, behind its prerequisites">Capstone</span>}
+                    </span>
+                    <span className="rd__contrib rd__contrib--muted">{p.blurb}</span>
+                    {/* Item A3 — the "why" that used to live in a hover title, now inline (touch-visible). */}
+                    {p.fork && !done && !forkLock && <span className="rd__fork-note">Doctrine — you can only ever pick ONE of these; it permanently stamps every product you ship.</span>}
+                    {p.capstone && !done && <span className="rd__fork-note">Capstone — the end of this era's tree, unlocked once its prerequisite projects are complete.</span>}
+                  </div>
+                  {done ? (
+                    <span className="rd__maxed"><Check size={14} strokeWidth={2.5} /> {p.fork ? "Chosen" : "Done"}</span>
+                  ) : locked ? (
+                    <span className="rd__locked"><Lock size={12} /> Era {p.era}</span>
+                  ) : forkLock ? (
+                    <span className="rd__locked"><Lock size={12} /> {projectById(forkLock).name} chosen</span>
+                  ) : prereqLock.length > 0 ? (
+                    <span className="rd__locked" title={`Requires ${prereqLock.map((r) => projectById(r).name).join(", ")}`}><Lock size={12} /> Requires {prereqLock.map((r) => projectById(r).name).join(", ")}</span>
+                  ) : (
+                    <div className="rd__project-action">
+                      <ResearchAction status={projectResearchStatus(state, p.id)} cost={p.rpCost} affordable={affordable} queueFull={queueFull} weeksAway={weeksAway} onStart={() => buyProject(p.id)} />
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        );
+      })}
+      {state.era < 3 && (
+        <p className="rd__roadmap-hint">
+          <Lock size={11} aria-hidden /> More research projects unlock as you advance eras.
+        </p>
+      )}
+
+      </>)}
+
+      {rdTab === "projects" && (<>
       {/* Research income — where the weekly RP comes from, so the player can see how to grow it
           (skilled engineers on R&D, the era multiplier). Read-only; the sum equals the banner's +/wk. */}
       {perWeek > 0 && (() => {
         const sources = weeklyRpSources(state).filter((s) => s.rp >= 0.05);
         const maxRp = Math.max(...sources.map((s) => s.rp), 0.01);
         return (
-          <Card className="rd__income">
+          <details className="mg-disclosure"><summary>Research income breakdown</summary><Card className="rd__income">
             <SectionHeader title="Research income" accessory={`+${perWeek.toFixed(1)}/wk`} />
             <ul className="rd__income-list">
               {sources.map((s) => (
@@ -403,7 +404,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
               ))}
             </ul>
             <p className="rd__income-hint">Assign more skilled engineers to R&amp;D to grow this, and each era multiplies your output.</p>
-          </Card>
+          </Card></details>
         );
       })()}
 
@@ -518,7 +519,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
       {state.completedProjects.length > 0 && (
         <Card>
           <SectionHeader
-            title="Active boosts"
+            title="Completed projects"
             accessory={
               <button
                 type="button"
@@ -560,70 +561,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
       )}
 
       {/* Era roadmap */}
-      <EraRoadmap currentEra={state.era} reputation={state.reputation} cumulativeRevenueDollars={toDollars(state.cumulativeRevenue)} />
-
-      {/* Research projects — grouped by era. Progressive disclosure: only the eras you've reached
-          render (the EraRoadmap above already previews what's ahead), so a first-time researcher
-          isn't staring at a wall of locked future-era project cards. */}
-      <SectionHeader title="Research projects" accessory="evolve the company" />
-      {Array.from({ length: maxEra() }, (_, i) => i + 1).filter((era) => era <= state.era).map((era) => {
-        const eraProjects = RESEARCH_PROJECTS.filter((p) => p.era === era);
-        if (eraProjects.length === 0) return null;
-        const eraLocked = era > state.era;
-        const eraDone = eraProjects.filter((p) => state.completedProjects.includes(p.id)).length;
-        return (
-          <div key={era} className="rd__era-group">
-            <span className={`rd__era-label${eraLocked ? " rd__era-label--locked" : ""}`}>
-              {eraLocked ? <Lock size={11} /> : null}
-              {eraName(era)}
-              {!eraLocked && <span className="rd__era-progress">{eraDone}/{eraProjects.length}</span>}
-            </span>
-            {eraProjects.map((p) => {
-              const done = state.completedProjects.includes(p.id);
-              const locked = p.era > state.era;
-              // Research-tree fork (Track D): a forked project is locked once a sibling doctrine is chosen.
-              const forkLock = !done ? forkLockedBy(state.completedProjects, p.id) : null;
-              // Item 4.2 — prerequisites: a capstone is locked until its required projects are done.
-              const prereqLock = !done && !locked && !forkLock ? prereqsMissing(state.completedProjects, p.id) : [];
-              const affordable = rp >= p.rpCost && !locked && !forkLock && prereqLock.length === 0;
-              const weeksAway = !affordable && !locked && !forkLock && prereqLock.length === 0 && perWeek > 0 ? Math.ceil((p.rpCost - rp) / perWeek) : null;
-              return (
-                <Card key={p.id} className={`rd__project${p.fork ? " rd__project--fork" : ""}${p.capstone ? " rd__project--capstone" : ""}`}>
-                  <div className="rd__project-info">
-                    <span className="rd__next-name">
-                      {p.name}
-                      {p.fork && <span className="rd__fork-tag" title="A doctrine — choosing one locks out the others">Pick one</span>}
-                      {p.capstone && <span className="rd__fork-tag" title="A capstone — the end of this era's tree, behind its prerequisites">Capstone</span>}
-                    </span>
-                    <span className="rd__contrib rd__contrib--muted">{p.blurb}</span>
-                    {/* Item A3 — the "why" that used to live in a hover title, now inline (touch-visible). */}
-                    {p.fork && !done && !forkLock && <span className="rd__fork-note">Doctrine — you can only ever pick ONE of these; it permanently stamps every product you ship.</span>}
-                    {p.capstone && !done && <span className="rd__fork-note">Capstone — the end of this era's tree, unlocked once its prerequisite projects are complete.</span>}
-                  </div>
-                  {done ? (
-                    <span className="rd__maxed"><Check size={14} strokeWidth={2.5} /> {p.fork ? "Chosen" : "Done"}</span>
-                  ) : locked ? (
-                    <span className="rd__locked"><Lock size={12} /> Era {p.era}</span>
-                  ) : forkLock ? (
-                    <span className="rd__locked"><Lock size={12} /> {projectById(forkLock).name} chosen</span>
-                  ) : prereqLock.length > 0 ? (
-                    <span className="rd__locked" title={`Requires ${prereqLock.map((r) => projectById(r).name).join(", ")}`}><Lock size={12} /> Requires {prereqLock.map((r) => projectById(r).name).join(", ")}</span>
-                  ) : (
-                    <div className="rd__project-action">
-                      <ResearchAction status={projectResearchStatus(state, p.id)} cost={p.rpCost} affordable={affordable} queueFull={queueFull} weeksAway={weeksAway} onStart={() => buyProject(p.id)} />
-                    </div>
-                  )}
-                </Card>
-              );
-            })}
-          </div>
-        );
-      })}
-      {state.era < 3 && (
-        <p className="rd__roadmap-hint">
-          <Lock size={11} aria-hidden /> More research projects unlock as you advance eras.
-        </p>
-      )}
+      <details className="mg-disclosure"><summary>Future era unlocks</summary><EraRoadmap currentEra={state.era} reputation={state.reputation} cumulativeRevenueDollars={toDollars(state.cumulativeRevenue)} /></details>
 
       {/* Moonshot R&D gambles (feature #5) — the era-3+ experimental track: visible-odds RP gambles for
           unique rewards. Hidden before era 3 so the early tree stays a clean, solvable checklist. */}

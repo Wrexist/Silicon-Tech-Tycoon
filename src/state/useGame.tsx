@@ -87,7 +87,7 @@ import {
   moveFactoryProp,
   autoConnectLine,
   clearFloorCell,
-  saveFactoryLayout,
+  saveFactoryLayout, editFactoryLayout, restoreFactoryLayout,
   applyFactoryLayout,
   deleteFactoryLayout,
   giveRaise,
@@ -630,17 +630,17 @@ interface GameActionsValue {
   installOsFeature: (id: string) => void;
   setOsPhilosophy: (id: string | null) => void;
   // office builder
-  placeFurniture: (type: FurnitureId, c: number, r: number, rot: Rot) => void;
-  moveFurniture: (iid: string, c: number, r: number) => void;
-  rotateFurniture: (iid: string) => void;
-  removeFurniture: (iid: string) => void;
-  duplicateFurniture: (iid: string) => void;
+  placeFurniture: (type: FurnitureId, c: number, r: number, rot: Rot) => boolean;
+  moveFurniture: (iid: string, c: number, r: number) => boolean;
+  rotateFurniture: (iid: string) => boolean;
+  removeFurniture: (iid: string) => boolean;
+  duplicateFurniture: (iid: string) => boolean;
   resetFurniture: () => void;
   setLayout: (layout: PlacedItem[]) => void;
-  applyLayoutSnapshot: (snap: { layout: PlacedItem[]; cash: Money }) => void;
+  applyLayoutSnapshot: (snap: { layout: PlacedItem[]; editCash: number }) => boolean;
   /** Restore a Factory-floor undo snapshot (layout + props + cash) â€” the office builder's undo,
    *  finally available on the floor too. */
-  applyFactorySnapshot: (snap: { floor: import("../engine/factoryFloor.ts").FactoryFloor; props: import("../engine/factoryProps.ts").PlacedProp[]; cash: Money }) => void;
+  applyFactorySnapshot: (snap: { floor: import("../engine/factoryFloor.ts").FactoryFloor; props: import("../engine/factoryProps.ts").PlacedProp[]; editCash: number }) => boolean;
   setFloorStyle: (i: number) => void;
   setWallStyle: (i: number) => void;
   setFactoryDecor: (patch: Partial<{ wall: number; floor: number }>) => void;
@@ -667,7 +667,9 @@ interface GameActionsValue {
   moveFloorMachine: (id: string, c: number, r: number) => { ok: boolean; reason?: string };
   moveFactoryProp: (id: string, c: number, r: number) => { ok: boolean; reason?: string };
   autoConnectLine: () => { ok: boolean; reason?: string };
-  clearFloorCell: (c: number, r: number) => void;
+  clearFloorCell: (c: number, r: number) => boolean;
+  editFactoryLayout: (id: string, name: string, update?: boolean) => { ok: boolean; reason?: string };
+  restoreFactoryLayout: (layout: import("../engine/factoryLayout.ts").FactoryLayout) => { ok: boolean; reason?: string };
   saveFactoryLayout: (name: string) => { ok: boolean; reason?: string };
   applyFactoryLayout: (id: string) => { ok: boolean; reason?: string };
   deleteFactoryLayout: (id: string) => void;
@@ -920,8 +922,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const persistNow = useCallback(() => {
     if (tabBlockedRef.current) return;
     const snap = gs();
-    save({ ...snap, lastActive: Date.now() });
-    lastSavedRef.current = snap;
+    if (save({ ...snap, lastActive: Date.now() })) lastSavedRef.current = snap;
   }, []);
 
   // Store subscription replacing the old per-render `[state]` effects: on EVERY committed change,
@@ -1576,15 +1577,43 @@ export function GameProvider({ children }: { children: ReactNode }) {
     store.set(withLiveAchievements(built));
   }, []);
   const setOsPhilosophyCb = useCallback((id: string | null) => store.set((s) => setOsPhilosophy(s, id)), []);
-  const placeFurnitureCb = useCallback((type: FurnitureId, c: number, r: number, rot: Rot) => store.set((s) => placeFurniture(s, type, c, r, rot)), []);
-  const moveFurnitureCb = useCallback((iid: string, c: number, r: number) => store.set((s) => moveFurniture(s, iid, c, r)), []);
-  const rotateFurnitureCb = useCallback((iid: string) => store.set((s) => rotateFurniture(s, iid)), []);
-  const removeFurnitureCb = useCallback((iid: string) => store.set((s) => removeFurniture(s, iid)), []);
-  const duplicateFurnitureCb = useCallback((iid: string) => store.set((s) => duplicateFurniture(s, iid)), []);
+  const placeFurnitureCb = useCallback((type: FurnitureId, c: number, r: number, rot: Rot) => {
+    const before = gs(), after = placeFurniture(before, type, c, r, rot);
+    if (after === before) return false;
+    store.set(after); return true;
+  }, []);
+  const moveFurnitureCb = useCallback((iid: string, c: number, r: number) => {
+    const before = gs(), after = moveFurniture(before, iid, c, r);
+    if (after === before) return false;
+    store.set(after); return true;
+  }, []);
+  const rotateFurnitureCb = useCallback((iid: string) => {
+    const before = gs(), after = rotateFurniture(before, iid);
+    if (after === before) return false;
+    store.set(after); return true;
+  }, []);
+  const removeFurnitureCb = useCallback((iid: string) => {
+    const before = gs(), after = removeFurniture(before, iid);
+    if (after === before) return false;
+    store.set(after); return true;
+  }, []);
+  const duplicateFurnitureCb = useCallback((iid: string) => {
+    const before = gs(), after = duplicateFurniture(before, iid);
+    if (after === before) return false;
+    store.set(after); return true;
+  }, []);
   const resetFurnitureCb = useCallback(() => store.set((s) => resetFurniture(s)), []);
   const setLayoutCb = useCallback((layout: PlacedItem[]) => store.set((s) => setLayout(s, layout)), []);
-  const applyLayoutSnapshotCb = useCallback((snap: { layout: PlacedItem[]; cash: Money }) => store.set((s) => applyLayoutSnapshot(s, snap)), []);
-  const applyFactorySnapshotCb = useCallback((snap: { floor: import("../engine/factoryFloor.ts").FactoryFloor; props: import("../engine/factoryProps.ts").PlacedProp[]; cash: Money }) => store.set((s) => applyFactorySnapshot(s, snap)), []);
+  const applyLayoutSnapshotCb = useCallback((snap: { layout: PlacedItem[]; editCash: number }) => {
+    const before = gs(), after = applyLayoutSnapshot(before, snap);
+    if (after === before) return false;
+    store.set(after); return true;
+  }, []);
+  const applyFactorySnapshotCb = useCallback((snap: { floor: import("../engine/factoryFloor.ts").FactoryFloor; props: import("../engine/factoryProps.ts").PlacedProp[]; editCash: number }) => {
+    const before = gs(), after = applyFactorySnapshot(before, snap);
+    if (after === before) return false;
+    store.set(after); return true;
+  }, []);
   const setFloorStyleCb = useCallback((i: number) => store.set((s) => setFloorStyle(s, i)), []);
   const setTeamFocusCb = useCallback((focus: "research" | "build" | null) => store.set((s) => setTeamFocus(s, focus)), []);
   const setWallStyleCb = useCallback((i: number) => store.set((s) => setWallStyle(s, i)), []);
@@ -1705,7 +1734,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
     return { ok: result.ok, reason: result.reason };
   }, []);
-  const clearFloorCellCb = useCallback((c: number, r: number) => store.set((st) => clearFloorCell(st, c, r)), []);
+  const clearFloorCellCb = useCallback((c: number, r: number) => {
+    const before = gs(), after = clearFloorCell(before, c, r);
+    if (after === before) return false;
+    store.set(after); return true;
+  }, []);
   const upgradeFloorMachineCb = useCallback((c: number, r: number) => {
     const prev = gs();
     const result = upgradeFloorMachine(prev, c, r);
@@ -1734,6 +1767,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (spent > 0) emitSpend(spent);
       store.set(result.state);
     }
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const editFactoryLayoutCb = useCallback((id: string, name: string, update = false) => {
+    const result = editFactoryLayout(gs(), id, name, update);
+    if (result.ok) store.set(result.state);
+    return { ok: result.ok, reason: result.reason };
+  }, []);
+  const restoreFactoryLayoutCb = useCallback((layout: import("../engine/factoryLayout.ts").FactoryLayout) => {
+    const result = restoreFactoryLayout(gs(), layout);
+    if (result.ok) store.set(result.state);
     return { ok: result.ok, reason: result.reason };
   }, []);
   const saveFactoryLayoutCb = useCallback((name: string) => {
@@ -2035,6 +2078,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       moveFactoryProp: moveFactoryPropCb,
       autoConnectLine: autoConnectLineCb,
       clearFloorCell: clearFloorCellCb,
+      editFactoryLayout: editFactoryLayoutCb, restoreFactoryLayout: restoreFactoryLayoutCb,
       saveFactoryLayout: saveFactoryLayoutCb,
       applyFactoryLayout: applyFactoryLayoutCb,
       deleteFactoryLayout: deleteFactoryLayoutCb,
@@ -2047,7 +2091,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       rest,
       resolveChoice: resolveChoiceCb,
     }),
-    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, attemptMoonshotCb, announceKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, dismissNemesisTrophyCb, investigateSecretCb, markVaultSeenCb, dismissSecretRevealCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, fundMegaprojectCb, buyLegacyPerkCb, buyFrontierTierCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, chooseMandate, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, replayCoach, markUnlocksSeen, exportSave, importSave, setCompanyNameCb, setSandboxActive, setInterruptPaceCb, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, negotiateLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, applyFactorySnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, boardNudgeCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, setReorderRateCb, harvestProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, runPrototypeCb, clearPrototype, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb, setTeamFocusCb],
+    [pushSuspend, popSuspend, takeOverHere, build, launchReadyCb, research, cancelResearchCb, cancelQueuedResearchCb, unlockLensCb, unlockFinishCb, buyProjectCb, hostKeynoteCb, attemptMoonshotCb, announceKeynoteCb, resolveStrikeCb, collectAwardsCb, dismissRivalryCb, dismissNemesisTrophyCb, investigateSecretCb, markVaultSeenCb, dismissSecretRevealCb, resolveEurekaCb, resolveCommunityAskCb, resolveStaffMomentCb, resolveStaffEventCb, resolvePostLaunchCb, resolveRegionalEventCb, buybackSharesCb, resolveEarningsCb, acceptSideOrderCb, claimContractCb, fundMegaprojectCb, buyLegacyPerkCb, buyFrontierTierCb, declineSideOrderCb, cancelSideOrderCb, buyUpgradeCb, unlockRegionCb, acquireFactoryCb, negotiateContractCb, assign, train, hire, hireSpecialistCb, recruit, hireCandidateCb, dismissCandidates, fire, upgradeHQ, advanceEra, chooseMandate, goPublicCb, prestige, restart, startScenario, startChallenge, returnHome, markOnboarded, dismissTutorial, replayCoach, markUnlocksSeen, exportSave, importSave, setCompanyNameCb, setSandboxActive, setInterruptPaceCb, setAutomationCb, setOsNameCb, unlockPlatformCb, foundPlatformCb, releaseOsVersionCb, shipSecurityPatchCb, licenseOsToRivalCb, revokeOsLicenseCb, signLicenseOfferCb, declineLicenseOfferCb, negotiateLicenseOfferCb, installOsFeatureCb, setOsPhilosophyCb, placeFurnitureCb, moveFurnitureCb, rotateFurnitureCb, removeFurnitureCb, duplicateFurnitureCb, resetFurnitureCb, setLayoutCb, applyLayoutSnapshotCb, applyFactorySnapshotCb, setFloorStyleCb, setWallStyleCb, setFactoryDecorCb, buySharesCb, sellSharesCb, acquireRivalCb, boardNudgeCb, listCompanyCb, sellOwnStakeCb, cutProductPriceCb, marketingPushCb, investBrandAwarenessCb, restockProductCb, setReorderRateCb, harvestProductCb, rushBuildCb, buyFloorMachineCb, buyFloorBeltCb, paintBeltRunCb, buyFactoryPropCb, buyFloorExpansionCb, upgradeFloorMachineCb, moveFloorMachineCb, moveFactoryPropCb, autoConnectLineCb, clearFloorCellCb, editFactoryLayoutCb, restoreFactoryLayoutCb, saveFactoryLayoutCb, applyFactoryLayoutCb, deleteFactoryLayoutCb, giveRaiseCb, rest, runPrototypeCb, clearPrototype, resolveChoiceCb, resolvePoachCb, takeLoanCb, repayLoanCb, boostMoraleCb, setTeamFocusCb],
   );
 
   // F36 — three contexts instead of one combined value. Controls change rarely (pace toggles,

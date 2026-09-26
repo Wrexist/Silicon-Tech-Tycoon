@@ -1,7 +1,8 @@
-// UI version — which chrome the app renders. "classic" is the shipped game and the default;
-// "next" opts into the Silicon 2.0 shell. Its own store (like settings) so it survives restarts,
+// UI version — which chrome the app renders. "next" is the release default;
+// explicit "classic" choices retain the older shell. Its own store (like settings) so it survives restarts,
 // and resolvable from a URL param so the screenshot harness can flip it without touching storage.
 import { useSyncExternalStore } from "react";
+import { mirrorToNative } from "./nativeStore.ts";
 
 export type UiVersion = "classic" | "next";
 
@@ -15,10 +16,9 @@ function normalise(v: string | null): UiVersion | null {
   return null;
 }
 
-/** Pure: URL param wins over storage, storage wins over the default. Every absent or unrecognised
- *  value resolves to "classic" — the shipped game is always the safe answer. */
+/** URL overrides storage; explicit choices survive the new release default. */
 export function resolveUiVersion(urlParam: string | null, stored: string | null): UiVersion {
-  return normalise(urlParam) ?? normalise(stored) ?? "classic";
+  return normalise(urlParam) ?? normalise(stored) ?? "next";
 }
 
 function readParam(): string | null {
@@ -37,7 +37,7 @@ function readStored(): string | null {
   }
 }
 
-let current: UiVersion = "classic";
+let current: UiVersion = "next";
 const listeners = new Set<() => void>();
 
 function emit(): void {
@@ -61,6 +61,7 @@ export function setUiVersion(v: UiVersion): void {
   current = v;
   try {
     localStorage.setItem(KEY, v);
+    void mirrorToNative(KEY, v);
   } catch {
     /* storage unavailable — the in-memory value still applies for this session */
   }

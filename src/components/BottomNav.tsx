@@ -11,9 +11,9 @@ export type Tab = RootId;
  *  hand-written copy is how the bottom nav and the rail would silently drift apart. */
 export const TABS: { id: Tab; label: string; Icon: LucideIcon; color: string }[] = [
   { id: "hq", label: "Office", Icon: Home, color: "var(--accent)" },
-  { id: "design", label: "Design", Icon: PencilRuler, color: "var(--fn-design)" },
-  { id: "research", label: "Research", Icon: FlaskConical, color: "var(--fn-eng)" },
-  { id: "market", label: "Market", Icon: TrendingUp, color: "var(--fn-mkt)" },
+  { id: "design", label: "Design", Icon: PencilRuler, color: "var(--accent)" },
+  { id: "research", label: "Research", Icon: FlaskConical, color: "var(--accent)" },
+  { id: "market", label: "Market", Icon: TrendingUp, color: "var(--accent)" },
   { id: "company", label: "Company", Icon: Building2, color: "var(--accent)" },
 ];
 

@@ -1,9 +1,1 @@
-Silicon giờ đã miễn phí – và có thêm Cỗ máy Thời gian.
-
-• Miễn phí tải, miễn phí chơi. Trọn vòng lặp thiết kế → ra mắt → đọc thị trường → tái đầu tư, kỷ nguyên Nhà xe và kỷ nguyên Tăng trưởng từ đầu đến cuối, hai kịch bản, và một thử thách mới mỗi ngày. Vẫn không quảng cáo, không đồng hồ đếm ngược, không thể lực, không tiền tệ trong game, không hộp quà ngẫu nhiên. Phần đó sẽ không bao giờ thay đổi.
-• Silicon Pro, nếu bạn muốn phần còn lại: kỷ nguyên Nền tảng và kỷ nguyên AI, mọi kịch bản, New Game+ và thang Ascension, Bộ phận Nền tảng, chế độ Sáng tạo, Kho Mật, Bảo tàng Thiết bị, Tinh thông Danh mục và Huyền thoại Nhà sáng lập của riêng bạn. Theo tháng hoặc theo năm kèm dùng thử miễn phí, hoặc Pro Lifetime nếu bạn muốn mua một lần rồi thôi.
-• Cỗ máy Thời gian. Pro lặng lẽ lưu lại trạng thái công ty của bạn mỗi quý và giữ năm bản gần nhất. Một lần ra mắt thảm hại, một năm tuyển quá tay, một nhà máy mua sai thời điểm – tua lại và chọn con đường khác. Chỉ trong chiến dịch: kịch bản và thử thách vẫn được chấm theo luật riêng của chúng.
-• Đã mua Silicon rồi? Nó là của bạn mãi mãi. Bất kỳ ai đã trả tiền cho ứng dụng trước khi nó miễn phí đều được nhận diện tự động và cấp danh hiệu Chủ sở hữu Sáng lập – toàn bộ Pro, vĩnh viễn, không tốn thêm gì. Chế độ Sáng tạo mua riêng cũng vẫn là của bạn.
-• Không có thứ gì bạn mua được làm thay đổi mô phỏng theo hướng có lợi cho bạn. Pro mở khóa nội dung và chế độ chơi, không bao giờ là lợi thế trong một lượt chơi.
-
-Khi bắt đầu, một bản tóm tắt sáng lập sẽ hỏi bạn đến đây để xây dựng điều gì, và trò chơi sẽ khởi đầu từ đó.
+Phiên bản 1.4.0 làm mới văn phòng và cải thiện điều khiển nhà máy, thiết kế đã lưu, hiển thị tiến độ nghiên cứu và khôi phục dữ liệu trò chơi đã lưu.
