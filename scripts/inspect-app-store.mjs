@@ -24,6 +24,10 @@ const report={checkedAt:new Date().toISOString(),app:{id:app.id,name:app.attribu
 for(const version of versions.data.filter(v=>v.attributes.versionString==='1.4.0')) {
   const locales=await get(`/v1/appStoreVersions/${version.id}/appStoreVersionLocalizations?limit=200`);
   for(const l of locales.data) report.localizations.push({id:l.id,locale:l.attributes.locale,whatsNew:l.attributes.whatsNew,supportUrl:l.attributes.supportUrl,descriptionLength:l.attributes.description?.length||0});
+  try {
+    const detail=(await get(`/v1/appStoreVersions/${version.id}/appStoreReviewDetail`)).data.attributes;
+    report.review={contactNamePresent:!!(detail.contactFirstName&&detail.contactLastName),contactEmailPresent:!!detail.contactEmail,contactPhonePresent:!!detail.contactPhone,demoAccountRequired:detail.demoAccountRequired,notes:detail.notes};
+  } catch(e) { report.warnings.push(String(e)); }
 }
 for(const [kind,path] of [['subscriptionGroups',`/v1/apps/${app.id}/subscriptionGroups?limit=50`],['inAppPurchases',`/v1/apps/${app.id}/inAppPurchasesV2?limit=50`]]) {
   try {
@@ -33,10 +37,25 @@ for(const [kind,path] of [['subscriptionGroups',`/v1/apps/${app.id}/subscription
       if(kind==='subscriptionGroups') {
         const subs=await get(`/v1/subscriptionGroups/${item.id}/subscriptions?limit=50`);
         report.purchases.push(...subs.data.map(s=>({kind:'subscription',id:s.id,...s.attributes})));
+        for(const sub of subs.data) {
+          for(const [label,path] of [
+            ['introductoryOffers',`/v1/subscriptions/${sub.id}/introductoryOffers?limit=200&filter[territory]=USA`],
+            ['prices',`/v1/subscriptions/${sub.id}/prices?limit=200&filter[territory]=USA&include=subscriptionPricePoint`],
+            ['availability',`/v1/subscriptions/${sub.id}/subscriptionAvailability`],
+          ]) try { report.purchases.push({kind:label,productId:sub.attributes.productId,response:await get(path)}); }
+          catch(e) { report.warnings.push(String(e)); }
+        }
       }
     }
   } catch(e) { report.warnings.push(String(e)); }
 }
+report.storeSetup={};
+for(const [label,path] of [
+  ['appPrices',`/v1/appPriceSchedules/${app.id}/manualPrices?filter[territory]=USA&include=appPricePoint`],
+  ['subscriptionGracePeriod',`/v1/apps/${app.id}/subscriptionGracePeriod`],
+  ['appAvailability',`/v1/apps/${app.id}/appAvailabilityV2`],
+  ['appInfo',`/v1/apps/${app.id}/appInfos?include=ageRatingDeclaration,primaryCategory,secondaryCategory`],
+]) try { report.storeSetup[label]=await get(path); } catch(e) { report.warnings.push(String(e)); }
 mkdirSync('artifacts/app-store-inspection',{recursive:true});
 writeFileSync('artifacts/app-store-inspection/report.json',JSON.stringify(report,null,2));
 console.log(JSON.stringify(report,null,2));
