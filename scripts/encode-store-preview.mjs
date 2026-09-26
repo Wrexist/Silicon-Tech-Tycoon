@@ -2,7 +2,7 @@ import { mkdirSync, existsSync, writeFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-const root=resolve('appstore/release-1.4.0'), out=join(root,'preview'); mkdirSync(out,{recursive:true});
+const root=resolve(process.env.STORE_MEDIA_DIR || 'appstore/release-1.4.0'), out=join(root,'preview'); mkdirSync(out,{recursive:true});
 const ffmpeg=process.env.SHOTS_FFMPEG || 'ffmpeg';
 const font=process.platform==='win32' ? 'C\\:/Windows/Fonts/segoeuib.ttf' : '/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf';
 const scenes=[['office','Build your dream studio.'],['design','Design your next breakthrough.'],['factory','Build it. Watch it move.'],['research','Research a new era.'],['company','Grow your tech empire.']];

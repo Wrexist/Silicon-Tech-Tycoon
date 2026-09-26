@@ -57,6 +57,11 @@ on:
         description: "Reviewed Store media run ID to upload (inspection mode; blank leaves media alone)"
         required: false
         type: string
+      encode_media:
+        description: "Encode preserved captures from media_run_id; do not upload them to Apple"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -102,9 +107,34 @@ jobs:
           APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
           PREPARE_STORE: ${{ inputs.prepare_store && '1' || '0' }}
           STORE_BUILD_NUMBER: ${{ inputs.build_number }}
-          UPLOAD_STORE_MEDIA: ${{ inputs.media_run_id != '' && '1' || '0' }}
+          UPLOAD_STORE_MEDIA: ${{ inputs.media_run_id != '' && !inputs.encode_media && '1' || '0' }}
           STORE_MEDIA_DIR: reviewed-media
         run: node scripts/prepare-app-store.mjs
+      - name: Download preserved preview frames
+        if: ${{ inputs.encode_media && inputs.media_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: silicon-preview-source-frames
+          path: reviewed-media/preview-frames
+          run-id: ${{ inputs.media_run_id }}
+          github-token: ${{ github.token }}
+      - name: Encode preserved preview
+        if: ${{ inputs.encode_media && inputs.media_run_id != '' }}
+        env:
+          STORE_MEDIA_DIR: reviewed-media
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y ffmpeg
+          node scripts/encode-store-preview.mjs
+          ffprobe -v error -show_streams -show_format -of json reviewed-media/preview/Silicon-1.4.0-iPhone.mp4 > reviewed-media/preview/ffprobe.json
+      - uses: actions/upload-artifact@v4
+        if: ${{ inputs.encode_media && inputs.media_run_id != '' }}
+        with:
+          name: silicon-store-media-1.4.0
+          path: |
+            reviewed-media/iphone/
+            reviewed-media/ipad/
+            reviewed-media/preview/
+            reviewed-media/capture-report.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
