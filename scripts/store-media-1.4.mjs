@@ -26,7 +26,8 @@ const url = `http://127.0.0.1:${server.address().port}`;
 const exe = process.env.SHOTS_CHROME || ['C:/Program Files/Google/Chrome/Application/chrome.exe', chromium.executablePath()].find(existsSync);
 const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl'] });
 const source = JSON.parse(await readFile('/tmp/silicon-showcase.json', 'utf8'));
-const report = { source: 'dist/', stagedSave: '/tmp/silicon-showcase.json', captures: [], errors: [] };
+const videoOnly=process.env.MEDIA_VIDEO_ONLY==='1';
+const report = videoOnly ? JSON.parse(await readFile(join(out,'capture-report.json'),'utf8')) : { source: 'dist/', stagedSave: '/tmp/silicon-showcase.json', captures: [], errors: [] };
 const frames = [
   { id:'office', title:['Build your', 'dream studio.'], sub:'A living team. A company that is yours.', accent:'#83e6db', tab:'Office' },
   { id:'factory', title:['Make it.', 'Watch it move.'], sub:'Build the line behind your next big launch.', accent:'#ffc77c', tab:'Office' },
@@ -72,7 +73,7 @@ try {
     save.ready=[]; save.lastActive=Date.now(); save.lastInterruptWeek=save.week+500;
     if(frame.id!=='factory') save.building=[];
     else for(const build of save.building) {build.totalWeeks=Math.max(build.totalWeeks,12);build.weeksElapsed=3;}
-    const context=await browser.newContext({viewport:{width:device.width,height:device.height},deviceScaleFactor:device.dpr,hasTouch:true});
+    const context=await browser.newContext({viewport:{width:device.width,height:device.height},deviceScaleFactor:videoOnly?2:device.dpr,hasTouch:true});
     await context.addInitScript(save=>{
       if(localStorage.getItem('__storeStaged')) return;
       localStorage.setItem('__storeStaged','1'); localStorage.setItem('silicon.save.v1',JSON.stringify(save));
@@ -96,6 +97,9 @@ try {
       await page.getByRole('button',{name:'Factory',exact:true}).click();
       await page.getByRole('button',{name:'Open factory mode',exact:true}).click();
       await page.locator('.fmode canvas').waitFor();
+      // A small player-controlled zoom gives the working line more space in the store frame.
+      await page.locator('.fmode canvas').hover();
+      for(let i=0;i<3;i++) await page.mouse.wheel(0,-100);
     } else if(frame.id==='design') {
       await page.getByRole('tab',{name:'Style',exact:true}).click();
       const back=page.getByRole('button',{name:'View back',exact:true}); if(await back.count()) await back.click();
@@ -105,13 +109,15 @@ try {
     await page.waitForTimeout(5000); // allow genuine transient notifications to finish
     await page.evaluate(()=>document.activeElement instanceof HTMLElement && document.activeElement.blur());
     const raw=join(rawDir,`${frame.id}.png`), name=`${String(frames.indexOf(frame)+1).padStart(2,'0')}-${frame.id}.png`;
-    await screenshot(raw);
-    await compose(raw,join(dir,name),device,frame,frames.indexOf(frame));
-    report.captures.push({device:device.id,frame:frame.id,path:join(dir,name),width:device.w,height:device.h});
-    console.log('CAPTURE',device.id,frame.id);
+    if(!videoOnly) {
+      await screenshot(raw);
+      await compose(raw,join(dir,name),device,frame,frames.indexOf(frame));
+      report.captures.push({device:device.id,frame:frame.id,path:join(dir,name),width:device.w,height:device.h});
+      console.log('CAPTURE',device.id,frame.id);
+    }
     if(process.env.MEDIA_VIDEO==='1' && device.id==='iphone' && ['office','factory','design','research','company'].includes(frame.id)) {
       const videoDir=join(out,'preview-frames',frame.id);await mkdir(videoDir,{recursive:true});
-      await cdp.send('Emulation.setDeviceMetricsOverride',{width:device.width,height:device.height,deviceScaleFactor:2,mobile:false});
+      if(!videoOnly) await cdp.send('Emulation.setDeviceMetricsOverride',{width:device.width,height:device.height,deviceScaleFactor:2,mobile:false});
       // Advance the browser clock one video frame at a time: rendering speed cannot drop frames.
       const resume=page.getByRole('button',{name:frame.id==='factory'?'Resume game':'Resume',exact:true});
       if(await resume.count()) await resume.dispatchEvent('click');

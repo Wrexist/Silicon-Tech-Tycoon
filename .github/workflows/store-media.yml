@@ -28,10 +28,28 @@ jobs:
       - run: npm run build
       - run: npm run shots:stage:showcase
       - run: npx playwright-core install --with-deps chromium
-      - name: Capture real gameplay and screenshots
+      - name: Capture all store screenshots
+        run: node scripts/store-media-1.4.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: silicon-store-screenshots-1.4.0
+          path: |
+            appstore/release-1.4.0/iphone/
+            appstore/release-1.4.0/ipad/
+            appstore/release-1.4.0/capture-report.json
+      - name: Capture real gameplay video
         env:
           MEDIA_VIDEO: '1'
+          MEDIA_VIDEO_ONLY: '1'
+          MEDIA_DEVICES: iphone
+          MEDIA_ONLY: office,factory,design,research,company
         run: node scripts/store-media-1.4.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: silicon-preview-source-frames
+          path: appstore/release-1.4.0/preview-frames/
+          retention-days: 7
       - name: Encode App Store preview
         run: node scripts/encode-store-preview.mjs
       - name: Verify preview encoding
