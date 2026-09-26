@@ -370,6 +370,22 @@ function DioramaRoom({ p, cull, showWhiteboard, name }: { p: RoomPalette; cull: 
   );
 }
 
+/** Once the garage becomes a studio, the back wall becomes a glazed office frontage.
+ * All geometry stays on the existing wall: no owned floor cells or walking routes change. */
+function StudioWindows({ p, z }: { p: RoomPalette; z: number }) {
+  return <group position={[0, 2.15, z]}>
+    <mesh><boxGeometry args={[6.4, 2.5, 0.1]} /><meshStandardMaterial color={p.metalDark} roughness={0.4} metalness={0.35} /></mesh>
+    {[-2.08, 0, 2.08].map((x) => <group key={x} position={[x, 0, 0.07]}>
+      <mesh><planeGeometry args={[1.98, 2.28]} /><meshStandardMaterial color={p.screenOff} emissive={p.screen} emissiveIntensity={0.12} roughness={0.3} metalness={0.12} /></mesh>
+      {[-0.65, -0.18, 0.38, 0.72].map((bx, i) => <mesh key={bx} position={[bx, -0.76 + i * 0.07, 0.012]}>
+        <planeGeometry args={[0.28, 0.75 + i * 0.14]} /><meshBasicMaterial color={i % 2 ? p.wallB : p.trim} />
+      </mesh>)}
+      <mesh position={[0, -0.24, 0.025]}><boxGeometry args={[1.98, 0.045, 0.04]} /><meshStandardMaterial color={p.metalDark} roughness={0.45} /></mesh>
+    </group>)}
+    <mesh position={[0, -1.29, 0.12]}><boxGeometry args={[6.6, 0.12, 0.28]} /><meshStandardMaterial color={p.desk} roughness={0.7} /></mesh>
+  </group>;
+}
+
 function Room({ p, dark, finish, wall, cull, showWhiteboard = true, name = "Silicon", tier = 1 }: { p: RoomPalette; dark: boolean; finish: FloorFinish; wall: WallStyle; cull: WallCull; showWhiteboard?: boolean; name?: string; tier?: number }) {
   const wzA = -4.2;
   const isBrick = wall.kind === "brick";
@@ -398,7 +414,7 @@ function Room({ p, dark, finish, wall, cull, showWhiteboard = true, name = "Sili
           <meshStandardMaterial color={p.trim} roughness={0.9} />
         </mesh>
         <Wainscot p={p} axis="-z" len={8.4} face={-4.05} />
-        <GarageDoor p={p} z={wzA + 0.24} />
+        {tier <= 1 ? <GarageDoor p={p} z={wzA + 0.24} /> : <StudioWindows p={p} z={wzA + 0.24} />}
         {/* the brand installation: the room identifies itself on the wall you face */}
         <BrandWall name={name} p={p} mode="overDoor" />
       </group>

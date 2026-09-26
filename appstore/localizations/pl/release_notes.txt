@@ -1,9 +1,1 @@
-Silicon jest teraz darmowy – i pojawił się Wehikuł Czasu.
-
-• Za darmo do pobrania, za darmo do grania. Cała pętla projektuj → wypuść → czytaj rynek → reinwestuj, era Garażu i era Wzrostu od początku do końca, dwa scenariusze i nowe wyzwanie każdego dnia. Nadal żadnych reklam, liczników czasu, energii, walut ani lootboksów. To się nigdy nie zmieni.
-• Silicon Pro, jeśli chcesz resztę: era Platformy i era SI, wszystkie scenariusze, Nowa gra+ i drabina Ascension, Dział Platformy, tryb Kreatywny, Skarbiec, Muzeum Urządzeń, Mistrzostwo Kategorii i twoja Legenda Założyciela. Miesięcznie lub rocznie z darmowym okresem próbnym, albo Pro Lifetime, jeśli wolisz kupić raz i mieć spokój.
-• Wehikuł Czasu. Pro po cichu zapisuje stan twojej firmy co kwartał i przechowuje pięć ostatnich. Jedna katastrofalna premiera, jeden rok zbyt wielu rekrutacji, jedna fabryka kupiona w złym momencie – cofnij się i wybierz inną drogę. Tylko w kampanii: scenariusze i wyzwania nadal są oceniane na własnych zasadach.
-• Kupiłeś już Silicona? Zostaje twój na zawsze. Każdy, kto zapłacił za aplikację, zanim stała się darmowa, jest rozpoznawany automatycznie i otrzymuje status Właściciela Założyciela – całe Pro, na stałe, bez żadnych dalszych opłat. Osobno kupiony tryb Kreatywny również zostaje twój.
-• Nic, co możesz kupić, nie zmienia symulacji na twoją korzyść. Pro odblokowuje treści i tryby, nigdy nie daje przewagi wewnątrz rozgrywki.
-
-Na starcie brief założycielski pyta teraz, po co tu jesteś, a gra zaczyna właśnie od tego.
+Wersja 1.4.0 odświeża biuro i usprawnia sterowanie fabryką, zapisane projekty, wyświetlanie postępów badań oraz odzyskiwanie zapisów gry.

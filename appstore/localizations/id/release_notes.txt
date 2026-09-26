@@ -1,9 +1,1 @@
-Silicon kini gratis dimainkan – dan ada Mesin Waktu.
-
-• Gratis diunduh, gratis dimainkan. Seluruh siklus rancang → luncurkan → baca pasar → investasikan kembali, era Garasi dan era Pertumbuhan dari awal sampai akhir, dua skenario, dan tantangan baru setiap hari. Tetap tanpa iklan, tanpa penghitung waktu, tanpa energi, tanpa mata uang, tanpa kotak jarahan. Bagian itu tidak akan pernah berubah.
-• Silicon Pro, kalau kamu ingin sisanya: era Platform dan era AI, semua skenario, New Game+ dan tangga Ascension, Divisi Platform, mode Kreatif, Brankas, Museum Perangkat, Penguasaan Kategori, dan Legenda Pendiri milikmu. Bulanan atau tahunan dengan uji coba gratis, atau Pro Lifetime kalau kamu lebih suka membeli sekali dan selesai.
-• Mesin Waktu. Pro diam-diam menyimpan kondisi perusahaanmu setiap kuartal dan menyimpan lima yang terakhir. Satu peluncuran yang gagal total, satu tahun merekrut terlalu banyak, satu pabrik yang dibeli pada waktu yang salah – putar balik dan ambil jalan yang lain. Hanya di kampanye: skenario dan tantangan tetap dinilai dengan aturannya sendiri.
-• Sudah pernah membeli Silicon? Itu milikmu selamanya. Siapa pun yang membayar aplikasi ini sebelum menjadi gratis dikenali secara otomatis dan mendapat status Pemilik Pendiri – seluruh Pro, permanen, tanpa biaya tambahan. Mode Kreatif yang dibeli terpisah juga tetap milikmu.
-• Tidak ada yang bisa kamu beli yang mengubah simulasi supaya menguntungkanmu. Pro membuka konten dan mode, bukan keunggulan di dalam satu permainan.
-
-Di awal, ringkasan pendirian kini menanyakan kamu datang untuk membangun apa, dan permainan berangkat dari sana.
+Versi 1.4.0 memperbarui kantor dan menyempurnakan kontrol pabrik, desain tersimpan, tampilan kemajuan riset, serta pemulihan data permainan tersimpan.

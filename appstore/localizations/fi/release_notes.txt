@@ -1,9 +1,1 @@
-Silicon on nyt ilmainen – ja mukana on Aikakone.
-
-• Ilmainen ladata, ilmainen pelata. Koko kierros suunnittele → julkaise → lue markkinaa → sijoita uudelleen, Autotalli- ja Kasvukausi alusta loppuun, kaksi skenaariota ja uusi haaste joka päivä. Edelleen ei mainoksia, ei ajastimia, ei energiaa, ei valuuttoja, ei lootboxeja. Se ei muutu koskaan.
-• Silicon Pro, jos haluat loput: Alusta- ja tekoälykausi, kaikki skenaariot, New Game+ ja Ascension-tikkaat, Alustadivisioona, Luova tila, Holvi, Laitemuseo, Kategoriamestaruus ja oma Perustajalegendasi. Kuukausittain tai vuosittain ilmaisella kokeilulla, tai Pro Lifetime jos ostat mieluummin kerran ja siinä se.
-• Aikakone. Pro tallentaa yhtiösi tilan hiljaisesti joka neljännes ja säilyttää viisi viimeisintä. Yksi katastrofaalinen julkaisu, yksi liikaa rekrytoitu vuosi, yksi väärään aikaan ostettu tehdas – kelaa taakse ja valitse toinen tie. Vain kampanjassa: skenaariot ja haasteet pisteytetään edelleen omilla ehdoillaan.
-• Ostitko Siliconin jo? Se on sinun ikuisesti. Jokainen, joka maksoi sovelluksesta ennen kuin siitä tuli ilmainen, tunnistetaan automaattisesti ja saa Perustajaomistajan aseman – koko Pro, pysyvästi, ilman lisämaksua. Erikseen ostettu Luova tila säilyy myös sinulla.
-• Mikään ostettava ei muuta simulaatiota sinun edukseksi. Pro avaa sisältöä ja tiloja, ei koskaan etua pelin sisällä.
-
-Alussa perustajabriiffi kysyy nyt, mitä olet tullut rakentamaan, ja peli lähtee siitä.
+Versio 1.4.0 uudistaa toimiston ja parantaa tehtaan ohjausta, tallennettuja suunnitelmia, tutkimuksen edistymisen näyttöä ja pelitallennusten palautusta.

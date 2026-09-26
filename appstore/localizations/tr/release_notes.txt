@@ -1,9 +1,1 @@
-Silicon artık ücretsiz – ve bir Zaman Makinesi var.
-
-• İndirmesi ücretsiz, oynaması ücretsiz. Tasarla → çıkar → pazarı oku → yeniden yatır döngüsünün tamamı, Garaj ve Büyüme çağları baştan sona, iki senaryo ve her gün yeni bir meydan okuma. Yine reklam yok, sayaç yok, enerji yok, para birimi yok, ganimet kutusu yok. Bu kısım asla değişmeyecek.
-• Gerisini istersen Silicon Pro: Platform ve YZ çağları, tüm senaryolar, Yeni Oyun+ ve Ascension basamakları, Platform Bölümü, Yaratıcı mod, Kasa, Cihaz Müzesi, Kategori Ustalığı ve kendi Kurucu Efsanen. Ücretsiz denemeyle aylık veya yıllık, ya da bir kez alıp bitirmeyi tercih edersen Pro Lifetime.
-• Zaman Makinesi. Pro her çeyrekte şirketinin durumunu sessizce kaydeder ve son beşini saklar. Felaketle biten bir lansman, fazla işe alım yapılmış bir yıl, yanlış zamanda alınmış bir fabrika – geri sar ve diğer yolu seç. Yalnızca kampanyada: senaryolar ve meydan okumalar kendi kurallarıyla puanlanmaya devam eder.
-• Silicon'u zaten satın aldın mı? Sonsuza dek senin. Uygulama ücretsiz olmadan önce parasını ödeyen herkes otomatik olarak tanınır ve Kurucu Sahip statüsü alır – Pro'nun tamamı, kalıcı olarak, hiçbir ek ücret ödemeden. Ayrıca satın alınan Yaratıcı mod da senin kalır.
-• Satın alabileceğin hiçbir şey simülasyonu senin lehine değiştirmez. Pro içerik ve modlar açar, bir oyun içinde asla avantaj değil.
-
-Başlangıçta bir kuruluş sorusu artık neyi kurmaya geldiğini soruyor ve oyun oradan başlıyor.
+1.4.0 sürümü ofisi yeniliyor; fabrika kontrollerini, kaydedilmiş tasarımları, araştırma ilerlemesinin gösterimini ve kayıtlı oyunların kurtarılmasını iyileştiriyor.

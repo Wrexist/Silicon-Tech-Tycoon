@@ -3,7 +3,9 @@ import * as THREE from 'three';
 /** Fit the actual workshop and dock, rather than a sphere around the surrounding landscape. */
 export function factoryFrame(aspect: number, cx: number, margin = 1.08, portrait = aspect < 1) {
   const target = new THREE.Vector3(portrait ? 0 : cx, 0.8, portrait ? -cx : 0);
-  const direction = new THREE.Vector3(portrait ? 0.45 : 0.9, 1.2, 1).normalize();
+  // Look more nearly along a portrait floor's length: its machinery gets more screen area
+  // while the same corner-fit calculation still protects the dock and expansion bounds.
+  const direction = new THREE.Vector3(portrait ? 0.22 : 0.9, 1.2, 1).normalize();
   const right = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), direction).normalize();
   const up = new THREE.Vector3().crossVectors(direction, right).normalize();
   const fov = 38;

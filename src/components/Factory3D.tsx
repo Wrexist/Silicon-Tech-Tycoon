@@ -44,7 +44,7 @@ function useMotionFrame(callback: Parameters<typeof useFrame>[0]) {
 
 /* palette — intrinsic object colours, the garage3d precedent */
 const C = {
-  grass: "#1d2b22",
+  grass: "#28343b",
   pad: "#2a2f37",
   concrete: "#7c828c",      // poured-concrete factory floor
   concreteJoint: "#5c626b", // expansion joints / build grid
@@ -1490,14 +1490,14 @@ function TierPips({ level, position }: { level: number; position: [number, numbe
   );
 }
 
-function FloorGrid({ width, cx }: { width: number; cx: number }) {
+function FloorGrid({ width, cx, editing }: { width: number; cx: number; editing: boolean }) {
   const points = useMemo(() => {
     const p: number[] = [];
     for (let x=0; x<=width; x++) p.push(cx-width/2+x,.11,-FLOOR.h/2,cx-width/2+x,.11,FLOOR.h/2);
     for (let z=0; z<=FLOOR.h; z++) p.push(cx-width/2,.11,z-FLOOR.h/2,cx+width/2,.11,z-FLOOR.h/2);
     return new Float32Array(p);
   }, [width,cx]);
-  return <lineSegments><bufferGeometry><bufferAttribute attach="attributes-position" args={[points,3]} /></bufferGeometry><lineBasicMaterial color={C.concreteJoint} /></lineSegments>;
+  return <lineSegments><bufferGeometry><bufferAttribute attach="attributes-position" args={[points,3]} /></bufferGeometry><lineBasicMaterial color={C.concreteJoint} transparent opacity={editing ? 0.8 : 0.18} depthWrite={false} /></lineSegments>;
 }
 
 function MachineAt({ m, active: requestedActive, activeKind: _activeKind, pl, itemsT, mount }: {
@@ -1819,8 +1819,8 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {/* Low fill + a cool overhead hemisphere reads as a big shed lit from the roof; the working
           light comes from spaced high-bay pools, with one warm lamp over the dock/office corner. The
           era-tinted HotLight accents on the working machine still punch through this lower base. */}
-      <ambientLight intensity={0.4} />
-      <hemisphereLight args={["#bcd3ff", "#2a2f37", 0.55]} position={[0, 8, 0]} />
+      <ambientLight intensity={p.dark ? 0.52 : 0.62} />
+      <hemisphereLight args={["#dce9ff", "#434a52", 0.72]} position={[0, 8, 0]} />
       <primitive object={shadowTarget} />
       <directionalLight position={[7 + (floorW - FLOOR.w) / 2, 12, 5]} target={shadowTarget} intensity={1.0} castShadow shadow-mapSize={[1024, 1024]}
         shadow-camera-left={-floorW / 2 - 3} shadow-camera-right={floorW / 2 + 3}
@@ -1842,7 +1842,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {/* deterministic wear/oil stains + painted walkways so the concrete isn't a flat sheet */}
       <FloorDecals floorW={floorW} cx={cx} />
       {/* expansion joints double as the build grid, subtle on the concrete */}
-      <FloorGrid width={floorW} cx={cx} />
+      <FloorGrid width={floorW} cx={cx} editing={!!p.buildMode || !!p.showRoute || !!carry} />
       {/* tap-catcher for build mode (invisible, above the pad) — belt tool paints on drag, others tap */}
       {/* raycast skips visible={false}, so the tap-catcher is transparent instead of hidden */}
       <mesh

@@ -1,9 +1,1 @@
-Silicon is nu gratis te spelen – en er is een Tijdmachine.
-
-• Gratis downloaden, gratis spelen. De hele lus van ontwerpen → lanceren → de markt lezen → herinvesteren, het Garage- en het Groeitijdperk van begin tot eind, twee scenario's en elke dag een nieuwe uitdaging. Nog steeds geen advertenties, geen timers, geen energie, geen valuta, geen loot boxes. Dat verandert nooit.
-• Silicon Pro, als je de rest wilt: het Platform- en het AI-tijdperk, alle scenario's, New Game+ en de Ascensie-ladder, de Platformdivisie, de Creatieve modus, de Kluis, het Apparatenmuseum, Categoriemeesterschap en je Oprichterslegende. Maandelijks of jaarlijks met gratis proefperiode, of Pro Lifetime als je liever één keer koopt en klaar bent.
-• De Tijdmachine. Pro maakt elk kwartaal stilletjes een momentopname van je bedrijf en bewaart de laatste vijf. Één rampzalige lancering, één jaar te veel aangenomen, één fabriek op het verkeerde moment gekocht: spoel terug en neem de andere weg. Alleen in de campagne: scenario's en uitdagingen blijven op hun eigen voorwaarden beoordeeld.
-• Silicon al gekocht? Het blijft voor altijd van jou. Iedereen die de app betaalde voordat die gratis werd, wordt automatisch herkend en krijgt de status Oprichter – heel Pro, permanent, zonder verdere kosten. De los gekochte Creatieve modus blijft ook van jou.
-• Niets wat je kunt kopen verandert de simulatie in jouw voordeel. Pro ontgrendelt content en modi, nooit een voordeel binnen een run.
-
-Bij de start vraagt een oprichtersbriefing nu waarvoor je hier bent, en het spel begint daarmee.
+Versie 1.4.0 vernieuwt het kantoor en verbetert de fabrieksbediening, opgeslagen ontwerpen, de weergave van onderzoeksvoortgang en het herstel van opgeslagen spellen.

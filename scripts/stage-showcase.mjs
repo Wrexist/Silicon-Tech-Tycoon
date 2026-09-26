@@ -31,7 +31,7 @@ for (let i = 0; i < 3; i++) { const n = upgradeFacility(s); if (n !== s) s = n; 
 const upgrades = s.upgrades ?? {};
 const arrangement = arrangeOffice({
   facilityTier: s.facilityTier,
-  headcount: 12,
+  headcount: 10,
   dark: true, // the capture harness pins the dark theme, whose tool chest shifts the storage run
   amenities: upgrades.amenities ?? 0,
   designSuite: (upgrades.designSuite ?? 0) >= 1,
@@ -46,6 +46,7 @@ const skipped = [];
 for (const piece of arrangement.pieces) { const n = placeFurniture(s, piece.type, piece.c, piece.r, piece.rot); if (n !== s) { s = n; placed++; } else skipped.push(`${piece.type}@${piece.c},${piece.r}:${piece.rot}`); }
 console.error(`office arrangement: ${arrangement.seats} work seats + ${arrangement.dressing.length} dressing pieces; placed ${placed}/${arrangement.pieces.length}${skipped.length ? ` — SKIPPED (collision/OOB): ${skipped.join(", ")}` : ""}`);
 s = { ...s, desktops: 0 }; // no standalone pods — every employee has a real desk in the open plan
+s = { ...s, roomStyle: { floor: 12, wall: 1 } }; // player-selectable campus carpet and painted walls
 
 const hires = [
   ["engineer", 6, "Mara"], ["engineer", 5, "Devin"], ["designer", 6, "Lena"],
