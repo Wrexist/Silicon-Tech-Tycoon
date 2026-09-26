@@ -45,5 +45,8 @@ Reviewed media: [capture run 36278267594](https://github.com/Wrexist/Silicon-Tec
 Apple processed the 12 screenshots and iPhone preview successfully in
 [upload run 36279546070](https://github.com/Wrexist/Silicon-Tech-Tycoon/actions/runs/36279546070).
 That run's `app-store-inspection` artifact retains before/after state and the previous screenshots.
+[Final delivery verification](https://github.com/Wrexist/Silicon-Tech-Tycoon/actions/runs/36279879323)
+confirmed `COMPLETE` for the preview's upload, playback and poster, plus the 12 screenshots.
+Live checksums match all reviewed source files and both screenshot sequences retain the intended order.
 Build 77 remains selected on the unsubmitted draft. Generated media is available locally under
 `appstore/release-1.4.0/`, with `index.html` for review; binary captures are not committed to git.
