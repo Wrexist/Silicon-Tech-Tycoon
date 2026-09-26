@@ -63,7 +63,9 @@ if (process.env.UPLOAD_STORE_MEDIA === '1') {
     const url = image.templateUrl.replace('{w}', image.width).replace('{h}', image.height).replace('{f}', 'png');
     const response = await fetch(url, { signal: AbortSignal.timeout(60000) });
     if (!response.ok) throw Error(`Screenshot backup failed: ${response.status}`);
-    writeFileSync(join(backup, `${asset.id}.png`), Buffer.from(await response.arrayBuffer()));
+    const bytes=Buffer.from(await response.arrayBuffer());
+    if(bytes.subarray(0,8).toString('hex')!=='89504e470d0a1a0a') throw Error(`Invalid PNG backup for ${asset.id}`);
+    writeFileSync(join(backup, `${asset.id}.png`), bytes);
   }
   async function upload(set, sets, assets, files) {
     const relationship = sets === 'appScreenshotSets' ? 'appScreenshotSet' : 'appPreviewSet';
