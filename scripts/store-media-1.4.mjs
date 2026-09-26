@@ -62,7 +62,8 @@ async function compose(raw, target, device, frame, index) {
     <rect x="${margin-3}" y="${top-3}" width="${width+6}" height="${height+6}" rx="${radius+3}" fill="#697d94" fill-opacity=".4"/>
     <text x="${w-margin}" y="${h-24}" text-anchor="end" font-size="22" letter-spacing="3" fill="#8ca0b8">${String(index+1).padStart(2,'0')} / 06</text></g></svg>`);
   if (top+height > h-45) throw Error(`Composition clips ${device.id}: ${top+height}/${h}`);
-  await sharp(backdrop).composite([{input:rounded,left:margin,top}]).flatten({background:'#0b1320'}).png().toFile(target);
+  const composed=await sharp(backdrop).composite([{input:rounded,left:margin,top}]).png().toBuffer();
+  await sharp(composed).flatten({background:'#0b1320'}).removeAlpha().png().toFile(target);
 }
 
 try {
