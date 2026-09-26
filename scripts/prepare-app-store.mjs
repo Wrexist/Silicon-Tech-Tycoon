@@ -39,7 +39,9 @@ if (process.env.PREPARE_STORE === '1') {
   if (!build) throw Error(`Build ${buildNumber} is not a valid 1.4.0 build`);
   const whatsNew = readFileSync('appstore/localizations/en-US/release_notes.txt', 'utf8').trim();
   if (!whatsNew || whatsNew.length > 4000) throw Error('Invalid release notes');
-  await asc(`/v1/appStoreVersionLocalizations/${locale.id}`, 'PATCH', { type: 'appStoreVersionLocalizations', id: locale.id, attributes: { whatsNew } });
+  // GitHub Pages project paths are case-sensitive; the previous lowercase URL returned 404.
+  const marketingUrl = 'https://wrexist.github.io/Silicon-Tech-Tycoon/';
+  await asc(`/v1/appStoreVersionLocalizations/${locale.id}`, 'PATCH', { type: 'appStoreVersionLocalizations', id: locale.id, attributes: { whatsNew, marketingUrl } });
   const review = (await asc(`/v1/appStoreVersions/${version.id}/appStoreReviewDetail`)).data;
   const notes = readFileSync('appstore/review-notes-1.4.0.txt', 'utf8').trim();
   if (!notes || notes.length > 4000) throw Error('Invalid review notes');
