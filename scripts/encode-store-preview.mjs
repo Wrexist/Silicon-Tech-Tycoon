@@ -1,4 +1,5 @@
-import { mkdirSync, existsSync, writeFileSync, readdirSync, renameSync } from 'node:fs';
+import { mkdirSync, existsSync, writeFileSync, readdirSync, renameSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { resolve, join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
@@ -16,6 +17,9 @@ for(const device of ['iphone','ipad']) for(const name of readdirSync(join(root,d
 for(const [id,label] of scenes) {
   const frames=join(root,'preview-frames',id);
   if(!existsSync(join(frames,'0119.png')))throw Error(`Incomplete real-gameplay frames: ${id}`);
+  const samples=['0000.png','0030.png','0060.png','0090.png','0119.png'];
+  const hashes=new Set(samples.map(name=>createHash('sha256').update(readFileSync(join(frames,name))).digest('hex')));
+  if(hashes.size<2) throw Error(`Static preview rejected: ${id}`);
   run(['-framerate','30','-i',join(frames,'%04d.png'),'-f','lavfi','-i','anullsrc=channel_layout=stereo:sample_rate=48000',
     '-vf',`scale=830:1800:force_original_aspect_ratio=decrease:force_divisible_by=2:flags=lanczos,pad=886:1920:(ow-iw)/2:120:color=0x0b1320,drawtext=fontfile='${font}':text='${label}':fontcolor=white:fontsize=42:x=32:y=36`,
     '-frames:v','120','-r','30','-c:v','libx264','-profile:v','high','-level:v','4.0','-pix_fmt','yuv420p','-preset','medium','-b:v','10M','-minrate','10M','-maxrate','10M','-bufsize','20M','-x264-params','nal-hrd=cbr:force-cfr=1',

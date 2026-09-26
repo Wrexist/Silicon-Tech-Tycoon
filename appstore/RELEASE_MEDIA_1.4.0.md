@@ -26,7 +26,12 @@ Output is under `appstore/release-1.4.0/`:
 
 The preview contains five four-second gameplay scenes with short captions. Browser time advances
 one frame at a time so software-rendering speed does not change the intended animation speed.
+It records an office camera gesture, device front/back control, working factory, and research/team
+navigation. Capture and encoding reject static clips. Captions sit above the full game view.
 Its stereo AAC track is silent; no soundtrack is invented or licensed by this process.
+
+The workflow's optional `screenshot_run_id` reuses a previously reviewed media artifact while
+recapturing the preview. Screenshot files are RGB PNGs without an alpha channel.
 
 The Store media workflow preserves an artifact named `silicon-store-media-1.4.0`. Review every
 image and the video before passing that exact run ID to the store-preparation workflow. The
