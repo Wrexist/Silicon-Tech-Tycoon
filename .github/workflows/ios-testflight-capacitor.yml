@@ -48,12 +48,22 @@ on:
         required: false
         default: false
         type: boolean
+      prepare_store:
+        description: "Update editable draft notes and select the specified valid build (inspection mode)"
+        required: false
+        default: false
+        type: boolean
+      media_run_id:
+        description: "Reviewed Store media run ID to upload (inspection mode; blank leaves media alone)"
+        required: false
+        type: string
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
-  group: ios-testflight-${{ github.ref }}
+  group: ios-testflight-${{ github.ref }}-${{ inputs.inspect_only && 'store' || 'build' }}
   cancel-in-progress: true
 
 env:
@@ -63,7 +73,7 @@ jobs:
   store-inspection:
     if: ${{ inputs.inspect_only }}
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
         with:
@@ -77,10 +87,31 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
         run: node scripts/inspect-app-store.mjs
+      - name: Download explicitly reviewed media
+        if: ${{ inputs.media_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: silicon-store-media-1.4.0
+          path: reviewed-media
+          run-id: ${{ inputs.media_run_id }}
+          github-token: ${{ github.token }}
+      - name: Inspect or prepare editable store draft
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          PREPARE_STORE: ${{ inputs.prepare_store && '1' || '0' }}
+          STORE_BUILD_NUMBER: ${{ inputs.build_number }}
+          UPLOAD_STORE_MEDIA: ${{ inputs.media_run_id != '' && '1' || '0' }}
+          STORE_MEDIA_DIR: reviewed-media
+        run: node scripts/prepare-app-store.mjs
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: app-store-inspection
-          path: artifacts/app-store-inspection/report.json
+          path: |
+            artifacts/app-store-inspection/
+            artifacts/app-store-preparation/
   validation:
     if: ${{ !inputs.inspect_only }}
     uses: ./.github/workflows/release-gates.yml

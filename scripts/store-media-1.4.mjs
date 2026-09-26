@@ -79,7 +79,12 @@ try {
       localStorage.setItem('silicon.settings',JSON.stringify({theme:'dark',sound:false,haptics:false,garage3d:true,decorateTutorialSeen:true,factoryTutorialSeen:true,notifPrompted:true}));
       localStorage.setItem('silicon.factory.camhint','1'); localStorage.setItem('silicon.hint.tapteam','1');
     },save);
-    const page=await context.newPage(); page.setDefaultTimeout(30000);
+    const page=await context.newPage(); page.setDefaultTimeout(120000);
+    const cdp=await context.newCDPSession(page);
+    const screenshot=async path=>{
+      const {data}=await cdp.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+      await writeFile(path,Buffer.from(data,'base64'));
+    };
     if(process.env.MEDIA_VIDEO==='1') await page.clock.install();
     page.on('pageerror',e=>report.errors.push(`${device.id}/${frame.id}: ${e.message}`));
     await page.goto(url,{waitUntil:'networkidle'});
@@ -100,19 +105,20 @@ try {
     await page.waitForTimeout(5000); // allow genuine transient notifications to finish
     await page.evaluate(()=>document.activeElement instanceof HTMLElement && document.activeElement.blur());
     const raw=join(rawDir,`${frame.id}.png`), name=`${String(frames.indexOf(frame)+1).padStart(2,'0')}-${frame.id}.png`;
-    await page.screenshot({path:raw});
+    await screenshot(raw);
     await compose(raw,join(dir,name),device,frame,frames.indexOf(frame));
     report.captures.push({device:device.id,frame:frame.id,path:join(dir,name),width:device.w,height:device.h});
     console.log('CAPTURE',device.id,frame.id);
     if(process.env.MEDIA_VIDEO==='1' && device.id==='iphone' && ['office','factory','design','research','company'].includes(frame.id)) {
       const videoDir=join(out,'preview-frames',frame.id);await mkdir(videoDir,{recursive:true});
+      await cdp.send('Emulation.setDeviceMetricsOverride',{width:device.width,height:device.height,deviceScaleFactor:2,mobile:false});
       // Advance the browser clock one video frame at a time: rendering speed cannot drop frames.
       const resume=page.getByRole('button',{name:frame.id==='factory'?'Resume game':'Resume',exact:true});
       if(await resume.count()) await resume.dispatchEvent('click');
       await page.clock.pauseAt(await page.evaluate(()=>Date.now()+100));
       for(let i=0;i<120;i++) {
         await page.clock.runFor(1000/30);
-        await page.screenshot({path:join(videoDir,`${String(i).padStart(4,'0')}.png`)});
+        await screenshot(join(videoDir,`${String(i).padStart(4,'0')}.png`));
         if(i%30===29) console.log('VIDEO',frame.id,i+1,'/120');
       }
     }
