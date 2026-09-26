@@ -1,5 +1,12 @@
 name: Release gates
 on:
+  workflow_dispatch:
+    inputs:
+      marketing_version:
+        description: Marketing version to verify (leave blank for package version)
+        type: string
+        required: false
+        default: ""
   workflow_call:
     inputs:
       marketing_version:
