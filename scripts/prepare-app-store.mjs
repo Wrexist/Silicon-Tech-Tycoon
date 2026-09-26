@@ -74,10 +74,22 @@ if (process.env.UPLOAD_STORE_MEDIA === '1') {
     const old = (await asc(`/v1/${sets}/${set.id}/${assets}?limit=50`)).data;
     const completed = [];
     const removed = new Set();
+    async function waitForDelivery(id) {
+      let ready;
+      for (let attempt = 0; attempt < 100; attempt++) {
+        ready = (await asc(`/v1/${assets}/${id}`)).data;
+        const states = [ready.attributes.assetDeliveryState];
+        if (assets === 'appPreviews') states.push(ready.attributes.videoDeliveryState, ready.attributes.previewFrameImage?.state);
+        if (states.some(state => state?.state === 'FAILED')) throw Error(`Processing failed: ${JSON.stringify(states)}`);
+        if (states.every(state => state?.state === 'COMPLETE')) return ready;
+        await new Promise(r => setTimeout(r, 6000));
+      }
+      throw Error(`Asset or preview delivery is still processing: ${id}; preserved for inspection`);
+    }
     for (const file of files) {
       const bytes = readFileSync(file), checksum = createHash('md5').update(bytes).digest('hex');
       const same = old.find(a => a.attributes.sourceFileChecksum === checksum && a.attributes.assetDeliveryState?.state === 'COMPLETE');
-      if (same) { completed.push(same); continue; }
+      if (same) { completed.push(await waitForDelivery(same.id)); continue; }
       // A full screenshot set cannot accept an eleventh image. Retire one backed-up old
       // image at a time, retaining the rest until every replacement is processed.
       if (assets === 'appScreenshots' && old.length - removed.size + completed.filter(a => !old.some(o => o.id === a.id)).length >= 10) {
@@ -94,15 +106,7 @@ if (process.env.UPLOAD_STORE_MEDIA === '1') {
         if (!response.ok) throw Error(`Asset part upload failed: ${response.status}`);
       }
       await asc(`/v1/${assets}/${reservation.id}`, 'PATCH', { type: assets, id: reservation.id, attributes: { uploaded: true, sourceFileChecksum: checksum } });
-      let ready;
-      for (let attempt = 0; attempt < 100; attempt++) {
-        ready = (await asc(`/v1/${assets}/${reservation.id}`)).data;
-        const state = ready.attributes.assetDeliveryState?.state;
-        if (state === 'COMPLETE') break;
-        if (state === 'FAILED') throw Error(`Processing failed: ${JSON.stringify(ready.attributes.assetDeliveryState)}`);
-        await new Promise(r => setTimeout(r, 6000));
-      }
-      if (ready.attributes.assetDeliveryState?.state !== 'COMPLETE') throw Error('Asset still processing; preserved for inspection');
+      const ready = await waitForDelivery(reservation.id);
       completed.push(ready);
       console.log('Processed', assets, basename(file));
     }

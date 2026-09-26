@@ -38,3 +38,12 @@ The Store media workflow preserves an artifact named `silicon-store-media-1.4.0`
 image and the video before passing that exact run ID to the store-preparation workflow. The
 preparation script backs up the existing draft screenshots, uploads replacements, checks Apple's
 processing result, and sets their order. It cannot submit or release an app version.
+
+## Prepared 1.4.0 draft
+
+Reviewed media: [capture run 36278267594](https://github.com/Wrexist/Silicon-Tech-Tycoon/actions/runs/36278267594).
+Apple processed the 12 screenshots and iPhone preview successfully in
+[upload run 36279546070](https://github.com/Wrexist/Silicon-Tech-Tycoon/actions/runs/36279546070).
+That run's `app-store-inspection` artifact retains before/after state and the previous screenshots.
+Build 77 remains selected on the unsubmitted draft. Generated media is available locally under
+`appstore/release-1.4.0/`, with `index.html` for review; binary captures are not committed to git.
