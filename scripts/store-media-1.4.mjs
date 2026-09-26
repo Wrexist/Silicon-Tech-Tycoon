@@ -7,6 +7,7 @@ import { existsSync } from 'node:fs';
 import { resolve, extname, join } from 'node:path';
 import { chromium } from 'playwright-core';
 import sharp from 'sharp';
+import { createHash } from 'node:crypto';
 
 const root = resolve('.'), dist = join(root, 'dist');
 const out = join(root, 'appstore', 'release-1.4.0');
@@ -125,11 +126,33 @@ try {
       await page.clock.pauseAt(await page.evaluate(()=>Date.now()+60000));
       const resume=page.getByRole('button',{name:frame.id==='factory'?'Resume game':'Resume',exact:true});
       if(await resume.count()) await resume.dispatchEvent('click');
-      for(let i=0;i<120;i++) {
+      const count=Number(process.env.MEDIA_FRAME_COUNT || 120);
+      const hashes=new Set();
+      const officeCanvas=frame.id==='office' ? await page.locator('.hq__scene canvas').boundingBox() : null;
+      for(let i=0;i<count;i++) {
+        // Show real player actions, including on screens with no ambient animation.
+        if(officeCanvas && i===Math.floor(count*.2)) {
+          await page.mouse.move(officeCanvas.x+officeCanvas.width*.65,officeCanvas.y+officeCanvas.height*.65);
+          await page.mouse.down();
+        }
+        if(officeCanvas && i>=Math.floor(count*.2) && i<Math.floor(count*.8)) {
+          const progress=(i-Math.floor(count*.2))/(count*.6);
+          await page.mouse.move(officeCanvas.x+officeCanvas.width*(.65-.3*progress),officeCanvas.y+officeCanvas.height*.65);
+        }
+        if(officeCanvas && i===Math.floor(count*.8)) await page.mouse.up();
+        if(i===Math.floor(count*.5)) {
+          if(frame.id==='design') await page.getByRole('button',{name:'View front',exact:true}).dispatchEvent('click');
+          if(frame.id==='research') await page.getByRole('tab',{name:'Components',exact:true}).dispatchEvent('click');
+          if(frame.id==='company') await page.getByRole('tab',{name:'Team',exact:true}).dispatchEvent('click');
+        }
         await page.clock.runFor(1000/30);
-        await screenshot(join(videoDir,`${String(i).padStart(4,'0')}.png`));
+        const path=join(videoDir,`${String(i).padStart(4,'0')}.png`);
+        await screenshot(path);
+        hashes.add(createHash('sha256').update(await readFile(path)).digest('hex'));
         if(i%30===29) console.log('VIDEO',frame.id,i+1,'/120');
       }
+      if(hashes.size<2) throw Error(`Preview has no visible motion or interaction: ${frame.id}`);
+      console.log('MOTION',frame.id,hashes.size,'distinct frames');
     }
     await context.close();
     await writeFile(join(out,'capture-report.json'),JSON.stringify(report,null,2));
