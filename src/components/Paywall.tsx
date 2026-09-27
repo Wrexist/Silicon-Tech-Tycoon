@@ -259,8 +259,11 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
     setBusy("restore");
     haptic.light();
     let restored = false;
+    let creativeRestored = false;
     try {
-      ({ restored } = await restorePro());
+      const result = await restorePro();
+      restored = result.restored;
+      creativeRestored = result.creativeRestored === true;
     } catch {
       showToast("Couldn't reach the App Store. Please try again.", { tone: "negative" });
       return;
@@ -273,6 +276,8 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
       if (req.reason === "onboarding") markOnboardingPaywallSeen();
       onClose();
       req.onUnlocked?.();
+    } else if (creativeRestored) {
+      showToast("Creative Mode restored. Silicon Pro is a separate purchase.", { tone: "positive" });
     } else {
       showToast("No previous purchases found for this Apple ID.", { tone: "neutral" });
     }

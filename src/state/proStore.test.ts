@@ -24,6 +24,7 @@ vi.mock("./storeKitBridge.ts", () => ({
 vi.mock("./nativeStore.ts", () => ({ mirrorToNative: () => {}, hydrateFromNative: async () => {} }));
 
 import { getProRecord, grantFounding, isPro, proRecordFrom, setProRecord } from "./pro.ts";
+import { hasSandboxEntitlement } from "./entitlements.ts";
 import { getProCatalog, purchasePro, restorePro, syncPro } from "./proStore.ts";
 
 class MemStorage {
@@ -283,6 +284,13 @@ describe("getProCatalog", () => {
 });
 
 describe("restorePro", () => {
+  it("restores the legacy Creative purchase without granting full Pro", async () => {
+    bridge.restore.mockResolvedValue({ restored: true, owned: ["com.wrexist.silicon.sandbox"] });
+    expect(await restorePro()).toEqual({ restored: false, creativeRestored: true });
+    expect(hasSandboxEntitlement()).toBe(true);
+    expect(isPro()).toBe(false);
+  });
+
   it("reports a retryable error when restore and entitlement reads fail", async () => {
     bridge.restore.mockRejectedValue(new Error("offline"));
     bridge.isOwned.mockRejectedValue(new Error("offline"));

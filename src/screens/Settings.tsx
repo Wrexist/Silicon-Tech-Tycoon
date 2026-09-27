@@ -480,11 +480,13 @@ function ProGroup() {
     // `finally`, not a trailing reset: if restorePro() ever rejects, a trailing setBusy(false) is
     // skipped and the button stays disabled for the life of the sheet.
     try {
-      const { restored } = await restorePro();
+      const { restored, creativeRestored } = await restorePro();
       if (restored) {
         haptic.success();
         sfx("confirm");
         showToast("Purchases restored — Silicon Pro is active", { tone: "positive" });
+      } else if (creativeRestored) {
+        showToast("Creative Mode restored", { tone: "positive" });
       } else {
         showToast("No previous purchases found for this Apple ID.", { tone: "neutral" });
       }

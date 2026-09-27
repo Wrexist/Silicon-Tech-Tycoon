@@ -212,23 +212,26 @@ function mockPeriodMs(tier: ProTier): number {
 
 /** App Store "Restore Purchases". Required on every paywall by Apple's own checklist — a user who
  *  reinstalls or switches devices must have a way back to what they already own. */
-export async function restorePro(): Promise<{ restored: boolean }> {
+export async function restorePro(): Promise<{ restored: boolean; creativeRestored?: boolean }> {
   if (!isNative()) return { restored: isPro() };
   if (!NATIVE_PRO_WIRED) return { restored: isPro() };
 
   let restoreFailed = false;
+  let creativeRestored = false;
   try {
-    await storeKit().restore({});
+    const result = await storeKit().restore({});
+    creativeRestored = result.owned?.includes("com.wrexist.silicon.sandbox") === true;
+    if (creativeRestored) grantSandboxEntitlement();
   } catch {
     restoreFailed = true;
   }
   // A failed refresh can still recover an entitlement, but cannot prove there is
   // nothing to restore. Let the existing UI error path offer a retry instead.
   const answered = await syncPro();
-  if (!isPro() && (restoreFailed || !answered)) {
+  if (!isPro() && !creativeRestored && (restoreFailed || !answered)) {
     throw new Error("Couldn't reach the App Store. Please try again.");
   }
-  return { restored: isPro() };
+  return { restored: isPro(), creativeRestored };
 }
 
 /* ─────────────────────────────  SYNC  ───────────────────────────── */

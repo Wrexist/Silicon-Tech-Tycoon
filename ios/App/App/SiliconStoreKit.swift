@@ -305,7 +305,11 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
         #endif
         guard #available(iOS 15.0, *) else { return call.resolve(["restored": false, "owned": []]) }
         Task {
-            try? await AppStore.sync()
+            do {
+                try await AppStore.sync()
+            } catch {
+                return call.reject("Could not restore purchases: \(error.localizedDescription)")
+            }
             var owned: [String] = []
             for await result in Transaction.currentEntitlements {
                 if case .verified(let transaction) = result, transaction.revocationDate == nil {

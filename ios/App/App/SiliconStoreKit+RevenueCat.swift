@@ -334,9 +334,9 @@ extension SiliconStoreKitPlugin {
                     call.resolve(["restored": !list.isEmpty, "owned": list])
                 }
             } catch {
-                // A restore that failed (sign-in cancelled, offline) reports nothing restored — it
-                // never revokes. `proStore.restorePro()` follows up with `syncPro()` regardless.
-                call.resolve(["restored": false, "owned": []])
+                // An unsuccessful refresh is not evidence of empty ownership. The JS
+                // caller can still recover cached access, or display a retryable error.
+                call.reject("Could not restore purchases: \(error.localizedDescription)")
             }
         }
     }
