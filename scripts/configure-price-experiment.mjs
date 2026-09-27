@@ -102,9 +102,24 @@ for (const plan of config.products) {
         attributes: { duration: 'ONE_WEEK', numberOfPeriods: 1, offerMode: 'FREE_TRIAL' },
         relationships: { subscription: rel(type, product.id), territory: rel('territories', t.id) } });
     }
-    if (missingOffers.length) await asc(base, 'PATCH', { type, id: product.id, relationships: {
-      introductoryOffers: { data: [...offers.map(o => ({ type: o.type, id: o.id })), ...missingOffers.map(o => ({ type: o.type, id: o.id }))] },
-    } }, missingOffers);
+    for (const offer of missingOffers) {
+      const { id: temporaryId, ...data } = offer;
+      for (let attempt = 0; ; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        try { await asc('/v1/subscriptionIntroductoryOffers', 'POST', data); break; }
+        catch (e) {
+          if (attempt >= 2 || !/: (429|500|503) /.test(String(e))) throw e;
+          await new Promise(resolve => setTimeout(resolve, 15000));
+          // A failed response can follow a successful mutation. Read before retrying.
+          const refreshed = (await all(`${base}/introductoryOffers?include=territory&limit=200`)).data;
+          const created = refreshed.find(o => o.relationships?.territory?.data?.id === data.relationships.territory.data.id);
+          if (created) {
+            if (created.attributes.offerMode !== 'FREE_TRIAL' || created.attributes.duration !== 'ONE_WEEK') throw Error('Unexpected trial after transient error');
+            break;
+          }
+        }
+      }
+    }
   } else {
     const schedule = await missingAllowed(`${base}/iapPriceSchedule`);
     const current = schedule ? (await all(`/v1/inAppPurchasePriceSchedules/${schedule.id}/manualPrices?filter[territory]=USA&include=inAppPurchasePricePoint&limit=200`)).data : [];
