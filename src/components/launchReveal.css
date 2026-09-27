@@ -167,6 +167,33 @@
 .lreveal__units-label { font-size: var(--fs-caption); color: var(--ink-2); }
 
 /* "Biggest factor" — the post-mortem's #1 driver, surfaced the moment the verdict lands. */
+/* What the launch moved — fans and reputation, the consequences that used to live only in the feed. */
+.lreveal__gains {
+  display: flex; justify-content: center; gap: var(--sp-12);
+  margin-top: var(--sp-4);
+  font-size: var(--fs-caption); font-weight: 700;
+  color: var(--positive-text);
+  animation: lreveal-rise var(--spring-standard) 0.08s both;
+}
+.lreveal__gain--down { color: var(--negative-text); }
+/* History row — "New personal best" + the delta against the product this one follows. */
+.lreveal__history {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: var(--sp-8);
+  margin-top: var(--sp-8);
+  animation: lreveal-rise var(--spring-standard) 0.05s both;
+}
+.lreveal__pb, .lreveal__vs {
+  display: inline-flex; align-items: center; gap: var(--sp-4);
+  min-height: 24px; padding: var(--sp-2) var(--sp-8);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro); font-weight: 700;
+  background: var(--glass-well); border: 1px solid var(--glass-well-edge);
+  color: var(--ink-2);
+}
+.lreveal__pb { background: color-mix(in srgb, var(--gold) 18%, transparent); border-color: color-mix(in srgb, var(--gold) 45%, transparent); color: var(--ink); }
+.lreveal__pb svg { color: var(--gold); }
+.lreveal__vs--up { color: var(--positive-text); }
+.lreveal__vs--down { color: var(--negative-text); }
 .lreveal__why {
   display: flex; flex-direction: column; gap: var(--sp-2);
   margin-top: var(--sp-8);
@@ -221,6 +248,6 @@
 @media (prefers-reduced-motion: reduce) {
   .lreveal__card, .lreveal__verdict, .lreveal__glow, .lreveal__score-val,
   .lreveal__outlets, .lreveal__quote, .lreveal__units,
-  .lreveal__why, .lreveal__breakdown,
+  .lreveal__why, .lreveal__breakdown, .lreveal__history, .lreveal__gains,
   .lreveal__card .ds-btn--primary { animation: none; }
 }

@@ -128,9 +128,19 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
     if (aLive !== bLive) return bLive - aLive;
     return b.revenueToDate - a.revenueToDate;
   });
-  const expiredHits = sortedProducts.filter(
-    (lp) => lp.weeksElapsed >= lp.weeklyUnits.length && (lp.verdict === "hit" || lp.verdict === "solid"),
-  );
+  // Finished hits whose line you HAVEN'T continued. Without the continuation check the nudge stayed up
+  // forever once you'd had any hit (and could point at an ancient product), even after you'd shipped,
+  // built or queued its successor. A line is "continued" when anything newer shares its franchise stem.
+  const expiredHits = sortedProducts.filter((lp) => {
+    if (lp.weeksElapsed < lp.weeklyUnits.length || (lp.verdict !== "hit" && lp.verdict !== "solid")) return false;
+    const stem = franchiseStem(lp.product.name);
+    if (!stem) return true;
+    const continued =
+      state.launched.some((o) => o.launchedWeek > lp.launchedWeek && franchiseStem(o.product.name) === stem)
+      || state.building.some((b) => franchiseStem(b.product.name) === stem)
+      || state.ready.some((p) => franchiseStem(p.name) === stem);
+    return !continued;
+  });
   const [detailId, setDetailId] = useState<string | null>(null);
   // Deep-link hand-off from the launch reveal: open the named product's post-mortem once, consume.
   useEffect(() => {

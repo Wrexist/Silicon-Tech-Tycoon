@@ -2,7 +2,7 @@
 // critic reviews counting in, then the verdict + projected sales, with confetti on a hit. Mounted
 // once in App; driven by the launchReveal module bus. Reduced-motion jumps straight to the result.
 import { useEffect, useRef, useState } from "react";
-import { ChevronRight, Flame, Rocket, Sparkles, Star, X } from "lucide-react";
+import { ChevronRight, Flame, Rocket, Sparkles, Star, TrendingDown, TrendingUp, Trophy, Wand2, X } from "lucide-react";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { onLaunchReveal, setLaunchRevealActive, type LaunchRevealData } from "../design/launchReveal.ts";
@@ -11,6 +11,8 @@ import { emitCelebrate } from "../design/celebrateFx.ts";
 import { emitHqReaction } from "../design/hqReaction.ts";
 import { prefersReducedMotion } from "../garage3d/support.ts";
 import { markDebutOfferSeen, openPaywall, shouldShowDebutOffer } from "../state/paywall.ts";
+import type { Product } from "../engine/types.ts";
+import { formatCount } from "../engine/money.ts";
 import "./launchReveal.css";
 
 type Stage = "intro" | "reviews" | "verdict";
@@ -22,7 +24,12 @@ const VERDICT_COPY: Record<LaunchRevealData["verdict"], { label: string; tone: s
   flop: { label: "Slow start", tone: "flop" },
 };
 
-export function LaunchReveal({ onSeeBreakdown }: { onSeeBreakdown?: (productId: string) => void } = {}) {
+export function LaunchReveal({ onSeeBreakdown, onDesignSuccessor }: {
+  onSeeBreakdown?: (productId: string) => void;
+  /** "Design the next version" — hands the product to the Lab as a successor seed. The flop's way
+   *  forward, offered on every verdict. */
+  onDesignSuccessor?: (product: Product) => void;
+} = {}) {
   const [data, setData] = useState<LaunchRevealData | null>(null);
   const [stage, setStage] = useState<Stage>("intro");
   const [score, setScore] = useState(0);
@@ -143,6 +150,25 @@ export function LaunchReveal({ onSeeBreakdown }: { onSeeBreakdown?: (productId: 
           </div>
         )}
 
+        {/* How this launch reads against the company's own history — the "am I getting better?"
+            beat. Lands with the verdict so it never races the score count-up. */}
+        {stage === "verdict" && (data.personalBest || data.vsPrevious) && (
+          <div className="lreveal__history">
+            {data.personalBest && (
+              <span className="lreveal__pb"><Trophy size={12} aria-hidden /> New personal best</span>
+            )}
+            {data.vsPrevious && data.vsPrevious.delta !== 0 && (
+              <span className={`lreveal__vs lreveal__vs--${data.vsPrevious.delta > 0 ? "up" : "down"}`}>
+                {data.vsPrevious.delta > 0 ? <TrendingUp size={12} aria-hidden /> : <TrendingDown size={12} aria-hidden />}
+                <span className="tnum">{data.vsPrevious.delta > 0 ? "+" : "−"}{Math.abs(data.vsPrevious.delta)}</span> vs {data.vsPrevious.name}
+              </span>
+            )}
+            {data.vsPrevious && data.vsPrevious.delta === 0 && (
+              <span className="lreveal__vs">Level with {data.vsPrevious.name}</span>
+            )}
+          </div>
+        )}
+
         {stage !== "intro" && <p className="lreveal__quote">"{data.headline}"</p>}
 
         {stage === "verdict" && (
@@ -158,6 +184,12 @@ export function LaunchReveal({ onSeeBreakdown }: { onSeeBreakdown?: (productId: 
               <span className="lreveal__units-val tnum">{units.toLocaleString()}</span>
               <span className="lreveal__units-label">units projected to sell</span>
             </div>
+            {((data.fansGained ?? 0) > 0 || (data.repGained ?? 0) !== 0) && (
+              <div className="lreveal__gains">
+                {(data.fansGained ?? 0) > 0 && <span className="tnum">+{formatCount(data.fansGained!)} fans</span>}
+                {(data.repGained ?? 0) !== 0 && <span className={`tnum${data.repGained! < 0 ? " lreveal__gain--down" : ""}`}>{data.repGained! > 0 ? "+" : "−"}{Math.abs(data.repGained!)} rep</span>}
+              </div>
+            )}
             {/* The outcome's WHY, at the moment it lands — the post-mortem's #1 ranked driver
                 (pillar #5). The full breakdown lives in the Market detail; deep-link it. */}
             {data.why && (
@@ -166,7 +198,17 @@ export function LaunchReveal({ onSeeBreakdown }: { onSeeBreakdown?: (productId: 
                 <span className="lreveal__why-text">{data.why}</span>
               </div>
             )}
-            <Button block onClick={close}>Continue</Button>
+            {/* A slow start's next step is the next version — give it the primary slot there. */}
+            {data.verdict === "flop" && onDesignSuccessor ? (
+              <>
+                <Button block onClick={() => { const p = data.product; close(); onDesignSuccessor(p); }}>
+                  <Wand2 size={16} aria-hidden /> Design the next version
+                </Button>
+                <Button block variant="secondary" onClick={close}>Continue</Button>
+              </>
+            ) : (
+              <Button block onClick={close}>Continue</Button>
+            )}
             {onSeeBreakdown && (
               <button
                 className="lreveal__breakdown"
@@ -177,6 +219,14 @@ export function LaunchReveal({ onSeeBreakdown }: { onSeeBreakdown?: (productId: 
                 }}
               >
                 See the full breakdown <ChevronRight size={14} aria-hidden />
+              </button>
+            )}
+            {data.verdict !== "flop" && onDesignSuccessor && (
+              <button
+                className="lreveal__breakdown"
+                onClick={() => { const p = data.product; close(); onDesignSuccessor(p); }}
+              >
+                <Wand2 size={14} aria-hidden /> Start the next version
               </button>
             )}
           </>

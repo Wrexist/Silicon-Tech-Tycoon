@@ -116,6 +116,11 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
   // card here and the global ready-to-launch popup release a product identically.
   const launchProduct = useLaunchProduct();
   const onLaunch = (id: string) => { launchProduct(id); };
+  // A claimable contract lights the HQ tab dot, but its card sits in the collapsed "Company & goals"
+  // group — open that group (once, when a reward becomes ready) so the dot never points at nothing.
+  const contractReady = !!state.tutorialDone && (state.contracts ?? []).some((c) => contractProgress(c, contractFacts(state)).done);
+  const companyGroupRef = useRef<HTMLDetailsElement>(null);
+  useEffect(() => { if (contractReady && companyGroupRef.current) companyGroupRef.current.open = true; }, [contractReady]);
   const reducedMotion = useReducedMotionLive();
   const pro = useIsPro();
   // The 3D office is THE office — there is no 2D alternative view any more, and no preference that
@@ -324,7 +329,9 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           decision, a milestone you've earned). From here down the screen is grouped into three
           labelled zones instead of one undifferentiated column of ~20 cards, so the scroll is
           navigable: where you STAND, how the business RUNS, and the RECORD of what happened. */}
-      <details className="mg-disclosure"><summary>Company &amp; goals</summary><HqGroup label="Your company">
+      {/* The HQ tab's attention dot lights for a claimable contract, whose card lives in here — so a
+          ready reward opens the group instead of pointing the player at a closed disclosure. */}
+      <details className="mg-disclosure" ref={companyGroupRef}><summary>Company &amp; goals{contractReady && <span className="hq__summary-chip">Reward ready</span>}</summary><HqGroup label="Your company">
       {/* The vital signs — ONE row, cut to four. It used to be two rows of six, with the second
           negative-margined up to look like the first, and it led with trivia: "Products" duplicates
           the Performance card's own Shipped count, and "Team" is both the Company tab's whole subject

@@ -62,11 +62,14 @@ export function useLaunchProduct() {
           demandFit: plan.demandFit,
           priceFit: plan.priceFit,
           betterRivals: plan.betterRivals,
-          units: plan.projectedSales,
+          units: res.totalUnits ?? plan.projectedSales,
+          fansGained: res.fansGained,
+          repGained: res.repGained,
           isHit,
           firstLaunch: launchedBefore.length === 0,
           streak,
           insight: insightFromPlan(plan),
+          launchedBefore,
         }));
         // First product ever shipped — a real high point. Ask for an App Store review (once).
         if (launchedBefore.length === 0) maybePromptFirstLaunchReview();

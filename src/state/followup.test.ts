@@ -51,4 +51,13 @@ describe("management readouts", () => {
     expect(designAdvice({ missing: ["Chip"], priceRatio: 2, weak: null, fit: 20, trend: null }).step).toBe("components");
     expect(designAdvice({ missing: [], priceRatio: 2, weak: null, fit: 85, trend: null }).step).toBe("launch");
   });
+
+  it("never calls a forecast flop 'no issue' when rivals are what's dragging it", () => {
+    const flop = designAdvice({ missing: [], priceRatio: 1, weak: null, fit: 80, trend: null, forecast: { label: "Needs refinement", flop: true, betterRivals: 2 } });
+    expect(flop.tone).toBe("warning");
+    expect(flop.title).toMatch(/2 rivals outclass/);
+    const fine = designAdvice({ missing: [], priceRatio: 1, weak: null, fit: 80, trend: null, forecast: { label: "Projected hit", flop: false, betterRivals: 0 } });
+    expect(fine.tone).toBe("positive");
+    expect(fine.title).toMatch(/^Projected hit\./);
+  });
 });

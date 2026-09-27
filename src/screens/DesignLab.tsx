@@ -567,7 +567,7 @@ export function DesignLab({
   const STAT_LABEL_FULL: Record<keyof Stats, string> = { performance: "Performance", quality: "Quality", battery: "Battery life", design: "Design", ecosystem: "Ecosystem" };
 
   const underserved = [...liveSegments.perSegment].sort((a, b) => b.size * (100 - b.fit) - a.size * (100 - a.fit))[0];
-  const advice = designAdvice({ buyerNeeds: underserved ? `${underserved.name}: ${segmentWantsById(underserved.id)}` : undefined, missing: missing.map(capSlot), priceRatio, weak: syn.weakest && capSlot(syn.weakest), fit, trend: topWantedDelta > .02 ? STAT_LABEL_FULL[topWanted] : null });
+  const advice = designAdvice({ buyerNeeds: underserved ? `${underserved.name}: ${segmentWantsById(underserved.id)}` : undefined, missing: missing.map(capSlot), priceRatio, weak: syn.weakest && capSlot(syn.weakest), fit, trend: topWantedDelta > .02 ? STAT_LABEL_FULL[topWanted] : null, forecast: preview ? { label: verdict.label, flop: effectiveScore <= bands.flop, betterRivals: preview.betterRivals } : undefined });
   return (
     <div className="lab">
       {/* Header strip — subtitle + the live projected-verdict badge (mockup's "Steady Seller"). */}

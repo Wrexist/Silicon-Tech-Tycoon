@@ -413,7 +413,7 @@ function AppShell() {
       <Paywall />
       {/* Housekeeping strips for people who already pay: trial ending, or a failing card. */}
       <ProNudge />
-      <LaunchReveal onSeeBreakdown={seeBreakdown} />
+      <LaunchReveal onSeeBreakdown={seeBreakdown} onDesignSuccessor={designSuccessor} />
       <SoundFX />
       <Bank open={bankOpen} onClose={() => setBankOpen(false)} />
       <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)} label="Settings">

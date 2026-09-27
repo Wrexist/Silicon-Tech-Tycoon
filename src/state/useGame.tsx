@@ -154,6 +154,7 @@ import {
   ipoValuation,
   industryRank,
   type GameState,
+  industryLeaderboard,
 } from "./gameState.ts";
 import { getLegacy, setLegacy } from "./legacy.ts";
 import { recordStars, getScenarioStars, mergeScenarioStars } from "./scenarioProgress.ts";
@@ -185,6 +186,7 @@ import { CircleCheck, Cpu, FileSearch, FlaskConical, Landmark, Rocket, Sparkles 
 import { showToast } from "../design/toast.tsx";
 import { emitSpend, emitRpSpend } from "../design/spendFx.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
+import { rewardSummary } from "../engine/contracts.ts";
 import { sfx } from "../design/sound.ts";
 import { haptic } from "../design/haptics.ts";
 import { projectById } from "../engine/research.ts";
@@ -325,6 +327,28 @@ function withRevToasts(prev: GameState, next: GameState): void {
   if (top == null) return;
   try {
     showToast(`Revenue milestone, ${fmtMilestone(top)} earned lifetime!`, { tone: "positive", priority: "low" });
+  } catch { /* toast host not mounted */ }
+}
+
+/** Climbing the industry ladder to a NEW best rank was only a feed line (inside the collapsed Records
+ *  group). It's one of the game's clearest "you're winning" beats, so give it a toast — one line per
+ *  tick however many rivals were passed — and the full celebration on reaching #1. */
+function withRankToasts(prev: GameState, next: GameState): void {
+  const was = prev.bestIndustryRank;
+  const now = next.bestIndustryRank;
+  if (!(now < was)) return;
+  const passed = industryLeaderboard(next).slice(now, was).filter((e) => !e.isPlayer);
+  if (passed.length === 0) return;
+  try {
+    if (now === 1) {
+      showToast(`You're the #1 company in the industry, ${passed[0].name} dethroned!`, { tone: "positive" });
+      emitCelebrate();
+      sfx("mastery");
+      haptic.success();
+    } else {
+      const who = passed.length === 1 ? passed[0].name : `${passed[0].name} and ${passed.length - 1} more`;
+      showToast(`You overtook ${who}, now #${now} in the industry`, { tone: "positive" });
+    }
   } catch { /* toast host not mounted */ }
 }
 
@@ -527,7 +551,14 @@ interface GameActionsValue {
   /** Reload this tab so it boots from the freshest save and claims play back. */
   takeOverHere: () => void;
   build: (product: Product, plannedUnits?: number, channelId?: ChannelId) => { ok: boolean; reason?: string };
-  launchReady: (productId: string) => { ok: boolean; reason?: string; launchScore?: number; verdict?: "hit" | "solid" | "flop" | "steady" };
+  launchReady: (productId: string) => {
+    ok: boolean; reason?: string; launchScore?: number; verdict?: "hit" | "solid" | "flop" | "steady";
+    /** The RECORDED demand forecast (after the launch's seeded variance) — what Market will show. */
+    totalUnits?: number;
+    /** What the launch itself moved, read off the committed state (a first ship can also trip rewards). */
+    fansGained?: number;
+    repGained?: number;
+  };
   research: (kind: ComponentKind) => void;
   cancelResearch: () => void;
   cancelQueuedResearch: (ref: string) => void;
@@ -879,6 +910,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           if (!quietMilestones) {
             withRevToasts(s, next);
             withFanToasts(s, next);
+            withRankToasts(s, next);
             withStaffLevelToasts(s, next);
           }
           if (!quietSummaries) {
@@ -985,7 +1017,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const launchReadyCb = useCallback((productId: string) => {
-    const result = launchReady(gs(), productId);
+    const before = gs();
+    const result = launchReady(before, productId);
+    let recorded: { totalUnits?: number; fansGained?: number; repGained?: number } = {};
     // A launch can immediately cross a milestone (first ship, a hit, a hit streak, a sellout) — so
     // evaluate + celebrate right here, not only on the next weekly tick.
     if (result.ok) {
@@ -1010,8 +1044,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
         });
       }
       store.set(next);
+      recorded = {
+        totalUnits: lp?.totalUnits,
+        fansGained: Math.max(0, Math.round(next.fans - before.fans)),
+        repGained: Math.round(next.reputation - before.reputation),
+      };
     }
-    return { ok: result.ok, reason: result.reason, launchScore: result.launchScore, verdict: result.verdict };
+    return { ok: result.ok, reason: result.reason, launchScore: result.launchScore, verdict: result.verdict, ...recorded };
   }, []);
 
   // Start — or queue — the next tier of a component line (timed research). Pays RP up front; the unlock
@@ -1089,6 +1128,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (!res.ok) { haptic.error(); showToast(res.reason ?? "Not ready to claim", { tone: "negative" }); return; }
     haptic.success();
     sfx("cash");
+    // A claim is a payday the player asked for — say what landed (the passive GainFX token is
+    // throttled and can swallow a claim made right after a weekly tick).
+    const c = (prev.contracts ?? []).find((x) => x.id === id);
+    if (c) showToast(`Contract complete, ${rewardSummary(c.reward)}`, { tone: "positive" });
     store.set(res.state);
   }, []);
   // Fund a moonshot megaproject (item 4.1) — a post-IPO cash + RP sink with a prestige payoff.
