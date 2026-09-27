@@ -18,7 +18,7 @@ Nothing here touches the engine's simulation path — the determinism pin is unt
 | 2 | **One Escape closed every stacked overlay.** Over IPO + Heat paywall it also dismissed the IPO (→ `ipoSeen`, New Game+ unreachable for the run); over an era-mandate draft + strike card it silently declined the mandate. `overlayGuard` was a counter, not a stack. | `design/overlayGuard.ts`, 13 overlays | ✅ `useEscapeLayer()` — a real stack; only the frontmost layer answers Escape |
 | 3 | **Paywall opens *behind* the IPO overlay** (z 62 vs 80): "Raise Heat" / "Start New Game+" looked dead for free players — on the main conversion moment. | `paywall.css`, `App.css` | ✅ z-index tokens; paywall above takeovers |
 | 4 | **Era modal, IPO overlay and paywall don't hold the sim** — weeks (and rent) pass while you read a mandate draft or the paywall, and interrupts stack on top. | `App.tsx`, `Paywall.tsx` | ✅ `useHoldSim(true)` |
-| 5 | **"Latest product" reads the oldest** (`launched` is newest-first): the buzz ticker kept announcing your very first product forever. | `BuzzTicker.tsx` | ✅ (the matching engine read in `sourcingExposureWithContracts` is ⏭️ — it changes sim output, needs a gated migration) |
+| 5 | **"Latest product" reads the oldest** (`launched` is newest-first): the buzz ticker kept announcing your very first product forever; the supply-crunch exposure used your first-ever product's supplier. | `BuzzTicker.tsx`, `gameState.ts` | ✅ both (determinism pin green) |
 | 6 | **A crash on HQ / Design Lab is permanent until reload** — ErrorBoundary had no reset; "Back to Office" was a no-op on the Office. | `ErrorBoundary.tsx` | ✅ `resetKeys` + retry |
 | 7 | **Era goal card broken in the AI Era**: "Both thresholds are required" with no bars (thresholds are ∞ at era 4; IPO branch gated on `maxEra()` which is 5 now). | `HQ.tsx` `EraGoalCard` | ✅ IPO → Frontier goal |
 | 8 | **Research roadmap copy wrong**: future eras said "X rep **or** $Y" (only 1→2 is either/or), progress used `max` (overstates), era 4 rendered "72 / null rep". | `Research.tsx` `EraRoadmap` | ✅ |
@@ -57,7 +57,7 @@ Nothing here touches the engine's simulation path — the determinism pin is unt
 | 31 | Weekly recap has no "vs last week". | ✅ |
 | 32 | Design advice says "No major issue" while rivals drag the forecast to a flop; the verdict badge is hidden by CSS. | ✅ forecast line + competition warning |
 | 33 | "Design a successor" nudge on Market never goes away once you've had a hit. | ✅ ignores lines you've already continued |
-| 34 | Reveal shows forecast units, not realized — and fan/rep/RP deltas only go to the feed. | ⏭️ needs `launchReady` result plumbing through three call-sites; next pass |
+| 34 | Reveal showed the pre-variance projection, not the recorded forecast — and fan/rep deltas only went to the feed. | ✅ recorded units + "+N fans · +M rep" row |
 
 ## P3 — Tedium & comparisons
 
@@ -68,18 +68,34 @@ Nothing here touches the engine's simulation path — the determinism pin is unt
 | 37 | Price slider $0–$5,000 → the useful band is ~10% of the track on a phone. | ✅ adaptive max |
 | 38 | Lifecycle labels (rising/peak/fading) on Market disagree with Live Ops after a boost. | ✅ `productMomentum` |
 | 39 | Post-mortem profit / phase revenue use the post-cut price. | ✅ realized revenue |
-| 40 | One-tap "upgrade to researched tiers" in the Lab; live "+3 fit" delta chip. | ⏭️ touches design-budget interplay; next pass |
+| 40 | One-tap "upgrade to researched tiers" in the Lab; live "+3 fit" delta chip. | ✅ (the design-budget meter still gates the build) |
 
 ## P4 — Code health
 
 | # | Issue | Status |
 |---|---|---|
-| 41 | ~600 lines of dead CSS (`researchProgress.css`, `.speeddial*` — whose test guarded nothing —, `.mkts*`, `.rd__bank*`, `.pd__pricecut*`, `.co__ach-*`, …). | ✅ removed; bottom-chrome test re-pointed |
-| 42 | Dead code: `HeroFrame.tsx`, `uiVersion` getters. | ✅ |
+| 41 | ~800 lines of dead CSS (`researchProgress.css`, `.speeddial*` — whose test guarded nothing —, `.mkts*`, `.rd__bank*`, `.pd__pricecut*`, `.co__ach-*`, …). | ✅ removed; bottom-chrome test re-pointed |
+| 42 | Dead code: `HeroFrame.tsx` (never rendered). | ✅ removed · the `uiVersion` setters are kept deliberately (a dev/QA toggle surface) |
 | 43 | WebGL probe leaks a live WebGL2 context. | ✅ `loseContext()` |
 | 44 | Draft/library localStorage grows forever across New Game+ runs. | ✅ prune stale run keys |
 | 45 | Seasons read (`localStorage` + JSON.parse) on every tick from the office scene. | ✅ raw-string cache |
 | 46 | Confetti timers never pruned; Settings "copied" timer not cleared; drag handlers ignore `pointercancel`. | ✅ |
 | 47 | `AppShell` re-renders the whole app every tick (`useGameSelector` has zero consumers). | ⏭️ large refactor with regression risk; tracked |
-| 48 | z-index: ~35 magic numbers across 30 files. | ✅ layer tokens for the overlay stack (dock → sheet → interrupt → takeover → paywall → toast → celebrate) |
+| 48 | z-index: magic numbers across the overlay stack. | ✅ `--z-dock … --z-celebrate` tokens own every full-screen layer (in-screen stacking contexts keep local numbers) |
 | 49 | 164 off-grid spacing values, literal `999px`, `transition: all` ×10. | partial ✅ (`transition: all`, `999px`); spacing snap ⏭️ (pixel-shifts every screen — needs a dedicated visual review) |
+
+## Deliberately deferred (tracked, not forgotten)
+
+| Item | Why it waits |
+|---|---|
+| Edge-reflection rim scrolls with the content on popup cards that overflow (12 cards). | Needs an inner `…__scroll` wrapper per card (the paywall's pattern) — a markup + padding move in 12 different layouts. Only visible when a card is taller than the screen. |
+| `AppShell` re-renders the whole tree every tick (#47). | Real win, but a broad context-selector refactor; wants its own branch with a profiler before/after. |
+| Snap 164 off-grid spacing values to the 8pt scale; ~40 white-sheen literals → `--sheen*` tokens; 34 literal font sizes. | Pixel-shifts nearly every screen — needs a dedicated visual-review pass, not a drive-by. |
+
+## Verification
+
+- `npx tsc -b --noEmit` clean; `npx vitest run` → 212 files / 2,179 tests green (determinism pin included).
+- New guards: `design/encoding.test.ts` (mojibake), `design/overlayGuard.test.ts` (overlay stack),
+  `design/launchReveal.test.ts` (history comparison), draft-storage eviction, forecast-aware design advice,
+  and a rewritten `bottomChrome.test.ts` that pins the real dock relationships.
+- Before/after screenshots of every primary screen via `npm run shots:diff` (`.shots/compare.html`).
