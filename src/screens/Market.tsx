@@ -8,6 +8,7 @@ import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { rivalDef, rivalDoctrine, rivalMarketCap, DOCTRINE_LABEL, DOCTRINE_EXPLAINER } from "../engine/competitors.ts";
+import { productMomentum } from "../engine/liveOps.ts";
 import { playerFranchises, rivalLines, franchiseStem, type FranchiseSummary } from "../engine/franchise.ts";
 import { franchiseMastery, FRANCHISE_MASTERY_MIN_ENTRIES, type FranchiseMasteryLine } from "../engine/franchiseMastery.ts";
 import { rivalLicenseFee } from "../engine/platform.ts";
@@ -98,6 +99,20 @@ function changePct(history: number[]): number {
   return a > 0 ? ((b - a) / a) * 100 : 0;
 }
 
+type ProductFilter = "all" | "live" | "hits" | "flops";
+const PRODUCT_FILTERS: { id: ProductFilter; label: string }[] = [
+  { id: "all", label: "All" }, { id: "live", label: "Live" }, { id: "hits", label: "Hits" }, { id: "flops", label: "Flops" },
+];
+const PRODUCT_FILTER_TEST: Record<ProductFilter, (lp: LaunchedProduct) => boolean> = {
+  all: () => true,
+  live: (lp) => lp.weeksElapsed < lp.weeklyUnits.length,
+  hits: (lp) => lp.verdict === "hit" || lp.verdict === "solid",
+  flops: (lp) => lp.verdict === "flop",
+};
+/** Chips only appear once the list is long enough to need them. */
+const FILTER_MIN = 6;
+const PRODUCTS_PAGE = 12;
+
 export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onFocusConsumed }: {
   onDesignSuccessor?: (p: Product) => void;
   onOpenDesignLab?: () => void;
@@ -141,6 +156,11 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
       || state.ready.some((p) => franchiseStem(p.name) === stem);
     return !continued;
   });
+  // Late-game the catalogue runs to dozens of rows: filter chips + a first-page cap keep it scannable.
+  const [prodFilter, setProdFilter] = useState<ProductFilter>("all");
+  const [showAllProducts, setShowAllProducts] = useState(false);
+  const filteredProducts = sortedProducts.filter(PRODUCT_FILTER_TEST[prodFilter]);
+  const visibleProducts = showAllProducts ? filteredProducts : filteredProducts.slice(0, PRODUCTS_PAGE);
   const [detailId, setDetailId] = useState<string | null>(null);
   // Deep-link hand-off from the launch reveal: open the named product's post-mortem once, consume.
   useEffect(() => {
@@ -526,8 +546,26 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
           />
         ) : (
           <>
+            {state.launched.length >= FILTER_MIN && (
+              <div className="mkt__filters" role="group" aria-label="Filter products">
+                {PRODUCT_FILTERS.map((f) => {
+                  const n = sortedProducts.filter(PRODUCT_FILTER_TEST[f.id]).length;
+                  return (
+                    <button
+                      key={f.id}
+                      className={`mkt__filter${prodFilter === f.id ? " mkt__filter--on" : ""}`}
+                      aria-pressed={prodFilter === f.id}
+                      disabled={n === 0 && f.id !== "all"}
+                      onClick={() => { haptic.light(); setProdFilter(f.id); setShowAllProducts(false); }}
+                    >
+                      {f.label} <span className="tnum">{n}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <div className="mkt__products">
-              {sortedProducts.map((lp) => {
+              {visibleProducts.map((lp) => {
                 const v = verdictOf(lp);
                 const live = lp.weeksElapsed < lp.weeklyUnits.length;
                 const endingSoon = live && (lp.weeklyUnits.length - lp.weeksElapsed) <= 3;
@@ -567,9 +605,11 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
                           return null;
                         })()}
                         {live && !endingSoon && (() => {
-                          const peakWk = BALANCE.sales.peakWeek;
-                          if (lp.weeksElapsed < peakWk) return <span className="mkt__product-stage mkt__product-stage--ramp">rising</span>;
-                          if (lp.weeksElapsed === peakWk) return <span className="mkt__product-stage mkt__product-stage--peak">peak</span>;
+                          // The product's OWN curve peak (moved by boosts/restocks), same as Live Ops —
+                          // a constant peak week made the two screens disagree.
+                          const phase = productMomentum(lp).phase;
+                          if (phase === "rising") return <span className="mkt__product-stage mkt__product-stage--ramp">rising</span>;
+                          if (phase === "peak") return <span className="mkt__product-stage mkt__product-stage--peak">peak</span>;
                           return <span className="mkt__product-stage mkt__product-stage--decline">fading</span>;
                         })()}
                         {endingSoon && <span className="mkt__product-ending">last {lp.weeklyUnits.length - lp.weeksElapsed}wk</span>}
@@ -590,6 +630,11 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
                 );
               })}
             </div>
+            {filteredProducts.length > visibleProducts.length && (
+              <button className="mkt__feed-all mkt__show-all" onClick={() => { haptic.light(); setShowAllProducts(true); }}>
+                Show all {filteredProducts.length}
+              </button>
+            )}
             {expiredHits.length > 0 && onDesignSuccessor && (
               <div className="mkt__successor-nudge">
                 <span className="mkt__successor-text">
@@ -1117,7 +1162,9 @@ function ProductDetailSheet({
           hint={lp.plannedUnits != null ? `${lp.plannedUnits.toLocaleString()} made` : undefined}
         />
         {(() => {
-          const grossProfitD = lp.unitsSold * (toDollars(lp.product.price) - toDollars(lp.unitCost));
+          // Realized revenue, not units × today's price: a price cut rewrites product.price, which
+          // used to restate every pre-cut sale at the cut price.
+          const grossProfitD = toDollars(lp.revenueToDate) - lp.unitsSold * toDollars(lp.unitCost);
           const gp = dollars(Math.round(grossProfitD));
           return (
             <Stat
@@ -1141,8 +1188,10 @@ function ProductDetailSheet({
       })()}
       {/* Lifecycle phase breakdown — only for finished products with a full sales curve */}
       {!live && lp.weeklyUnits.length > 0 && (() => {
-        const peakWk = BALANCE.sales.peakWeek;
-        const priceD = toDollars(lp.product.price);
+        // The curve's own peak (same as Live Ops), and the AVERAGE price actually realized — a
+        // mid-life price cut would otherwise restate the launch rush at the cut price.
+        const peakWk = productMomentum(lp).peakWeek;
+        const priceD = lp.unitsSold > 0 ? toDollars(lp.revenueToDate) / lp.unitsSold : toDollars(lp.product.price);
         const rushUnits = lp.weeklyUnits.slice(0, peakWk).reduce((s, u) => s + u, 0);
         const peakUnits = lp.weeklyUnits[peakWk] ?? 0;
         const declineUnits = lp.weeklyUnits.slice(peakWk + 1).reduce((s, u) => s + u, 0);

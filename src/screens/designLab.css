@@ -2120,3 +2120,20 @@
 .lab__toggle::after { top: -8px; bottom: -8px; }
 .lab__swatch::after { top: -3px; bottom: -3px; }
 .lab__suggest::after { top: -6px; bottom: -6px; }
+.lab__frontier-fix { display: flex; align-items: center; gap: var(--sp-4); padding-left: 0; font-size: var(--fs-micro); font-weight: 700; }
+/* Live Market-fit delta — pops beside the score for ~1.4s after an edit moves it. */
+.lab__fit-delta {
+  display: inline-block;
+  margin-right: var(--sp-6);
+  font-size: var(--fs-caption);
+  font-weight: 800;
+  animation: lab-fit-pop 1.4s ease-out both;
+}
+.lab__fit-delta--up { color: var(--positive-text); }
+.lab__fit-delta--down { color: var(--negative-text); }
+@keyframes lab-fit-pop {
+  0% { opacity: 0; transform: translateY(4px) scale(0.9); }
+  15% { opacity: 1; transform: none; }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-4px); }
+}

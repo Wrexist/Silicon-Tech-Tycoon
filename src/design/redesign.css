@@ -193,6 +193,7 @@ body.hq-deco-open .app__dock { display: none; }
 .mg-table-scroll th { font-weight: 650; }
 .product-compare table { min-width: 420px; }
 .product-compare th > span { display: block; overflow-wrap: anywhere; max-width: 140px; }
+.product-compare td.compare-lead { color: var(--positive-text); font-weight: 750; background: var(--positive-soft); }
 .compare-pickers { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
 .compare-pickers label { flex: 1; min-width: 120px; font-size: var(--fs-caption); color: var(--ink-2); }
 .compare-pickers select { display: block; width: 100%; min-height: 44px; margin-top: var(--sp-4); background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-button); color: var(--ink); }

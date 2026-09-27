@@ -1103,7 +1103,10 @@ function buildRevenueHistory(launched: LaunchedProduct[], cashHistory: { week: n
 function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void }) {
   const launched = state.launched;
   const cashData = state.cashHistory.map((h) => h.cash);
-  const revData = buildRevenueHistory(launched, state.cashHistory);
+  // Prefer the RECORDED weekly ledger: the reconstruction multiplies forecast units by today's price,
+  // so a price cut restated every earlier week. Older saves without a ledger keep the estimate.
+  const ledger = state.financialHistory ?? [];
+  const revData = ledger.length >= 2 ? ledger.map((w) => w.revenue) : buildRevenueHistory(launched, state.cashHistory);
   const netWorth = state.cash;
 
   // Aggregates derived from existing tracked data (no invented engine state).

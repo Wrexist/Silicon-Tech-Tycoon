@@ -6,6 +6,15 @@ import { segmentDemand, tuningSegmentBias } from "../engine/segments.ts";
 import { styleAppeal } from "../engine/aesthetics.ts";
 import { format, sub } from "../engine/money.ts";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
+import { STAT_INFO } from "../engine/glossary.ts";
+
+/** Mark the row's leader(s) so the table answers "who wins this?" at a glance — ties share it,
+ *  and a row where everyone is level marks nobody. */
+function leaderMask(values: number[]): boolean[] {
+  const best = Math.max(...values);
+  const allLevel = values.every((v) => v === best);
+  return values.map((v) => !allLevel && values.length > 1 && v === best);
+}
 
 export function ProductComparison({ state, draft }: { state: GameState; draft: Product }) {
   const previous = state.launched.filter(p => p.product.category === draft.category);
@@ -29,11 +38,11 @@ export function ProductComparison({ state, draft }: { state: GameState; draft: P
     <div className="mg-table-scroll" tabIndex={0} role="region" aria-label="Product comparison">
       <table><caption>Same category, current market conditions</caption><thead><tr><th scope="col">Measure</th>{columns.map(c => <th scope="col" key={c.label}>{c.label}<DeviceRenderer product={c.product} size={64} /><span>{c.product.name}</span></th>)}</tr></thead>
       <tbody><tr><th scope="row">Price</th>{columns.map(c => <td key={c.label}>{format(c.product.price)}</td>)}</tr>
-        <tr><th scope="row">Buyer fit / 100</th>{columns.map(c => <td key={c.label}>{fit(c.product, c.stats)}</td>)}</tr>
+        {(() => { const v = columns.map(c => fit(c.product, c.stats)); const lead = leaderMask(v); return <tr><th scope="row">Buyer fit / 100</th>{columns.map((c, i) => <td key={c.label} className={lead[i] ? "compare-lead" : undefined}>{v[i]}</td>)}</tr>; })()}
         <tr><th scope="row">Unit margin today</th>{columns.map(c => <td key={c.label}>{c.margin ?? "Not disclosed"}</td>)}</tr>
-        {STAT_KEYS.map(k => <tr key={k}><th scope="row">{k}</th>{columns.map(c => <td key={c.label}>{Math.round(c.stats[k])}</td>)}</tr>)}
+        {STAT_KEYS.map(k => { const v = columns.map(c => Math.round(c.stats[k])); const lead = leaderMask(v); return <tr key={k}><th scope="row">{STAT_INFO[k].label}</th>{columns.map((c, i) => <td key={c.label} className={lead[i] ? "compare-lead" : undefined}>{v[i]}</td>)}</tr>; })}
       </tbody></table>
     </div>
-    <p className="mg-footnote">Your launched specifications are recorded at launch. Rival specifications are estimated from their disclosed components; their manufacturing costs are unknown. Your unit margins use today's supply costs, before fixed costs. Fit is a model score, not a sales guarantee.</p>
+    <p className="mg-footnote">Highlighted cells lead their row. Your launched specifications are recorded at launch. Rival specifications are estimated from their disclosed components; their manufacturing costs are unknown. Your unit margins use today's supply costs, before fixed costs. Fit is a model score, not a sales guarantee.</p>
   </details>;
 }

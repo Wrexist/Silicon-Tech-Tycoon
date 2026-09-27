@@ -1961,3 +1961,32 @@
 }
 .pd__ops-note svg { color: var(--accent); flex-shrink: 0; }
 .pd__ops-note strong { color: var(--ink); font-weight: 800; }
+
+/* Product-list filter chips (All · Live · Hits · Flops) — shown once the catalogue is long. */
+.mkt__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-8);
+  margin-bottom: var(--sp-12);
+}
+.mkt__filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: 36px;
+  padding: 0 var(--sp-12);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--hairline);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  font-weight: 650;
+  cursor: pointer;
+  position: relative;
+}
+.mkt__filter::before { content: ""; position: absolute; inset: -4px 0; } /* 44pt hit area */
+.mkt__filter .tnum { color: var(--ink-3); font-weight: 600; }
+.mkt__filter--on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.mkt__filter--on .tnum { color: var(--accent); }
+.mkt__filter:disabled { opacity: 0.45; cursor: default; }
+.mkt__show-all { display: flex; width: 100%; justify-content: center; margin-top: var(--sp-8); }

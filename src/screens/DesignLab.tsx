@@ -470,6 +470,20 @@ export function DesignLab({
   // drag the effective score. Flag that so the label never looks like it flipped at random.
   const competitionDrag = !!preview && preview.competitionFactor < 0.85 && (preview.betterRivals > 0 || preview.matchingRivals > 0);
 
+  // Juice: a brief "+3" / "−2" chip beside Market fit whenever an edit moves it, so each tier,
+  // finish or price tweak visibly pays (or costs). Keyed to the draft id so switching drafts is silent.
+  const lastFit = useRef({ id: draft.id, fit });
+  const [fitDelta, setFitDelta] = useState<{ d: number; n: number } | null>(null);
+  useEffect(() => {
+    const prev = lastFit.current;
+    lastFit.current = { id: draft.id, fit };
+    if (prev.id !== draft.id) { setFitDelta(null); return; }
+    if (prev.fit === fit) return;
+    setFitDelta((cur) => ({ d: fit - prev.fit, n: (cur?.n ?? 0) + 1 }));
+    const t = setTimeout(() => setFitDelta(null), 1400);
+    return () => clearTimeout(t);
+  }, [fit, draft.id]);
+
   function set(partial: Partial<Product>) {
     setDraft((d) => ({ ...d, ...partial }));
   }
@@ -644,7 +658,14 @@ export function DesignLab({
             </div>
             <div className="lab__hero-fit">
               <span className="lab__hero-fit-label">Market fit</span>
-              <span className="lab__hero-fit-val tnum">{fit} <span className="lab__den">/ 100</span></span>
+              <span className="lab__hero-fit-val tnum">
+                {fitDelta != null && (
+                  <span key={fitDelta.n} className={`lab__fit-delta lab__fit-delta--${fitDelta.d > 0 ? "up" : "down"}`} aria-hidden>
+                    {fitDelta.d > 0 ? "+" : "−"}{Math.abs(fitDelta.d)}
+                  </span>
+                )}
+                {fit} <span className="lab__den">/ 100</span>
+              </span>
               <div className="lab__hero-bar"><div className="lab__hero-bar-fill" style={{ width: `${Math.max(0, Math.min(100, fit))}%` }} /></div>
             </div>
             <div className="lab__hero-line">
@@ -961,6 +982,20 @@ export function DesignLab({
                     {lag.length === 1
                       ? `Your ${lag[0].name} is T${lag[0].tier}, but you've researched T${lag[0].researched} — shipping behind your own lab scores far lower.`
                       : `${lag.length} components sit below your research (${list}) — shipping behind your own lab scores far lower.`}
+                    {/* One tap instead of one stepper per part — successor drafts inherit old tiers,
+                        so this lands often. The budget meter below still gates the build. */}
+                    <button
+                      type="button"
+                      className="mg-text-action lab__frontier-fix"
+                      onClick={() => {
+                        haptic.light();
+                        const tiers = { ...draft.tiers };
+                        for (const l of lag) tiers[l.kind] = l.researched;
+                        set({ tiers });
+                      }}
+                    >
+                      Use researched tiers <ArrowRight size={12} aria-hidden />
+                    </button>
                   </span>
                 </p>
               );
@@ -1660,7 +1695,10 @@ export function DesignLab({
               <Slider
                 value={toDollars(draft.price)}
                 min={0}
-                max={5000}
+                // Scale the track to what buyers will pay (2.5× the top of the expected band, never
+                // below $1,500, never below the current price) — a fixed $5,000 track squeezed the
+                // useful ~$300–$900 band into a sliver of a phone-width slider.
+                max={Math.max(1500, Math.ceil((toDollars(guidance.hi) * 2.5) / 500) * 500, Math.ceil(toDollars(draft.price) / 500) * 500)}
                 step={10}
                 ariaLabel="Price"
                 accent={priceSliderAccent}
