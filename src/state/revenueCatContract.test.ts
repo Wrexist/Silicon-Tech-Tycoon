@@ -46,9 +46,9 @@ class MemStorage {
 const MONTH_AHEAD = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 const WEEK_AHEAD = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-const YEARLY = "com.wrexist.silicon.pro.yearly";
-const MONTHLY = "com.wrexist.silicon.pro.monthly";
-const LIFETIME = "com.wrexist.silicon.pro.lifetime";
+const YEARLY = "com.wrexist.silicon.pro.yearly.premium";
+const MONTHLY = "com.wrexist.silicon.pro.weekly";
+const LIFETIME = "com.wrexist.silicon.pro.lifetime.premium";
 
 /** No entitlement, nothing owned — a brand-new free install as RevenueCat reports it. */
 function noEntitlements() {
@@ -234,7 +234,7 @@ describe("RevenueCat: an unanswerable read must REJECT, never answer 'no'", () =
   // resolved a negative instead of rejecting, both sources would "definitively" say no at once and
   // syncPro would revoke — logging out a paying customer on a bad train journey.
   it("does not revoke when the customer-info read throws", async () => {
-    setProRecord(proRecordFrom({ tier: "monthly", productId: MONTHLY, expiresAt: MONTH_AHEAD }));
+    setProRecord(proRecordFrom({ tier: "weekly", productId: MONTHLY, expiresAt: MONTH_AHEAD }));
     bridge.isOwned.mockRejectedValue(new Error("network"));
     bridge.subscriptionStatus.mockRejectedValue(new Error("network"));
     expect(await syncPro()).toBe(false);
@@ -252,7 +252,7 @@ describe("RevenueCat: an unanswerable read must REJECT, never answer 'no'", () =
   it("DOES revoke when RevenueCat genuinely reports no entitlement at all", async () => {
     // The other direction matters too: a real lapse must actually take Pro away, or the paywall
     // becomes decorative. Both sources answered, both said no.
-    setProRecord(proRecordFrom({ tier: "monthly", productId: MONTHLY, expiresAt: MONTH_AHEAD }));
+    setProRecord(proRecordFrom({ tier: "weekly", productId: MONTHLY, expiresAt: MONTH_AHEAD }));
     expect(await syncPro()).toBe(true);
     expect(getProRecord()).toBeNull();
   });

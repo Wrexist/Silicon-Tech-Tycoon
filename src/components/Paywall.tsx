@@ -35,11 +35,11 @@ import { registerAppOverlay } from "../design/overlayGuard.ts";
 import { onPaywall, markOnboardingPaywallSeen, type PaywallRequest } from "../state/paywall.ts";
 import { FREE_TIER, paywallCopy, PRO_BENEFITS, REASON_BENEFIT_ORDER, RETURNING_COPY } from "../state/proGates.ts";
 import { getFounderIntent, INTENT_HEADLINE, leadWith, orderBenefits } from "../state/founderIntent.ts";
-import { FREE_TRIAL_DAYS, PRO_PRODUCTS, hasEverSubscribed, isPro, onProChanged, yearlyValueVsMonthly } from "../state/pro.ts";
+import { FREE_TRIAL_DAYS, PRO_PRODUCTS, proProduct, hasEverSubscribed, isPro, onProChanged, yearlyValueVsWeekly } from "../state/pro.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST, COMPONENT_LINES } from "../engine/catalogs.ts";
 import { SCENARIOS } from "../engine/scenarios.ts";
-import { getProCatalog, purchasePro, restorePro, type ProCatalog, type ProOffer } from "../state/proStore.ts";
+import { getProCatalog, purchasePro, restorePro, trackProPaywallImpression, type ProCatalog, type ProOffer } from "../state/proStore.ts";
 import "./paywall.css";
 
 /** Legal destinations. Both must resolve to live pages before submission — a dead link here is a
@@ -167,13 +167,14 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
     return () => { live = false; };
   }, [probe]);
 
-  // Only render rows the store confirmed. Order follows PRO_PRODUCTS (Yearly, Lifetime, Monthly) —
+  // Only render rows the store confirmed. Order follows PRO_PRODUCTS (Yearly, Lifetime, Weekly) —
   // the value ladder reads best with the anchor first and the cheapest last.
   const rows = useMemo(() => {
     if (!catalog) return [];
-    return PRO_PRODUCTS
-      .map((p) => ({ product: p, offer: catalog.offers.find((o) => o.id === p.id) }))
-      .filter((r): r is { product: (typeof PRO_PRODUCTS)[number]; offer: ProOffer } => r.offer != null);
+    return catalog.offers
+      .map((offer) => ({ product: proProduct(offer.id), offer }))
+      .filter((r): r is { product: (typeof PRO_PRODUCTS)[number]; offer: ProOffer } => r.product != null)
+      .sort((a, b) => ["yearly", "lifetime", "weekly"].indexOf(a.product.tier) - ["yearly", "lifetime", "weekly"].indexOf(b.product.tier));
   }, [catalog]);
 
   // Never leave a dead CTA selected: if the default didn't come back from the store, fall through
@@ -184,7 +185,7 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
   }, [rows, selected]);
 
   /**
-   * How much cheaper a year is than twelve months of monthly, from the store's own amounts.
+   * How much cheaper a year is than 52 weeks of weekly, from the store's own amounts.
    *
    * This is the strongest single line on the card — a plan's value is the thing a player is
    * actually deciding — and it replaces a hardcoded "About $1.67 a month" that was true in exactly
@@ -194,8 +195,16 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
    */
   const yearlyValue = useMemo(() => {
     const find = (tier: string) => rows.find((r) => r.product.tier === tier)?.offer;
-    return yearlyValueVsMonthly(find("yearly"), find("monthly"));
+    return yearlyValueVsWeekly(find("yearly"), find("weekly"));
   }, [rows]);
+
+  const trackedOffering = useRef<string | null>(null);
+  useEffect(() => {
+    const id = catalog?.offeringId;
+    if (!id || rows.length === 0 || trackedOffering.current === id) return;
+    trackedOffering.current = id;
+    void trackProPaywallImpression(id);
+  }, [catalog?.offeringId, rows.length]);
 
   const current = rows.find((r) => r.product.id === selected);
   const trialOnSelected = current?.offer.trialEligible === true && current.product.hasTrial;
@@ -224,7 +233,7 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
     // `finally`, not a trailing reset: a rejection here would latch `busy` truthy forever, which
     // disables close, skip, scrim-tap AND Escape — an undismissable paywall is an App Review fail.
     try {
-      res = await purchasePro(current.product.id);
+      res = await purchasePro(current.product.id, current.offer);
     } catch {
       res = { status: "error", message: "The purchase couldn't be completed. Please try again." };
     } finally {
@@ -398,7 +407,7 @@ function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => voi
                   ? `SAVE ${value.percent}%`
                   : value.kind === "none" ? undefined : product.badge;
                 const note = value.kind === "saving"
-                  ? `${value.percent}% less than 12 months of monthly.`
+                  ? `${value.percent}% less than 52 weeks of weekly.`
                   : value.kind === "none" ? undefined : product.note;
                 return (
                   <button

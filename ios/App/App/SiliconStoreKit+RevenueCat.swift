@@ -134,38 +134,43 @@ extension SiliconStoreKitPlugin {
     /// paywall renders only rows the store confirmed it can sell — a buy button can never be
     /// presented for something that would error on tap (App Review 2.1.0).
     func rc_getProducts(_ call: CAPPluginCall) {
-        let ids = call.getArray("productIds", String.self) ?? []
-        guard !ids.isEmpty else { return call.resolve(["products": []]) }
+        let allowed = Set(call.getArray("productIds", String.self) ?? [])
         Task {
-            let products = await Purchases.shared.products(ids)
-            guard !products.isEmpty else {
-                // Not fatal: an unreachable store is a retry state in the UI, not an error dialog.
-                return call.resolve(["products": []])
+            do {
+                guard let offering = try await Purchases.shared.offerings().current else {
+                    return call.resolve(["products": []])
+                }
+                let packages = offering.availablePackages.filter { allowed.contains($0.storeProduct.productIdentifier) }
+                let subscriptions = packages.map { $0.storeProduct }.filter { $0.productCategory == .subscription }
+                let eligibility = await Purchases.shared.checkTrialOrIntroDiscountEligibility(
+                    productIdentifiers: subscriptions.map { $0.productIdentifier })
+                let info = try? await self.rc_customerInfo()
+                var out: [[String: Any]] = []
+                for package in packages {
+                    var row = await self.rc_describe(package.storeProduct, eligibility: eligibility, info: info)
+                    row["offeringId"] = offering.identifier
+                    row["packageId"] = package.identifier
+                    out.append(row)
+                }
+                call.resolve(["products": out, "offeringId": offering.identifier])
+            } catch {
+                // Never replace an assigned experiment with another price ladder on a failure.
+                call.resolve(["products": []])
             }
+        }
+    }
 
-            // Eligibility is fetched ONCE for the whole batch and then read per row. Asking per
-            // product would be several extra round-trips for the same answer, and — more
-            // importantly — a partially-failed batch would hand different rows different truths.
-            let subscriptionIds = products
-                .filter { $0.productCategory == .subscription }
-                .map { $0.productIdentifier }
-            var eligibility: [String: IntroEligibility] = [:]
-            if !subscriptionIds.isEmpty {
-                eligibility = await Purchases.shared
-                    .checkTrialOrIntroDiscountEligibility(productIdentifiers: subscriptionIds)
-            }
-
-            // One customer-info read for the whole batch, for the `owned` flag on non-consumables.
-            // A failure here is NOT fatal to the catalog: not knowing whether Lifetime is already
-            // owned costs a slightly wrong badge, whereas failing the catalog would blank the
-            // paywall. Ownership that actually matters is decided in `isOwned`/`purchase`.
-            let info = try? await self.rc_customerInfo()
-
-            var out: [[String: Any]] = []
-            for product in products {
-                out.append(await self.rc_describe(product, eligibility: eligibility, info: info))
-            }
-            call.resolve(["products": out])
+    func rc_trackPaywallImpression(_ call: CAPPluginCall) {
+        guard let id = call.getString("offeringId") else { return call.resolve(["tracked": false]) }
+        Task {
+            do {
+                guard let offering = try await Purchases.shared.offerings().all[id] else {
+                    return call.resolve(["tracked": false])
+                }
+                Purchases.shared.trackCustomPaywallImpression(
+                    CustomPaywallImpressionParams(paywallId: "silicon-pro-140", offering: offering))
+                call.resolve(["tracked": true])
+            } catch { call.resolve(["tracked": false]) }
         }
     }
 
@@ -265,10 +270,29 @@ extension SiliconStoreKitPlugin {
             // upgrade/crossgrade inside a group, and short-circuiting here would trap a monthly
             // subscriber who wants to move to yearly.
             if let cached = Purchases.shared.cachedCustomerInfo,
-               self.rc_ownsNonSubscription(productId, in: cached) {
+               (self.rc_ownsNonSubscription(productId, in: cached) ||
+                (Self.rc_lifetimeProductIds.contains(productId) && cached.nonSubscriptions.contains { Self.rc_lifetimeProductIds.contains($0.productIdentifier) })) {
                 return call.resolve(["status": "purchased"])
             }
 
+            if let offeringId = call.getString("offeringId"), let packageId = call.getString("packageId") {
+                do {
+                    let offerings = try await Purchases.shared.offerings()
+                    let offering = offerings.current?.identifier == offeringId ? offerings.current : offerings.all[offeringId]
+                    guard let package = offering?.availablePackages.first(where: {
+                        $0.identifier == packageId && $0.storeProduct.productIdentifier == productId
+                    }) else {
+                        return call.resolve(["status": "unavailable", "message": "Please reopen the purchase screen to refresh this offer."])
+                    }
+                    // Purchase the exact package displayed, retaining experiment attribution.
+                    let result = try await Purchases.shared.purchase(package: package)
+                    return call.resolve(["status": result.userCancelled ? "cancelled" : "purchased"])
+                } catch { return call.resolve(Self.rc_purchaseFailure(error)) }
+            }
+            // Direct purchase is retained only for the legacy Creative integration.
+            guard productId == "com.wrexist.silicon.sandbox" else {
+                return call.resolve(["status": "unavailable", "message": "Please reopen the purchase screen to refresh this offer."])
+            }
             let products = await Purchases.shared.products([productId])
             guard let product = products.first else {
                 return call.resolve(["status": "unavailable", "message": "This item isn't available right now."])
@@ -411,11 +435,21 @@ extension SiliconStoreKitPlugin {
         }
     }
 
-    /// The two auto-renewable SKUs. Kept in sync with `PRO_PRODUCTS` in `src/state/pro.ts`; the
+    /// The current and legacy auto-renewable SKUs. Kept in sync with `PRO_PRODUCTS` in `src/state/pro.ts`; the
     /// Lifetime SKU is deliberately absent because it is not a subscription.
     private static let rc_recurringProductIds: Set<String> = [
-        "com.wrexist.silicon.pro.monthly",
+        "com.wrexist.silicon.pro.monthly", // Retain existing subscribers.
+        "com.wrexist.silicon.pro.weekly",
+        "com.wrexist.silicon.pro.weekly.value",
+        "com.wrexist.silicon.pro.yearly.premium",
+        "com.wrexist.silicon.pro.yearly.value",
         "com.wrexist.silicon.pro.yearly",
+    ]
+
+    private static let rc_lifetimeProductIds: Set<String> = [
+        "com.wrexist.silicon.pro.lifetime",
+        "com.wrexist.silicon.pro.lifetime.premium",
+        "com.wrexist.silicon.pro.lifetime.value",
     ]
 
     // MARK: - Manage subscriptions

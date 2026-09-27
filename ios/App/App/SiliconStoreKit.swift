@@ -47,6 +47,7 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "getProduct", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "getProducts", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "trackPaywallImpression", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "purchase", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "restore", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "isOwned", returnType: CAPPluginReturnPromise),
@@ -109,11 +110,18 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     /// Batch metadata fetch. Ids the store doesn't know are simply absent from the result — the JS
     /// paywall renders only rows the store confirmed it can sell, so a buy button can never be
     /// presented for a product that would error on tap (App Review 2.1.0).
+    @objc func trackPaywallImpression(_ call: CAPPluginCall) {
+        #if canImport(RevenueCat)
+        if RevenueCatConfig.backend == .revenueCat { return rc_trackPaywallImpression(call) }
+        #endif
+        call.resolve(["tracked": false])
+    }
+
     @objc func getProducts(_ call: CAPPluginCall) {
         #if canImport(RevenueCat)
         if RevenueCatConfig.backend == .revenueCat { return rc_getProducts(call) }
         #endif
-        let ids = call.getArray("productIds", String.self) ?? []
+        let ids = (call.getArray("productIds", String.self) ?? []).filter { !$0.hasSuffix(".value") }
         guard #available(iOS 15.0, *), !ids.isEmpty else { return call.resolve(["products": []]) }
         Task {
             do {
@@ -195,7 +203,11 @@ public class SiliconStoreKitPlugin: CAPPlugin, CAPBridgedPlugin {
     private static func resolveSubscriptionGroupID(passed: String) async -> String? {
         let recurring = [
             "com.wrexist.silicon.pro.yearly",
-            "com.wrexist.silicon.pro.monthly",
+            "com.wrexist.silicon.pro.monthly", // Retain existing subscribers.
+            "com.wrexist.silicon.pro.weekly",
+            "com.wrexist.silicon.pro.weekly.value",
+            "com.wrexist.silicon.pro.yearly.premium",
+            "com.wrexist.silicon.pro.yearly.value",
         ]
         guard let products = try? await Product.products(for: recurring) else { return nil }
         for product in products {

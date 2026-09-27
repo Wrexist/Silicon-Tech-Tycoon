@@ -1,0 +1,66 @@
+{
+  "appId": "6778942533",
+  "subscriptionGroupId": "22272528",
+  "experiment": "silicon_140_price_v1",
+  "allocation": {
+    "A": 50,
+    "B": 50
+  },
+  "trialDays": 7,
+  "products": [
+    {
+      "variant": "A",
+      "tier": "weekly",
+      "productId": "com.wrexist.silicon.pro.weekly",
+      "name": "Silicon Pro Weekly A",
+      "priceUSD": "7.99",
+      "offering": "silicon_140_price_a",
+      "package": "$rc_weekly"
+    },
+    {
+      "variant": "A",
+      "tier": "yearly",
+      "productId": "com.wrexist.silicon.pro.yearly.premium",
+      "name": "Silicon Pro Yearly A",
+      "priceUSD": "99.99",
+      "offering": "silicon_140_price_a",
+      "package": "$rc_annual"
+    },
+    {
+      "variant": "A",
+      "tier": "lifetime",
+      "productId": "com.wrexist.silicon.pro.lifetime.premium",
+      "name": "Silicon Pro Lifetime A",
+      "priceUSD": "199.99",
+      "offering": "silicon_140_price_a",
+      "package": "$rc_lifetime"
+    },
+    {
+      "variant": "B",
+      "tier": "weekly",
+      "productId": "com.wrexist.silicon.pro.weekly.value",
+      "name": "Silicon Pro Weekly B",
+      "priceUSD": "4.99",
+      "offering": "silicon_140_price_b",
+      "package": "$rc_weekly"
+    },
+    {
+      "variant": "B",
+      "tier": "yearly",
+      "productId": "com.wrexist.silicon.pro.yearly.value",
+      "name": "Silicon Pro Yearly B",
+      "priceUSD": "59.99",
+      "offering": "silicon_140_price_b",
+      "package": "$rc_annual"
+    },
+    {
+      "variant": "B",
+      "tier": "lifetime",
+      "productId": "com.wrexist.silicon.pro.lifetime.value",
+      "name": "Silicon Pro Lifetime B",
+      "priceUSD": "119.99",
+      "offering": "silicon_140_price_b",
+      "package": "$rc_lifetime"
+    }
+  ]
+}

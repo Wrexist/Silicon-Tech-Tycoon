@@ -26,7 +26,7 @@ import { mirrorToNative } from "./nativeStore.ts";
  *  crossgrade rather than a double charge. Must match the group configured in App Store Connect. */
 export const PRO_SUBSCRIPTION_GROUP = "silicon_pro";
 
-export type ProTier = "monthly" | "yearly" | "lifetime" | "founding";
+export type ProTier = "weekly" | "monthly" | "yearly" | "lifetime" | "founding";
 
 export interface ProProduct {
   id: string;
@@ -59,7 +59,7 @@ export interface ProProduct {
   note?: string;
 }
 
-/** The ladder. Monthly is the low-friction entry, Yearly is the volume seller (and the default
+/** The ladder. Weekly is the low-friction entry, Yearly is the volume seller (and the default
  *  selection), Lifetime captures the premium buyer who refuses subscriptions — historically the
  *  highest-ARPU row for a game that used to be a paid download, and the reason this conversion
  *  keeps the "buy it once and own it" promise the brand was built on.
@@ -69,24 +69,24 @@ export interface ProProduct {
  *  a price the store won't charge is an Apple 3.1.2 rejection. */
 export const PRO_PRODUCTS: ProProduct[] = [
   {
-    id: "com.wrexist.silicon.pro.yearly",
+    id: "com.wrexist.silicon.pro.yearly.premium",
     tier: "yearly",
     title: "Pro Yearly",
     lengthLabel: "12 months · renews yearly",
-    fallbackPrice: "$19.99",
-    fallbackAmount: 19.99,
+    fallbackPrice: "$99.99",
+    fallbackAmount: 99.99,
     recurring: true,
     billingSuffix: "/year",
     hasTrial: true,
     badge: "BEST VALUE",
   },
   {
-    id: "com.wrexist.silicon.pro.lifetime",
+    id: "com.wrexist.silicon.pro.lifetime.premium",
     tier: "lifetime",
     title: "Pro Lifetime",
     lengthLabel: "One-time · never renews",
-    fallbackPrice: "$29.99",
-    fallbackAmount: 29.99,
+    fallbackPrice: "$199.99",
+    fallbackAmount: 199.99,
     recurring: false,
     billingSuffix: "",
     hasTrial: false,
@@ -99,6 +99,20 @@ export const PRO_PRODUCTS: ProProduct[] = [
     note: "Buy once. Yours forever, including what comes later.",
   },
   {
+    id: "com.wrexist.silicon.pro.weekly",
+    tier: "weekly",
+    title: "Pro Weekly",
+    lengthLabel: "1 week · renews weekly",
+    fallbackPrice: "$7.99",
+    fallbackAmount: 7.99,
+    recurring: true,
+    billingSuffix: "/week",
+    hasTrial: true,
+  },
+];
+
+/** Recognized for existing subscribers only; never listed as a new purchase. */
+const LEGACY_MONTHLY: ProProduct = {
     id: "com.wrexist.silicon.pro.monthly",
     tier: "monthly",
     title: "Pro Monthly",
@@ -108,10 +122,24 @@ export const PRO_PRODUCTS: ProProduct[] = [
     recurring: true,
     billingSuffix: "/month",
     hasTrial: true,
-  },
-];
+  };
 
-export const PRO_PRODUCT_IDS: string[] = PRO_PRODUCTS.map((p) => p.id);
+/** All experiment products are recognized; only the assigned offering is displayed. */
+export const PRO_EXPERIMENT_PRODUCTS: ProProduct[] = [
+  ...PRO_PRODUCTS,
+  ...PRO_PRODUCTS.map((p) => {
+    const amount = p.tier === "weekly" ? 4.99 : p.tier === "yearly" ? 59.99 : 119.99;
+    return { ...p, id: `com.wrexist.silicon.pro.${p.tier}.value`, fallbackAmount: amount, fallbackPrice: `$${amount.toFixed(2)}` };
+  }),
+];
+const LEGACY_PRODUCTS: ProProduct[] = [
+  LEGACY_MONTHLY,
+  { ...PRO_PRODUCTS[0], id: "com.wrexist.silicon.pro.yearly", fallbackPrice: "$19.99", fallbackAmount: 19.99 },
+  { ...PRO_PRODUCTS[1], id: "com.wrexist.silicon.pro.lifetime", fallbackPrice: "$29.99", fallbackAmount: 29.99 },
+];
+export const PRO_PRODUCT_IDS: string[] = PRO_EXPERIMENT_PRODUCTS.map((p) => p.id);
+export const PRO_LIFETIME_PRODUCT_IDS: string[] = [...LEGACY_PRODUCTS, ...PRO_EXPERIMENT_PRODUCTS]
+  .filter((p) => p.tier === "lifetime").map((p) => p.id);
 
 /* ─────────────────────────────  VALUE FRAMING (computed, never typed)  ─────────────────────────
  *
@@ -190,8 +218,13 @@ export function yearlySavingsPercent(
   return value.kind === "saving" ? value.percent : null;
 }
 
+/** Compare the annual bill against 52 weekly bills, using matching store currencies. */
+export function yearlyValueVsWeekly(yearly: PriceAmount | undefined, weekly: PriceAmount | undefined): YearlyValue {
+  return yearlyValueVsMonthly(yearly, weekly && { ...weekly, amount: weekly.amount === undefined ? undefined : weekly.amount * 52 / 12 });
+}
+
 export function proProduct(id: string): ProProduct | undefined {
-  return PRO_PRODUCTS.find((p) => p.id === id);
+  return [...PRO_EXPERIMENT_PRODUCTS, ...LEGACY_PRODUCTS].find((p) => p.id === id);
 }
 
 /** Free-trial length. ⚠ MUST match the introductory offer configured in App Store Connect for every
@@ -207,6 +240,7 @@ const NON_EXPIRING: ReadonlySet<ProTier> = new Set<ProTier>(["lifetime", "foundi
  *  enough that a paying subscriber keeps Pro through a full billing period offline; bounded so a
  *  dateless record can never become permanent. */
 const UNANCHORED_WINDOW_MS: Record<ProTier, number> = {
+  weekly: 8 * 24 * 60 * 60 * 1000,
   monthly: 32 * 24 * 60 * 60 * 1000,
   yearly: 367 * 24 * 60 * 60 * 1000,
   lifetime: Infinity,
@@ -383,7 +417,7 @@ export function proStatusLine(now: number = Date.now()): string {
     const d = trialDaysRemaining(now);
     return d > 0 ? `Free trial — ${d} day${d === 1 ? "" : "s"} left` : "Free trial — ends today";
   }
-  const label = rec.tier === "yearly" ? "Pro Yearly" : "Pro Monthly";
+  const label = rec.tier === "yearly" ? "Pro Yearly" : rec.tier === "weekly" ? "Pro Weekly" : "Pro Monthly";
   if (!rec.willRenew) {
     const until = rec.expiresAt ? ` until ${new Date(rec.expiresAt).toLocaleDateString()}` : "";
     return `${label} — cancelled, active${until}`;

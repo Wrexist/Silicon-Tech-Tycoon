@@ -47,7 +47,7 @@
       <h2>The short version</h2>
       <p>
         <span class="highlight">Your game save stays on your device.</span> There is no account,
-        no login, no analytics, no tracking, and no ads. On iOS, RevenueCat processes an anonymous
+        no login, no tracking, and no ads. On iOS, RevenueCat processes an anonymous
         installation identifier and purchase status to validate and restore access. This service
         starts when the app opens, including when you have not bought anything.
       </p>
@@ -55,11 +55,12 @@
 
     <div class="card">
       <h2>What data do we collect?</h2>
+          <p>When a purchase screen is shown, RevenueCat also receives a <strong>paywall-view event and the displayed offering identifier</strong>, associated with the anonymous installation identifier. We use these events and purchase outcomes to compare pricing variants and improve our purchase screen. These analytics do not include your game save or gameplay activity.</p>
       <p>The purchase service processes <strong>purchase history and status</strong>
       and an <strong>anonymous identifier</strong> that RevenueCat generates for
       your installation so access can be validated and restored.</p>
       <p>We do <em>not</em> collect your name, email address, contacts, location, photos, browsing
-      activity, or any usage or gameplay data. We do not collect crash reports. The anonymous
+      activity, or your game saves or gameplay activity. We do not collect crash reports. The anonymous
       identifier is created by the app; it is not your Apple ID, your advertising identifier, or
       anything that identifies you as a person. None of it is used for tracking, none of it is sold,
       and none of it is combined with data from other apps or companies.</p>
@@ -77,8 +78,7 @@
 
     <div class="card">
       <h2>Third-party SDKs and services</h2>
-      <p>There are no analytics SDKs, no advertising networks, no crash reporters and no social
-      login libraries. The third-party code in the app is:</p>
+      <p>There are no advertising networks, crash reporters or social-login libraries. RevenueCat provides purchase processing and paywall analytics. The third-party code in the app is:</p>
       <ul>
         <li><a href="https://capacitorjs.com" target="_blank" rel="noopener">Capacitor</a> — native
         iOS packaging. Sends nothing.</li>
@@ -87,7 +87,7 @@
         <li><a href="https://www.revenuecat.com/privacy/" target="_blank" rel="noopener">RevenueCat</a>
         — validates purchases and makes them restorable across reinstalls. It receives your purchase
         history and the anonymous installation identifier described above, and acts as our data
-        processor. Nothing about how you play is sent to it.</li>
+        processor. It also records purchase-screen views and pricing-offering assignments for the analytics described above; gameplay activity is not sent.</li>
         <li>Founding Owner access in version 1.4.0 is checked locally using Apple's verified original purchase. This version no longer sends the original app receipt to our former verification endpoint. Earlier versions may still attempt that request; the endpoint is unavailable.</li>
       </ul>
     </div>

@@ -53,6 +53,11 @@ on:
         required: false
         default: false
         type: boolean
+      configure_pricing:
+        description: "Create the six new 1.4.0 experiment products; never edit existing products"
+        required: false
+        default: false
+        type: boolean
       media_run_id:
         description: "Reviewed Store media run ID to upload (inspection mode; blank leaves media alone)"
         required: false
@@ -86,6 +91,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22.x"
+      - name: Configure new price experiment products
+        if: ${{ inputs.configure_pricing }}
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          APPLY_PRICING_EXPERIMENT: "1"
+        run: node scripts/configure-price-experiment.mjs
       - name: Read version, builds and purchase configuration
         env:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
@@ -140,6 +153,7 @@ jobs:
         with:
           name: app-store-inspection
           path: |
+            artifacts/pricing-experiment/
             artifacts/app-store-inspection/
             artifacts/app-store-preparation/
   validation:

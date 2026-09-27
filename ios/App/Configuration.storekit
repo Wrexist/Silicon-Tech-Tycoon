@@ -1,104 +1,234 @@
 {
-  "identifier" : "5E9C3A10-51C0-4A00-B100-000000000001",
-  "nonRenewingSubscriptions" : [],
-  "products" : [
+  "identifier": "5E9C3A10-51C0-4A00-B100-000000000001",
+  "nonRenewingSubscriptions": [],
+  "products": [
     {
-      "displayPrice" : "2.99",
-      "familyShareable" : true,
-      "internalID" : "5E9C3A10-51C0-4A00-B100-000000000002",
-      "localizations" : [
+      "displayPrice": "2.99",
+      "familyShareable": true,
+      "internalID": "5E9C3A10-51C0-4A00-B100-000000000002",
+      "localizations": [
         {
-          "description" : "Unlocks Creative Mode — a Sandbox with unlimited funds so you can design and launch any product without financial pressure. The base game is complete without this purchase. Permanent and restores across devices.",
-          "displayName" : "Creative Mode",
-          "locale" : "en_US"
+          "description": "Unlocks Creative Mode — a Sandbox with unlimited funds so you can design and launch any product without financial pressure. The base game is complete without this purchase. Permanent and restores across devices.",
+          "displayName": "Creative Mode",
+          "locale": "en_US"
         }
       ],
-      "productID" : "com.wrexist.silicon.sandbox",
-      "referenceName" : "Creative Mode",
-      "type" : "NonConsumable"
+      "productID": "com.wrexist.silicon.sandbox",
+      "referenceName": "Creative Mode",
+      "type": "NonConsumable"
     },
     {
-      "displayPrice" : "29.99",
-      "familyShareable" : true,
-      "internalID" : "5E9C3A10-51C0-4A00-B100-000000000003",
-      "localizations" : [
+      "displayPrice": "29.99",
+      "familyShareable": true,
+      "internalID": "5E9C3A10-51C0-4A00-B100-000000000003",
+      "localizations": [
         {
-          "description" : "Silicon Pro, bought once and owned forever — every era, every scenario, New Game+, Creative Mode and the archives, including what comes later. No subscription and nothing renews.",
-          "displayName" : "Silicon Pro Lifetime",
-          "locale" : "en_US"
+          "description": "Silicon Pro, bought once and owned forever — every era, every scenario, New Game+, Creative Mode and the archives, including what comes later. No subscription and nothing renews.",
+          "displayName": "Silicon Pro Lifetime",
+          "locale": "en_US"
         }
       ],
-      "productID" : "com.wrexist.silicon.pro.lifetime",
-      "referenceName" : "Silicon Pro Lifetime",
-      "type" : "NonConsumable"
+      "productID": "com.wrexist.silicon.pro.lifetime",
+      "referenceName": "Silicon Pro Lifetime",
+      "type": "NonConsumable"
+    },
+    {
+      "displayPrice": "199.99",
+      "familyShareable": true,
+      "internalID": "5E9C3A10-51C0-4A00-B100-000000000022",
+      "localizations": [
+        {
+          "description": "Silicon Pro, bought once and owned forever — every era, every scenario, New Game+, Creative Mode and the archives, including what comes later. No subscription and nothing renews.",
+          "displayName": "Silicon Pro Lifetime",
+          "locale": "en_US"
+        }
+      ],
+      "productID": "com.wrexist.silicon.pro.lifetime.premium",
+      "referenceName": "Silicon Pro Lifetime A",
+      "type": "NonConsumable"
+    },
+    {
+      "displayPrice": "119.99",
+      "familyShareable": true,
+      "internalID": "5E9C3A10-51C0-4A00-B100-000000000025",
+      "localizations": [
+        {
+          "description": "Silicon Pro, bought once and owned forever — every era, every scenario, New Game+, Creative Mode and the archives, including what comes later. No subscription and nothing renews.",
+          "displayName": "Silicon Pro Lifetime",
+          "locale": "en_US"
+        }
+      ],
+      "productID": "com.wrexist.silicon.pro.lifetime.value",
+      "referenceName": "Silicon Pro Lifetime B",
+      "type": "NonConsumable"
     }
   ],
-  "settings" : {
-    "_failTransactionsEnabled" : false,
-    "_locale" : "en_US",
-    "_storefront" : "USA"
+  "settings": {
+    "_failTransactionsEnabled": false,
+    "_locale": "en_US",
+    "_storefront": "USA"
   },
-  "subscriptionGroups" : [
+  "subscriptionGroups": [
     {
-      "id" : "5E9C3A10-51C0-4A00-B100-000000000010",
-      "localizations" : [],
-      "name" : "silicon_pro",
-      "subscriptions" : [
+      "id": "5E9C3A10-51C0-4A00-B100-000000000010",
+      "localizations": [],
+      "name": "silicon_pro",
+      "subscriptions": [
         {
-          "adHocOffers" : [],
-          "codeOffers" : [],
-          "displayPrice" : "19.99",
-          "familyShareable" : false,
-          "groupNumber" : 1,
-          "internalID" : "5E9C3A10-51C0-4A00-B100-000000000011",
-          "introductoryOffer" : {
-            "internalID" : "5E9C3A10-51C0-4A00-B100-000000000012",
-            "paymentMode" : "free",
-            "subscriptionPeriod" : "P1W"
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "19.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "5E9C3A10-51C0-4A00-B100-000000000011",
+          "introductoryOffer": {
+            "internalID": "5E9C3A10-51C0-4A00-B100-000000000012",
+            "paymentMode": "free",
+            "subscriptionPeriod": "P1W"
           },
-          "localizations" : [
+          "localizations": [
             {
-              "description" : "The Platform and AI eras, every scenario, New Game+, the Platform Division, Creative Mode, the Time Machine and the archives. Billed yearly.",
-              "displayName" : "Silicon Pro Yearly",
-              "locale" : "en_US"
+              "description": "The Platform and AI eras, every scenario, New Game+, the Platform Division, Creative Mode, the Time Machine and the archives. Billed yearly.",
+              "displayName": "Silicon Pro Yearly",
+              "locale": "en_US"
             }
           ],
-          "productID" : "com.wrexist.silicon.pro.yearly",
-          "recurringSubscriptionPeriod" : "P1Y",
-          "referenceName" : "Silicon Pro Yearly",
-          "subscriptionGroupID" : "5E9C3A10-51C0-4A00-B100-000000000010",
-          "type" : "RecurringSubscription"
+          "productID": "com.wrexist.silicon.pro.yearly",
+          "recurringSubscriptionPeriod": "P1Y",
+          "referenceName": "Silicon Pro Yearly",
+          "subscriptionGroupID": "5E9C3A10-51C0-4A00-B100-000000000010",
+          "type": "RecurringSubscription"
         },
         {
-          "adHocOffers" : [],
-          "codeOffers" : [],
-          "displayPrice" : "3.99",
-          "familyShareable" : false,
-          "groupNumber" : 2,
-          "internalID" : "5E9C3A10-51C0-4A00-B100-000000000013",
-          "introductoryOffer" : {
-            "internalID" : "5E9C3A10-51C0-4A00-B100-000000000014",
-            "paymentMode" : "free",
-            "subscriptionPeriod" : "P1W"
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "3.99",
+          "familyShareable": false,
+          "groupNumber": 2,
+          "internalID": "5E9C3A10-51C0-4A00-B100-000000000013",
+          "introductoryOffer": {
+            "internalID": "5E9C3A10-51C0-4A00-B100-000000000014",
+            "paymentMode": "free",
+            "subscriptionPeriod": "P1W"
           },
-          "localizations" : [
+          "localizations": [
             {
-              "description" : "The Platform and AI eras, every scenario, New Game+, the Platform Division, Creative Mode, the Time Machine and the archives. Billed monthly.",
-              "displayName" : "Silicon Pro Monthly",
-              "locale" : "en_US"
+              "description": "The Platform and AI eras, every scenario, New Game+, the Platform Division, Creative Mode, the Time Machine and the archives. Billed monthly.",
+              "displayName": "Silicon Pro Monthly",
+              "locale": "en_US"
             }
           ],
-          "productID" : "com.wrexist.silicon.pro.monthly",
-          "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Silicon Pro Monthly",
-          "subscriptionGroupID" : "5E9C3A10-51C0-4A00-B100-000000000010",
-          "type" : "RecurringSubscription"
+          "productID": "com.wrexist.silicon.pro.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "Silicon Pro Monthly",
+          "subscriptionGroupID": "5E9C3A10-51C0-4A00-B100-000000000010",
+          "type": "RecurringSubscription"
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "7.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "5E9C3A10-51C0-4A00-B100-000000000020",
+          "introductoryOffer": {
+            "internalID": "5E9C3A10-51C0-4A00-B100-000000000120",
+            "paymentMode": "free",
+            "subscriptionPeriod": "P1W"
+          },
+          "localizations": [
+            {
+              "description": "The Platform and AI eras, every scenario, New Game+, the Platform Division, Creative Mode, the Time Machine and the archives. Billed weekly.",
+              "displayName": "Silicon Pro Weekly",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.wrexist.silicon.pro.weekly",
+          "recurringSubscriptionPeriod": "P1W",
+          "referenceName": "Silicon Pro Weekly A",
+          "subscriptionGroupID": "5E9C3A10-51C0-4A00-B100-000000000010",
+          "type": "RecurringSubscription"
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "99.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "5E9C3A10-51C0-4A00-B100-000000000021",
+          "introductoryOffer": {
+            "internalID": "5E9C3A10-51C0-4A00-B100-000000000121",
+            "paymentMode": "free",
+            "subscriptionPeriod": "P1W"
+          },
+          "localizations": [
+            {
+              "description": "The Platform and AI eras, every scenario, New Game+, the Platform Division, Creative Mode, the Time Machine and the archives. Billed yearly.",
+              "displayName": "Silicon Pro Yearly",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.wrexist.silicon.pro.yearly.premium",
+          "recurringSubscriptionPeriod": "P1Y",
+          "referenceName": "Silicon Pro Yearly A",
+          "subscriptionGroupID": "5E9C3A10-51C0-4A00-B100-000000000010",
+          "type": "RecurringSubscription"
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "4.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "5E9C3A10-51C0-4A00-B100-000000000023",
+          "introductoryOffer": {
+            "internalID": "5E9C3A10-51C0-4A00-B100-000000000123",
+            "paymentMode": "free",
+            "subscriptionPeriod": "P1W"
+          },
+          "localizations": [
+            {
+              "description": "The Platform and AI eras, every scenario, New Game+, the Platform Division, Creative Mode, the Time Machine and the archives. Billed weekly.",
+              "displayName": "Silicon Pro Weekly",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.wrexist.silicon.pro.weekly.value",
+          "recurringSubscriptionPeriod": "P1W",
+          "referenceName": "Silicon Pro Weekly B",
+          "subscriptionGroupID": "5E9C3A10-51C0-4A00-B100-000000000010",
+          "type": "RecurringSubscription"
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
+          "displayPrice": "59.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "5E9C3A10-51C0-4A00-B100-000000000024",
+          "introductoryOffer": {
+            "internalID": "5E9C3A10-51C0-4A00-B100-000000000124",
+            "paymentMode": "free",
+            "subscriptionPeriod": "P1W"
+          },
+          "localizations": [
+            {
+              "description": "The Platform and AI eras, every scenario, New Game+, the Platform Division, Creative Mode, the Time Machine and the archives. Billed yearly.",
+              "displayName": "Silicon Pro Yearly",
+              "locale": "en_US"
+            }
+          ],
+          "productID": "com.wrexist.silicon.pro.yearly.value",
+          "recurringSubscriptionPeriod": "P1Y",
+          "referenceName": "Silicon Pro Yearly B",
+          "subscriptionGroupID": "5E9C3A10-51C0-4A00-B100-000000000010",
+          "type": "RecurringSubscription"
         }
       ]
     }
   ],
-  "version" : {
-    "major" : 3,
-    "minor" : 0
+  "version": {
+    "major": 3,
+    "minor": 0
   }
 }

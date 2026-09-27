@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>Privacy Policy — Silicon: Tech Tycoon</title>
-  <meta name="description" content="Silicon: Tech Tycoon has no accounts, no analytics, no tracking and no ads. Your game progress is stored locally on your device. The only data collected is what is needed to process and restore in-app purchases." />
+  <meta name="description" content="Silicon: Tech Tycoon has no accounts, no tracking and no ads. Your game progress is stored locally on your device. Anonymous purchase and paywall-view data support purchases and price testing." />
   <meta name="theme-color" content="#0F1115" media="(prefers-color-scheme: dark)" />
   <meta name="theme-color" content="#F4F5F7" media="(prefers-color-scheme: light)" />
   <meta name="robots" content="index,follow" />
@@ -38,19 +38,20 @@
         <span class="eyebrow">Legal</span>
         <h1>Privacy Policy</h1>
         <p class="updated">Last updated: 26 September 2026</p>
-        <p class="intro">Silicon: Tech Tycoon is built privacy-first. There is no account, no tracking and no advertising. Your game stays on your device; the only thing we handle is your purchase, so it can be restored.</p>
+        <p class="intro">Silicon: Tech Tycoon is built privacy-first. There is no account, no tracking and no advertising. Your game stays on your device; we process purchase information and anonymous paywall views to restore access and evaluate subscription pricing.</p>
       </header>
 
       <div class="prose">
         <div class="prose__card reveal">
           <h2>The short version</h2>
-          <p><span class="hl">Your game save stays on your device.</span> There is no account, no login, no analytics, no tracking, and no ads. On iOS, RevenueCat processes an anonymous installation identifier and purchase status to validate and restore access. This service starts when the app opens, including when you have not bought anything.</p>
+          <p><span class="hl">Your game save stays on your device.</span> There is no account, no login, no tracking, and no ads. On iOS, RevenueCat processes an anonymous installation identifier and purchase status to validate and restore access. This service starts when the app opens, including when you have not bought anything.</p>
         </div>
 
         <div class="prose__card reveal">
           <h2>What data do we collect?</h2>
+          <p>When a purchase screen is shown, RevenueCat also receives a <strong>paywall-view event and the displayed offering identifier</strong>, associated with the anonymous installation identifier. We use these events and purchase outcomes to compare pricing variants and improve our purchase screen. These analytics do not include your game save or gameplay activity.</p>
           <p>The purchase service processes <strong>purchase history and status</strong> and an <strong>anonymous identifier</strong> that RevenueCat generates for your installation so access can be validated and restored.</p>
-          <p>We do <em>not</em> collect your name, email address, contacts, location, photos, browsing activity, or any usage or gameplay data. We do not collect crash reports. The anonymous identifier is created by the app; it is not your Apple ID, your advertising identifier, or anything that identifies you as a person. None of it is used for tracking, none of it is sold, and none of it is combined with data from other apps or companies.</p>
+          <p>We do <em>not</em> collect your name, email address, contacts, location, photos, browsing activity, or your game saves or gameplay activity. We do not collect crash reports. The anonymous identifier is created by the app; it is not your Apple ID, your advertising identifier, or anything that identifies you as a person. None of it is used for tracking, none of it is sold, and none of it is combined with data from other apps or companies.</p>
           <p>The purchase service initializes when the iOS app starts. RevenueCat can process the anonymous installation identifier and check purchase status even if you do not buy anything.</p>
         </div>
 
@@ -62,11 +63,11 @@
 
         <div class="prose__card reveal">
           <h2>Third-party SDKs and services</h2>
-          <p>There are no analytics SDKs, no advertising networks, no crash reporters and no social-login libraries. The third-party code in the app is:</p>
+          <p>There are no advertising networks, crash reporters or social-login libraries. RevenueCat provides purchase processing and paywall analytics. The third-party code in the app is:</p>
           <ul>
             <li><a href="https://capacitorjs.com" target="_blank" rel="noopener">Capacitor</a> — native iOS packaging. Sends nothing.</li>
             <li><a href="https://www.apple.com/legal/privacy/" target="_blank" rel="noopener">Apple's StoreKit</a> — takes the payment. Apple holds the purchase record under Apple's own policy.</li>
-            <li><a href="https://www.revenuecat.com/privacy/" target="_blank" rel="noopener">RevenueCat</a> — validates purchases and makes them restorable across reinstalls. It receives your purchase history and the anonymous installation identifier described above, and acts as our data processor. Nothing about how you play is sent to it.</li>
+            <li><a href="https://www.revenuecat.com/privacy/" target="_blank" rel="noopener">RevenueCat</a> — validates purchases and makes them restorable across reinstalls. It receives your purchase history and the anonymous installation identifier described above, and acts as our data processor. It also records purchase-screen views and pricing-offering assignments for the analytics described above; gameplay activity is not sent.</li>
         <li>Founding Owner access in version 1.4.0 is checked locally using Apple's verified original purchase. This version no longer sends the original app receipt to our former verification endpoint. Earlier versions may still attempt that request; the endpoint is unavailable.</li>
           </ul>
         </div>
