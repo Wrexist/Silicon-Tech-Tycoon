@@ -4,7 +4,9 @@ ACCESS
 No app account or login is required. Start a company on first launch; optional coach tips can be skipped. Core gameplay and saves work offline. Store purchases and restore require Apple's purchase services.
 
 PURCHASES
-Open Settings using the gear button, then the Silicon Pro section to view the single purchase screen. It offers monthly and yearly auto-renewable subscriptions and a separate one-time lifetime unlock. Prices and eligible trial terms are loaded from the store. Both subscriptions currently have a one-week introductory trial for eligible customers; lifetime does not renew.
+Open Settings using the gear button, then the Silicon Pro section to view the single purchase screen. It offers weekly and yearly auto-renewable subscriptions and a separate one-time lifetime unlock. Prices and eligible trial terms are loaded from the store. Both subscriptions currently have a one-week introductory trial for eligible customers; lifetime does not renew.
+
+Existing monthly subscribers retain access and can restore their purchases; monthly is no longer listed for new purchases.
 
 Restore purchases is available in Settings and on the purchase screen. Active subscribers can open Manage subscription from Settings. The previously sold Creative Mode non-consumable remains restorable for existing owners; it is not offered as a new purchase.
 

@@ -23,6 +23,8 @@ import type { PluginListenerHandle } from "@capacitor/core";
 /** One product as StoreKit describes it. Subscription fields are absent for non-consumables. */
 export interface NativeProduct {
   id: string;
+  offeringId?: string;
+  packageId?: string;
   displayName?: string;
   description?: string;
   /** Localized display price, e.g. "$3.99", "kr 39,00", "€3,99". NEVER format this yourself. */
@@ -68,8 +70,9 @@ export interface NativeSubscriptionStatus {
 export interface SiliconStoreKitPlugin {
   getProduct(options: { productId: string }): Promise<NativeProduct & { available: boolean }>;
   /** Batch metadata fetch. Unknown/unconfigured ids are simply omitted from `products`. */
-  getProducts(options: { productIds: string[] }): Promise<{ products: NativeProduct[] }>;
-  purchase(options: { productId: string }): Promise<{ status: string; message?: string }>;
+  getProducts(options: { productIds: string[] }): Promise<{ products: NativeProduct[]; offeringId?: string }>;
+  purchase(options: { productId: string; offeringId?: string; packageId?: string }): Promise<{ status: string; message?: string }>;
+  trackPaywallImpression(options: { offeringId: string }): Promise<{ tracked: boolean }>;
   restore(options: { productId?: string }): Promise<{ restored: boolean; owned?: string[] }>;
   isOwned(options: { productId: string }): Promise<{ owned: boolean }>;
   /** Live status for a subscription group (all Pro SKUs share one group). */

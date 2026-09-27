@@ -95,7 +95,7 @@ describe("syncPro — granting", () => {
   it("writes an active subscription with its real expiry, trial flag and renewal flag", async () => {
     bridge.subscriptionStatus.mockResolvedValue({
       active: true,
-      productId: "com.wrexist.silicon.pro.yearly",
+      productId: "com.wrexist.silicon.pro.yearly.premium",
       expiresAt: YEAR_AHEAD,
       isTrial: true,
       willRenew: false,
@@ -113,7 +113,7 @@ describe("syncPro — granting", () => {
   it("keeps a grace-period subscriber entitled — Apple is still retrying their payment", async () => {
     bridge.subscriptionStatus.mockResolvedValue({
       active: true,
-      productId: "com.wrexist.silicon.pro.monthly",
+      productId: "com.wrexist.silicon.pro.weekly",
       expiresAt: YEAR_AHEAD,
       inGracePeriod: true,
     });
@@ -125,7 +125,7 @@ describe("syncPro — granting", () => {
 
 describe("syncPro — revoking (the dangerous direction)", () => {
   it("clears the record only when BOTH sources definitively answered no", async () => {
-    setProRecord(proRecordFrom({ tier: "monthly", productId: "com.wrexist.silicon.pro.monthly", expiresAt: YEAR_AHEAD }));
+    setProRecord(proRecordFrom({ tier: "weekly", productId: "com.wrexist.silicon.pro.weekly", expiresAt: YEAR_AHEAD }));
     const answered = await syncPro();
     expect(answered).toBe(true);
     expect(getProRecord()).toBeNull();
@@ -133,7 +133,7 @@ describe("syncPro — revoking (the dangerous direction)", () => {
 
   it("does NOT revoke when the subscription read fails, even if lifetime answered no", async () => {
     // The exact partial-read shape that would log a paying subscriber out on a flaky connection.
-    setProRecord(proRecordFrom({ tier: "monthly", productId: "com.wrexist.silicon.pro.monthly", expiresAt: YEAR_AHEAD }));
+    setProRecord(proRecordFrom({ tier: "weekly", productId: "com.wrexist.silicon.pro.weekly", expiresAt: YEAR_AHEAD }));
     bridge.subscriptionStatus.mockRejectedValue(new Error("offline"));
     const answered = await syncPro();
     expect(answered).toBe(false);
@@ -141,14 +141,14 @@ describe("syncPro — revoking (the dangerous direction)", () => {
   });
 
   it("does NOT revoke when the lifetime read fails, even if the subscription answered no", async () => {
-    setProRecord(proRecordFrom({ tier: "lifetime", productId: "com.wrexist.silicon.pro.lifetime" }));
+    setProRecord(proRecordFrom({ tier: "lifetime", productId: "com.wrexist.silicon.pro.lifetime.premium" }));
     bridge.isOwned.mockRejectedValue(new Error("offline"));
     await syncPro();
     expect(isPro()).toBe(true);
   });
 
   it("does NOT revoke when the whole bridge is unreachable", async () => {
-    setProRecord(proRecordFrom({ tier: "yearly", productId: "com.wrexist.silicon.pro.yearly", expiresAt: YEAR_AHEAD }));
+    setProRecord(proRecordFrom({ tier: "yearly", productId: "com.wrexist.silicon.pro.yearly.premium", expiresAt: YEAR_AHEAD }));
     bridge.originalPurchase.mockRejectedValue(new Error("no bridge"));
     bridge.isOwned.mockRejectedValue(new Error("no bridge"));
     bridge.subscriptionStatus.mockRejectedValue(new Error("no bridge"));
@@ -166,7 +166,7 @@ describe("syncPro — revoking (the dangerous direction)", () => {
 
   it("is inert off-device — the web preview never touches a real entitlement", async () => {
     bridge.native = false;
-    setProRecord(proRecordFrom({ tier: "monthly", productId: "com.wrexist.silicon.pro.monthly", expiresAt: YEAR_AHEAD }));
+    setProRecord(proRecordFrom({ tier: "weekly", productId: "com.wrexist.silicon.pro.weekly", expiresAt: YEAR_AHEAD }));
     expect(await syncPro()).toBe(false);
     expect(isPro()).toBe(true);
   });
@@ -176,9 +176,9 @@ describe("purchasePro", () => {
   it("grants on a confirmed store success", async () => {
     bridge.purchase.mockResolvedValue({ status: "purchased" });
     bridge.subscriptionStatus.mockResolvedValue({
-      active: true, productId: "com.wrexist.silicon.pro.yearly", expiresAt: YEAR_AHEAD,
+      active: true, productId: "com.wrexist.silicon.pro.yearly.premium", expiresAt: YEAR_AHEAD,
     });
-    const res = await purchasePro("com.wrexist.silicon.pro.yearly");
+    const res = await purchasePro("com.wrexist.silicon.pro.yearly.premium");
     expect(res.status).toBe("purchased");
     expect(isPro()).toBe(true);
   });
@@ -189,28 +189,28 @@ describe("purchasePro", () => {
     bridge.purchase.mockResolvedValue({ status: "purchased" });
     bridge.isOwned.mockRejectedValue(new Error("offline"));
     bridge.subscriptionStatus.mockRejectedValue(new Error("offline"));
-    const res = await purchasePro("com.wrexist.silicon.pro.monthly");
+    const res = await purchasePro("com.wrexist.silicon.pro.weekly");
     expect(res.status).toBe("purchased");
     expect(isPro()).toBe(true);
   });
 
   it("grants NOTHING on a cancel", async () => {
     bridge.purchase.mockResolvedValue({ status: "cancelled" });
-    const res = await purchasePro("com.wrexist.silicon.pro.monthly");
+    const res = await purchasePro("com.wrexist.silicon.pro.weekly");
     expect(res.status).toBe("cancelled");
     expect(isPro()).toBe(false);
   });
 
   it("grants NOTHING while a purchase is pending approval", async () => {
     bridge.purchase.mockResolvedValue({ status: "pending" });
-    const res = await purchasePro("com.wrexist.silicon.pro.monthly");
+    const res = await purchasePro("com.wrexist.silicon.pro.weekly");
     expect(res.status).toBe("pending");
     expect(isPro()).toBe(false);
   });
 
   it("grants NOTHING when the bridge throws", async () => {
     bridge.purchase.mockRejectedValue(new Error("boom"));
-    const res = await purchasePro("com.wrexist.silicon.pro.monthly");
+    const res = await purchasePro("com.wrexist.silicon.pro.weekly");
     expect(res.status).toBe("error");
     expect(isPro()).toBe(false);
   });
@@ -225,25 +225,25 @@ describe("purchasePro", () => {
 describe("getProCatalog", () => {
   it("never substitutes a US price for missing native storefront pricing", async () => {
     bridge.getProducts.mockResolvedValue({ products: [
-      { id: "com.wrexist.silicon.pro.yearly", price: "  " },
-      { id: "com.wrexist.silicon.pro.monthly" },
-      { id: "com.wrexist.silicon.pro.lifetime", price: "299 kr" },
+      { id: "com.wrexist.silicon.pro.yearly.premium", price: "  " },
+      { id: "com.wrexist.silicon.pro.weekly" },
+      { id: "com.wrexist.silicon.pro.lifetime.premium", price: "299 kr" },
     ] });
     const catalog = await getProCatalog();
     expect(catalog.offers.map(({ id, price }) => ({ id, price }))).toEqual([
-      { id: "com.wrexist.silicon.pro.lifetime", price: "299 kr" },
+      { id: "com.wrexist.silicon.pro.lifetime.premium", price: "299 kr" },
     ]);
   });
 
   it("only offers rows the store confirmed it can sell", async () => {
     bridge.getProducts.mockResolvedValue({
       products: [
-        { id: "com.wrexist.silicon.pro.yearly", price: "kr 199", introEligible: true, introPeriod: "7 days" },
+        { id: "com.wrexist.silicon.pro.yearly.premium", price: "kr 199", introEligible: true, introPeriod: "7 days" },
       ],
     });
     const cat = await getProCatalog();
     expect(cat.state).toBe("ready");
-    expect(cat.offers.map((o) => o.id)).toEqual(["com.wrexist.silicon.pro.yearly"]);
+    expect(cat.offers.map((o) => o.id)).toEqual(["com.wrexist.silicon.pro.yearly.premium"]);
     // Localized price, never our USD fallback.
     expect(cat.offers[0].price).toBe("kr 199");
   });
@@ -261,7 +261,7 @@ describe("getProCatalog", () => {
   it("hides trial framing from an Apple ID the store says is ineligible", async () => {
     // Promising a trial the store won't honour is a false claim on the paywall.
     bridge.getProducts.mockResolvedValue({
-      products: [{ id: "com.wrexist.silicon.pro.monthly", price: "$3.99", introEligible: false }],
+      products: [{ id: "com.wrexist.silicon.pro.weekly", price: "$3.99", introEligible: false }],
     });
     const cat = await getProCatalog();
     expect(cat.offers[0].trialEligible).toBe(false);
@@ -269,7 +269,7 @@ describe("getProCatalog", () => {
 
   it("never claims a trial on the one-time lifetime product", async () => {
     bridge.getProducts.mockResolvedValue({
-      products: [{ id: "com.wrexist.silicon.pro.lifetime", price: "$29.99", introEligible: true }],
+      products: [{ id: "com.wrexist.silicon.pro.lifetime.premium", price: "$29.99", introEligible: true }],
     });
     const cat = await getProCatalog();
     expect(cat.offers[0].trialEligible).toBe(false);
@@ -313,7 +313,7 @@ describe("restorePro", () => {
   it("recovers an active subscription that this device had no record of", async () => {
     bridge.restore.mockResolvedValue({ restored: true, owned: [] });
     bridge.subscriptionStatus.mockResolvedValue({
-      active: true, productId: "com.wrexist.silicon.pro.monthly", expiresAt: YEAR_AHEAD,
+      active: true, productId: "com.wrexist.silicon.pro.weekly", expiresAt: YEAR_AHEAD,
     });
     expect((await restorePro()).restored).toBe(true);
     expect(isPro()).toBe(true);
@@ -328,5 +328,50 @@ describe("restorePro", () => {
     bridge.restore.mockRejectedValue(new Error("sign-in cancelled"));
     bridge.isOwned.mockResolvedValue({ owned: true });
     expect((await restorePro()).restored).toBe(true);
+  });
+});
+
+
+describe("price experiment and legacy access", () => {
+  it("retains a legacy monthly subscriber without offering monthly for sale", async () => {
+    bridge.subscriptionStatus.mockResolvedValue({ active: true, productId: "com.wrexist.silicon.pro.monthly", expiresAt: YEAR_AHEAD });
+    await syncPro();
+    expect(getProRecord()?.tier).toBe("monthly");
+    expect(isPro()).toBe(true);
+    expect((await purchasePro("com.wrexist.silicon.pro.monthly")).status).toBe("unavailable");
+  });
+  it("restores either experiment lifetime product", async () => {
+    bridge.isOwned.mockImplementation(async ({ productId }: { productId: string }) => ({ owned: productId === "com.wrexist.silicon.pro.lifetime.value" }));
+    await syncPro();
+    expect(getProRecord()?.productId).toBe("com.wrexist.silicon.pro.lifetime.value");
+    expect(getProRecord()?.tier).toBe("lifetime");
+  });
+  it("keeps paid access if just one lifetime ownership read fails", async () => {
+    setProRecord(proRecordFrom({ tier: "lifetime", productId: "com.wrexist.silicon.pro.lifetime.value" }));
+    bridge.isOwned.mockImplementation(async ({ productId }: { productId: string }) => {
+      if (productId.endsWith(".value")) throw new Error("offline");
+      return { owned: false };
+    });
+    expect(await syncPro()).toBe(false);
+    expect(isPro()).toBe(true);
+  });
+  it("returns the assigned value offer with its package attribution", async () => {
+    bridge.getProducts.mockResolvedValue({ offeringId: "silicon_140_price_b", products: [
+      { id: "com.wrexist.silicon.pro.weekly.value", price: "$4.99", offeringId: "silicon_140_price_b", packageId: "$rc_weekly", introEligible: true },
+    ] });
+    const c = await getProCatalog();
+    expect(c.offeringId).toBe("silicon_140_price_b");
+    expect(c.offers).toHaveLength(1);
+    expect(c.offers[0].trialEligible).toBe(true);
+    bridge.purchase.mockResolvedValue({ status: "cancelled" });
+    await purchasePro(c.offers[0].id, c.offers[0]);
+    expect(bridge.purchase).toHaveBeenCalledWith({ productId: c.offers[0].id, offeringId: "silicon_140_price_b", packageId: "$rc_weekly" });
+  });
+  it("refuses a mixed price ladder rather than combining cohorts", async () => {
+    bridge.getProducts.mockResolvedValue({ products: [
+      { id: "com.wrexist.silicon.pro.yearly.premium", price: "$99.99" },
+      { id: "com.wrexist.silicon.pro.weekly.value", price: "$4.99" },
+    ] });
+    expect((await getProCatalog()).state).toBe("unavailable");
   });
 });

@@ -14,6 +14,8 @@
 import { storeKit, isNative, type NativeProduct } from "./storeKitBridge.ts";
 import {
   PRO_PRODUCT_IDS,
+  PRO_PRODUCTS,
+  PRO_LIFETIME_PRODUCT_IDS,
   PRO_SUBSCRIPTION_GROUP,
   clearProRecord,
   getProRecord,
@@ -43,6 +45,8 @@ export function proPurchasesAvailable(): boolean {
 /** One purchasable row, resolved against what the store will ACTUALLY sell right now. */
 export interface ProOffer {
   id: string;
+  offeringId?: string;
+  packageId?: string;
   /** Localized store price ("kr 39,00", "€3,99"). Falls back to the USD config string off-device.
    *  This is the ONLY price string that may ever be shown — see `amount`. */
   price: string;
@@ -63,6 +67,7 @@ export type CatalogState = "ready" | "unavailable";
 
 export interface ProCatalog {
   state: CatalogState;
+  offeringId?: string;
   offers: ProOffer[];
   /** False on web/dev, where everything is simulated — callers must NOT render a store-error state. */
   fromStore: boolean;
@@ -78,8 +83,8 @@ function fallbackCatalog(): ProCatalog {
 }
 
 function PRO_PRODUCTS_FALLBACK(): ProOffer[] {
-  return PRO_PRODUCT_IDS.map((id) => {
-    const p = proProduct(id)!;
+  return PRO_PRODUCTS.map((p) => {
+    const id = p.id;
     return {
       id,
       price: p.fallbackPrice,
@@ -116,6 +121,8 @@ export async function getProCatalog(): Promise<ProCatalog> {
       const cfg = proProduct(id)!;
       offers.push({
         id,
+        offeringId: hit.offeringId,
+        packageId: hit.packageId,
         price: hit.price.trim(),
         // Numeric amount for value math. Only taken when the store actually gave us one — never
         // paired with the USD fallback string, which would compare a real price against a
@@ -129,7 +136,11 @@ export async function getProCatalog(): Promise<ProCatalog> {
         owned: hit.owned === true,
       });
     }
-    return { state: offers.length > 0 ? "ready" : "unavailable", offers, fromStore: true };
+    const tiers = offers.map((o) => proProduct(o.id)?.tier);
+    if (new Set(tiers).size !== tiers.length || new Set(offers.map((o) => o.id.endsWith(".value"))).size > 1 || (res.offeringId && offers.some((o) => o.offeringId !== res.offeringId || !o.packageId))) {
+      return { state: "unavailable", offers: [], fromStore: true };
+    }
+    return { state: offers.length > 0 ? "ready" : "unavailable", offers, fromStore: true, offeringId: res.offeringId };
   } catch {
     return { state: "unavailable", offers: [], fromStore: true };
   }
@@ -148,9 +159,9 @@ export interface ProPurchaseResult {
  * StoreKit sheet is `cancelled` — not an error, no charge, and nothing to apologise for; treating
  * that as a failure (with a red banner) is a documented App Review 2.1.0 rejection.
  */
-export async function purchasePro(productId: string): Promise<ProPurchaseResult> {
+export async function purchasePro(productId: string, context?: Pick<ProOffer, "offeringId" | "packageId">): Promise<ProPurchaseResult> {
   const cfg = proProduct(productId);
-  if (!cfg) return { status: "unavailable", message: "That plan isn't available." };
+  if (!cfg || !PRO_PRODUCT_IDS.includes(productId)) return { status: "unavailable", message: "That plan isn't available." };
 
   if (!isNative()) {
     // WEB / dev preview — not a sales channel. Simulate success so the whole funnel (paywall →
@@ -170,7 +181,7 @@ export async function purchasePro(productId: string): Promise<ProPurchaseResult>
   }
 
   try {
-    const res = await storeKit().purchase({ productId });
+    const res = await storeKit().purchase({ productId, ...(context?.offeringId && context?.packageId ? { offeringId: context.offeringId, packageId: context.packageId } : {}) });
     switch (res.status) {
       case "purchased": {
         // Re-read the truth from StoreKit rather than trusting the local guess: the store knows the
@@ -205,7 +216,7 @@ export async function purchasePro(productId: string): Promise<ProPurchaseResult>
 
 /** Mock subscription length for the web preview only. */
 function mockPeriodMs(tier: ProTier): number {
-  return tier === "yearly" ? 365 * 24 * 60 * 60 * 1000 : 30 * 24 * 60 * 60 * 1000;
+  return (tier === "yearly" ? 365 : tier === "weekly" ? 7 : 30) * 24 * 60 * 60 * 1000;
 }
 
 /* ─────────────────────────────  RESTORE  ───────────────────────────── */
@@ -270,21 +281,21 @@ export async function syncPro(): Promise<boolean> {
   }
 
   // 2. Lifetime (a non-consumable, so ownership is permanent and restorable).
-  const lifetime = proProduct("com.wrexist.silicon.pro.lifetime");
-  if (lifetime) {
+  lifetimeAnswered = true;
+  for (const lifetimeId of PRO_LIFETIME_PRODUCT_IDS) {
+    const lifetime = proProduct(lifetimeId)!;
     try {
       const { owned } = await storeKit().isOwned({ productId: lifetime.id });
-      lifetimeAnswered = true;
       if (owned) {
         const rec = getProRecord();
-        if (!rec || rec.tier !== "lifetime") {
+        if (!rec || rec.tier !== "lifetime" || rec.productId !== lifetime.id) {
           setProRecord(proRecordFrom({ tier: "lifetime", productId: lifetime.id, expiresAt: null }));
         }
         grantSandboxEntitlement(); // Creative Mode is included with Pro
         return true;
       }
     } catch {
-      /* unreadable — do not revoke */
+      lifetimeAnswered = false; // Unanswered ownership never permits revocation.
     }
   }
 
@@ -372,4 +383,10 @@ export async function manageProSubscription(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Record an actual visible custom paywall, never a catalog prefetch. */
+export async function trackProPaywallImpression(offeringId: string): Promise<void> {
+  if (!isNative() || !NATIVE_PRO_WIRED) return;
+  try { await storeKit().trackPaywallImpression({ offeringId }); } catch { /* Analytics cannot block purchases. */ }
 }

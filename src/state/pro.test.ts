@@ -20,6 +20,7 @@ import {
   trialDaysRemaining,
   yearlySavingsPercent,
   yearlyValueVsMonthly,
+  yearlyValueVsWeekly,
   type ProRecord,
   PRO_CHANGED_EVENT,
 } from "./pro.ts";
@@ -57,7 +58,7 @@ beforeEach(() => {
 describe("catalog", () => {
   it("exposes exactly one product per tier, all under the same bundle prefix", () => {
     const tiers = PRO_PRODUCTS.map((p) => p.tier).sort();
-    expect(tiers).toEqual(["lifetime", "monthly", "yearly"]);
+    expect(tiers).toEqual(["lifetime", "weekly", "yearly"]);
     for (const p of PRO_PRODUCTS) expect(p.id.startsWith("com.wrexist.silicon.pro.")).toBe(true);
   });
 
@@ -155,8 +156,9 @@ describe("yearlySavingsPercent", () => {
 
   it("is true of the shipped ladder — the yearly row must actually be the better deal", () => {
     const y = PRO_PRODUCTS.find((p) => p.tier === "yearly")!;
-    const m = PRO_PRODUCTS.find((p) => p.tier === "monthly")!;
-    const pct = yearlySavingsPercent({ amount: y.fallbackAmount }, { amount: m.fallbackAmount });
+    const m = PRO_PRODUCTS.find((p) => p.tier === "weekly")!;
+    const value = yearlyValueVsWeekly({ amount: y.fallbackAmount }, { amount: m.fallbackAmount });
+    const pct = value.kind === "saving" ? value.percent : null;
     expect(pct).not.toBeNull();
     // If a price change ever makes yearly a worse deal than monthly, the badge silently reverts to
     // "BEST VALUE" — an adjective that would then be a lie. Fail here instead.
@@ -350,5 +352,20 @@ describe("the entitlement-changed event name", () => {
   // paint keeps looking at lock chips. Pin the two together.
   it("is the literal nativeStore.ts dispatches", () => {
     expect(PRO_CHANGED_EVENT).toBe("silicon:pro-changed");
+  });
+});
+
+
+describe("weekly pricing and expiry", () => {
+  it("compares 52 weekly payments and rounds savings down", () => {
+    expect(yearlyValueVsWeekly({ amount: 99.99, currency: "USD" }, { amount: 7.99, currency: "USD" })).toEqual({ kind: "saving", percent: 75 });
+    expect(yearlyValueVsWeekly({ amount: 59.99 }, { amount: 4.99 })).toEqual({ kind: "saving", percent: 76 });
+    expect(yearlyValueVsWeekly({ amount: 99.99, currency: "USD" }, { amount: 7.99, currency: "EUR" })).toEqual({ kind: "unknown" });
+  });
+  it("bounds missing weekly expiry to eight days rather than a month", () => {
+    const now = Date.now();
+    setProRecord(proRecordFrom({ tier: "weekly", productId: "com.wrexist.silicon.pro.weekly" }, now));
+    expect(isPro(now + 7 * 86400000)).toBe(true);
+    expect(isPro(now + 9 * 86400000)).toBe(false);
   });
 });
