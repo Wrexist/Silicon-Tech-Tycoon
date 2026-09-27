@@ -99,6 +99,7 @@ export function App() {
     <ErrorBoundary>
       <GameProvider>
         <AppShell />
+        <ToastHost />
       </GameProvider>
     </ErrorBoundary>
   );
@@ -225,7 +226,7 @@ function AppShell() {
         }} />
       </Suspense>
     </ErrorBoundary>
-  </main><ToastHost /></div>;
+  </main></div>;
   if (!state.onboarded) return <Onboarding onStart={() => setTab("design")} />;
 
   // Progress hub (achievements/scenarios/challenges/museum) is surfaced once the player has shipped
@@ -414,7 +415,6 @@ function AppShell() {
       <ProNudge />
       <LaunchReveal onSeeBreakdown={seeBreakdown} />
       <SoundFX />
-      <ToastHost />
       <Bank open={bankOpen} onClose={() => setBankOpen(false)} />
       <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)} label="Settings">
         {/* Lazy chunk → a failed fetch (stale service worker after a deploy, or a dropped cold-start
