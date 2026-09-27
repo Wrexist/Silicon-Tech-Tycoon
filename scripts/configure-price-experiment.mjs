@@ -1,4 +1,4 @@
-// Creates only the six explicitly approved experiment SKUs. Never reprices legacy products.
+﻿// Creates only the six explicitly approved experiment SKUs. Never reprices legacy products.
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { asc, sanitized } from './app-store-client.mjs';
 
@@ -71,7 +71,7 @@ for (const plan of config.products) {
   const locType = recurring ? 'subscriptionLocalizations' : 'inAppPurchaseLocalizations';
   const locales = (await all(`${base}/${locType}?limit=200`)).data;
   if (!locales.some(l => l.attributes.locale === 'en-US')) await asc(`/v1/${locType}`, 'POST', { type: locType,
-    attributes: { name: `Silicon Pro ${plan.tier[0].toUpperCase() + plan.tier.slice(1)}`, locale: 'en-US', description: 'Every era, all scenarios, Creative Mode, Time Machine and more.' },
+    attributes: { name: `Silicon Pro ${plan.tier[0].toUpperCase() + plan.tier.slice(1)}`, locale: 'en-US', description: 'All eras, scenarios, Creative Mode and Time Machine.' },
     relationships: { [recurring ? 'subscription' : 'inAppPurchaseV2']: rel(type, product.id) } });
   const points = (await all(`${base}/pricePoints?filter[territory]=USA&include=territory&limit=200`)).data;
   const point = points.find(p => Number(p.attributes.customerPrice) === Number(plan.priceUSD));
@@ -124,3 +124,4 @@ for (const plan of config.products) {
 save('after-products', [...(await all(`/v1/subscriptionGroups/${config.subscriptionGroupId}/subscriptions?limit=200`)).data,
   ...(await all(`/v1/apps/${config.appId}/inAppPurchasesV2?limit=200`)).data]);
 console.log('Created/configured new experiment products. No product has been submitted for review.');
+
