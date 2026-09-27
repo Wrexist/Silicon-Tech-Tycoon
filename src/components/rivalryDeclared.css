@@ -14,7 +14,7 @@
 .rvd__scrim {
   position: absolute;
   inset: 0;
-  /* Minimal scrim — the popup card is the glass, not the surround. Just a light dim + a whisper of blur. */
+  /* Minimal scrim — the popup card is the glass, not the surround. Just a light dim, no blur. */
   background: color-mix(in srgb, var(--bg) 30%, transparent);
 }
 .rvd__card {
@@ -58,7 +58,7 @@
   position: absolute; right: -4px; bottom: -4px;
   width: 26px; height: 26px; border-radius: var(--r-pill);
   display: inline-flex; align-items: center; justify-content: center;
-  background: var(--warning); color: #fff;
+  background: var(--warning); color: var(--warning-ink);
   box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--warning) 70%, transparent);
 }
 .rvd__eyebrow { margin-top: var(--sp-4); font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--negative); }

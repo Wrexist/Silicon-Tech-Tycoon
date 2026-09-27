@@ -9,7 +9,7 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(66px + env(safe-area-inset-bottom));
+  bottom: calc(var(--dock-height) + var(--sp-8)); /* the measured dock already includes the safe area */
   z-index: 28; /* under the Decision Inbox (29) and the bottom nav (30) */
   padding: 0 var(--sp-12);
   pointer-events: none;

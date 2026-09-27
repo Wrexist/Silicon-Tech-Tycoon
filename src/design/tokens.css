@@ -45,6 +45,11 @@
   --negative-soft: #fdecec;
   --warning: #B66A08;
   --warning-soft: #fdf3e3;
+  /* Label ink ON a solid positive/warning fill (toasts, chips). White on the light theme's deep
+     hues; the system-dark theme brightens those hues, so it flips to near-black there (white on
+     #10b981 was ~2.5:1, on #f59e0b ~2.1:1 — both failed WCAG AA). */
+  --positive-ink: #ffffff;
+  --warning-ink: #ffffff;
 
   /* Function colours — engineering=orange, design=green, marketing=blue, team=violet
      (theme-stable hues; used to colour-code every screen + upgrade by its function) */
@@ -84,7 +89,7 @@
   --mat-ti-2: #78716c;
   --mat-gold: #d4af37;
   --gold-ink: #3d2c00; /* dark text for a solid gold chip (rank-1 medal) — readable in both themes */
-  --gold: #d9a824; /* prestige / awards / contract-offer accent. Was consumed as an undefined var(--gold, #d9a824) fallback in ~31 places (awards, platform, contracts, market); now owned by the token system. Single value keeps both themes byte-identical to the old fallback. */
+  --gold: #d9a824; /* prestige / awards / contract-offer accent. Was consumed as an undefined var(--gold) fallback in ~31 places (awards, platform, contracts, market); now owned by the token system. Single value keeps both themes byte-identical to the old fallback. */
 
   /* Spacing — strict 8pt scale (with 2/6 half-steps for fine details) */
   --sp-2: 2px;
@@ -142,7 +147,7 @@
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
   --font-rounded: -apple-system, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
   --fs-large-title: 2.125rem; /* 34 */
-  --fs-title: 1.5rem;        /* 28 */
+  --fs-title: 1.5rem;        /* 24 */
   --fs-headline: 1.25rem;     /* 20 */
   --fs-body: 1.0625rem;       /* 17 */
   --fs-caption: 0.8125rem;    /* 13 */
@@ -193,6 +198,8 @@
     --accent-ink: #ffffff;
     --accent-soft: #16233d;
     --positive: #10b981;
+    --positive-ink: #0f1115;
+    --warning-ink: #0f1115;
     --positive-soft: #11241d;
     --negative: #ef4444;
     --negative-soft: #2a1718;

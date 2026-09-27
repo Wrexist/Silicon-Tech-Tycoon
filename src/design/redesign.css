@@ -8,9 +8,12 @@ body::before { display: none; }
 .app :is(.lab,.rd) { --accent: var(--primary); --accent-soft: color-mix(in srgb, var(--primary) 8%, var(--surface)); }
 .app .ds-card { background: var(--surface); border: 1px solid var(--hairline); box-shadow: var(--shadow-subtle); }
 .app .ds-btn { min-height: 44px; white-space: normal; line-height: 1.25; padding-top: var(--sp-8); padding-bottom: var(--sp-8); will-change: auto; }
-.app .ds-btn--primary { background: var(--primary); box-shadow: none; color: var(--accent-ink); }
-.app .ds-btn--secondary { background: var(--surface); color: var(--accent); border: 1px solid var(--hairline); box-shadow: none; }
-.app :is(button,input,select,summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+/* Flat management buttons — but never inside a glass popup: these load later at equal specificity, so
+   without the :not() they flattened the liquid-glass CTAs of every interrupt mounted inside .app
+   (rivalry, eureka, strike, launch reveal, paywall…) while portaled ones kept the glass. */
+.app .ds-btn--primary:not(:is(.cele,.rvd,.eur,.awd,.rst,.rtl,.lreveal,.dtut,.pwl,.ds-sheet,.cma,.ern,.stfm,.rge,.rev,.cof) *) { background: var(--primary); box-shadow: none; color: var(--accent-ink); }
+.app .ds-btn--secondary:not(:is(.cele,.rvd,.eur,.awd,.rst,.rtl,.lreveal,.dtut,.pwl,.ds-sheet,.cma,.ern,.stfm,.rge,.rev,.cof) *) { background: var(--surface); color: var(--accent); border: 1px solid var(--hairline); box-shadow: none; }
+.app :is(button,input,select,summary):focus-visible { outline: var(--focus-width, 2px) solid var(--accent); outline-offset: 3px; }
 .app :is(.ds-page-header,.page-header) { margin-bottom: var(--sp-12); }
 .app .hud { gap: var(--sp-4); padding-top: calc(var(--sp-6) + env(safe-area-inset-top)); padding-bottom: var(--sp-6); background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
 .app .hud__pause { width: 44px; height: 44px; border: 0; background: var(--surface-2); border-radius: var(--r-button); }

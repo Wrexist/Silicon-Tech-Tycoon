@@ -28,9 +28,9 @@
 }
 /* Exclusive deals wear a gold rim + glow — a prize worth weighing. */
 .cof__card--exclusive {
-  background: radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--gold, #d9a824) 15%, transparent), transparent 62%), var(--glass-modal);
-  border-color: color-mix(in srgb, var(--gold, #d9a824) 34%, var(--glass-modal-edge));
-  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5), 0 0 46px -16px color-mix(in srgb, var(--gold, #d9a824) 48%, transparent);
+  background: radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--gold) 15%, transparent), transparent 62%), var(--glass-modal);
+  border-color: color-mix(in srgb, var(--gold) 34%, var(--glass-modal-edge));
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5), 0 0 46px -16px color-mix(in srgb, var(--gold) 48%, transparent);
 }
 .cof__card--done {
   background: radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--positive) 14%, transparent), transparent 62%), var(--glass-modal);
@@ -50,13 +50,13 @@
   border-radius: var(--r-pill); background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent);
   animation: cof-glyph var(--spring-bounce) both;
 }
-.cof__glyph--exclusive { background: color-mix(in srgb, var(--gold, #d9a824) 20%, transparent); color: var(--gold, #d9a824); }
+.cof__glyph--exclusive { background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--gold); }
 .cof__glyph--done { background: color-mix(in srgb, var(--positive) 18%, transparent); color: var(--positive); }
 .cof__glyph--walked { background: color-mix(in srgb, var(--negative) 16%, transparent); color: var(--negative); }
 @keyframes cof-glyph { from { transform: scale(0.5) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }
 
 .cof__eyebrow { margin-top: var(--sp-4); font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--accent); }
-.cof__eyebrow--exclusive { color: var(--gold, #d9a824); }
+.cof__eyebrow--exclusive { color: var(--gold); }
 .cof__eyebrow--done { color: var(--positive-text, var(--positive)); }
 .cof__eyebrow--walked { color: var(--negative-text, var(--negative)); }
 .cof__title { font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em; }
@@ -66,7 +66,7 @@
   display: inline-flex; align-items: center; gap: var(--sp-4);
   padding: 2px var(--sp-8); border-radius: var(--r-pill);
   font-size: var(--fs-nano); font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase;
-  background: color-mix(in srgb, var(--gold, #d9a824) 22%, transparent); color: var(--gold, #d9a824);
+  background: color-mix(in srgb, var(--gold) 22%, transparent); color: var(--gold);
 }
 
 /* Terms — signing bonus + royalty, each a clear glass well. */

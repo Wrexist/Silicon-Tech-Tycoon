@@ -2,7 +2,7 @@
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(72px + env(safe-area-inset-bottom));
+  bottom: calc(var(--dock-height) + var(--sp-8)); /* the measured dock already includes the safe area */
   z-index: 28;
   width: min(calc(100% - 2 * var(--edge)), 500px);
   display: flex;

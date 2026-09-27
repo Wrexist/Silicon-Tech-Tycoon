@@ -344,7 +344,7 @@
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--ink-2);
-  transition: all var(--spring-snappy);
+  transition: background-color var(--spring-snappy), color var(--spring-snappy), border-color var(--spring-snappy), box-shadow var(--spring-snappy), transform var(--spring-snappy), opacity var(--spring-snappy);
 }
 .lab__seg-opt--on {
   background: var(--surface);
@@ -401,7 +401,7 @@
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--ink-2);
-  transition: all var(--spring-snappy);
+  transition: background-color var(--spring-snappy), color var(--spring-snappy), border-color var(--spring-snappy), box-shadow var(--spring-snappy), transform var(--spring-snappy), opacity var(--spring-snappy);
 }
 .lab__chip--on {
   background: var(--accent);
@@ -591,7 +591,7 @@
   align-items: center;
   justify-content: center;
   background: linear-gradient(150deg, color-mix(in srgb, #fff 12%, var(--tile-dark)), var(--tile-dark));
-  color: #fff;
+  color: var(--accent-ink);
   box-shadow:
     inset 0 1px 0 color-mix(in srgb, #fff 18%, transparent),
     0 4px 10px -4px color-mix(in srgb, #000 45%, transparent);
@@ -1371,7 +1371,7 @@
 .wiz__chip:active { transform: scale(0.96); }
 .wiz__grid, .wiz__review { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12); }
 .wiz__channels { display: flex; flex-direction: column; gap: var(--sp-8); }
-.wiz__channel { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-12); border-radius: var(--r-button); border: 1px solid var(--hairline); background: var(--surface-2); text-align: left; transition: all var(--spring-snappy); }
+.wiz__channel { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-12); border-radius: var(--r-button); border: 1px solid var(--hairline); background: var(--surface-2); text-align: left; transition: background-color var(--spring-snappy), color var(--spring-snappy), border-color var(--spring-snappy), box-shadow var(--spring-snappy), transform var(--spring-snappy), opacity var(--spring-snappy); }
 .wiz__channel:disabled { opacity: 0.4; }
 .wiz__channel--on { border-color: var(--fn-mkt); background: var(--fn-mkt-soft); }
 .wiz__channel-icon { width: 36px; height: 36px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-pill); background: var(--fn-mkt-soft); color: var(--fn-mkt); }
@@ -1386,7 +1386,7 @@
 
 /* Build-wizard region picker (global expansion) */
 .wiz__regions { display: flex; flex-direction: column; gap: var(--sp-8); }
-.wiz__region { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-12); border-radius: var(--r-button); border: 1px solid var(--hairline); background: var(--surface-2); text-align: left; transition: all var(--spring-snappy); }
+.wiz__region { display: flex; align-items: center; gap: var(--sp-12); padding: var(--sp-12); border-radius: var(--r-button); border: 1px solid var(--hairline); background: var(--surface-2); text-align: left; transition: background-color var(--spring-snappy), color var(--spring-snappy), border-color var(--spring-snappy), box-shadow var(--spring-snappy), transform var(--spring-snappy), opacity var(--spring-snappy); }
 .wiz__region--on { border-color: var(--accent); background: var(--accent-soft); }
 .wiz__region-check { width: 32px; height: 32px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-pill); background: var(--accent-soft); color: var(--accent); }
 .wiz__region--on .wiz__region-check { background: var(--accent); color: var(--accent-ink); }
@@ -1574,7 +1574,7 @@
   font-size: var(--fs-micro);
   font-weight: 700;
   color: var(--ink-3);
-  transition: all var(--spring-snappy);
+  transition: background-color var(--spring-snappy), color var(--spring-snappy), border-color var(--spring-snappy), box-shadow var(--spring-snappy), transform var(--spring-snappy), opacity var(--spring-snappy);
   white-space: nowrap;
 }
 /* Checklist badge in the tab's top-right corner: amber = this step still needs input, green check

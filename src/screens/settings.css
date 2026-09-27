@@ -77,7 +77,7 @@
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--ink-2);
-  transition: all var(--spring-snappy);
+  transition: background-color var(--spring-snappy), color var(--spring-snappy), border-color var(--spring-snappy), box-shadow var(--spring-snappy), transform var(--spring-snappy), opacity var(--spring-snappy);
 }
 .set__seg-opt--on {
   background: var(--surface);

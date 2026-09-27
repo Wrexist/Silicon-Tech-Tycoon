@@ -2,7 +2,7 @@ import { continueWithPreservedRecovery } from "./state/persistence.ts";
 import { useSaveHealth } from "./state/saveHealth.ts";
 import { hasFactoryAccess } from "./state/factorySummary.ts";
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, Check, CircuitBoard, CircleX, Compass, Copy, Cpu, Crown, Factory, Flame, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
+import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, Check, CircuitBoard, CircleX, Compass, Copy, Cpu, Crown, Factory, Flame, FlaskConical, Home, Layers, Minus, Plus, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
 import { GameProvider, useGame, useGameActions, useHoldSim } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud, SpeedDial } from "./components/Hud.tsx";
@@ -784,7 +784,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
           <div className="ipo__heat-head">
             <span className="ipo__heat-eyebrow"><Flame size={13} aria-hidden /> Ascension</span>
             <div className="ipo__heat-step">
-              <button className="ipo__heat-btn" aria-label="Lower Heat" disabled={ascend <= 0} onClick={() => setAscend((h) => Math.max(0, h - 1))}>−</button>
+              <button className="ipo__heat-btn" aria-label="Lower Heat" disabled={ascend <= 0} onClick={() => setAscend((h) => Math.max(0, h - 1))}><Minus size={18} aria-hidden /></button>
               <span className="ipo__heat-level tnum">{ascensionName(ascend)}</span>
               {/* Heat is a Pro mode — the button stays pressable and explains itself rather than
                   sitting dead behind a padlock. */}
@@ -801,7 +801,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
                   }
                   setAscend((h) => Math.min(maxHeat, h + 1));
                 }}
-              >+</button>
+              ><Plus size={18} aria-hidden /></button>
             </div>
           </div>
           <span className="ipo__heat-sub">

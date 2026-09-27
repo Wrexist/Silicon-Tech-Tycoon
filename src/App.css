@@ -263,7 +263,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--accent-ink);
   background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 50%, #10163a));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
 }
@@ -387,7 +387,7 @@
   height: 52px;
   border-radius: var(--r-pill);
   background: var(--warning-soft, color-mix(in srgb, var(--warning) 12%, transparent));
-  color: var(--warning, #f59e0b);
+  color: var(--warning);
   display: grid;
   place-items: center;
   margin-bottom: var(--sp-4);
@@ -714,7 +714,7 @@
   justify-content: center;
   border-radius: var(--r-pill);
   background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 86%, white), var(--accent));
-  color: var(--accent-ink, #fff);
+  color: var(--accent-ink);
   box-shadow:
     0 10px 30px -6px color-mix(in srgb, var(--accent) 55%, transparent),
     inset 0 2px 0 rgba(255, 255, 255, 0.4);
@@ -796,7 +796,7 @@
   padding: var(--sp-8) var(--sp-12);
   border-radius: var(--r-pill);
   background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 90%, white), var(--accent));
-  color: var(--accent-ink, #fff);
+  color: var(--accent-ink);
   font-size: var(--fs-caption);
   font-weight: 800;
   box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--accent) 50%, transparent);
@@ -988,9 +988,9 @@
 }
 .ipo__heat-step { display: inline-flex; align-items: center; gap: var(--sp-8); }
 .ipo__heat-btn {
-  width: 30px; height: 30px; border-radius: var(--r-pill); flex-shrink: 0;
-  border: 1px solid var(--hairline); background: var(--surface-2); color: var(--ink);
-  font-size: var(--fs-headline); font-weight: 700; line-height: 1; cursor: pointer;
+  width: 44px; height: 44px; border-radius: var(--r-pill); flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--hairline); background: var(--surface-2); color: var(--ink); cursor: pointer;
 }
 .ipo__heat-btn:disabled { opacity: 0.4; cursor: default; }
 .ipo__heat-level { font-weight: 700; font-size: var(--fs-caption); min-width: 8ch; text-align: center; }

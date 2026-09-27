@@ -1912,7 +1912,7 @@
   width: 38px; height: 38px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--r-pill); background: color-mix(in srgb, hsl(var(--rgn-h, 210) 62% 52%) 16%, transparent); color: hsl(var(--rgn-h, 210) 62% 46%);
 }
-.mkt__region--open .mkt__region-emblem { background: linear-gradient(150deg, hsl(var(--rgn-h, 210) 66% 56%), hsl(var(--rgn-h, 210) 60% 44%)); color: #fff; box-shadow: var(--shadow-subtle); }
+.mkt__region--open .mkt__region-emblem { background: linear-gradient(150deg, hsl(var(--rgn-h, 210) 66% 56%), hsl(var(--rgn-h, 210) 60% 44%)); color: var(--accent-ink); box-shadow: var(--shadow-subtle); }
 .mkt__region-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
 .mkt__region-name { display: inline-flex; align-items: center; gap: var(--sp-4); font-weight: 700; font-size: var(--fs-body); }
 .mkt__region-check { color: hsl(var(--rgn-h, 210) 60% 46%); }

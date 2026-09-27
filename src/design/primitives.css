@@ -81,7 +81,8 @@
    behind, and nested filters are flaky.) */
 .cele .ds-btn--primary, .rvd .ds-btn--primary, .eur .ds-btn--primary, .awd .ds-btn--primary,
 .rst .ds-btn--primary, .rtl .ds-btn--primary, .lreveal .ds-btn--primary, .dtut .ds-btn--primary,
-.pwl .ds-btn--primary, .ds-sheet .ds-btn--primary {
+.pwl .ds-btn--primary, .ds-sheet .ds-btn--primary,
+.cma .ds-btn--primary, .ern .ds-btn--primary, .stfm .ds-btn--primary, .rge .ds-btn--primary, .rev .ds-btn--primary, .cof .ds-btn--primary {
   background:
     linear-gradient(180deg, color-mix(in srgb, #fff 46%, transparent), color-mix(in srgb, #fff 6%, transparent) 34%, transparent 66%),
     color-mix(in srgb, var(--accent) 78%, transparent);
@@ -93,7 +94,8 @@
 }
 .cele .ds-btn--secondary, .rvd .ds-btn--secondary, .eur .ds-btn--secondary, .awd .ds-btn--secondary,
 .rst .ds-btn--secondary, .rtl .ds-btn--secondary, .lreveal .ds-btn--secondary, .dtut .ds-btn--secondary,
-.pwl .ds-btn--secondary, .ds-sheet .ds-btn--secondary {
+.pwl .ds-btn--secondary, .ds-sheet .ds-btn--secondary,
+.cma .ds-btn--secondary, .ern .ds-btn--secondary, .stfm .ds-btn--secondary, .rge .ds-btn--secondary, .rev .ds-btn--secondary, .cof .ds-btn--secondary {
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent 52%),
     color-mix(in srgb, var(--accent) 22%, transparent);
@@ -107,7 +109,9 @@
 .cele .ds-btn:focus-visible, .rvd .ds-btn:focus-visible, .eur .ds-btn:focus-visible,
 .awd .ds-btn:focus-visible, .rst .ds-btn:focus-visible, .rtl .ds-btn:focus-visible,
 .lreveal .ds-btn:focus-visible, .dtut .ds-btn:focus-visible, .pwl .ds-btn:focus-visible,
-.ds-sheet .ds-btn:focus-visible {
+.ds-sheet .ds-btn:focus-visible, .cma .ds-btn:focus-visible, .ern .ds-btn:focus-visible,
+.stfm .ds-btn:focus-visible, .rge .ds-btn:focus-visible, .rev .ds-btn:focus-visible,
+.cof .ds-btn:focus-visible {
   outline: none;
   box-shadow:
     inset 0 1.5px 0 rgba(255, 255, 255, 0.65),
@@ -458,7 +462,7 @@
 .ds-sheet-scrim {
   position: fixed;
   inset: 0;
-  background: rgba(10, 12, 16, 0.3);
+  background: color-mix(in srgb, var(--bg) 30%, transparent); /* clear scrim — the sheet is the glass */
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -573,11 +577,11 @@
 }
 .ds-toast--positive {
   background: var(--positive);
-  color: #fff;
+  color: var(--positive-ink);
 }
 .ds-toast--negative {
   background: var(--negative);
-  color: #fff;
+  color: var(--accent-ink);
 }
 
 @keyframes ds-fade {
@@ -753,4 +757,18 @@
     justify-content: flex-start;
   }
   .ds-rail__item--active { background: var(--accent-soft); }
+}
+
+/* 44pt touch targets for compact controls whose VISUAL size must stay small (a pill in a tight row, a
+   corner close on the purchase card). An invisible pseudo-element claims the missing height; the
+   width only grows where the control is narrower than 44px, so horizontal neighbours keep theirs. */
+:is(.scn__hist-share, .ds-chart__range, .lab__effort-max, .mkt__feed-all, .co__assign-opt) { position: relative; }
+:is(.pwl__close, .scn__hist-share, .ds-chart__range, .lab__effort-max, .mkt__feed-all, .co__assign-opt)::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  transform: translate(-50%, -50%);
 }

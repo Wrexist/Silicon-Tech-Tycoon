@@ -460,7 +460,7 @@
 }
 .fmode__ptile-icon { display: inline-flex; color: var(--ink-2); transition: transform 0.15s ease; }
 .fmode__ptile-name { font-size: var(--fs-nano); font-weight: 700; }
-.fmode__ptile-cost { font-size: 0.5625rem; font-weight: 600; color: var(--ink-2); }
+.fmode__ptile-cost { font-size: var(--fs-nano); font-weight: 600; color: var(--ink-2); }
 .fmode__ptile--on { background: var(--accent); border-color: var(--accent); }
 .fmode__ptile--on .fmode__ptile-icon, .fmode__ptile--on .fmode__ptile-cost { color: var(--ink-2); }
 .fmode__ptile--util { width: 54px; }

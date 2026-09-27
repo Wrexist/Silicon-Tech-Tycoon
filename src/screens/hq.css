@@ -534,7 +534,7 @@
   font-weight: 600;
   color: var(--ink-2);
   background: var(--bg-elevated);
-  transition: all var(--spring-snappy);
+  transition: background-color var(--spring-snappy), color var(--spring-snappy), border-color var(--spring-snappy), box-shadow var(--spring-snappy), transform var(--spring-snappy), opacity var(--spring-snappy);
 }
 .hqb__cat--on {
   color: var(--accent-ink);
@@ -554,7 +554,7 @@
   border-radius: var(--r-button);
   background: var(--surface-2);
   border: 1px solid var(--hairline);
-  transition: all var(--spring-snappy);
+  transition: background-color var(--spring-snappy), color var(--spring-snappy), border-color var(--spring-snappy), box-shadow var(--spring-snappy), transform var(--spring-snappy), opacity var(--spring-snappy);
 }
 .hqb__item--on {
   border-color: var(--accent);
@@ -977,7 +977,7 @@
   border: 1px solid var(--hairline);
   background: var(--surface-2);
   text-align: left;
-  transition: all var(--spring-snappy);
+  transition: background-color var(--spring-snappy), color var(--spring-snappy), border-color var(--spring-snappy), box-shadow var(--spring-snappy), transform var(--spring-snappy), opacity var(--spring-snappy);
 }
 .mkts__opt:disabled {
   opacity: 0.4;
@@ -1138,7 +1138,7 @@
   transition: height 0.4s ease;
 }
 .hq__forecast-label {
-  font-size: 0.5625rem;
+  font-size: var(--fs-nano);
   font-weight: 700;
   color: var(--ink-3);
   letter-spacing: 0.02em;
@@ -1333,7 +1333,7 @@
   background: var(--surface);
   border: 1.5px solid var(--hairline);
   text-align: left;
-  transition: all var(--spring-snappy);
+  transition: background-color var(--spring-snappy), color var(--spring-snappy), border-color var(--spring-snappy), box-shadow var(--spring-snappy), transform var(--spring-snappy), opacity var(--spring-snappy);
   width: 100%;
 }
 .hq__choice-opt:hover {
@@ -1417,14 +1417,14 @@
 /* Ladder progress bar */
 .hq__next-bar {
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--hairline);
   overflow: hidden;
   margin: 0 0 var(--sp-12);
 }
 .hq__next-bar-fill {
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--accent);
   transition: width var(--spring-standard);
 }
@@ -1601,13 +1601,13 @@
 }
 .hq__contract-bar {
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--hairline);
   overflow: hidden;
 }
 .hq__contract-fill {
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--accent);
   transition: width var(--spring-standard);
 }
@@ -1656,13 +1656,13 @@
 }
 .hq__board-bar {
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--hairline);
   overflow: hidden;
 }
 .hq__board-fill {
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--accent);
   transition: width var(--spring-standard);
 }

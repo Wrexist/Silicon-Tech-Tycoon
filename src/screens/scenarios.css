@@ -155,7 +155,7 @@
   align-items: flex-end;
   justify-content: center;
   /* Clear scrim — the card is the glass, the surround stays sharp (project popup style). */
-  background: color-mix(in srgb, var(--bg) 45%, transparent);
+  background: color-mix(in srgb, var(--bg) 30%, transparent);
   border-radius: inherit;
   padding: var(--sp-16);
 }
