@@ -82,15 +82,21 @@ for (const plan of config.products) {
     const equivalents = (await all(`/v1/subscriptionPricePoints/${point.id}/equalizations?include=territory&limit=200`)).data;
     const prices = [point, ...equivalents].filter((p, i, a) => a.findIndex(x => x.id === p.id) === i && territoryIds.has(p.relationships?.territory?.data?.id));
     if (new Set(prices.map(p => p.relationships.territory.data.id)).size !== territoryIds.size) throw Error('Incomplete equalized prices');
+    const missingPrices = [];
     for (const p of prices) {
       const territory = p.relationships.territory.data.id, prior = existingByTerritory.get(territory);
       if (prior) {
         if (prior.relationships.subscriptionPricePoint.data.id !== p.id) throw Error('Existing experiment price differs; refusing overwrite');
         continue;
       }
-      console.log('Setting initial price', plan.productId, territory);
-      await asc('/v1/subscriptionPrices', 'POST', { type: 'subscriptionPrices', attributes: { startDate: null, preserveCurrentPrice: false },
+      missingPrices.push({ type: 'subscriptionPrices', id: '${price-' + territory + '}', attributes: { startDate: null, preserveCurrentPrice: false },
         relationships: { subscription: rel(type, product.id), territory: rel('territories', territory), subscriptionPricePoint: rel('subscriptionPricePoints', p.id) } });
+    }
+    if (missingPrices.length) {
+      console.log('Setting initial regional prices', plan.productId, missingPrices.length);
+      await asc(base, 'PATCH', { type, id: product.id, relationships: {
+        prices: { data: [...existing.map(p => ({ type: 'subscriptionPrices', id: p.id })), ...missingPrices.map(p => ({ type: p.type, id: p.id }))] },
+      } }, missingPrices);
     }
     const offers = (await all(`${base}/introductoryOffers?include=territory&limit=200`)).data;
     await each(territories, async t => {
