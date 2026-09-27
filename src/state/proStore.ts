@@ -15,6 +15,7 @@ import { storeKit, isNative, type NativeProduct } from "./storeKitBridge.ts";
 import {
   PRO_PRODUCT_IDS,
   PRO_PRODUCTS,
+  PRO_EXPERIMENT_PRODUCTS,
   PRO_LIFETIME_PRODUCT_IDS,
   PRO_SUBSCRIPTION_GROUP,
   clearProRecord,
@@ -83,7 +84,11 @@ function fallbackCatalog(): ProCatalog {
 }
 
 function PRO_PRODUCTS_FALLBACK(): ProOffer[] {
-  return PRO_PRODUCTS.map((p) => {
+  // Local visual QA only. Native always takes the store path before reaching this function.
+  const previewB = import.meta.env.DEV && typeof window !== "undefined"
+    && new URLSearchParams(window.location.search).get("pricePreview") === "B";
+  const products = previewB ? PRO_EXPERIMENT_PRODUCTS.filter(p => p.id.endsWith(".value")) : PRO_PRODUCTS;
+  return products.map((p) => {
     const id = p.id;
     return {
       id,

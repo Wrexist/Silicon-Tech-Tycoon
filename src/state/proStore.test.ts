@@ -53,6 +53,7 @@ beforeEach(() => {
 
 afterEach(() => {
   bridge.native = true;
+  vi.unstubAllGlobals();
 });
 
 describe("syncPro — granting", () => {
@@ -333,6 +334,21 @@ describe("restorePro", () => {
 
 
 describe("price experiment and legacy access", () => {
+  it("previews the value ladder only on the development web path", async () => {
+    bridge.native = false;
+    vi.stubGlobal("window", { location: { search: "?pricePreview=B" } });
+    const catalog = await getProCatalog();
+    expect(catalog.fromStore).toBe(false);
+    expect(catalog.offers.map(o => o.price)).toEqual(["$59.99", "$119.99", "$4.99"]);
+    expect(bridge.getProducts).not.toHaveBeenCalled();
+  });
+  it("never lets a preview URL override native store assignment", async () => {
+    vi.stubGlobal("window", { location: { search: "?pricePreview=B" } });
+    bridge.getProducts.mockResolvedValue({ products: [{ id: "com.wrexist.silicon.pro.weekly", price: "$7.99" }] });
+    const catalog = await getProCatalog();
+    expect(catalog.fromStore).toBe(true);
+    expect(catalog.offers.map(o => o.id)).toEqual(["com.wrexist.silicon.pro.weekly"]);
+  });
   it("retains a legacy monthly subscriber without offering monthly for sale", async () => {
     bridge.subscriptionStatus.mockResolvedValue({ active: true, productId: "com.wrexist.silicon.pro.monthly", expiresAt: YEAR_AHEAD });
     await syncPro();
