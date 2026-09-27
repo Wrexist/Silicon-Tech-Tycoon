@@ -548,7 +548,7 @@
   flex-direction: column;
   align-items: center;
   gap: var(--sp-8);
-  z-index: 60;
+  z-index: 64; /* purchase/restore feedback must remain above the paywall (62) */
   pointer-events: none;
 }
 .ds-toast {
