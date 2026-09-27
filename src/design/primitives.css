@@ -545,9 +545,10 @@
   position: fixed;
   left: 0;
   right: 0;
-  /* The toast LANE: a full `--bottom-chrome` above the safe area, i.e. above the persistent-control
-     band (SpeedDial). It used to sit at 96px — inside the band, on top of the speed controls. */
-  bottom: calc(var(--bottom-chrome) + env(safe-area-inset-bottom));
+  /* The toast LANE sits just above the measured bottom dock (time controls + tab bar; BottomDock.tsx
+     writes --dock-height, safe area included), so a toast can never cover Pause / speed / Skip — the
+     2026-09 overlay collision. It used to track the retired floating SpeedDial's band instead. */
+  bottom: calc(var(--dock-height) + var(--sp-12));
   display: flex;
   flex-direction: column;
   align-items: center;

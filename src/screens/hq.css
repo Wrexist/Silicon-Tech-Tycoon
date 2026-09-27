@@ -90,11 +90,6 @@
 }
 /* The vital-signs row. One row now — the old second row (`.hq__fin-pills`) existed only because the
    pills didn't fit, and was negative-margined up to pretend it was the same row anyway. */
-.hq__stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-8);
-}
 /* Item 5.3 — the rank-ladder "next boss" line on the home screen. */
 .hq__ladder {
   display: flex; align-items: center; gap: var(--sp-4);
@@ -228,11 +223,6 @@
   font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--ink);
-}
-.hq__goal-text {
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-  line-height: 1.4;
 }
 .hq__goal-or {
   font-size: var(--fs-micro);
@@ -942,92 +932,6 @@
 }
 
 /* Marketing sheet */
-.mkts {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-16);
-}
-.mkts__head {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-12);
-}
-.mkts__thumb {
-  flex-shrink: 0;
-}
-.mkts__title {
-  font-size: var(--fs-headline);
-  font-weight: 700;
-}
-.mkts__sub {
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-}
-.mkts__list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-8);
-}
-.mkts__opt {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-12);
-  padding: var(--sp-12);
-  border-radius: var(--r-button);
-  border: 1px solid var(--hairline);
-  background: var(--surface-2);
-  text-align: left;
-  transition: background-color var(--spring-snappy), color var(--spring-snappy), border-color var(--spring-snappy), box-shadow var(--spring-snappy), transform var(--spring-snappy), opacity var(--spring-snappy);
-}
-.mkts__opt:disabled {
-  opacity: 0.4;
-}
-.mkts__opt--on {
-  border-color: var(--fn-mkt);
-  background: var(--fn-mkt-soft);
-}
-.mkts__opt:active:not(:disabled) {
-  transform: scale(0.98);
-}
-.mkts__opt-icon {
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--r-pill);
-  background: var(--fn-mkt-soft);
-  color: var(--fn-mkt);
-}
-.mkts__opt-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-.mkts__opt-name {
-  font-weight: 600;
-}
-.mkts__opt-blurb {
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-}
-.mkts__opt-meta {
-  text-align: right;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.mkts__opt-cost {
-  font-weight: 700;
-  font-size: var(--fs-caption);
-}
-.mkts__opt-hype {
-  font-size: var(--fs-micro);
-  font-weight: 600;
-  color: var(--fn-mkt-text);
-}
 
 /* ---------- Performance card ---------- */
 .hq__perf-grid {
@@ -2166,29 +2070,6 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 
 /* The "simplified view" note under the 2D office scene. Quiet by design — it is a reassurance, not
    a warning: the player has lost nothing, the picture is just less detailed. */
-.hq__scene-note {
-  position: absolute;
-  left: var(--sp-16);
-  right: var(--sp-16);
-  bottom: var(--sp-12);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: var(--sp-6);
-  /* Cap the measure and centre the whole row, so the glyph stays beside the first line instead of
-     drifting to the far edge once the sentence wraps. */
-  max-width: 42ch;
-  margin: 0 auto;
-  font-size: var(--fs-caption);
-  line-height: 1.35;
-  color: var(--ink-3);
-  text-align: left;
-  pointer-events: none;
-}
-.hq__scene-note svg {
-  flex: none;
-  margin-top: 2px;
-}
 
 /* ── Tap-target floor (audit 3.3) ─────────────────────────────────────────────
    The build-catalog pills and the selection toolbar buttons render ~29–31px tall;

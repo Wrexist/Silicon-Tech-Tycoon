@@ -43,12 +43,6 @@
   color: var(--accent-ink);
   box-shadow: var(--shadow-subtle);
 }
-.rd__bank {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, var(--accent-soft), var(--surface));
-  border-color: color-mix(in srgb, var(--accent) 42%, var(--hairline));
-}
 /* Active-research hero card — a faint accent wash + edge so the in-progress ring reads as "live". */
 .rd__active {
   background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 7%, var(--surface)), var(--surface));
@@ -56,55 +50,6 @@
 }
 /* Immersive section backdrop matching the share card: an engineering-accent glow, a dot texture,
    and the parametric circuit motif, so the RP bank reads as live research intel. */
-.rd__bank-backdrop { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
-.rd__bank-glow {
-  position: absolute;
-  top: -42%; right: -18%;
-  width: 70%; height: 95%;
-  border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 30%, transparent), transparent 68%);
-  filter: blur(6px);
-}
-.rd__bank-grid {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(circle at center, color-mix(in srgb, var(--accent) 12%, transparent) 1px, transparent 1.4px);
-  background-size: 15px 15px;
-  -webkit-mask-image: linear-gradient(160deg, #000 6%, transparent 70%);
-  mask-image: linear-gradient(160deg, #000 6%, transparent 70%);
-}
-.rd__bank-circuit { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.4; }
-.rd__bank-circuit .circuitm__traces path {
-  fill: none;
-  stroke: color-mix(in srgb, var(--accent) 38%, transparent);
-  stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round;
-}
-.rd__bank-circuit .circuitm__nodes circle {
-  fill: color-mix(in srgb, var(--accent) 68%, transparent);
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 55%, transparent));
-}
-.rd__bank > :not(.rd__bank-backdrop) { position: relative; z-index: 1; }
-.rd__bank-main {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-12);
-  color: var(--accent);
-}
-.rd__bank-value {
-  font-size: var(--fs-title);
-  font-weight: 800;
-  color: var(--ink);
-  letter-spacing: -0.02em;
-}
-.rd__bank-sub {
-  font-size: var(--fs-caption);
-  font-weight: 600;
-  color: var(--positive-text);
-}
-.rd__bank-hint {
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-}
 /* Research income breakdown — where the weekly RP comes from */
 .rd__income-list { list-style: none; display: flex; flex-direction: column; gap: var(--sp-8); margin: var(--sp-4) 0 var(--sp-12); }
 .rd__income-row { display: flex; align-items: center; gap: var(--sp-12); }
@@ -113,92 +58,7 @@
 .rd__income-bar i { display: block; height: 100%; border-radius: var(--r-pill); background: var(--fn-eng); transition: width var(--spring-gentle); }
 .rd__income-rp { flex: 0 0 auto; min-width: 40px; text-align: right; font-size: var(--fs-caption); font-weight: 700; color: var(--fn-eng-text, var(--fn-eng)); }
 .rd__income-hint { font-size: var(--fs-caption); color: var(--ink-3); line-height: 1.4; }
-.rd__bank-ready {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: var(--r-pill);
-  font-size: var(--fs-micro);
-  font-weight: 700;
-  color: var(--positive-text, var(--positive));
-  background: color-mix(in srgb, var(--positive) 12%, transparent);
-  margin-left: auto;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-.rd__bank-cta {
-  margin-top: var(--sp-12);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-8);
-}
-.rd__bank-goal {
-  margin-top: var(--sp-12);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-6);
-}
-.rd__bank-goal-head {
-  display: flex;
-  align-items: baseline;
-  gap: var(--sp-8);
-}
-.rd__bank-goal-label {
-  font-size: var(--fs-micro);
-  font-weight: 700;
-  color: var(--ink-3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  flex-shrink: 0;
-}
-.rd__bank-goal-name {
-  flex: 1;
-  font-size: var(--fs-caption);
-  font-weight: 700;
-  color: var(--ink);
-}
-.rd__bank-goal-eta {
-  font-size: var(--fs-micro);
-  font-weight: 700;
-  color: var(--accent);
-  flex-shrink: 0;
-}
-.rd__bank-goal-track {
-  height: 6px;
-  border-radius: var(--r-pill);
-  background: var(--surface-2);
-  overflow: hidden;
-}
-.rd__bank-goal-fill {
-  height: 100%;
-  border-radius: var(--r-pill);
-  background: var(--accent);
-  transition: width 0.6s ease;
-  min-width: 4px;
-}
-.rd__bank-goal-nums {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--fs-micro);
-  font-weight: 600;
-  color: var(--ink-3);
-}
 /* Eureka insight meter — a quiet "the lab is priming" strip under the RP banner. */
-.rd__insight {
-  position: relative; z-index: 1;
-  display: flex; align-items: center; gap: var(--sp-8);
-  margin-top: var(--sp-12); padding-top: var(--sp-12);
-  border-top: 1px solid var(--hairline);
-}
-.rd__insight-label { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-nano); font-weight: 700; color: var(--fn-eng, var(--accent)); flex-shrink: 0; }
-.rd__insight-track { flex: 1; height: 5px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
-.rd__insight-track i {
-  display: block; height: 100%; border-radius: var(--r-pill); min-width: 3px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--fn-eng, var(--accent)) 55%, transparent), var(--fn-eng, var(--accent)));
-  transition: width 0.6s ease;
-}
-.rd__insight-hint { font-size: var(--fs-nano); color: var(--ink-3); flex-shrink: 0; }
 .rd__project {
   display: flex;
   align-items: center;
@@ -237,23 +97,6 @@
   color: color-mix(in srgb, var(--accent) 85%, var(--ink-2));
   margin-top: 2px;
 }
-.rd__intro {
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-  line-height: 1.5;
-}
-.rd__tier {
-  font-size: var(--fs-caption);
-  font-weight: 700;
-  color: var(--ink-2);
-}
-.rd__current {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-12);
-  flex-wrap: wrap;
-  margin-bottom: var(--sp-12);
-}
 .rd__contrib {
   font-size: var(--fs-caption);
   color: var(--positive-text);
@@ -268,11 +111,6 @@
   border-radius: var(--r-button);
   background: var(--surface-2);
   border: 1px solid var(--hairline);
-}
-.rd__next-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
 .rd__next-name {
   font-weight: 600;
@@ -354,21 +192,6 @@
 .rd__boosts-toggle:active { opacity: 0.7; }
 
 /* Tier progress pips for component tech cards */
-.rd__tier-pips {
-  display: flex;
-  gap: 3px;
-  margin-bottom: var(--sp-12);
-}
-.rd__tier-pip {
-  flex: 1;
-  height: 4px;
-  border-radius: var(--r-pill);
-  background: var(--bg-elevated);
-  transition: background var(--spring-standard);
-}
-.rd__tier-pip--on {
-  background: var(--accent);
-}
 
 /* Era grouping for research projects */
 .rd__era-group {
@@ -546,34 +369,7 @@
 }
 
 /* "Used in" category tags on component tech cards */
-.rd__used-in {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-4);
-  margin-bottom: var(--sp-10);
-}
-.rd__used-cat {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: var(--fs-micro);
-  font-weight: 600;
-  color: var(--ink-3);
-  background: var(--bg-elevated);
-  border-radius: var(--r-pill);
-  padding: 2px 7px;
-}
 
-.rd__active-hint {
-  font-size: var(--fs-micro);
-  font-weight: 600;
-  color: var(--accent);
-  margin-bottom: var(--sp-8);
-  line-height: 1.35;
-}
-.rd__active-hint strong {
-  font-weight: 800;
-}
 
 /* Component tech era coverage bar */
 .rd__comp-coverage {

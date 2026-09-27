@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ALargeSmall,
   Bell,
@@ -323,6 +323,8 @@ function RecoveryRemoval({ onRemoved }: { onRemoved: () => void }) {
 function ExportButton() {
   const { exportSave } = useGameActions();
   const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(copiedTimer.current), []); // the sheet can close within 2s
 
   const run = async () => {
     const data = exportSave();
@@ -333,7 +335,8 @@ function ExportButton() {
     haptic.success();
     sfx("confirm");
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    clearTimeout(copiedTimer.current);
+    copiedTimer.current = setTimeout(() => setCopied(false), 2000);
     showToast(ok ? "Backup copied & downloaded" : "Backup downloaded", {
       glyph: <Download size={15} />,
       tone: "positive",

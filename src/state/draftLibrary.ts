@@ -1,4 +1,4 @@
-import { decodeDraft, type DraftRecord } from './designDraft.ts';
+import { decodeDraft, touchDesignRun, type DraftRecord } from './designDraft.ts';
 
 export const DRAFT_LIBRARY_LIMIT = 12;
 export interface SavedDesign extends DraftRecord { id: string; label: string }
@@ -34,6 +34,7 @@ export function writeLibrary(store: Store, run: string, week: number, items: Sav
     if (old && decode(old, run, week)) store.setItem(`${key}:backup`, old);
     else if (old) store.setItem(`${key}:unreadable`, old);
     store.setItem(key, raw);
+    touchDesignRun(store, run);
     return true;
   } catch { return false; }
 }

@@ -12,6 +12,28 @@ const int = (v: unknown, lo: number, hi: number) => typeof v === "number" && Num
 const member = (v: unknown, values: readonly unknown[]) => values.includes(v);
 export const draftKey = (run: string) => `silicon.design-draft.v1:${run}`;
 
+/** Recently-used runs, newest first. Drafts and saved-design libraries are keyed per run (each with a
+ *  :backup / :unreadable twin), and nothing ever deleted them — after enough New Game+ runs,
+ *  challenges and scenarios they crowded the main save into its quota fallback. Every write touches
+ *  its run here; runs pushed past the cap have ALL their design keys removed. Only runs this index
+ *  has seen are ever evicted, so a paused home run can't be swept by a key it never wrote. */
+export const RECENT_RUNS_KEY = "silicon.design-runs.v1";
+export const RECENT_RUNS_MAX = 6;
+const RUN_KEY_PREFIXES = ["silicon.design-draft.v1:", "silicon.design-library.v1:"];
+export function touchDesignRun(store: Store, run: string): void {
+  try {
+    let runs: string[] = [];
+    try { const v: unknown = JSON.parse(store.getItem(RECENT_RUNS_KEY) ?? "[]"); if (Array.isArray(v)) runs = v.filter((x): x is string => typeof x === "string"); } catch { /* rebuild */ }
+    if (runs[0] === run) return; // already most recent — the common case, no write
+    runs = [run, ...runs.filter((r) => r !== run)];
+    const evicted = runs.slice(RECENT_RUNS_MAX);
+    store.setItem(RECENT_RUNS_KEY, JSON.stringify(runs.slice(0, RECENT_RUNS_MAX)));
+    const remove = (store as Partial<Storage>).removeItem?.bind(store);
+    if (!remove) return;
+    for (const r of evicted) for (const p of RUN_KEY_PREFIXES) for (const sfx of ["", ":backup", ":unreadable"]) remove(`${p}${r}${sfx}`);
+  } catch { /* storage unavailable — pruning is best-effort */ }
+}
+
 /** Strict independent boundary: malformed drafts never reach the renderer or the game save. */
 export function validDraftProduct(v: unknown): v is Product {
   if (!object(v) || typeof v.name !== "string" || v.name.length > 22 || typeof v.id !== "string") return false;
@@ -64,6 +86,7 @@ export function saveDraft(store: Store, record: DraftRecord): boolean {
     if (decodeDraft(old, record.run, record.week)) store.setItem(`${key}:backup`, old!);
     else if (old) store.setItem(`${key}:unreadable`, old);
     store.setItem(key, JSON.stringify(record));
+    touchDesignRun(store, record.run);
     return true;
   } catch { return false; }
 }

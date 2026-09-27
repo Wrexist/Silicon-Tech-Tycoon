@@ -8,7 +8,11 @@ export function webglSupported(): boolean {
     // three r163+ requires WebGL2 — probing WebGL1 here let WebGL1-only devices pass the gate
     // and then crash into the ErrorBoundary instead of cleanly falling back to the SVG scene.
     const c = document.createElement("canvas");
-    webgl = !!(window.WebGL2RenderingContext && c.getContext("webgl2"));
+    const gl = window.WebGL2RenderingContext ? c.getContext("webgl2") : null;
+    webgl = !!gl;
+    // Release the probe's context right away: iOS caps live WebGL contexts per page, and a throwaway
+    // canvas otherwise holds one (and its GPU memory) for the whole session next to the real scene.
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
   } catch {
     webgl = false;
   }

@@ -51,8 +51,6 @@
   width: 30px; height: 30px; border-radius: var(--r-pill);
   display: inline-flex; align-items: center; justify-content: center;
 }
-.pnudge--neutral .pnudge__card { border-color: color-mix(in srgb, var(--gold) 30%, var(--glass-modal-edge)); }
-.pnudge--neutral .pnudge__glyph { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--warning-text); }
 /* A failing payment is the one that costs the player access, so it carries the warning colour. */
 .pnudge--warn .pnudge__card { border-color: color-mix(in srgb, var(--warning) 40%, var(--glass-modal-edge)); }
 .pnudge--warn .pnudge__glyph { background: color-mix(in srgb, var(--warning) 20%, transparent); color: var(--warning-text); }

@@ -312,16 +312,6 @@
 }
 
 /* Sheets */
-.app__sheet-title {
-  font-size: var(--fs-title);
-  font-weight: 700;
-  margin-bottom: var(--sp-8);
-}
-.app__sheet-text {
-  font-size: var(--fs-body);
-  color: var(--ink-2);
-  margin-bottom: var(--sp-16);
-}
 /* Shared stat label/value tiles — retained for the IPO "You went public" screen (the "while you
    were away" sheet that also used them was removed with offline catch-up). */
 .app__offline-label {

@@ -54,30 +54,6 @@
 }
 
 /* Market hint banner — shown when a stat is trending up */
-.lab__market-hint {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-8);
-  padding: var(--sp-10) var(--sp-14);
-  border-radius: var(--r-card);
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-  line-height: 1.4;
-}
-.lab__market-hint-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--accent);
-  flex-shrink: 0;
-  animation: mkt-pulse 2s ease-in-out infinite;
-}
-.lab__market-hint strong {
-  color: var(--ink);
-  font-weight: 700;
-}
 @keyframes mkt-pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
@@ -151,30 +127,6 @@
 }
 
 /* Trend shift countdown — shown when a retarget is within 5 weeks */
-.lab__trend-shift {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-8);
-  padding: var(--sp-10) var(--sp-14);
-  border-radius: var(--r-card);
-  background: color-mix(in srgb, var(--warning) 8%, transparent);
-  border: 1px solid color-mix(in srgb, var(--warning) 22%, transparent);
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-  line-height: 1.4;
-}
-.lab__trend-shift-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--warning);
-  flex-shrink: 0;
-  animation: mkt-pulse 2.2s ease-in-out infinite;
-}
-.lab__trend-shift strong {
-  color: var(--warning);
-  font-weight: 700;
-}
 /* Header strip — subtitle + projected-verdict badge under the screen title */
 .lab__head {
   display: flex;
@@ -419,28 +371,6 @@
 }
 .lab__chip--locked:active {
   transform: none;
-}
-.lab__chip-gen {
-  font-size: var(--fs-nano);
-  font-weight: 800;
-  line-height: 1;
-  padding: 2px 4px;
-  border-radius: 3px;
-  background: color-mix(in srgb, var(--ink-3) 18%, transparent);
-  color: var(--ink-3);
-  letter-spacing: 0.02em;
-}
-.lab__chip--on .lab__chip-gen {
-  background: color-mix(in srgb, currentColor 20%, transparent);
-  color: inherit;
-}
-.lab__chip-gen--live {
-  background: color-mix(in srgb, var(--positive) 20%, transparent);
-  color: var(--positive-text, var(--positive));
-}
-.lab__chip--on .lab__chip-gen--live {
-  background: color-mix(in srgb, currentColor 20%, transparent);
-  color: inherit;
 }
 
 /* ── Category cards — a 2-column showcase of the device categories. Each reads its own personality
@@ -801,11 +731,6 @@
   padding: 3px;
   flex-shrink: 0;
   margin-left: var(--sp-4);
-}
-.lab__stepper--wide {
-  width: 100%;
-  justify-content: space-between;
-  padding: 6px var(--sp-16);
 }
 .lab__stepper button {
   min-width: 40px;
@@ -1381,7 +1306,6 @@
 .wiz__channel-aud { display: inline-flex; align-items: center; gap: 3px; margin-top: 2px; font-size: var(--fs-micro); font-weight: 700; color: var(--accent); }
 .wiz__channel-aud svg { flex-shrink: 0; }
 .wiz__channel-meta { display: flex; flex-direction: column; align-items: flex-end; font-weight: 700; font-size: var(--fs-caption); }
-.wiz__channel-hype { font-size: var(--fs-micro); color: var(--fn-mkt-text); }
 .wiz__channel-demand { font-size: var(--fs-micro); font-weight: 800; color: var(--positive-text, var(--positive)); }
 
 /* Build-wizard region picker (global expansion) */
@@ -1759,18 +1683,6 @@
 .wiz__brand-note { font-size: var(--fs-micro); color: var(--ink-2); flex-basis: 100%; }
 
 /* G1 — design-language readout (form → demand) */
-.lab__style {
-  margin-top: 6px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-}
-.lab__style strong { color: var(--ink); font-weight: 700; }
-.lab__style--striking strong { color: var(--fn-design); }
-.lab__style svg { color: var(--fn-design); }
-.lab__style-hint { color: var(--ink-2); font-weight: 500; }
 .lab__bom-subtotal {
   font-weight: 600;
   color: var(--ink-2);
@@ -1909,13 +1821,6 @@
   color: var(--ink-3);
 }
 
-.lab__supplier-rel {
-  display: block;
-  margin-top: 5px;
-  font-size: var(--fs-micro);
-  font-weight: 600;
-  color: var(--accent);
-}
 
 /* ---------- Supplier contract ---------- */
 .lab__contract {

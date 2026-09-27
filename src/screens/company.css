@@ -183,11 +183,6 @@
 }
 
 /* ---------- Financing (Track C) ---------- */
-.co__fin-credit {
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-  margin: var(--sp-4) 0 var(--sp-8);
-}
 .co__loan-list {
   display: flex;
   flex-direction: column;
@@ -421,46 +416,6 @@
 }
 
 /* ---------- Achievements entry row ---------- */
-.co__ach-row {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-12);
-  width: 100%;
-  padding: var(--sp-12);
-  border-radius: var(--r-card);
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  box-shadow: var(--shadow-subtle);
-  transition: transform var(--spring-snappy);
-}
-.co__ach-row:active {
-  transform: scale(0.98);
-}
-.co__ach-glyph {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--r-button);
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-.co__ach-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  text-align: left;
-}
-.co__ach-title {
-  font-weight: 600;
-}
-.co__ach-sub {
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-}
 /* Found-the-Platform milestone card */
 .co__found { display: flex; flex-direction: column; gap: var(--sp-12); border-color: color-mix(in srgb, var(--accent) 28%, var(--hairline)); background: linear-gradient(135deg, var(--accent-soft), var(--surface)); }
 .co__found-head { display: flex; align-items: flex-start; gap: var(--sp-12); }
@@ -471,17 +426,6 @@
 .co__found-reqs { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
 .co__found-req { font-size: var(--fs-micro); font-weight: 600; padding: 3px var(--sp-8); border-radius: var(--r-pill); background: var(--surface-2); color: var(--ink-3); border: 1px solid var(--hairline); font-variant-numeric: tabular-nums; }
 .co__found-req--met { color: var(--positive-text); background: var(--positive-soft); border-color: color-mix(in srgb, var(--positive) 35%, var(--hairline)); }
-.co__ach-count {
-  flex-shrink: 0;
-  font-size: var(--fs-headline);
-  font-weight: 700;
-  color: var(--accent);
-}
-.co__ach-count-total {
-  font-size: var(--fs-caption);
-  font-weight: 600;
-  color: var(--ink-3);
-}
 
 /* ---------- Company stats sheet ---------- */
 .co__stats-link {
@@ -887,33 +831,6 @@
   justify-content: space-between;
   gap: var(--sp-12);
   margin-bottom: var(--sp-8);
-}
-.co__skill {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-12);
-  background: var(--bg-elevated);
-  border-radius: var(--r-pill);
-  padding: 3px;
-  font-size: var(--fs-caption);
-  font-weight: 600;
-}
-.co__skill button {
-  min-width: 44px;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--r-pill);
-  background: var(--surface);
-  font-size: 1rem;
-  box-shadow: var(--shadow-subtle);
-}
-.co__skill button:disabled {
-  opacity: 0.35;
-}
-.co__skill button:active:not(:disabled) {
-  transform: scale(0.9);
 }
 
 /* --- Recruitment candidate cards --- */

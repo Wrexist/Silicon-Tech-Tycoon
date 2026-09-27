@@ -1776,10 +1776,12 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       window.clearTimeout(timer);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
       holdCancel.current = null;
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up); // a cancelled touch must not turn into a pickup
     holdCancel.current = cleanup;
   };
 
@@ -1808,8 +1810,14 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
         p.onMovePiece?.({ type: cur.type, id: cur.id }, cur.cell.c, cur.cell.r);
       }
     };
+    // A cancelled pointer (iOS system gesture) is not a drop: the piece snaps home.
+    const cancel = () => { setCarry(null); p.onCarryActive?.(false); };
     window.addEventListener("pointerup", up);
-    return () => window.removeEventListener("pointerup", up);
+    window.addEventListener("pointercancel", cancel);
+    return () => {
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carrying]);
 

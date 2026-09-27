@@ -165,11 +165,19 @@ function sanitize(raw: unknown): SeasonsStore {
   return store;
 }
 
+// Parse cache keyed on the raw stored string. The office scene reads unlocked floors/walls on every
+// render (i.e. every sim tick), which used to pay a localStorage read + JSON.parse + sanitize each
+// time. Any outside write (another tab, a backup import) changes the raw string and invalidates it.
+let parsed: { raw: string; store: SeasonsStore } | null = null;
+
 export function getSeasons(): SeasonsStore {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return { completions: {} };
-    return sanitize(JSON.parse(raw));
+    if (!parsed || parsed.raw !== raw) parsed = { raw, store: sanitize(JSON.parse(raw)) };
+    // A shallow copy: callers reassign `completions` / `earned` on what they get (never mutate the
+    // arrays inside), so the cached store itself stays pristine.
+    return { ...parsed.store };
   } catch {
     return { completions: {} };
   }
