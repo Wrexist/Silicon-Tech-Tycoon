@@ -159,7 +159,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       {world === "factory" && <FactoryCard onNavigate={onNavigate} active={active} />}
       <MetricGrid>
         <Metric label="Staff" value={state.staff.length} hint={`${state.staff.filter((s) => s.assignment !== "idle").length} assigned to work`} />
-        <Metric label="Team morale" value={state.staff.length ? `${Math.round(state.staff.reduce((n, s) => n + s.mood, 0) / state.staff.length)}%` : "?"} hint={state.staff.length ? "Average across your team" : "Hire your first teammate"} />
+        <Metric label="Team morale" value={state.staff.length ? `${Math.round(state.staff.reduce((n, s) => n + s.mood, 0) / state.staff.length)}%` : "—"} hint={state.staff.length ? "Average across your team" : "Hire your first teammate"} />
       </MetricGrid>
       <WeeklyRecap state={state} />
       {state.tutorialDone && <NextMoveCard state={state} onNavigate={onNavigate} />}

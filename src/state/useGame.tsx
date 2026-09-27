@@ -232,8 +232,8 @@ function fmtFans(n: number): string {
 }
 
 /** Fire a celebratory toast when the fan count crosses a milestone. Only the HIGHEST threshold
- *  crossed this tick is announced â€” a fast-forward that vaults several at once is one line, not a
- *  stack â€” and it's low priority, so it yields to anything the player actually asked for. */
+ *  crossed this tick is announced — a fast-forward that vaults several at once is one line, not a
+ *  stack — and it's low priority, so it yields to anything the player actually asked for. */
 function withFanToasts(prev: GameState, next: GameState): void {
   const crossed = FAN_TOAST_THRESHOLDS.filter((m) => prev.fans < m && next.fans >= m);
   const top = crossed.at(-1);
@@ -243,7 +243,7 @@ function withFanToasts(prev: GameState, next: GameState): void {
   } catch { /* toast host not mounted */ }
 }
 
-/** Fire a toast when staff gain a skill level during the live tick â€” coalesced, so a week that levels
+/** Fire a toast when staff gain a skill level during the live tick — coalesced, so a week that levels
  *  several people (mentors, fast-forward) is a single line, not a stack of toasts. */
 function withStaffLevelToasts(prev: GameState, next: GameState): void {
   const leveled = next.staff.filter((ns) => {
@@ -269,7 +269,7 @@ function withProductFinishToasts(prev: GameState, next: GameState): void {
     return !!plp && plp.weeksElapsed < plp.weeklyUnits.length; // was selling last tick
   });
   if (finished.length === 0) return;
-  // Lead with the run that earned the most â€” it's the one the player cares about â€” and let the tone
+  // Lead with the run that earned the most — it's the one the player cares about — and let the tone
   // follow ITS verdict, so a single flop retiring alongside a hit doesn't read as bad news.
   const lead = finished.reduce((top, lp) => (lp.revenueToDate > top.revenueToDate ? lp : top));
   const v = lead.verdict ?? "steady";
@@ -277,18 +277,18 @@ function withProductFinishToasts(prev: GameState, next: GameState): void {
   const rest = finished.length - 1;
   try {
     showToast(
-      `${lead.product.name} finished its run, ${lead.unitsSold.toLocaleString()} units Â· ${format(lead.revenueToDate)}${rest > 0 ? ` (+${rest} more)` : ""}`,
+      `${lead.product.name} finished its run, ${lead.unitsSold.toLocaleString()} units · ${format(lead.revenueToDate)}${rest > 0 ? ` (+${rest} more)` : ""}`,
       { tone },
     );
   } catch { /* toast host not mounted */ }
 }
 
 /** Celebrate when the lab FINISHES a timed research this tick. Completion happens inside the pure tick
- *  (activeResearch set â†’ null), so the FX has to come from the diff. Only fires on tick advances â€” a
+ *  (activeResearch set → null), so the FX has to come from the diff. Only fires on tick advances — a
  *  manual cancel goes through its own callback and never reaches this. */
 function withResearchCompleteFx(prev: GameState, next: GameState): void {
   const done = prev.activeResearch && !next.activeResearch ? prev.activeResearch : null;
-  // Design Budget (feature #1) â€” a completed EP-raise project lifts the per-project budget. Diff
+  // Design Budget (feature #1) — a completed EP-raise project lifts the per-project budget. Diff
   // completedProjects so it only counts the tick it lands, and only for a fresh run (the flag is what
   // makes the budget bind at all).
   let raise = 0;
@@ -299,14 +299,14 @@ function withResearchCompleteFx(prev: GameState, next: GameState): void {
       raise += EP_BUDGET_RAISES.find((r) => r.project === id)?.ep ?? 0;
     }
   }
-  // The budget raise IS the completion's reward, so when both land on the same tick they're one line â€”
+  // The budget raise IS the completion's reward, so when both land on the same tick they're one line —
   // two toasts for one event was the clearest case of the app talking over itself.
   if (done) {
     try {
       emitCelebrate();
       sfx("rp");
       showToast(
-        raise > 0 ? `Research complete: ${done.name} Â· design budget +${raise} EP` : `Research complete: ${done.name}`,
+        raise > 0 ? `Research complete: ${done.name} · design budget +${raise} EP` : `Research complete: ${done.name}`,
         { tone: "positive", glyph: <FlaskConical size={15} /> },
       );
     } catch { /* fx host not mounted */ }
@@ -316,7 +316,7 @@ function withResearchCompleteFx(prev: GameState, next: GameState): void {
 }
 
 /** Fire a celebratory toast for the revenue milestone crossed between prev and next. Same rule as the
- *  fan milestones: only the HIGHEST threshold crossed this tick, and at low priority â€” these fire on
+ *  fan milestones: only the HIGHEST threshold crossed this tick, and at low priority — these fire on
  *  the sim's schedule, not the player's, so they must never displace an answer the player is reading. */
 function withRevToasts(prev: GameState, next: GameState): void {
   const prevD = toDollars(prev.cumulativeRevenue);
@@ -329,8 +329,8 @@ function withRevToasts(prev: GameState, next: GameState): void {
 }
 
 /** Announce newly-unlocked achievements. Two polish rules (Phase 1, item 5):
- *  - Let the triggering action's own toast (e.g. the launch verdict) land FIRST â€” achievements
- *    are the secondary beat â€” by deferring this slightly.
+ *  - Let the triggering action's own toast (e.g. the launch verdict) land FIRST — achievements
+ *    are the secondary beat — by deferring this slightly.
  *  - Collapse a burst of simultaneous unlocks into ONE toast, so a single action (like a first
  *    launch that trips several milestones at once) can't bury the screen under a stack. */
 function announceAchievements(unlocked: readonly string[]): void {
@@ -340,7 +340,7 @@ function announceAchievements(unlocked: readonly string[]): void {
   if (earned.length === 0) return;
   const fire = () => {
     try {
-      // A milestone deserves more than silent text â€” the full mastery fanfare.
+      // A milestone deserves more than silent text — the full mastery fanfare.
       sfx("mastery");
       haptic.success();
       if (earned.length === 1) {
@@ -350,7 +350,7 @@ function announceAchievements(unlocked: readonly string[]): void {
           glyph: createElement(achievementIcon(a.icon), { size: 15 }),
         });
       } else {
-        const names = earned.slice(0, 2).map((a) => a.title).join(" Â· ");
+        const names = earned.slice(0, 2).map((a) => a.title).join(" · ");
         const extra = earned.length > 2 ? ` +${earned.length - 2} more` : "";
         showToast(`${earned.length} milestones unlocked, ${names}${extra}`, {
           tone: "positive",
@@ -364,7 +364,7 @@ function announceAchievements(unlocked: readonly string[]): void {
   setTimeout(fire, 600);
 }
 
-/** Announce newly-completed "Next Move" objectives â€” the soft "goal done, here's the next one"
+/** Announce newly-completed "Next Move" objectives — the soft "goal done, here's the next one"
  *  beat. Same two rules as achievements: defer so the triggering action's toast lands first, and
  *  collapse a burst into one toast. A gentle confirm cue (not the full upgrade fanfare). */
 function announceObjectives(completed: readonly string[]): void {
@@ -388,14 +388,14 @@ function announceObjectives(completed: readonly string[]): void {
 /**
  * Fold achievement evaluation into a state transition during LIVE play. Marks newly-satisfied
  * milestones unlocked AND fires one celebratory toast per new unlock. Only ever called from live
- * actions with a PRECOMPUTED state value â€” never from inside a setState updater (React invokes
+ * actions with a PRECOMPUTED state value — never from inside a setState updater (React invokes
  * updaters more than once under StrictMode, which would double-fire the toasts; the tick gates
- * its announcements per week instead) â€” and never the boot path, which merges the loaded run's
+ * its announcements per week instead) — and never the boot path, which merges the loaded run's
  * unlocks into the profile SILENTLY so a returning player is never spammed with a backlog of
  * celebrations.
  */
 /** Cross-run mastery counts for the achievement evaluator, read from the profile stores (which the
- *  pure engine can't reach). Cheap â€” a couple of small JSON reads; called only on the once-per-week
+ *  pure engine can't reach). Cheap — a couple of small JSON reads; called only on the once-per-week
  *  announce path + the value-call unlock paths, never per render. */
 function readMasteryInput(): MasteryInput {
   const stars = getScenarioStars();
@@ -417,7 +417,7 @@ function withLiveAchievements(next: GameState): GameState {
 
 /** Record any new scenario star earned on this state into the profile store, and celebrate a new
  *  best with one toast. Like announceAchievements, this is called only from the once-per-week tick
- *  gate (recordStars is idempotent â€” it writes only on improvement â€” so a StrictMode double-invoke
+ *  gate (recordStars is idempotent — it writes only on improvement — so a StrictMode double-invoke
  *  can't double-celebrate or double-write). No-op for freeform runs. */
 function announceScenarioStars(state: GameState): void {
   if (!state.activeScenario) return;
@@ -433,7 +433,7 @@ function announceScenarioStars(state: GameState): void {
   const name = scenarioById(state.activeScenario)?.name ?? "Scenario";
   setTimeout(() => {
     try {
-      showToast(`${best}â˜… earned, ${name}`, {
+      showToast(`${best}★ earned, ${name}`, {
         tone: "positive",
         glyph: createElement(achievementIcon("Star"), { size: 15 }),
       });
@@ -443,7 +443,7 @@ function announceScenarioStars(state: GameState): void {
   }, 800);
 }
 
-/** Record a completed challenge's score into the profile store (idempotent â€” only writes on a new
+/** Record a completed challenge's score into the profile store (idempotent — only writes on a new
  *  best). When `announce` and the score just locked this tick (prev had none), celebrate once. */
 function syncChallengeBest(prev: GameState, next: GameState, announce: boolean): void {
   const ch = next.activeChallenge;
@@ -461,7 +461,7 @@ function syncChallengeBest(prev: GameState, next: GameState, announce: boolean):
   sfx("challenge");
   const label = ch.kind === "weekly" ? "Weekly challenge" : "Daily challenge";
   const scored = formatScore(ch.scoreMetric, next.challengeScore);
-  const tail = improved ? ", new best!" : ` Â· best ${formatScore(ch.scoreMetric, best)}`;
+  const tail = improved ? ", new best!" : ` · best ${formatScore(ch.scoreMetric, best)}`;
   setTimeout(() => {
     try {
       showToast(`${label} complete, ${scored}${tail}`, {
@@ -472,16 +472,16 @@ function syncChallengeBest(prev: GameState, next: GameState, announce: boolean):
       /* toast host not mounted (e.g. tests) */
     }
   }, 800);
-  // Challenge Seasons â€” count this completion toward the month's cosmetic track (idempotent per
+  // Challenge Seasons — count this completion toward the month's cosmetic track (idempotent per
   // challenge key). Any rung crossed unlocks a cosmetic; celebrate it with a toast + confetti (no new
-  // interrupt). Entirely a profile-store write â€” no GameState / determinism surface.
+  // interrupt). Entirely a profile-store write — no GameState / determinism surface.
   try {
     const { seasonId, crossed } = recordSeasonCompletion(key);
     crossed.forEach((reward, i) => {
       setTimeout(() => {
         try {
           emitCelebrate();
-          showToast(`Season reward unlocked, ${reward.name} Â· ${seasonLabel(seasonId)}`, {
+          showToast(`Season reward unlocked, ${reward.name} · ${seasonLabel(seasonId)}`, {
             tone: "positive",
             glyph: <Sparkles size={15} />,
           });
@@ -491,27 +491,27 @@ function syncChallengeBest(prev: GameState, next: GameState, announce: boolean):
       }, 1400 + i * 900);
     });
   } catch {
-    /* seasons is best-effort flair â€” never let it disrupt the challenge flow */
+    /* seasons is best-effort flair — never let it disrupt the challenge flow */
   }
 }
 
-/** The per-tick DATA slice of the context â€” changes whenever the sim advances. */
+/** The per-tick DATA slice of the context — changes whenever the sim advances. */
 interface GameStateValue {
   state: GameState;
   paused: boolean;
   fast: boolean;
   skipping: boolean;
-  /** True when ANOTHER tab/window took over this save â€” this tab is frozen (no tick, no saves). */
+  /** True when ANOTHER tab/window took over this save — this tab is frozen (no tick, no saves). */
   tabBlocked: boolean;
-  /** True while â‰¥1 interrupt overlay is holding the sim (ref-counted, separate from the user's
+  /** True while ≥1 interrupt overlay is holding the sim (ref-counted, separate from the user's
    *  manual `paused`). The tick gates on this so the world never runs on behind a decision modal. */
   suspended: boolean;
   /** True while a challenge/scenario is running and the player's freeform company is stashed and
-   *  restorable â€” drives the run trackers' "return to your company" affordance. */
+   *  restorable — drives the run trackers' "return to your company" affordance. */
   homeSaved: boolean;
 }
 
-/** The ACTIONS slice â€” every callback. All entries are ref-stable for the life of the provider, so
+/** The ACTIONS slice — every callback. All entries are ref-stable for the life of the provider, so
  *  this object keeps a stable identity (see the `actions` memo); it is the single home for the
  *  action list, replacing the old hand-maintained 60-entry dep array that had already drifted. */
 interface GameActionsValue {
@@ -544,7 +544,7 @@ interface GameActionsValue {
   collectAwards: () => void;
   dismissRivalry: () => void;
   dismissNemesisTrophy: () => void;
-  /** The Vault (engine/secrets.ts) â€” buy one stage of intel on a classified dossier. */
+  /** The Vault (engine/secrets.ts) — buy one stage of intel on a classified dossier. */
   investigateSecret: (id: string) => void;
   /** Stamp every dossier's current stage as seen (clears the "new leads" badge). */
   markVaultSeen: () => void;
@@ -562,7 +562,7 @@ interface GameActionsValue {
   claimContract: (id: string) => void;
   fundMegaproject: (id: string) => void;
   buyLegacyPerk: (id: string) => void;
-  /** Advance Frontier Tech one tier â€” the endless post-IPO Legacy-Point sink. */
+  /** Advance Frontier Tech one tier — the endless post-IPO Legacy-Point sink. */
   buyFrontierTier: (lane?: FrontierLaneId) => void;
   declineSideOrder: () => void;
   cancelSideOrder: () => void;
@@ -613,7 +613,7 @@ interface GameActionsValue {
   rewindTo: (snapshotId: string) => boolean;
   setCompanyName: (name: string) => void;
   setSandboxActive: (on: boolean) => void;
-  /** Calm Mode â€” set how often the game may raise opportunistic full-screen interrupts. */
+  /** Calm Mode — set how often the game may raise opportunistic full-screen interrupts. */
   setInterruptPace: (pace: InterruptPace) => void;
   setAutomation: (patch: Partial<GameState["automation"]>) => void;
   // Platform / OS division (DLC #1)
@@ -638,7 +638,7 @@ interface GameActionsValue {
   resetFurniture: () => void;
   setLayout: (layout: PlacedItem[]) => void;
   applyLayoutSnapshot: (snap: { layout: PlacedItem[]; editCash: number }) => boolean;
-  /** Restore a Factory-floor undo snapshot (layout + props + cash) â€” the office builder's undo,
+  /** Restore a Factory-floor undo snapshot (layout + props + cash) — the office builder's undo,
    *  finally available on the floor too. */
   applyFactorySnapshot: (snap: { floor: import("../engine/factoryFloor.ts").FactoryFloor; props: import("../engine/factoryProps.ts").PlacedProp[]; editCash: number }) => boolean;
   setFloorStyle: (i: number) => void;
@@ -682,17 +682,17 @@ interface GameActionsValue {
   setTeamFocus: (focus: "research" | "build" | null) => void;
 }
 
-/** Full context shape â€” data + actions. `useGame()` returns this (back-compat). */
+/** Full context shape — data + actions. `useGame()` returns this (back-compat). */
 type GameContextValue = GameStateValue & GameActionsValue;
 
 /** The rare-change control flags beside the sim (F36 context split). Everything here changes only
- *  when the player toggles pace, an overlay suspends the sim, or a side-run is stashed â€” never on
- *  the weekly tick â€” so consumers of this context alone re-render a handful of times per session,
+ *  when the player toggles pace, an overlay suspends the sim, or a side-run is stashed — never on
+ *  the weekly tick — so consumers of this context alone re-render a handful of times per session,
  *  not once per simulated week. */
 export type GameControlsValue = Omit<GameStateValue, "state">;
 
 /**
- * Minimal external store for GameState (F36 â€” the performance context split).
+ * Minimal external store for GameState (F36 — the performance context split).
  *
  * The old provider held the game in `useState`, so EVERY tick re-rendered the provider and, through
  * it, the whole tree. State now lives outside React: the tick writes here, subscribers are notified,
@@ -717,7 +717,7 @@ class GameStore {
   };
   set = (next: GameState | ((s: GameState) => GameState)): void => {
     const value = typeof next === "function" ? (next as (s: GameState) => GameState)(this.state) : next;
-    if (value === this.state) return; // bail-out: identical object â†’ no notification
+    if (value === this.state) return; // bail-out: identical object → no notification
     this.state = value;
     for (const l of this.listeners) l();
   };
@@ -728,40 +728,40 @@ const ControlsContext = createContext<GameControlsValue | null>(null);
 const ActionsContext = createContext<GameActionsValue | null>(null);
 
 export function GameProvider({ children }: { children: ReactNode }) {
-  // Load the save as-is. Time does NOT advance while the app is closed â€” the sim only runs on the
-  // weekly tick below â€” so there is no offline catch-up: a returning player picks up exactly where
+  // Load the save as-is. Time does NOT advance while the app is closed — the sim only runs on the
+  // weekly tick below — so there is no offline catch-up: a returning player picks up exactly where
   // they stopped, with no fast-forwarded weeks and no "while you were away" recap.
   const boot = useMemo(() => {
     const res = loadResult();
     if (res.status !== "ok") {
-      // ABSENT or UNREADABLE â†’ start fresh. On UNREADABLE the raw save was already copied to a
+      // ABSENT or UNREADABLE → start fresh. On UNREADABLE the raw save was already copied to a
       // backup key inside loadResult(), so the player's data is preserved, not destroyed.
       return withInterruptPace(newGame(undefined, getLegacy()));
     }
-    // Honor sandboxUnlocked only when the device actually owns the IAP â€” an imported or older
+    // Honor sandboxUnlocked only when the device actually owns the IAP — an imported or older
     // localStorage save could otherwise unlock the unlimited-cash floor for free.
     const loaded = withValidatedSandbox(res.state);
-    // F4 â€” seed the feed-id counter above restored ids BEFORE any new feed item is generated.
+    // F4 — seed the feed-id counter above restored ids BEFORE any new feed item is generated.
     seedFeedSeq(loaded);
-    // Capture the loaded run's earned achievements into the cross-run profile store â€” this handles
+    // Capture the loaded run's earned achievements into the cross-run profile store — this handles
     // saves written before the profile-achievements system existed (independent of any catch-up).
     mergeProfileAchievements(loaded.unlockedAchievements);
     return withInterruptPace(loaded);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // F36 â€” the game lives in an external store, not useState: the weekly tick writes here and only
+  // F36 — the game lives in an external store, not useState: the weekly tick writes here and only
   // subscribed components re-render. The provider itself no longer re-renders per tick.
   const store = useMemo(() => new GameStore(boot), []);
   /** Live GameState read for imperative action bodies (was gs()). */
   const gs = store.getState;
   // The two sim-gating flags the TICK effect needs reactively. Selector-subscribed, so the provider
-  // re-renders only when one of them actually flips â€” never on an ordinary week.
+  // re-renders only when one of them actually flips — never on an ordinary week.
   const bankrupt = useStoreSelector(store, (s) => s.bankrupt);
   const onboarded = useStoreSelector(store, (s) => s.onboarded);
   const [paused, setPaused] = useState(false);
   const [fast, setFast] = useState(false);
-  // "Skip to next decision" â€” run at Fast speed until a week produces something that needs the
+  // "Skip to next decision" — run at Fast speed until a week produces something that needs the
   // player's input (skipInterrupt), then auto-pause with a one-line reason. Decision-paced time.
   const [skipping, setSkipping] = useState(false);
   const [tabBlocked, setTabBlocked] = useState(false);
@@ -778,13 +778,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // week intact and the save on disk is still the last good one.
   const [tickError, setTickError] = useState<Error | null>(null);
   // True while the player's freeform company is stashed because a challenge/scenario is running in the
-  // main slot â€” drives the "return to your company" affordance in the run trackers. Seeded from disk so
+  // main slot — drives the "return to your company" affordance in the run trackers. Seeded from disk so
   // it survives a reload mid-challenge (the stash is a separate key from the autosaved challenge run).
   const [homeSaved, setHomeSaved] = useState<boolean>(() => hasHomeSave());
   // Ref-counted sim hold for interrupt overlays. Each visible overlay pushes once (via useHoldSim)
   // and pops on hide/unmount; the sim is suspended while the count is > 0. This REPLACES the old
   // pattern where every modal imperatively toggled the shared `paused` flag and tried to restore a
-  // captured `wasPaused` â€” two overlays handing off (e.g. a finished build's Ready-to-launch popup
+  // captured `wasPaused` — two overlays handing off (e.g. a finished build's Ready-to-launch popup
   // overlapping a quarterly earnings call) could capture each other's forced-true value and strand
   // the sim paused with no visible modal. Counting is monotonic and per-overlay, so it can't corrupt.
   const suspendCount = useRef(0);
@@ -809,7 +809,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // changed (advanceOneWeek + every action return a NEW object, so reference identity = "dirty").
   const lastSavedRef = useRef<GameState>(boot);
 
-  // Multi-tab single-writer guard: when another tab claims this save, freeze this one â€” the tick
+  // Multi-tab single-writer guard: when another tab claims this save, freeze this one — the tick
   // stops below and EVERY save path checks tabBlockedRef, so a stale context can never clobber
   // the tab the player is actually using (the one real save-loss path on web). When the playing
   // tab goes away (its pagehide broadcasts a release), a frozen tab the player is LOOKING AT
@@ -855,7 +855,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           // Record this week's challenge best BEFORE mastery is read, so a challenge that locks
           // this tick is counted now (no one-cycle lag for challenges-10). Idempotent.
           syncChallengeBest(s, next, true);
-          // Skip-to-next-decision: the week produced something that needs input â†’ stop time and
+          // Skip-to-next-decision: the week produced something that needs input → stop time and
           // say why. Gated to once per simulated week like every other tick side-effect.
           if (skipping) {
             const why = skipInterrupt(s, next);
@@ -895,16 +895,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
           }
           announceObjectives(completed);
           announceScenarioStars(next);
-          // A commission finishing is a payday â€” celebrate it from any tab.
+          // A commission finishing is a payday — celebrate it from any tab.
           if ((next.sideOrdersCompleted ?? 0) > (s.sideOrdersCompleted ?? 0)) {
             sfx("cash");
-            showToast("Commission delivered â€” payment banked", { tone: "positive" });
+            showToast("Commission delivered — payment banked", { tone: "positive" });
           }
-          // A paid-for recruiter shortlist EXPIRES quietly â€” the arrival must not (the player
+          // A paid-for recruiter shortlist EXPIRES quietly — the arrival must not (the player
           // may be on any tab when the candidates land).
           if (next.candidates.length > 0 && s.candidates.length === 0) {
             sfx("confirm");
-            showToast(`Your shortlist arrived â€” ${next.candidates.length} candidate${next.candidates.length > 1 ? "s" : ""} to interview`, { tone: "positive" });
+            showToast(`Your shortlist arrived — ${next.candidates.length} candidate${next.candidates.length > 1 ? "s" : ""} to interview`, { tone: "positive" });
           }
         }
         return out2;
@@ -945,7 +945,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     };
   }, [store, gs, persistNow]);
 
-  // Safety net for the one case the debounce can starve â€” continuous Fast-mode ticks faster than
+  // Safety net for the one case the debounce can starve — continuous Fast-mode ticks faster than
   // the debounce window. Only writes when the state actually changed since the last save.
   useEffect(() => {
     const id = setInterval(() => {
@@ -955,7 +955,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [persistNow]);
 
   // Pause the sim on hide (persisting first) and simply resume it on show. Time does NOT advance while
-  // the app is backgrounded and is NOT caught up on return â€” the player picks up exactly where they
+  // the app is backgrounded and is NOT caught up on return — the player picks up exactly where they
   // left off. (The tick's `hidden` gate stops the sim; foregrounding clears it and the tick restarts.)
   useEffect(() => {
     const onVis = () => {
@@ -986,7 +986,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const launchReadyCb = useCallback((productId: string) => {
     const result = launchReady(gs(), productId);
-    // A launch can immediately cross a milestone (first ship, a hit, a hit streak, a sellout) â€” so
+    // A launch can immediately cross a milestone (first ship, a hit, a hit streak, a sellout) — so
     // evaluate + celebrate right here, not only on the next weekly tick.
     if (result.ok) {
       const next = withLiveAchievements(result.state);
@@ -1014,7 +1014,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     return { ok: result.ok, reason: result.reason, launchScore: result.launchScore, verdict: result.verdict };
   }, []);
 
-  // Start â€” or queue â€” the next tier of a component line (timed research). Pays RP up front; the unlock
+  // Start — or queue — the next tier of a component line (timed research). Pays RP up front; the unlock
   // lands after a few weeks (shown by the progress ring). If the lab is busy it lines up in the queue.
   const research = useCallback((kind: ComponentKind) => {
     const prev = gs();
@@ -1026,7 +1026,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     showToast(queued ? `Queued ${next.researchQueue!.at(-1)!.name}` : `Researching ${next.activeResearch?.name ?? "tech"}`, { tone: "neutral" });
     store.set(next);
   }, []);
-  // Cancel the active research (pulls the next queued one up) or a specific queued item â€” both refund RP.
+  // Cancel the active research (pulls the next queued one up) or a specific queued item — both refund RP.
   const cancelResearchCb = useCallback(() => {
     const prev = gs();
     const next = cancelResearch(prev);
@@ -1091,12 +1091,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
     sfx("cash");
     store.set(res.state);
   }, []);
-  // Fund a moonshot megaproject (item 4.1) â€” a post-IPO cash + RP sink with a prestige payoff.
+  // Fund a moonshot megaproject (item 4.1) — a post-IPO cash + RP sink with a prestige payoff.
   const fundMegaprojectCb = useCallback((id: string) => {
     const prev = gs();
     const res = fundMegaproject(prev, id);
     if (!res.ok) { haptic.error(); showToast(res.reason ?? "Can't fund that yet", { tone: "negative" }); return; }
-    // A megaproject buy-in is a large cash + RP spend â€” surface the same "-$X" / "-RP" feedback as
+    // A megaproject buy-in is a large cash + RP spend — surface the same "-$X" / "-RP" feedback as
     // every other spend action so the outlay is legible.
     const spent = (prev.cash - res.state.cash) as Money;
     if (spent > 0) emitSpend(spent);
@@ -1106,7 +1106,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     sfx("cash");
     store.set(res.state);
   }, []);
-  // Spend Legacy Points on a Legacy-tree perk (item 4.3) â€” a permanent-for-this-run boon.
+  // Spend Legacy Points on a Legacy-tree perk (item 4.3) — a permanent-for-this-run boon.
   const buyLegacyPerkCb = useCallback((id: string) => {
     const prev = gs();
     const res = buyLegacyPerk(prev, id);
@@ -1149,7 +1149,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
   const dismissRivalryCb = useCallback(() => store.set((s) => dismissRivalry(s)), []);
   const dismissNemesisTrophyCb = useCallback(() => store.set((s) => dismissNemesisTrophy(s)), []);
-  // Resolve a eureka breakthrough â€” bank the sure RP or chase the prototype gamble. Returns the outcome
+  // Resolve a eureka breakthrough — bank the sure RP or chase the prototype gamble. Returns the outcome
   // so the overlay can stage the reveal; RP-gain FX + sound scale with whether the prototype landed.
   const resolveEurekaCb = useCallback((choice: "bank" | "chase"): EurekaResult => {
     const prev = gs();
@@ -1186,7 +1186,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     store.set(next);
     return result;
   }, []);
-  // Answer a staff LIFE event (item 2.2) â€” a small human choice about a named teammate.
+  // Answer a staff LIFE event (item 2.2) — a small human choice about a named teammate.
   const resolveStaffEventCb = useCallback((optionIndex: number): StaffEventResult => {
     const prev = gs();
     if (!prev.pendingStaffEvent) return { ok: false }; // a double input is a no-op, not an error
@@ -1198,7 +1198,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     store.set(next);
     return result;
   }, []);
-  // Answer a post-launch reactive event (item 3.6) â€” a business call on a product already selling.
+  // Answer a post-launch reactive event (item 3.6) — a business call on a product already selling.
   const resolvePostLaunchCb = useCallback((optionIndex: number): PostLaunchResult => {
     const prev = gs();
     if (!prev.pendingPostLaunch) return { ok: false }; // a double input is a no-op, not an error
@@ -1224,7 +1224,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     store.set(next);
     return result;
   }, []);
-  // Buy back the company's own shares â€” spend cash to raise ownership + nudge the price up. Spend FX.
+  // Buy back the company's own shares — spend cash to raise ownership + nudge the price up. Spend FX.
   const buybackSharesCb = useCallback((amount: Money): BuybackResult => {
     const prev = gs();
     const { state: next, result } = buybackShares(prev, amount);
@@ -1270,7 +1270,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
     store.set(next);
   }, []);
-  // Moonshot R&D gambles (feature #5) â€” attempt a visible-odds gamble; the outcome is revealed instantly.
+  // Moonshot R&D gambles (feature #5) — attempt a visible-odds gamble; the outcome is revealed instantly.
   const attemptMoonshotCb = useCallback((id: string): "success" | "failure" | null => {
     const prev = gs();
     const res = attemptMoonshot(prev, id);
@@ -1282,16 +1282,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
       emitCelebrate();
       sfx("mastery");
       haptic.success();
-      showToast(`Moonshot landed â€” ${m?.reward.label ?? "reward banked"}`, { tone: "positive", glyph: <Rocket size={15} /> });
+      showToast(`Moonshot landed — ${m?.reward.label ?? "reward banked"}`, { tone: "positive", glyph: <Rocket size={15} /> });
     } else {
       sfx("confirm");
       haptic.warning();
-      showToast(`${m?.name ?? "Moonshot"} missed â€” most of the RP burned, some salvaged`, { tone: "negative", glyph: <Rocket size={15} /> });
+      showToast(`${m?.name ?? "Moonshot"} missed — most of the RP burned, some salvaged`, { tone: "negative", glyph: <Rocket size={15} /> });
     }
     store.set(res.state);
     return res.moonshotOutcome ?? null;
   }, []);
-  // The Vault (engine/secrets.ts) â€” buy one stage of a dossier's reveal. Cash out, knowledge in; the
+  // The Vault (engine/secrets.ts) — buy one stage of a dossier's reveal. Cash out, knowledge in; the
   // reducer refuses anything that would sell the achievement itself.
   const investigateSecretCb = useCallback((id: string) => {
     const prev = gs();
@@ -1318,7 +1318,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     emitCelebrate();
     sfx("confirm");
     haptic.success();
-    showToast(`Keynote announced â€” the promise is public. +${(next.fans - prev.fans).toLocaleString()} fans`, { tone: "positive" });
+    showToast(`Keynote announced — the promise is public. +${(next.fans - prev.fans).toLocaleString()} fans`, { tone: "positive" });
     store.set(next);
   }, []);
   const unlockRegionCb = useCallback((id: RegionId) => {
@@ -1378,14 +1378,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const hireSpecialistCb = useCallback((which: "autoAssign" | "autoResearch") => {
     const prev = gs();
     const next = hireSpecialist(prev, which);
-    if (next === prev) return; // no-op (division not opened / at capacity) â€” no false confirmation
+    if (next === prev) return; // no-op (division not opened / at capacity) — no false confirmation
     const spent = (prev.cash - next.cash) as Money;
     if (spent > 0) emitSpend(spent);
-    // A specialist joining unlocks delegation â€” a real moment, not a silent debit (matches hire).
+    // A specialist joining unlocks delegation — a real moment, not a silent debit (matches hire).
     haptic.success();
     sfx("confirm");
     showToast(
-      which === "autoResearch" ? "Lead Researcher hired â€” Auto-research unlocked" : "People Lead hired â€” Auto-assign unlocked",
+      which === "autoResearch" ? "Lead Researcher hired — Auto-research unlocked" : "People Lead hired — Auto-assign unlocked",
       { tone: "positive" },
     );
     store.set(next);
@@ -1422,29 +1422,29 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const before = gs();
     store.set((s) => withLiveAchievements(goPublic(s)));
     // Record the IPO in the lifetime Founder Legend on the first transition to public (guarded so a
-    // no-op call â€” canIPO false â€” records nothing).
+    // no-op call — canIPO false — records nothing).
     if (!before.wentPublic) {
       const after = goPublic(before);
       if (after.wentPublic) recordFounderFrom(after, { ipo: true });
     }
   }, []);
   const prestige = useCallback((ascension = 0) => {
-    // Bank the finished empire into the lifetime Founder Legend before the reset wipes the run â€”
+    // Bank the finished empire into the lifetime Founder Legend before the reset wipes the run —
     // recording the Heat level cleared this run (recordFounderFrom reads state.ascensionLevel).
     recordFounderFrom(gs(), { prestige: true });
     mergeProfileAchievements(gs().unlockedAchievements); // milestones earned this run persist into NG+
     const next = getLegacy() + 1;
     setLegacy(next);
     clearSave();
-    // The retired empire's rewind points die with it â€” the Time Machine must never offer to rewind
+    // The retired empire's rewind points die with it — the Time Machine must never offer to rewind
     // into a company the player deliberately left behind.
     clearSnapshots();
-    // New Game+ players already know the ropes â€” skip onboarding + the first-build coach. The
+    // New Game+ players already know the ropes — skip onboarding + the first-build coach. The
     // lifetime "seen dilemmas" set carries across so the new run surfaces fresh decisions first.
     // Ascension / Heat: the chosen level makes the NEXT run harder (newGame's 3rd arg).
     store.set(withInterruptPace({ ...newGame(undefined, next, ascension), onboarded: true, tutorialDone: true, platformUnlocked: gs().platformUnlocked, seenChoices: gs().seenChoices }));
     setPaused(false);
-    setFast(false); // F37 â€” New Game+ must not inherit fast-forward speed.
+    setFast(false); // F37 — New Game+ must not inherit fast-forward speed.
     setSkipping(false);
   }, []);
   // Serialize the live state PLUS profile-level progression (legacy, scenario stars, challenge
@@ -1469,7 +1469,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const importSave = useCallback((str: string) => {
     const migrated = importSaveString(str);
     if (!migrated) return false;
-    // Restore profile-level progression from a v2 backup (merged, keeping the best â€” never a downgrade).
+    // Restore profile-level progression from a v2 backup (merged, keeping the best — never a downgrade).
     const profile = importProfileFromString(str);
     if (profile) {
       if (typeof profile.legacy === "number" && profile.legacy > getLegacy()) setLegacy(profile.legacy);
@@ -1494,7 +1494,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const markOnboarded = useCallback(() => store.set((s) => ({ ...s, onboarded: true })), []);
   const dismissTutorial = useCallback(() => store.set((s) => ({ ...s, tutorialDone: true })), []);
-  // Replay the first-build Coach from the Help hub â€” it re-reads progress to pick the right step for
+  // Replay the first-build Coach from the Help hub — it re-reads progress to pick the right step for
   // where the player is now (a veteran just sees the "you're set" beat and can dismiss again).
   const replayCoach = useCallback(() => store.set((s) => ({ ...s, tutorialDone: false })), []);
   const markUnlocksSeen = useCallback(() => store.set((s) => ({ ...s, seenFirstShipUnlocks: true })), []);
@@ -1502,7 +1502,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // Toggle Sandbox / Creative mode ON or OFF for the current game. Ownership is enforced by the
   // caller (Settings only shows the toggle once the IAP entitlement is held).
   const setSandboxActive = useCallback((on: boolean) => store.set((s) => setSandbox(s, on)), []);
-  // Calm Mode â€” persist the choice (survives a new company) and apply it to the live run immediately.
+  // Calm Mode — persist the choice (survives a new company) and apply it to the live run immediately.
   const setInterruptPaceCb = useCallback((pace: InterruptPace) => {
     setSettings({ interruptPace: pace });
     store.set((s) => (s.interruptPace === pace ? s : { ...s, interruptPace: pace }));
@@ -1510,7 +1510,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const setAutomationCb = useCallback((patch: Partial<GameState["automation"]>) => store.set((s) => setAutomation(s, patch)), []);
   const setOsNameCb = useCallback((name: string) => store.set((s) => setOsName(s, name)), []);
   const unlockPlatformCb = useCallback((on: boolean) => store.set((s) => unlockPlatform(s, on)), []);
-  // Found the OS division â€” a major cash reinvestment. Value-call path: emit the spend FX + fold
+  // Found the OS division — a major cash reinvestment. Value-call path: emit the spend FX + fold
   // achievements (so any milestone the moment trips celebrates immediately).
   const foundPlatformCb = useCallback(() => {
     const prev = gs();
@@ -1539,7 +1539,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
   const licenseOsToRivalCb = useCallback((rivalId: string) => store.set((s) => licenseOsToRival(s, rivalId)), []);
   const revokeOsLicenseCb = useCallback((rivalId: string) => store.set((s) => revokeOsLicense(s, rivalId)), []);
-  // Sign the inbound contract: bank the signing bonus (spend FX in reverse â€” a gain), and return
+  // Sign the inbound contract: bank the signing bonus (spend FX in reverse — a gain), and return
   // true so the Platform screen can fire its signing celebration.
   const signLicenseOfferCb = useCallback((): boolean => {
     const prev = gs();
@@ -1554,7 +1554,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     haptic.light();
     store.set((s) => declineLicenseOffer(s).state);
   }, []);
-  // Push the inbound contract for a bigger bonus â€” a one-shot gamble. Returns the outcome (+ any bonus
+  // Push the inbound contract for a bigger bonus — a one-shot gamble. Returns the outcome (+ any bonus
   // won) so the popup can play the right reveal; applies whatever the deterministic engine decided.
   const negotiateLicenseOfferCb = useCallback((): { outcome: NegotiationOutcome; bonusDelta: Money } | null => {
     const res = negotiateLicenseOffer(gs());
@@ -1567,7 +1567,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     return { outcome, bonusDelta: res.negotiationBonusDelta ?? (0 as Money) };
   }, []);
   // Building an OS module spends RP (emit the spend FX) and can trip the Platform Pioneer / Walled
-  // Garden milestones â€” fold + celebrate them here on the value-call path, not on the next tick.
+  // Garden milestones — fold + celebrate them here on the value-call path, not on the next tick.
   const installOsFeatureCb = useCallback((id: string) => {
     const prev = gs();
     const built = installOsFeature(prev, id);
@@ -1632,12 +1632,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const comp = prev.competitors.find((c) => c.id === id);
     store.set(boardNudge(prev, id));
     haptic.success(); sfx("confirm");
-    showToast(`Launch delayed â€” ${comp?.name ?? "rival"} slips their next ship`, { tone: "positive", glyph: <Landmark size={15} /> });
+    showToast(`Launch delayed — ${comp?.name ?? "rival"} slips their next ship`, { tone: "positive", glyph: <Landmark size={15} /> });
   }, []);
   const acquireRivalCb = useCallback((id: string): boolean => {
     const prev = gs();
     const base = acquireRival(prev, id);
-    if (base === prev) return false; // not allowed (stale button) â€” caller skips the celebration
+    if (base === prev) return false; // not allowed (stale button) — caller skips the celebration
     const next = withLiveAchievements(base);
     const spent = (prev.cash - next.cash) as Money;
     if (spent > 0) emitSpend(spent);
@@ -1826,7 +1826,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const stashHomeIfFreeform = useCallback((): boolean => {
     const cur = gs();
     if (cur.onboarded && !cur.activeChallenge && !cur.activeScenario) {
-      // Verify the stash actually landed before the caller clears the save â€” a swallowed quota
+      // Verify the stash actually landed before the caller clears the save — a swallowed quota
       // failure here would let clearSave() destroy an unrecoverable freeform company.
       const ok = stashHomeSave(cur);
       if (ok) setHomeSaved(true);
@@ -1837,10 +1837,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   /** Rewind to a Time Machine snapshot. Deliberately routed through the same path as a save import:
    *  the snapshot is validated by the loader's own migrate, then written and adopted as the live
-   *  company. Fails closed â€” a missing or unreadable snapshot leaves the running game untouched. */
+   *  company. Fails closed — a missing or unreadable snapshot leaves the running game untouched. */
   const rewindTo = useCallback((snapshotId: string) => {
     // Two refusals before anything is written. A scenario or challenge run occupies the MAIN save
-    // slot while the player's real company sits in the home stash â€” restoring a campaign snapshot
+    // slot while the player's real company sits in the home stash — restoring a campaign snapshot
     // over it would silently destroy the scored run and leave the stash orphaned. And a blocked tab
     // must not write at all: the single-writer guard exists so two windows can't clobber each other,
     // and this direct save() would drive straight through it.
@@ -1872,7 +1872,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // decisions first instead of re-asking ones the player already resolved.
     store.set(withInterruptPace({ ...newGame(undefined, getLegacy()), platformUnlocked: gs().platformUnlocked, seenChoices: gs().seenChoices }));
     setPaused(false);
-    setFast(false); // F37 â€” a fresh company must not inherit fast-forward speed.
+    setFast(false); // F37 — a fresh company must not inherit fast-forward speed.
     setSkipping(false);
   }, []);
 
@@ -1881,21 +1881,21 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // start values come entirely from the scenario's setup. The freeform company is stashed first so
   // it's preserved (returnHome restores it) instead of destroyed.
   const startScenario = useCallback((id: string, name?: string) => {
-    // Item 5.1 â€” enforce the campaign chain: a locked scenario can't be started even if a stale UI
+    // Item 5.1 — enforce the campaign chain: a locked scenario can't be started even if a stale UI
     // slips through. Total stars come from the profile store.
     const sc = scenarioById(id);
     if (sc) {
       const stars = getScenarioStars();
       const total = Object.values(stars).reduce((a, b) => a + (b ?? 0), 0);
       if (!scenarioUnlocked(sc, total)) {
-        showToast(`Locked â€” earn ${scenarioUnlockStars(sc)}â˜… across the scenarios to unlock this one.`, { tone: "negative" });
+        showToast(`Locked — earn ${scenarioUnlockStars(sc)}★ across the scenarios to unlock this one.`, { tone: "negative" });
         return;
       }
     }
     // Park the freeform company FIRST; if the stash can't land (quota), abort instead of clearing the
     // save out from under an unrecoverable company.
     if (!stashHomeIfFreeform()) {
-      showToast("Couldn't free up storage to park your company â€” scenario cancelled to keep it safe.", { tone: "negative" });
+      showToast("Couldn't free up storage to park your company — scenario cancelled to keep it safe.", { tone: "negative" });
       return;
     }
     mergeProfileAchievements(gs().unlockedAchievements); // keep this run's milestones
@@ -1907,7 +1907,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [stashHomeIfFreeform]);
 
   // Daily/weekly challenge: a flavored run seeded from today's (UTC) date. Like scenarios, this takes
-  // over the main slot â€” but the freeform company is stashed first (returnHome restores it), so a
+  // over the main slot — but the freeform company is stashed first (returnHome restores it), so a
   // challenge is a side trip you can leave, not a company-wipe. The per-date best lives in the profile.
   const startChallenge = useCallback((kind: ChallengeKind, dateKey?: string): boolean => {
     const dk = dateKey ?? dateKeyOf(new Date());
@@ -1919,7 +1919,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       return false;
     }
     if (!stashHomeIfFreeform()) {
-      showToast("Couldn't free up storage to park your company â€” challenge cancelled to keep it safe.", { tone: "negative" });
+      showToast("Couldn't free up storage to park your company — challenge cancelled to keep it safe.", { tone: "negative" });
       return false;
     }
     mergeProfileAchievements(gs().unlockedAchievements); // keep this run's milestones
@@ -1933,7 +1933,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [stashHomeIfFreeform]);
 
   // Leave the current challenge/scenario and restore the stashed freeform company to the main slot.
-  // The held company resumes exactly where it was parked â€” time does NOT advance for the weeks spent
+  // The held company resumes exactly where it was parked — time does NOT advance for the weeks spent
   // in the side run (lastActive is re-anchored to now, like a paused-then-resumed session), so a
   // challenge can never bankrupt or age the real company. No-op if nothing is stashed.
   const returnHome = useCallback(() => {
@@ -1952,10 +1952,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   // All callbacks below are ref-stable (useCallback []/setState setters), so this object is built
   // once and keeps a stable identity. Co-locating the action list here replaces the old 60-entry
-  // hand-maintained dep array on `value` â€” which had silently drifted (4 callbacks were missing) â€”
+  // hand-maintained dep array on `value` — which had silently drifted (4 callbacks were missing) —
   // with a small, exhaustive-deps-checkable list, and lets the hot `value` memo depend on just the
   // data slice. (Per-tick re-renders are unchanged: every consumer reads `state`, and the costly 3D
-  // child is already React.memo'd â€” this is a correctness/maintainability fix, not a perf change.)
+  // child is already React.memo'd — this is a correctness/maintainability fix, not a perf change.)
   const actions = useMemo<GameActionsValue>(
     () => ({
       setPaused,
