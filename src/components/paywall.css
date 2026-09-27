@@ -6,7 +6,9 @@
    Gold rather than the app accent: this is the one prestige surface in the product, and the token
    system already owns --gold for awards / contracts / rank-1. */
 .pwl {
-  position: fixed; inset: 0; z-index: 62; /* above every interrupt overlay — it is always the answer */
+  position: fixed; inset: 0; z-index: 85; /* above every interrupt AND the era/IPO/bankrupt takeovers (75–80) — the IPO screen
+     raises it (Raise Heat, New Game+), and at 62 it opened invisibly behind. Below the frozen-tab
+     notice (90) and the celebration layer (100). */
   display: flex; align-items: center; justify-content: center;
   padding: var(--edge);
   padding-top: calc(var(--edge) + env(safe-area-inset-top));

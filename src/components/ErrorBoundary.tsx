@@ -13,13 +13,29 @@ interface State {
   confirmReset: boolean;
 }
 
-export class ErrorBoundary extends Component<{ children: ReactNode; fallback?: ReactNode }, State> {
+interface Props {
+  children: ReactNode;
+  /** Degraded UI shown instead of the reset card. A function receives `reset`, so the fallback can
+   *  offer a real "try again" — without it a caught crash stayed up until a full reload. */
+  fallback?: ReactNode | ((reset: () => void) => ReactNode);
+  /** Clears a caught error when this value changes (e.g. the active tab), so navigating away and back
+   *  re-mounts the screen instead of showing the crash card forever on a persistent wrapper. */
+  resetKey?: unknown;
+}
+
+export class ErrorBoundary extends Component<Props, State> {
   state: State = { error: null, componentStack: "", copied: false, confirmReset: false };
   private copiedTimer = 0;
 
   static getDerivedStateFromError(error: Error) {
     return { error };
   }
+
+  componentDidUpdate(prev: Props) {
+    if (this.state.error && prev.resetKey !== this.props.resetKey) this.reset();
+  }
+
+  reset = () => this.setState({ error: null, componentStack: "", copied: false, confirmReset: false });
 
   componentWillUnmount() {
     clearTimeout(this.copiedTimer);
@@ -71,7 +87,8 @@ export class ErrorBoundary extends Component<{ children: ReactNode; fallback?: R
 
   render() {
     if (!this.state.error) return this.props.children;
-    if (this.props.fallback !== undefined) return this.props.fallback;
+    const { fallback } = this.props;
+    if (fallback !== undefined) return typeof fallback === "function" ? fallback(this.reset) : fallback;
     const e = this.state.error;
     return (
       <div className="eb">

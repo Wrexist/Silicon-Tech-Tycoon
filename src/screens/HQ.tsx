@@ -23,6 +23,7 @@ import { useLaunchProduct } from "../state/useLaunchProduct.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
+import { moodBand } from "../engine/staff.ts";
 import { ascensionName } from "../engine/ascension.ts";
 import { lineComplete } from "../engine/factoryFloor.ts";
 import { currentObjective, type ObjectiveIconName } from "../engine/objectives.ts";
@@ -682,7 +683,7 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
   // identity, desk count, a coarse mood band and the headline skills — so keep the same array
   // until one of those actually changes.
   const staffSceneKey = state.staff
-    .map((s) => `${s.id}${s.appearance.skin}${s.appearance.hair}${s.appearance.hairColor}${s.appearance.shirt}${s.appearance.accessory}${Math.round(s.mood / 12)}${s.skills.engineering},${s.skills.design},${s.skills.marketing}`)
+    .map((s) => `${s.id}${s.appearance.skin}${s.appearance.hair}${s.appearance.hairColor}${s.appearance.shirt}${s.appearance.accessory}${moodBand(s.mood)}${s.skills.engineering},${s.skills.design},${s.skills.marketing}`)
     .join(";");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const staff3d = useMemo(() => state.staff, [staffSceneKey]);
@@ -1904,17 +1905,36 @@ function contractRemaining(c: Contract, f: ContractFacts): string {
 
 /** Compact card showing what's needed to advance to the next era (or reach IPO). */
 function EraGoalCard({ state }: { state: GameState }) {
-  if (state.era >= maxEra()) {
-    if (state.wentPublic) return null;
-    const repNeeded = BALANCE.ipo.minReputation - state.reputation;
-    if (repNeeded <= 0) return null;
+  if (state.era >= maxEra()) return null; // the final era — nothing left to advance to
+  // The AI Era's rep/rev bars are Infinity: the way on is going PUBLIC, then a Frontier breakthrough
+  // (gameState `canAdvance`). Branch on the IPO era itself — tying this to maxEra() broke when the
+  // post-IPO Autonomy Era raised it to 5, and the card read "Both thresholds are required" over no bars.
+  if (state.era === BALANCE.ipo.minEra) {
+    if (!state.wentPublic) {
+      if (state.reputation >= BALANCE.ipo.minReputation) return null; // the IPO call-to-action takes over
+      return (
+        <div className="hq__goal hq__goal--card">
+          <div className="hq__goal-head">
+            <span className="hq__goal-label">IPO goal</span>
+            <span className="hq__goal-era">{BALANCE.ipo.minReputation} reputation</span>
+          </div>
+          <GoalBar label="Reputation" value={state.reputation} target={BALANCE.ipo.minReputation} />
+          <p className="hq__goal-or">Going public opens Frontier Tech, the road to the {eraName(state.era + 1)}.</p>
+        </div>
+      );
+    }
+    const tier = state.frontierTier ?? 0;
+    const target = BALANCE.autonomyEra.tierToAdvance;
+    if (tier >= target) return null;
+    const cost = frontierCost(tier);
     return (
       <div className="hq__goal hq__goal--card">
         <div className="hq__goal-head">
-          <span className="hq__goal-label">IPO goal</span>
-          <span className="hq__goal-era">{BALANCE.ipo.minReputation} reputation</span>
+          <span className="hq__goal-label">Next era</span>
+          <span className="hq__goal-era">{eraName(state.era + 1)}</span>
         </div>
-        <GoalBar label="Reputation" value={state.reputation} target={BALANCE.ipo.minReputation} />
+        <GoalBar label={`Legacy Points for a Frontier breakthrough (need ${cost})`} value={state.legacyPoints ?? 0} target={cost} />
+        <p className="hq__goal-or">Reach Frontier Tech tier {target} to advance.</p>
       </div>
     );
   }

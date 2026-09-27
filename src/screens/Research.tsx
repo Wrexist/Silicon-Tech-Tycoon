@@ -65,15 +65,29 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
           const revGoalD = eraDef.revToAdvance === Infinity ? null : toDollars(eraDef.revToAdvance as Money);
           const repGoal = Number.isFinite(eraDef.repToAdvance) ? eraDef.repToAdvance : null;
 
+          // What it takes to REACH this era = the previous era's gate. Era 1→2 is either/or; from era 2
+          // both bars are required (eras.ts canAdvanceEra); the AI Era has no bars at all — the way on
+          // is an IPO, then a Frontier breakthrough.
+          const prevDef = idx > 0 ? eras[idx - 1] : null;
+          const reachReq = !prevDef ? "" : prevDef.era === BALANCE.ipo.minEra
+            ? `IPO + Frontier tier ${BALANCE.autonomyEra.tierToAdvance}`
+            : [
+                Number.isFinite(prevDef.repToAdvance) ? `${prevDef.repToAdvance} rep` : "",
+                Number.isFinite(prevDef.revToAdvance) ? `${formatShortDollars(toDollars(prevDef.revToAdvance as Money))} rev` : "",
+              ].filter(Boolean).join(prevDef.era === 1 ? " or " : " + ");
+
           let progressLabel = "";
-          if (active && eraDef.era < eraMax) {
-            const repPct = repGoal ? Math.min(100, Math.round((reputation / repGoal) * 100)) : 0;
-            const revPct = revGoalD ? Math.min(100, Math.round((cumulativeRevenueDollars / revGoalD) * 100)) : 0;
-            const bestPct = Math.max(repPct, revPct);
-            const label = repPct >= revPct
+          if (active && eraDef.era < eraMax && repGoal && revGoalD) {
+            const repPct = Math.min(100, Math.round((reputation / repGoal) * 100));
+            const revPct = Math.min(100, Math.round((cumulativeRevenueDollars / revGoalD) * 100));
+            // Either/or in era 1 → the better bar is the progress; both-required → the WORSE bar is.
+            const useRep = eraDef.era === 1 ? repPct >= revPct : repPct <= revPct;
+            const label = useRep
               ? `${Math.round(reputation)} / ${repGoal} rep`
-              : `${formatShortDollars(cumulativeRevenueDollars)} / ${formatShortDollars(revGoalD!)} rev`;
-            progressLabel = `${bestPct}%, ${label}`;
+              : `${formatShortDollars(cumulativeRevenueDollars)} / ${formatShortDollars(revGoalD)} rev`;
+            progressLabel = `${useRep ? repPct : revPct}%, ${label}`;
+          } else if (active && eraDef.era === BALANCE.ipo.minEra) {
+            progressLabel = `Next: go public, then a Frontier breakthrough`;
           }
 
           return (
@@ -88,13 +102,7 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
               <div className="rd__roadmap-body">
                 <div className="rd__roadmap-head">
                   <span className="rd__roadmap-name">{eraDef.name}</span>
-                  {future && eraDef.era < eraMax && (
-                    <span className="rd__roadmap-req">
-                      {repGoal ? `${repGoal} rep` : ""}
-                      {repGoal && revGoalD ? " or " : ""}
-                      {revGoalD ? `${formatShortDollars(revGoalD)} rev` : ""}
-                    </span>
-                  )}
+                  {future && reachReq && <span className="rd__roadmap-req">{reachReq}</span>}
                 </div>
                 <p className="rd__roadmap-flavor">{eraContext(eraDef.era).tagline}</p>
                 {active && <p className="rd__roadmap-story">{eraContext(eraDef.era).story}</p>}

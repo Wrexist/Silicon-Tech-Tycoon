@@ -32,6 +32,7 @@ import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { useEscapeLayer } from "../design/overlayGuard.ts";
+import { useHoldSim } from "../state/useGame.tsx";
 import { onPaywall, markOnboardingPaywallSeen, type PaywallRequest } from "../state/paywall.ts";
 import { FREE_TIER, paywallCopy, PRO_BENEFITS, REASON_BENEFIT_ORDER, RETURNING_COPY } from "../state/proGates.ts";
 import { getFounderIntent, INTENT_HEADLINE, leadWith, orderBenefits } from "../state/founderIntent.ts";
@@ -108,6 +109,8 @@ export function Paywall() {
 function PaywallCard({ req, onClose }: { req: PaywallRequest; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true);
+  // Reading an offer never costs in-game time: hold the sim (ref-counted) while the card is up.
+  useHoldSim(true);
 
   // Which argument to lead with. Precedence matters:
   //  1. A SPECIFIC gate always wins — the player just asked a question and the offer should answer

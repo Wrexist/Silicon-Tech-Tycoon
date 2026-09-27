@@ -3,7 +3,7 @@ import { useSaveHealth } from "./state/saveHealth.ts";
 import { hasFactoryAccess } from "./state/factorySummary.ts";
 import { Suspense, lazy, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, Check, CircuitBoard, CircleX, Compass, Copy, Cpu, Crown, Factory, Flame, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
-import { GameProvider, useGame, useGameActions } from "./state/useGame.tsx";
+import { GameProvider, useGame, useGameActions, useHoldSim } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud, SpeedDial } from "./components/Hud.tsx";
 import { Bank } from "./components/Bank.tsx";
@@ -305,13 +305,13 @@ function AppShell() {
               </div>
             )}
           </div>
-          <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
+          <ErrorBoundary resetKey={`${tab}:${page ?? ""}`} fallback={(reset) => <ScreenError onHome={() => { reset(); setTab("hq"); }} />}>
             <HQ onNavigate={setTab} onOpenBank={openBank} onOpenChallenges={() => (uiVersion === "next" ? push("progress", { section: "challenges" }) : openProgress("challenges"))} onViewFactory={() => { setHqWorld("factory"); haptic.light(); }} active={tab === "hq" && page == null} world={hqWorld} />
           </ErrorBoundary>
         </div>
         {designVisited.current && <div className="app__screen" hidden={page != null || tab !== "design"}>
           {uiVersion !== "next" && <h1 className="app__title">Design Lab</h1>}
-          <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
+          <ErrorBoundary resetKey={tab} fallback={(reset) => <ScreenError onHome={() => { reset(); setTab("hq"); }} />}>
             <Suspense fallback={<ScreenLoading />}>
               <DesignLab key={gameId} active={tab === "design" && page == null} seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} />
             </Suspense>
@@ -546,6 +546,9 @@ function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
   // A pending mandate draft for THIS era must be resolved before leaving — the player picks or declines.
   const offer = state.pendingMandateOffer && state.pendingMandateOffer.eraTo === era ? state.pendingMandateOffer : null;
   const [picked, setPicked] = useState<string | null>(null);
+  // Time stops while the era card is up: the mandate draft is a decision, and weeks of rent (plus
+  // interrupts stacking over it) shouldn't run behind the player while they read it.
+  useHoldSim(true);
   // Escape declines the draft (always safe) if one is open, else just dismisses — but only while this
   // modal is the frontmost layer, so an Escape meant for a card above it can't decline the mandate.
   useEscapeLayer(true, () => {
@@ -713,6 +716,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
     }),
   ).title;
   useDialogFocus(ref, true);
+  useHoldSim(true); // the New Game+ decision is read with the clock stopped, like every other card
   // Frontmost-only Escape: with the Heat paywall or the "forging" celebration open above, one press
   // must not also dismiss this overlay (that marks the IPO seen and strands New Game+ for the run).
   useEscapeLayer(true, onDismiss);

@@ -8,9 +8,6 @@ import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../d
 import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
-import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
-import { maybePromptFirstLaunchReview } from "../state/review.ts";
-import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { categoryLevelOf, MASTERY_MAX_LEVEL } from "../engine/mastery.ts";
@@ -56,7 +53,6 @@ import {
   hypeBonus,
   lensUnlockCost,
   finishUnlockCost,
-  insightFromPlan,
   marketerSkill,
   prototypeState,
   forecastConfidenceInput,
@@ -269,7 +265,7 @@ export function DesignLab({
   seed?: Product | null;
   onSeedConsumed?: () => void;
 } = {}) {
-  const { state, build, launchReady, unlockLens, unlockFinish, negotiateContract, runPrototype, clearPrototype } = useGame();
+  const { state, build, unlockLens, unlockFinish, negotiateContract, runPrototype, clearPrototype } = useGame();
   const uiVersion = useUiVersion();
   const [contractSheet, setContractSheet] = useState<SupplierId | null>(null);
   const { tabBlocked } = useGameControls();
@@ -551,49 +547,12 @@ export function DesignLab({
     clearPrototype(); // a new design starts with a clean prototype slate
   }
 
-  // Launch a finished product straight from the Lab — same premium beat HQ uses (haptics, sound,
-  // celebrate FX on a hit, verdict toast) so the whole loop (design → build → launch) lives in one
-  // place and never forces a trip to another tab.
+  // Launch a finished product straight from the Lab through the SAME shared action HQ and the
+  // ready-to-launch popup use — a hand-copied version here had drifted and skipped the Category
+  // Mastery and Franchise "Iconic" celebrations when you shipped from the Lab.
+  const launchFromLab = useLaunchProduct();
   function onLaunch(id: string) {
-    // Snapshot the launched list BEFORE launchReady records this product (for first-ever/first-hit).
-    const launchedBefore = state.launched;
-    const product = state.ready.find((p) => p.id === id);
-    // Pre-launch plan + stats feed the deterministic critic reviews shown in the reveal.
-    const plan = product ? planProduction(state, product, product.plannedUnits ?? BALANCE.build.minRun, (product.channelId as ChannelId) ?? "none") : null;
-    const res = launchReady(id);
-    if (!res.ok) { haptic.error(); showToast(res.reason ?? "That product couldn't launch.", { tone: "negative" }); return; }
-    haptic.success();
-    // launchOutcome keys the celebration off the ACTUAL recorded verdict (competition-adjusted),
-    // not the raw score — and is shared with HQ so the two launch surfaces can't drift.
-    const { isHit } = launchOutcome(res, launchedBefore);
-    sfx("launch");
-    if (isHit) setTimeout(() => sfx("hit"), 380);
-    // Debut peak — first product ever ships (mirrors HQ): heavier thump + a triumphant chime atop
-    // the reveal's confetti so the core-loop payoff lands as a genuine high.
-    if (launchedBefore.length === 0) {
-      haptic.heavy();
-      if (!isHit) setTimeout(() => sfx("hit"), 420);
-    }
-    // Hit-streak dopamine (mirrors HQ): a hit extends the pre-launch streak; anything else breaks it.
-    const streak = isHit ? currentHitStreak(launchedBefore) + 1 : 0;
-    if (streak >= 3) setTimeout(() => haptic.heavy(), 200);
-    if (product && plan) {
-      emitLaunchReveal(buildLaunchReveal({
-        product,
-        stats: productStats(state, product),
-        verdict: res.verdict ?? "steady",
-        demandFit: plan.demandFit,
-        priceFit: plan.priceFit,
-        betterRivals: plan.betterRivals,
-        units: plan.projectedSales,
-        isHit,
-        firstLaunch: launchedBefore.length === 0,
-        streak,
-        insight: insightFromPlan(plan),
-      }));
-      // First product ever shipped — a real high point. Ask for an App Store review (once).
-      if (launchedBefore.length === 0) maybePromptFirstLaunchReview();
-    }
+    launchFromLab(id, (reason) => { haptic.error(); showToast(reason ?? "That product couldn't launch.", { tone: "negative" }); });
   }
 
   // Derive top-wanted stat for the market hint (highest target weight vs current weight delta)

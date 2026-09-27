@@ -84,11 +84,12 @@ describe("the error fallback cannot crash the same way", () => {
   it("returns the caller's fallback before it renders anything of its own", () => {
     const render = BOUNDARY.slice(BOUNDARY.indexOf("  render()"));
     const passthrough = render.indexOf("if (!this.state.error) return this.props.children;");
-    const fallback = render.indexOf("if (this.props.fallback !== undefined) return this.props.fallback;");
+    // A fallback may be a value or a `(reset) => node` render function (so it can offer "try again").
+    const fallback = render.indexOf('if (fallback !== undefined) return typeof fallback === "function" ? fallback(this.reset) : fallback;');
     expect(passthrough).toBeGreaterThan(-1);
     expect(fallback).toBeGreaterThan(-1);
-    // The fallback path is a bare return of a value the caller already constructed: nothing between
-    // the catch and it can throw, so a boundary handed `null` genuinely renders nothing.
+    // The fallback path returns what the caller handed over (or what its render function builds):
+    // nothing of the boundary's own runs between the catch and it, so `null` genuinely renders nothing.
     expect(fallback).toBeGreaterThan(passthrough);
     const preamble = render.slice(0, fallback);
     expect(preamble).not.toMatch(/this\.(report|copy)\(/);

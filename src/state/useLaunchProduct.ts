@@ -31,7 +31,7 @@ import type { LaunchedProduct } from "../engine/types.ts";
 export function useLaunchProduct() {
   const { state, launchReady } = useGame();
   return useCallback(
-    (id: string): boolean => {
+    (id: string, onRefused?: (reason?: string) => void): boolean => {
       const launchedBefore = state.launched; // before launchReady records this product
       const product = state.ready.find((p) => p.id === id);
       // Pre-launch plan + stats feed the deterministic critic reviews shown in the reveal.
@@ -39,7 +39,7 @@ export function useLaunchProduct() {
         ? planProduction(state, product, product.plannedUnits ?? BALANCE.build.minRun, (product.channelId as ChannelId) ?? "none")
         : null;
       const res = launchReady(id);
-      if (!res.ok) return false;
+      if (!res.ok) { onRefused?.(res.reason); return false; }
       haptic.success();
       // Keys the celebration off the recorded (competition-adjusted) verdict so the launch moment
       // can never contradict what Market/feed record.
