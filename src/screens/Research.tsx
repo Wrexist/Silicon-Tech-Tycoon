@@ -147,7 +147,7 @@ function ResearchAction({ status, cost, affordable, queueFull, weeksAway, onStar
       <Button size="sm" variant={affordable && !queueFull ? "primary" : "tertiary"} disabled={!affordable || queueFull} haptics="none" onClick={onStart}>
         {cost !== null ? `${cost} RP` : "—"}
       </Button>
-      {cost !== null && <span className="rd__weeks-away">{researchWeeksFor(cost)} weeks{queueFull ? " - queue full" : ""}</span>}
+      {cost !== null && <span className="rd__weeks-away">{researchWeeksFor(cost)} {researchWeeksFor(cost) === 1 ? "week" : "weeks"}{queueFull ? " - queue full" : ""}</span>}
       {!queueFull && !affordable && weeksAway != null && <span className="rd__weeks-away">~{weeksAway}wk to save</span>}
     </>
   );
@@ -321,7 +321,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
       {/* Research projects — grouped by era. Progressive disclosure: only the eras you've reached
           render (the EraRoadmap above already previews what's ahead), so a first-time researcher
           isn't staring at a wall of locked future-era project cards. */}
-      <SectionHeader title="Available & locked projects" accessory="evolve the company" />
+      <SectionHeader title="Projects by era" accessory="evolve the company" />
       {Array.from({ length: maxEra() }, (_, i) => i + 1).filter((era) => era <= state.era).map((era) => {
         const eraView = researchEraView(era, state.completedProjects, pendingRefs);
         const eraProjects = eraView.visible;

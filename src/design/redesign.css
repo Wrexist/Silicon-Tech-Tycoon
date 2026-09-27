@@ -92,6 +92,10 @@ body::before { display: none; }
 .app :is(.lab__tabs,.rd__subnav,.mkt__subnav,.co__subnav) { display: flex; gap: var(--sp-4); padding: var(--sp-4); background: var(--surface); border: 1px solid var(--hairline); box-shadow: none; border-radius: var(--r-button); }
 .app :is(.lab__tab,.rd__subtab,.mkt__subtab,.co__subtab) { flex: 1; min-width: 0; min-height: 44px; padding: var(--sp-8) var(--sp-4); font-size: var(--fs-caption); border-radius: var(--r-button); background: transparent; color: var(--ink-2); box-shadow: none; white-space: normal; }
 .app :is(.lab__tab--on,.rd__subtab--on,.mkt__subtab--on,.co__subtab--on) { background: var(--primary); color: var(--accent-ink); box-shadow: none; }
+/* Size tabs by their label, then share the spare width: a single long word ("Components") can't wrap,
+   so equal-width flex:1 clipped it against the pill edge on a 390px phone. */
+.app :is(.lab__tab,.rd__subtab,.mkt__subtab,.co__subtab) { flex: 1 1 auto; overflow-wrap: anywhere; }
+.app .lab__tab-badge { top: 2px; right: 2px; }
 .app .rd { gap: var(--sp-12); }
 .rd__balance { display: flex; align-items: center; gap: var(--sp-12); }
 .rd__balance > div { flex: 1; display: flex; flex-direction: column; gap: var(--sp-4); font-size: var(--fs-caption); color: var(--ink-2); }

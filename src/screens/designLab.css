@@ -1598,7 +1598,7 @@
   width: 15px;
   height: 15px;
   background: var(--positive);
-  color: #fff;
+  color: var(--accent-ink);
 }
 .lab__tab--on .lab__tab-badge {
   box-shadow: 0 0 0 2px var(--accent);

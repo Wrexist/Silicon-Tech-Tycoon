@@ -775,7 +775,8 @@
   align-self: flex-start;
   margin-top: 3px;
   padding: 2px 8px;
-  border-radius: var(--r-pill);
+  /* A pill turns into a lozenge when a long effect wraps to two lines — a chip radius stays tidy. */
+  border-radius: var(--r-button);
   background: var(--accent-soft);
   font-size: var(--fs-micro);
   font-weight: 700;
