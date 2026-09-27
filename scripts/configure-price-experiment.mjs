@@ -1,4 +1,4 @@
-﻿// Creates only the six explicitly approved experiment SKUs. Never reprices legacy products.
+// Creates only the six explicitly approved experiment SKUs. Never reprices legacy products.
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { asc, sanitized } from './app-store-client.mjs';
 
@@ -82,15 +82,16 @@ for (const plan of config.products) {
     const equivalents = (await all(`/v1/subscriptionPricePoints/${point.id}/equalizations?include=territory&limit=200`)).data;
     const prices = [point, ...equivalents].filter((p, i, a) => a.findIndex(x => x.id === p.id) === i && territoryIds.has(p.relationships?.territory?.data?.id));
     if (new Set(prices.map(p => p.relationships.territory.data.id)).size !== territoryIds.size) throw Error('Incomplete equalized prices');
-    await each(prices, async p => {
+    for (const p of prices) {
       const territory = p.relationships.territory.data.id, prior = existingByTerritory.get(territory);
       if (prior) {
         if (prior.relationships.subscriptionPricePoint.data.id !== p.id) throw Error('Existing experiment price differs; refusing overwrite');
-        return;
+        continue;
       }
-      await asc('/v1/subscriptionPrices', 'POST', { type: 'subscriptionPrices', attributes: { preserveCurrentPrice: true },
+      console.log('Setting initial price', plan.productId, territory);
+      await asc('/v1/subscriptionPrices', 'POST', { type: 'subscriptionPrices', attributes: { startDate: null, preserveCurrentPrice: false },
         relationships: { subscription: rel(type, product.id), territory: rel('territories', territory), subscriptionPricePoint: rel('subscriptionPricePoints', p.id) } });
-    });
+    }
     const offers = (await all(`${base}/introductoryOffers?include=territory&limit=200`)).data;
     await each(territories, async t => {
       const prior = offers.find(o => o.relationships?.territory?.data?.id === t.id);
