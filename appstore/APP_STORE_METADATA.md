@@ -256,19 +256,19 @@ Gambling and Contests · Sexual Content · Graphic Sexual Content · **Simulated
 
 ---
 
-## 8. App Privacy (Purchase History + Device ID, app functionality)
+## 8. App Privacy (purchase functionality and pricing analytics)
 
-App Store Connect → **App Privacy** → "Do you collect data from this app?" → **Yes**, then declare
-exactly two types, both **App Functionality**, both **not linked to the user** and **not used for
-tracking**:
+App Store Connect ? **App Privacy** ? data collected: **Yes**. All three types are
+**not linked to the user** and **not used for tracking**:
 
-| Data type | Purpose |
+| Data type | Purposes |
 |---|---|
-| **Purchase History** | Entitlement validation and restore |
-| **Device ID** | The anonymous RevenueCat install identifier a purchase is restored against |
+| **Purchase History** | App Functionality; Analytics |
+| **Device ID** | App Functionality; Analytics (anonymous RevenueCat identifier) |
+| **Product Interaction** | Analytics (paywall views and assigned offering) |
 
-The game has no backend, no analytics, no ad SDK, no login — saves, settings and statistics live in
-on-device `localStorage` and never leave the device. Everything else is **not collected**.
+RevenueCat validates purchases and measures the pricing experiment. Saves, settings and
+in-game statistics remain on the device. There is no login, advertising SDK or tracking.
 
 **`PrivacyInfo.xcprivacy`** (add to the iOS target):
 
@@ -277,7 +277,7 @@ on-device `localStorage` and never leave the device. Everything else is **not co
 | `NSPrivacyAccessedAPICategoryUserDefaults` | `CA92.1` — store user's app settings (game save) |
 
 No tracking (`NSPrivacyTracking` is false) and no other required-reason APIs. RevenueCat is the only
-third-party **SDK**, used solely to process purchases — see `REVENUECAT_SETUP.md` §8.
+third-party **SDK**, used to process purchases and measure paywall pricing — see `REVENUECAT_SETUP.md` §8.
 
 **Version 1.4.0 purchase data flow:** RevenueCat processes in-app purchases. Founding Owner eligibility uses Apple's verified original AppTransaction locally. The unavailable Vercel refund endpoint has been removed; Apple's refund-history API covers in-app purchases rather than paid-app downloads. No claim of paid-app refund verification is made.
 
@@ -342,10 +342,9 @@ The deployed privacy page is byte-identical to `docs/privacy/index.html`, i.e. n
 Minimum privacy policy text (already in `public/privacy.html`):
 ```text
 Silicon: Tech Tycoon does not track you and does not sell or share personal data.
-All progress is stored locally on your device — your saves never leave it. No account,
-no analytics. Purchases are processed by Apple and by RevenueCat, which records this
+All progress is stored locally on your device — your saves never leave it. No account login. Purchases are processed by Apple and by RevenueCat, which records this
 install's purchase history against an anonymous identifier so purchases can be validated
-and restored. Questions: isacmolin@gmail.com
+and restored. RevenueCat also records paywall views and assigned offerings for pricing analytics. Questions: isacmolin@gmail.com
 ```
 
 ---

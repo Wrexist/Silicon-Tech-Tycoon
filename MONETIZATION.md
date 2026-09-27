@@ -376,12 +376,9 @@ So the honest levers on return-per-install, in the order they move money:
   went public" ceremony and its epilogue are Pro-only. That is intentional (it is the payoff), but
   it means the free tier's ending is open-ended rather than climactic. If free retention proves
   weak, giving free players a *smaller* terminal beat is a better fix than moving the wall.
-- **No analytics.** There is no analytics, advertising or attribution SDK, no tracking and no
-  accounts — a real selling point, and the reason there is no `track()` call anywhere in this code.
-  The one third-party SDK is RevenueCat, used only to process purchases, which is why App Privacy
-  declares Purchase History + an anonymous Device ID (both *app functionality*, not linked, not used
-  for tracking; `NSPrivacyTracking` stays false). The game's own data — saves, settings, statistics —
-  still never leaves the device. The funnel therefore has to be tuned from App Store Connect's and
-  RevenueCat's own subscription reports, which are aggregate and delayed. That is a deliberate trade
-  of measurement for the privacy claim. Setup and the exact privacy answers:
-  `appstore/REVENUECAT_SETUP.md`.
+- **Pricing analytics only.** RevenueCat processes purchases and records visible custom-paywall
+  impressions with the assigned offering for the 1.4.0 pricing experiment. App Privacy declares
+  Purchase History and anonymous Device ID for App Functionality and Analytics, plus Product
+  Interaction for Analytics. These are not linked to user identity or used for tracking.
+  Saves, settings and gameplay statistics remain on the device; no advertising SDK or login is added.
+  The policy and privacy labels must be updated before releasing this build.

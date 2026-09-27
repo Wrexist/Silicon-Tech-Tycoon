@@ -34,14 +34,6 @@ async function missingAllowed(path) {
   try { return (await asc(path)).data; }
   catch (e) { if (String(e).includes(': 404 ')) return null; throw e; }
 }
-async function each(items, fn) {
-  // Bounded API concurrency; completed resources are reused if a run is interrupted.
-  for (let i = 0; i < items.length; i += 4) {
-    const results = await Promise.allSettled(items.slice(i, i + 4).map(fn));
-    const failure = results.find(r => r.status === 'rejected');
-    if (failure) throw failure.reason;
-  }
-}
 const subs = (await all(`/v1/subscriptionGroups/${config.subscriptionGroupId}/subscriptions?limit=200`)).data;
 const iaps = (await all(`/v1/apps/${config.appId}/inAppPurchasesV2?limit=200`)).data;
 save('before-products', [...subs, ...iaps]);
@@ -99,16 +91,20 @@ for (const plan of config.products) {
       } }, missingPrices);
     }
     const offers = (await all(`${base}/introductoryOffers?include=territory&limit=200`)).data;
-    await each(territories, async t => {
+    const missingOffers = [];
+    for (const t of territories) {
       const prior = offers.find(o => o.relationships?.territory?.data?.id === t.id);
       if (prior) {
         if (prior.attributes.offerMode !== 'FREE_TRIAL' || prior.attributes.duration !== 'ONE_WEEK') throw Error('Existing trial differs');
-        return;
+        continue;
       }
-      await asc('/v1/subscriptionIntroductoryOffers', 'POST', { type: 'subscriptionIntroductoryOffers',
+      missingOffers.push({ type: 'subscriptionIntroductoryOffers', id: '${trial-' + t.id + '}',
         attributes: { duration: 'ONE_WEEK', numberOfPeriods: 1, offerMode: 'FREE_TRIAL' },
         relationships: { subscription: rel(type, product.id), territory: rel('territories', t.id) } });
-    });
+    }
+    if (missingOffers.length) await asc(base, 'PATCH', { type, id: product.id, relationships: {
+      introductoryOffers: { data: [...offers.map(o => ({ type: o.type, id: o.id })), ...missingOffers.map(o => ({ type: o.type, id: o.id }))] },
+    } }, missingOffers);
   } else {
     const schedule = await missingAllowed(`${base}/iapPriceSchedule`);
     const current = schedule ? (await all(`/v1/inAppPurchasePriceSchedules/${schedule.id}/manualPrices?filter[territory]=USA&include=inAppPurchasePricePoint&limit=200`)).data : [];
