@@ -24,6 +24,7 @@ vi.mock("./storeKitBridge.ts", () => ({
 vi.mock("./nativeStore.ts", () => ({ mirrorToNative: () => {}, hydrateFromNative: async () => {} }));
 
 import { getProRecord, grantFounding, isPro, proRecordFrom, setProRecord } from "./pro.ts";
+import { hasSandboxEntitlement } from "./entitlements.ts";
 import { getProCatalog, purchasePro, restorePro, syncPro } from "./proStore.ts";
 
 class MemStorage {
@@ -222,6 +223,18 @@ describe("purchasePro", () => {
 });
 
 describe("getProCatalog", () => {
+  it("never substitutes a US price for missing native storefront pricing", async () => {
+    bridge.getProducts.mockResolvedValue({ products: [
+      { id: "com.wrexist.silicon.pro.yearly", price: "  " },
+      { id: "com.wrexist.silicon.pro.monthly" },
+      { id: "com.wrexist.silicon.pro.lifetime", price: "299 kr" },
+    ] });
+    const catalog = await getProCatalog();
+    expect(catalog.offers.map(({ id, price }) => ({ id, price }))).toEqual([
+      { id: "com.wrexist.silicon.pro.lifetime", price: "299 kr" },
+    ]);
+  });
+
   it("only offers rows the store confirmed it can sell", async () => {
     bridge.getProducts.mockResolvedValue({
       products: [
@@ -271,6 +284,32 @@ describe("getProCatalog", () => {
 });
 
 describe("restorePro", () => {
+  it("restores the legacy Creative purchase without granting full Pro", async () => {
+    bridge.restore.mockResolvedValue({ restored: true, owned: ["com.wrexist.silicon.sandbox"] });
+    expect(await restorePro()).toEqual({ restored: false, creativeRestored: true });
+    expect(hasSandboxEntitlement()).toBe(true);
+    expect(isPro()).toBe(false);
+  });
+
+  it("reports a retryable error when restore and entitlement reads fail", async () => {
+    bridge.restore.mockRejectedValue(new Error("offline"));
+    bridge.isOwned.mockRejectedValue(new Error("offline"));
+    bridge.subscriptionStatus.mockRejectedValue(new Error("offline"));
+    await expect(restorePro()).rejects.toThrow("Couldn't reach the App Store");
+    expect(isPro()).toBe(false);
+  });
+
+  it("does not claim there are no purchases after a cancelled store refresh", async () => {
+    bridge.restore.mockRejectedValue(new Error("sign-in cancelled"));
+    await expect(restorePro()).rejects.toThrow("Couldn't reach the App Store");
+  });
+
+  it("requires a conclusive entitlement read after a successful restore", async () => {
+    bridge.restore.mockResolvedValue({ restored: true, owned: [] });
+    bridge.subscriptionStatus.mockRejectedValue(new Error("offline"));
+    await expect(restorePro()).rejects.toThrow("Couldn't reach the App Store");
+  });
+
   it("recovers an active subscription that this device had no record of", async () => {
     bridge.restore.mockResolvedValue({ restored: true, owned: [] });
     bridge.subscriptionStatus.mockResolvedValue({

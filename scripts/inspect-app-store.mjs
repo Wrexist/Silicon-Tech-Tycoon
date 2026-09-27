@@ -50,6 +50,24 @@ for(const [kind,path] of [['subscriptionGroups',`/v1/apps/${app.id}/subscription
   } catch(e) { report.warnings.push(String(e)); }
 }
 report.storeSetup={};
+report.storeSetup.serverNotifications = {
+  productionConfigured: !!app.attributes.subscriptionStatusUrl,
+  sandboxConfigured: !!app.attributes.subscriptionStatusUrlForSandbox,
+};
+for (const purchase of report.purchases.filter(p => p.kind === 'inAppPurchases')) {
+  try {
+    const schedule = await get(`/v2/inAppPurchases/${purchase.id}/iapPriceSchedule`);
+    report.purchases.push({kind:'iapPrices',productId:purchase.productId,response:await get(`/v1/inAppPurchasePriceSchedules/${schedule.data.id}/manualPrices?filter[territory]=USA&include=inAppPurchasePricePoint`)});
+  } catch(e) { report.warnings.push(String(e)); }
+}
+try {
+  const groups = await get(`/v1/apps/${app.id}/betaGroups?limit=200`);
+  report.testFlightGroups = [];
+  for (const group of groups.data) {
+    const groupBuilds = await get(`/v1/betaGroups/${group.id}/builds?limit=200`);
+    report.testFlightGroups.push({id:group.id,name:group.attributes.name,isInternalGroup:group.attributes.isInternalGroup,hasAccessToAllBuilds:group.attributes.hasAccessToAllBuilds,builds:groupBuilds.data.map(b=>({id:b.id,number:b.attributes.version}))});
+  }
+} catch(e) { report.warnings.push(String(e)); }
 for(const [label,path] of [
   ['appPrices',`/v1/appPriceSchedules/${app.id}/manualPrices?filter[territory]=USA&include=appPricePoint`],
   ['subscriptionGracePeriod',`/v1/apps/${app.id}/subscriptionGracePeriod`],

@@ -112,11 +112,11 @@ export async function getProCatalog(): Promise<ProCatalog> {
     const offers: ProOffer[] = [];
     for (const id of PRO_PRODUCT_IDS) {
       const hit = products.find((p) => p.id === id);
-      if (!hit) continue; // the store didn't offer it — don't render a row that can only fail
+      if (!hit?.price?.trim()) continue; // never advertise a guessed price on a real storefront
       const cfg = proProduct(id)!;
       offers.push({
         id,
-        price: hit.price?.trim() || cfg.fallbackPrice,
+        price: hit.price.trim(),
         // Numeric amount for value math. Only taken when the store actually gave us one — never
         // paired with the USD fallback string, which would compare a real price against a
         // config constant and could invent a saving that isn't real in this storefront.
@@ -212,17 +212,26 @@ function mockPeriodMs(tier: ProTier): number {
 
 /** App Store "Restore Purchases". Required on every paywall by Apple's own checklist — a user who
  *  reinstalls or switches devices must have a way back to what they already own. */
-export async function restorePro(): Promise<{ restored: boolean }> {
+export async function restorePro(): Promise<{ restored: boolean; creativeRestored?: boolean }> {
   if (!isNative()) return { restored: isPro() };
   if (!NATIVE_PRO_WIRED) return { restored: isPro() };
 
+  let restoreFailed = false;
+  let creativeRestored = false;
   try {
-    await storeKit().restore({});
+    const result = await storeKit().restore({});
+    creativeRestored = result.owned?.includes("com.wrexist.silicon.sandbox") === true;
+    if (creativeRestored) grantSandboxEntitlement();
   } catch {
-    /* the sync below is still worth attempting — restore() mainly forces an App Store refresh */
+    restoreFailed = true;
   }
-  await syncPro();
-  return { restored: isPro() };
+  // A failed refresh can still recover an entitlement, but cannot prove there is
+  // nothing to restore. Let the existing UI error path offer a retry instead.
+  const answered = await syncPro();
+  if (!isPro() && !creativeRestored && (restoreFailed || !answered)) {
+    throw new Error("Couldn't reach the App Store. Please try again.");
+  }
+  return { restored: isPro(), creativeRestored };
 }
 
 /* ─────────────────────────────  SYNC  ───────────────────────────── */
