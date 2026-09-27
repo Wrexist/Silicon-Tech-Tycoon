@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEscapeLayer } from "../design/overlayGuard.ts";
 import { createPortal } from "react-dom";
 import {
   ArrowLeft, ArrowRight, Check, Crosshair, Hand, LayoutGrid, RotateCw, Smile, Sparkles, Sprout, Trash2, Users, Wand2, X,
@@ -138,12 +139,7 @@ export function DecorateTutorial({ open, onClose }: { open: boolean; onClose: ()
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   useDialogFocus(cardRef, open); // trap Tab within the dialog + restore focus to the opener on close
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCloseRef.current(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  useEscapeLayer(open, () => { onCloseRef.current(); });
 
   if (!open) return null;
 

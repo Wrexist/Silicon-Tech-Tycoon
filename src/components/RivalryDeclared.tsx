@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { Swords, Flame } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
-import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { useEscapeLayer } from "../design/overlayGuard.ts";
 import { higherPriorityPending } from "../design/interruptPriority.ts";
 import { useDecisionOpen } from "../design/decisionInbox.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
@@ -46,18 +46,9 @@ export function RivalryDeclared() {
     sfx("hit");
     haptic.heavy();
   }, [showing]);
-  useEffect(() => {
-    if (!showing) return;
-    return registerAppOverlay();
-  }, [showing]);
 
   useDialogFocus(dialogRef, showing);
-  useEffect(() => {
-    if (!showing) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") dismissRivalry(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [showing, dismissRivalry]);
+  useEscapeLayer(showing, () => { dismissRivalry(); });
 
   if (!rivalry || !showing) return null;
 

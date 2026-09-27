@@ -8,7 +8,7 @@ import { Award, Gem, Palette, Trophy, type LucideIcon } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { AWARD_FANS_BONUS, AWARD_REP_BONUS } from "../state/gameState.ts";
-import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { useEscapeLayer } from "../design/overlayGuard.ts";
 import { higherPriorityPending } from "../design/interruptPriority.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
@@ -54,18 +54,9 @@ export function AwardsCeremonyOverlay() {
     const raf = requestAnimationFrame(() => setRevealed(true));
     return () => cancelAnimationFrame(raf);
   }, [showing, ceremony]);
-  useEffect(() => {
-    if (!showing) return;
-    return registerAppOverlay();
-  }, [showing]);
 
   useDialogFocus(dialogRef, showing);
-  useEffect(() => {
-    if (!showing) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") collectAwards(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [showing, collectAwards]);
+  useEscapeLayer(showing, () => { collectAwards(); });
 
   if (!ceremony || !showing) return null;
 

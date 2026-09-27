@@ -15,7 +15,7 @@ import { format, toDollars } from "../engine/money.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
-import { readyLaunchClaimed, registerAppOverlay } from "../design/overlayGuard.ts";
+import { readyLaunchClaimed, useEscapeLayer } from "../design/overlayGuard.ts";
 import type { ChannelId } from "../engine/marketing.ts";
 import "./readyToLaunch.css";
 
@@ -64,16 +64,7 @@ export function ReadyToLaunch() {
   const showing = product !== null;
   // Register as a top-level overlay while visible so lower full-screen layers (Factory mode)
   // defer their own Escape handler — one Escape dismisses the popup, not the popup AND the mode.
-  useEffect(() => {
-    if (!showing) return;
-    return registerAppOverlay();
-  }, [showing]);
-  useEffect(() => {
-    if (!product) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setQueue((q) => q.slice(1)); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [product]);
+  useEscapeLayer(showing, () => { setQueue((q) => q.slice(1)); });
 
   if (!product) return null;
 

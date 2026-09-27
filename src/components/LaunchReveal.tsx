@@ -6,7 +6,7 @@ import { ChevronRight, Flame, Rocket, Sparkles, Star, X } from "lucide-react";
 import { DeviceRenderer } from "../render/DeviceRenderer.tsx";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { onLaunchReveal, setLaunchRevealActive, type LaunchRevealData } from "../design/launchReveal.ts";
-import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { registerAppOverlay, useEscapeLayer } from "../design/overlayGuard.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { emitHqReaction } from "../design/hqReaction.ts";
 import { prefersReducedMotion } from "../garage3d/support.ts";
@@ -97,14 +97,7 @@ export function LaunchReveal({ onSeeBreakdown }: { onSeeBreakdown?: (productId: 
   // a11y: this is a hand-built modal shown on EVERY launch, so it must carry the same focus/keyboard
   // machinery as the shared Sheet — trap Tab focus within the card while open, and close on Escape.
   useDialogFocus(dialogRef, data !== null);
-  useEffect(() => {
-    if (!data) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") close(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-    // close is derived from `data`; re-binding when `data` changes is sufficient and correct.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data]);
+  useEscapeLayer(showing, close);
 
   if (!data) return null;
   const v = VERDICT_COPY[data.verdict];

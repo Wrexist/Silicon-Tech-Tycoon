@@ -9,7 +9,7 @@ import { useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { marketingPushQuote } from "../state/gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
-import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { useEscapeLayer } from "../design/overlayGuard.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { higherPriorityPending } from "../design/interruptPriority.ts";
 import { format, sub, cents, type Money } from "../engine/money.ts";
@@ -43,18 +43,9 @@ export function RivalStrike() {
     haptic.warning?.();
     sfx("confirm");
   }, [showing]);
-  useEffect(() => {
-    if (!showing) return;
-    return registerAppOverlay();
-  }, [showing]);
 
   useDialogFocus(dialogRef, showing);
-  useEffect(() => {
-    if (!showing) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") resolveStrike("hold"); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [showing, resolveStrike]);
+  useEscapeLayer(showing, () => { resolveStrike("hold"); });
 
   if (!strike || !showing) return null;
 
