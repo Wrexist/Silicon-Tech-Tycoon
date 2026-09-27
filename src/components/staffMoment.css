@@ -1,7 +1,7 @@
 /* Staff growth moment — a celebratory "your teammate leveled up" card with a permanent CHOICE, then a
    short reveal. Same clear-liquid-glass modal frame as the eureka / rival-strike cards. Tokens + 8pt. */
 .stfm {
-  position: fixed; inset: 0; z-index: 58;
+  position: fixed; inset: 0; z-index: var(--z-interrupt);
   display: flex; align-items: center; justify-content: center;
   padding: var(--edge);
   padding-top: calc(var(--edge) + env(safe-area-inset-top));

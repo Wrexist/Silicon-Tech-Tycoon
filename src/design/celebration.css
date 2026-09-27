@@ -1,7 +1,7 @@
 /* Shared "you achieved something" celebration overlay (see Celebration.tsx). Tokens + 8pt grid only.
    The ray/spring choreography is disabled under reduced motion; the resting card stays readable. */
 .cele {
-  position: fixed; inset: 0; z-index: 100;
+  position: fixed; inset: 0; z-index: var(--z-celebrate);
   display: flex; align-items: center; justify-content: center;
   padding: var(--edge);
   background: color-mix(in srgb, var(--bg) 30%, transparent);

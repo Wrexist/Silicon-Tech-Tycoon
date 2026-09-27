@@ -1,7 +1,7 @@
 /* Community ask — the fans want something; answer the call or pass. Same clear liquid-glass modal
    frame as the eureka / rival-strike interrupts. Tokens + 8pt grid only. */
 .cma {
-  position: fixed; inset: 0; z-index: 57;
+  position: fixed; inset: 0; z-index: calc(var(--z-interrupt) - 1);
   display: flex; align-items: center; justify-content: center;
   padding: var(--edge);
   padding-top: calc(var(--edge) + env(safe-area-inset-top));

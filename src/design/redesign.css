@@ -20,7 +20,7 @@ body::before { display: none; }
 .app .hud__cash-value { font-size: 1.25rem; }
 .app .hud__chip { border: 0; padding: var(--sp-2) var(--sp-4); background: transparent; font-size: var(--fs-micro); }
 .app .hud__chips { justify-content: space-between; }
-.app__dock { position: fixed; z-index: 30; bottom: 0; left: 0; right: 0; max-width: 540px; margin: 0 auto; background: var(--surface); border-top: 1px solid var(--hairline); padding-bottom: env(safe-area-inset-bottom); }
+.app__dock { position: fixed; z-index: var(--z-dock); bottom: 0; left: 0; right: 0; max-width: 540px; margin: 0 auto; background: var(--surface); border-top: 1px solid var(--hairline); padding-bottom: env(safe-area-inset-bottom); }
 .app .bnav { position: static; border-top: 1px solid var(--hairline); padding: var(--sp-4) var(--sp-8); }
 .app .bnav__item { min-height: 50px; animation: none; }
 .app .bnav__item--active { color: var(--primary); }

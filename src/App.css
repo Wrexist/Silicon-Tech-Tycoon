@@ -403,7 +403,7 @@
 .tabswap {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--z-system);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -454,7 +454,7 @@
 .bankrupt {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: var(--z-takeover);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -550,7 +550,7 @@
 .eb {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--z-system);
   overflow-y: auto;
   background: var(--bg);
   display: flex;
@@ -621,7 +621,7 @@
 .era-modal {
   position: fixed;
   inset: 0;
-  z-index: 75;
+  z-index: calc(var(--z-takeover) - 5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -919,7 +919,7 @@
 .ipo {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: var(--z-takeover);
   display: flex;
   align-items: center;
   justify-content: center;

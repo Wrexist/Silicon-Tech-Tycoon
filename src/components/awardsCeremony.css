@@ -4,7 +4,7 @@
 .awd {
   position: fixed;
   inset: 0;
-  z-index: 59;
+  z-index: calc(var(--z-interrupt) + 1);
   display: flex;
   align-items: center;
   justify-content: center;

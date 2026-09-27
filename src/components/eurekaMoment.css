@@ -1,7 +1,7 @@
 /* Eureka breakthrough — an accent-tinted "aha" moment with a bank-or-chase bet, then a result reveal.
    Same modal frame as the rival strike / awards. Tokens + 8pt grid only. */
 .eur {
-  position: fixed; inset: 0; z-index: 58;
+  position: fixed; inset: 0; z-index: var(--z-interrupt);
   display: flex; align-items: center; justify-content: center;
   padding: var(--edge);
   padding-top: calc(var(--edge) + env(safe-area-inset-top));

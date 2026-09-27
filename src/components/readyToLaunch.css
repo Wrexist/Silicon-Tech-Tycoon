@@ -3,7 +3,7 @@
 .rtl {
   position: fixed;
   inset: 0;
-  z-index: 58; /* below the launch reveal (60) so a tapped "Launch now" reveal layers on top */
+  z-index: var(--z-interrupt); /* below the launch reveal (60) so a tapped "Launch now" reveal layers on top */
   display: flex;
   align-items: center;
   justify-content: center;

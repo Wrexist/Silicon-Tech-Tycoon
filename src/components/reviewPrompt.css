@@ -2,7 +2,7 @@
    (review-star) tint. Clear scrim; the card carries the frosted material; the edge rim comes from the
    shared …__card::after rule in primitives.css. Tokens + 8pt grid only. */
 .rev {
-  position: fixed; inset: 0; z-index: 56;
+  position: fixed; inset: 0; z-index: calc(var(--z-interrupt) - 2);
   display: flex; align-items: center; justify-content: center;
   padding: var(--edge);
   padding-top: calc(var(--edge) + env(safe-area-inset-top));

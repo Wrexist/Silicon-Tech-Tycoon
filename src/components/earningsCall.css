@@ -1,7 +1,7 @@
 /* Quarterly earnings interrupt — clear liquid-glass modal like the other interrupts, tinted by the
    result (green beat / red miss). Tokens + 8pt grid only. */
 .ern {
-  position: fixed; inset: 0; z-index: 56;
+  position: fixed; inset: 0; z-index: calc(var(--z-interrupt) - 2);
   display: flex; align-items: center; justify-content: center;
   padding: var(--edge);
   padding-top: calc(var(--edge) + env(safe-area-inset-top));

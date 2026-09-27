@@ -1,7 +1,7 @@
 .lreveal {
   position: fixed;
   inset: 0;
-  z-index: 60;
+  z-index: var(--z-reveal);
   display: flex;
   align-items: center;
   justify-content: center;

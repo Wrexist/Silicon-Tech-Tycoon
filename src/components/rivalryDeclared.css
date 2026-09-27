@@ -3,7 +3,7 @@
 .rvd {
   position: fixed;
   inset: 0;
-  z-index: 58;
+  z-index: var(--z-interrupt);
   display: flex;
   align-items: center;
   justify-content: center;

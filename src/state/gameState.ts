@@ -1601,7 +1601,7 @@ function sourcingExposureWithContracts(s: GameState): number {
   const products = s.building.length
     ? s.building.map((j) => j.product)
     : s.launched.length
-      ? [s.launched[s.launched.length - 1].product]
+      ? [s.launched[0].product] // `launched` is newest-first: [0] is the LAST shipped, not the first
       : [];
   if (!products.length) return 1;
   const mults = products.map((p) => {

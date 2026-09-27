@@ -1,7 +1,7 @@
 /* Regional event — a boom / tariff / rival-surge moment for an expansion market, tinted by tone. Same
    clear-liquid-glass modal frame as the eureka / staff-moment cards. Tokens + 8pt grid only. */
 .rge {
-  position: fixed; inset: 0; z-index: 58;
+  position: fixed; inset: 0; z-index: var(--z-interrupt);
   display: flex; align-items: center; justify-content: center;
   padding: var(--edge);
   padding-top: calc(var(--edge) + env(safe-area-inset-top));

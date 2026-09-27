@@ -126,6 +126,18 @@
      `--bottom-chrome-controls` (48px button + 2×6px padding). The scroll spacer reserves the whole
      band; toasts start above it, so a transient line can never cover Pause / speed / Skip — the
      2026-09 overlay collision this family exists to prevent. */
+  /* Overlay stack, bottom → top. Every full-screen layer takes its z-index from here so the order is
+     readable in one place (it used to be ~20 magic numbers, and the paywall sat at 62 — BELOW the
+     IPO takeover that raises it). Interrupt cards sit within ±2 of --z-interrupt by priority. */
+  --z-dock: 30;
+  --z-sheet: 50;
+  --z-interrupt: 58;
+  --z-reveal: 60;       /* the launch reveal — above every interrupt card */
+  --z-takeover: 80;     /* era / IPO / bankrupt full-screen moments */
+  --z-paywall: 85;      /* the single purchase surface — above anything that can raise it */
+  --z-toast: 87;        /* purchase/restore feedback must read above the paywall */
+  --z-system: 90;       /* frozen-tab notice, crash screen */
+  --z-celebrate: 100;
   --bottom-chrome-bottom: 72px;
   --bottom-chrome-controls: 60px;
   --bottom-chrome-gap: 20px;
