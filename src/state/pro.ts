@@ -102,7 +102,7 @@ export const PRO_PRODUCTS: ProProduct[] = [
     id: "com.wrexist.silicon.pro.weekly",
     tier: "weekly",
     title: "Pro Weekly",
-    lengthLabel: "1 month · renews monthly",
+    lengthLabel: "1 week · renews weekly",
     fallbackPrice: "$7.99",
     fallbackAmount: 7.99,
     recurring: true,

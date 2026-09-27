@@ -335,16 +335,18 @@ understates collection is both a rejection and a policy problem, so all four of 
 1. `ios/App/App/PrivacyInfo.xcprivacy` — **already updated** in this change.
 2. **App Store Connect → App Privacy** — you must update this by hand:
    - "Do you collect data from this app?" → **Yes**
-   - **Purchase History** → App Functionality → *not* linked to identity → *not* used for tracking
-   - **Device ID** → App Functionality → *not* linked to identity → *not* used for tracking
+   - **Purchase History** → App Functionality and Analytics → *not* linked to identity → *not* used for tracking
+   - **Device ID** → App Functionality and Analytics → *not* linked to identity → *not* used for tracking
+   - **Product Interaction** → Analytics → *not* linked to identity → *not* used for tracking
    - Everything else → No. **Tracking → No.**
 3. `docs/privacy/index.html` and `public/privacy.html` — the live policy the paywall links to.
    **Already updated**: they now name RevenueCat as the processor and say precisely what it receives.
 4. The App Review notes — see `appstore/APP_STORE_METADATA.md` §9.
 
 What is still true and should keep being said, because it is a genuine selling point: no tracking, no
-analytics SDK, no advertising, no attribution, no accounts, no login, and the game itself — every
-save, setting and statistic — still never leaves the device.
+separate analytics SDK, no advertising, no cross-app tracking, no accounts, no login, and the game itself — every
+save, setting and gameplay statistic — still never leaves the device. RevenueCat receives custom
+paywall impressions and offering identifiers to measure the pricing experiment.
 
 > If RevenueCat is ever switched back off, **revert all four together**. Over-declaring is not "safe";
 > it has to be accurate in both directions.
