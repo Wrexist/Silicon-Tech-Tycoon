@@ -94,9 +94,30 @@ Nothing here touches the engine's simulation path — the determinism pin is unt
 | "Ready to launch" rows gave no forecast. | ✅ shared `launchForecast` + a forecast chip on the HQ and Lab rows |
 | "Design complete" had no comparison. | ✅ Overall shows ±N vs the product it follows |
 
+## Round 3 — first-run, Factory, copy & accessibility
+
+Three more audits (first-run + secondary screens, Factory mode + 3D office, copy + accessibility) plus
+light-theme, 130% text and iPad screenshot passes. ~75 verified findings.
+
+| Area | Shipped |
+|---|---|
+| **Large text** | Section tab strips keep whole words and scroll sideways at XL (the earlier fix broke "Component/s"). |
+| **Factory perf** | No light-count shader recompiles (hot-machine lights stay mounted; work lights paint a pool instead of adding real lights); `useMotionFrame` reuses one object per subscriber instead of allocating per frame; floor revision / shadow key memoised; camera reset string built per render, not per frame; Boost reuses the parent's data. |
+| **Factory bugs & UX** | Tap flash no longer freezes under the on-demand frameloop; hold-to-move only in Build mode; belt paint truncates when a drag doubles back (no looping tail); Erase/Upgrade taps hit the piece, not the floor behind it; ghost centred on the finger; full floor explains itself; Upgrade shows its price; partial belt runs say "out of cash"; floor expansion needs a Confirm tap; per-tool rule text; `aria-pressed` on the palette; "an Assembly Arm". |
+| **Decorate** | Escape exits; no "Furniture moved" echo toast. |
+| **First run** | "New company" mid-scenario names the parked company it deletes and offers "Return to X"; the founding-screen scenario confirm no longer promises to keep a company that doesn't exist; Help & Guide reachable from Settings at week 0; the post-launch Coach card retires itself after 4 weeks (the next-move card and contracts were hidden behind "Got it"); "Replay coach" only offered when it can teach; Coach points at the real controls; the unlock card opens the Progress hub. |
+| **Secondary screens** | Played challenges say "Played · new one tomorrow" (the game refuses replays); Roadmap separates "List on the exchange" from "Reach the pinnacle"; Platform revoke needs a confirm, licensee rows include the exclusive multiplier, revoke clears the exclusivity flag; Progress sub-views step back to the hub (back arrow and Escape); Time Machine copy says "every 4 weeks" and shows the real next snapshot; Retry saving only when there's a problem; Vault "Decrypt"; rival-strike first-time explainer. |
+| **Accessibility** | Toast live region always mounted and readable; toast time scales with length (2.6–7s); `SectionHeader` is an `h3`; HUD chips and status dots/stars get `role="img"`; material chips named; disabled buttons show *why* in visible text; `.sr-only` utility. |
+| **Copy & numbers** | One money formatter family (capital K), one count formatter (seven hand-rolled ones removed), billions roll over (no "$5750M"); Lucide stars instead of ★; US spelling; "research points"/"RP"; "Office" not "HQ"; "Outflow" (Bank runway now matches the HUD); EP explained in the glossary; "App Marketplace" (no real brand); rival feed "enters the phone market"; "Paused: <reason>" keeps casing; consistent toast separators; fan toasts reuse feed wording; "wk" everywhere. |
+
+Considered and left as-is: the office canvas under Reduce Motion stays on the continuous frameloop — by
+design only the viewport drift stops, and the camera tracks pointer/keys every frame; the Factory's 2D
+no-WebGL fallback map (footprint ghost, belt arrows, roving tabindex) is a medium-size rework for a rare
+path; first-time scenario players still skip the Coach (`newScenarioGame` sets `tutorialDone` in the engine).
+
 ## Verification
 
-- `npx tsc -b --noEmit` clean; `npx vitest run` → 213 files / 2,180 tests green (determinism pin included).
+- `npx tsc -b --noEmit` clean; `npx vitest run` → 214 files / 2,184 tests green (determinism pin included).
 - New guards: `design/encoding.test.ts` (mojibake), `design/overlayGuard.test.ts` (overlay stack),
   `design/launchReveal.test.ts` (history comparison), draft-storage eviction, forecast-aware design advice,
   and a rewritten `bottomChrome.test.ts` that pins the real dock relationships.
