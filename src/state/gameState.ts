@@ -5725,7 +5725,14 @@ export function revokeOsLicense(state: GameState, rivalId: string): GameState {
   if (!state.osLicensees.includes(rivalId)) return state;
   const osLicenseeHealth = { ...state.osLicenseeHealth };
   delete osLicenseeHealth[rivalId];
-  return { ...state, osLicensees: state.osLicensees.filter((id) => id !== rivalId), osLicenseeHealth };
+  // Drop the exclusivity flag too: left behind, a rival that later re-signed a NON-exclusive deal
+  // would still be billed (and shown) at the exclusive royalty. Absent field stays absent.
+  let osExclusive = state.osExclusive;
+  if (osExclusive && rivalId in osExclusive) {
+    osExclusive = { ...osExclusive };
+    delete osExclusive[rivalId];
+  }
+  return { ...state, osLicensees: state.osLicensees.filter((id) => id !== rivalId), osLicenseeHealth, ...(osExclusive !== state.osExclusive ? { osExclusive } : {}) };
 }
 
 /** OS feature modules with their install/locked/affordable status, for the Platform screen. */

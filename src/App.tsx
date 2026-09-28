@@ -32,6 +32,7 @@ import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
 import { appOverlayOpen, useEscapeLayer } from "./design/overlayGuard.ts";
+import { usePageBack } from "./design/pageBack.ts";
 import { railShown, useLayoutMode } from "./design/layout.ts";
 import { PAGE_TITLES } from "./state/pageStack.ts";
 import { usePageNav } from "./state/usePageNav.ts";
@@ -182,6 +183,10 @@ function AppShell() {
   const layoutMode = useLayoutMode();
   const showRail = uiVersion === "next" && railShown(layoutMode);
   const { page, params, push, pop, clear, root: routeRoot } = usePageNav(tab);
+  // A routed page's sub-view (Progress → Vault …) steps back to its hub first (design/pageBack.ts).
+  const pageBack = usePageBack();
+  const pageBackRef = useRef(pageBack);
+  pageBackRef.current = pageBack;
   // Stable identities for HQ's props: HQ is memoized and stays mounted (hidden) across tabs, so fresh
   // inline arrows here would re-render the whole Office stream on every shell render.
   const openChallenges = useCallback(
@@ -221,7 +226,7 @@ function AppShell() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (appOverlayOpen()) return; // the modal owns this Escape
-      pop();
+      (pageBackRef.current ?? pop)();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -289,7 +294,7 @@ function AppShell() {
           <PageHeader
             title={page ? PAGE_TITLES[page] : tab === "hq" ? state.companyName || TAB_TITLE.hq : TAB_TITLE[tab]}
             tint={page ? undefined : TAB_TINT[tab]}
-            onBack={page ? pop : undefined}
+            onBack={page ? (pageBack ?? pop) : undefined}
           />
         )}
         {/* HQ stays MOUNTED across tabs (hidden, not unmounted) so its WebGL office keeps its

@@ -4,7 +4,7 @@
 // the chosen sub-sheet's content (no nested <Sheet>, so there's only ever one aria-modal + one Escape
 // handler). The sub-sheet's close returns to the hub; the hub's close (or Escape) exits Progress.
 // Gated (in App) on the first ship, so an empty garage isn't buried under systems.
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Award, Boxes, CalendarDays, Crown, FileLock2, Target, Trophy, X, BookOpen, Map as MapIcon, Layers } from "lucide-react";
 import { ListChecks, Star } from "lucide-react";
 import { AchievementsSheet } from "./Achievements.tsx";
@@ -19,6 +19,7 @@ import { FounderLegendSheet } from "./FounderLegend.tsx";
 import { GoalsLedgerSheet } from "./GoalsLedger.tsx";
 import { RoadmapSheet } from "./Roadmap.tsx";
 import { HelpSheet } from "./Help.tsx";
+import { usePageBackOverride } from "../design/pageBack.ts";
 import { collectGoals } from "../state/goals.ts";
 import { getMuseum } from "../state/museum.ts";
 import { getFounderRecord, legendStanding, liveLegendScore } from "../state/founderLegend.ts";
@@ -57,7 +58,10 @@ export function ProgressPanel({ initialView = "hub", onClose, onOpen }: {
   // The sheet unmounts when closed, so the initial view is honoured fresh on every open. The routed
   // page passes a fresh `initialView` and a `key` for each URL section, so every push re-mounts clean.
   const [view, setView] = useState<View>(initialView);
-  const toHub = () => setView("hub");
+  const toHub = useCallback(() => setView("hub"), []);
+  // On the routed page the shell's back arrow / Escape step back to the hub from a sub-view (only
+  // when this panel IS a routed page — the classic sheet has its own close).
+  usePageBackOverride(!onClose && view !== "hub" && view !== initialView ? toHub : null);
 
   /** Goals and Device Museum already have routed pages: on the routed hub their rows push instead of
    *  swapping the internal view. The other eight rows stay in-page until each earns its own page. */

@@ -901,7 +901,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           {d.game.paused ? <Play size={16} aria-hidden /> : <Pause size={16} aria-hidden />}
           {canReviewDecision ? "Review decision" : d.game.tabBlocked ? "Running in another tab" : d.game.suspended ? "Waiting for decision" : d.game.paused ? "Resume game" : "Pause game"}
         </button>
-        <BoostButton selectedJob={d.lead?.product.id} />
+        <BoostButton lead={d.lead} weeksLeft={d.weeksLeft} rushBuild={d.game.rushBuild} />
         <button
           className="fmode__side"
           title={`${d.readyCount} ready to launch`}
@@ -1187,9 +1187,14 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
 
 /** BOOST — the reference's paid time boost, translated honestly: rushBuild completes one week
  *  of the lead run for an overtime premium. Disabled when idle or unaffordable. */
-function BoostButton({ selectedJob }: { selectedJob?: string }) {
-  const d = useFactoryData(selectedJob);
-  const { rushBuild } = d.game;
+// Takes the parent's already-computed factory data as props: calling useFactoryData here ran the
+// whole chain walk / financials a second (and, with the card underneath, third) time per tick.
+function BoostButton({ lead, weeksLeft, rushBuild }: {
+  lead: ReturnType<typeof useFactoryData>["lead"];
+  weeksLeft: number;
+  rushBuild: ReturnType<typeof useFactoryData>["game"]["rushBuild"];
+}) {
+  const d = { lead, weeksLeft };
   if (!d.lead || d.weeksLeft <= 0) {
     const why = d.lead ? "Finishing this week — nothing left to rush" : "No build running — plan a production run to rush it";
     return <button className="fmode__boost" disabled title={why} aria-label={`BOOST — ${why}`}><Zap size={16} aria-hidden /> BOOST</button>;
