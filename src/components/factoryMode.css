@@ -26,7 +26,7 @@
 /* ---------------- fullscreen shell ---------------- */
 .fmode {
   --fmode-btn-bg: var(--surface);
-  --fmode-btn-line: rgba(255, 255, 255, 0.12);
+  --fmode-btn-line: color-mix(in srgb, var(--sheen) 12%, transparent);
   /* Above the base app (nav 30, HQ decorate 45) but BELOW the sheet scrim (50): Sheet portals to
      <body>, so if the factory sat at 60 its own Upgrades/Style/Stats/Shop sheets opened INVISIBLY
      behind this near-opaque overlay. 46 keeps sheets (50), toasts (60), the ready-to-launch modal
@@ -60,7 +60,7 @@
   display: inline-flex; align-items: center; gap: var(--sp-6);
   font-size: var(--fs-nano); font-weight: 700; color: var(--ink-2);
 }
-.fmode__cap-bar { width: 40px; height: 4px; border-radius: var(--r-pill); background: rgba(255,255,255,0.16); overflow: hidden; flex: none; }
+.fmode__cap-bar { width: 40px; height: 4px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--sheen) 16%, transparent); overflow: hidden; flex: none; }
 .fmode__cap-fill { display: block; height: 100%; border-radius: var(--r-pill); background: var(--positive); }
 .fmode__cap-line--hot { color: var(--warning); }
 .fmode__cap-line--hot .fmode__cap-fill { background: var(--warning); }
@@ -111,7 +111,7 @@
   padding: var(--sp-10) var(--sp-12);
   border-radius: var(--r-card);
   background: var(--surface);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid color-mix(in srgb, var(--sheen) 10%, transparent);
   color: var(--ink);
   backdrop-filter: blur(8px);
 }
@@ -134,10 +134,10 @@
 /* Stage stepper sits on the always-dark factory panel, so it reads off white-on-dark values
    rather than the theme surface (which would blend or glare depending on light/dark). */
 .fmode .strail { margin-top: 6px; }
-.fmode .strail__node { background: rgba(255,255,255,0.06); border-color: var(--ink-2); color: var(--ink-2); }
-.fmode .strail__bar { background: rgba(255,255,255,0.14); }
+.fmode .strail__node { background: color-mix(in srgb, var(--sheen) 6%, transparent); border-color: var(--ink-2); color: var(--ink-2); }
+.fmode .strail__bar { background: color-mix(in srgb, var(--sheen) 14%, transparent); }
 .fmode .strail__step--done .strail__node { background: color-mix(in srgb, var(--accent) 30%, transparent); border-color: transparent; color: var(--ink); }
-.fmode .strail__step--done .strail__bar--done { background: color-mix(in srgb, var(--accent) 60%, rgba(255,255,255,0.14)); }
+.fmode .strail__step--done .strail__bar--done { background: color-mix(in srgb, var(--accent) 60%, color-mix(in srgb, var(--sheen) 14%, transparent)); }
 .fmode .strail__step--active .strail__node { color: var(--ink); }
 /* captions read on the dark panel; the whole trail fits the narrow order card */
 .fmode .strail__cap { color: var(--ink-2); font-size: 0.625rem; }
@@ -145,7 +145,7 @@
 .fmode .strail__step--active .strail__cap { color: var(--ink); }
 .fmode__order-name { font-size: var(--fs-caption); font-weight: 800; }
 .fmode__order-units { font-size: var(--fs-micro); color: var(--ink-2); }
-.fmode__order-track { display: block; height: 6px; border-radius: var(--r-pill); background: rgba(255,255,255,0.14); overflow: hidden; }
+.fmode__order-track { display: block; height: 6px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--sheen) 14%, transparent); overflow: hidden; }
 .fmode__order-fill { display: block; height: 100%; border-radius: var(--r-pill); background: var(--accent); transition: width 0.6s ease; }
 .fmode__order-eta { font-size: var(--fs-micro); font-weight: 600; color: var(--ink-2); }
 .fmode__empty { margin: 0; font-size: var(--fs-micro); color: var(--ink-2); line-height: 1.4; }
@@ -271,7 +271,7 @@
 .fmode__autoquote-x {
   display: inline-flex; align-items: center; justify-content: center;
   width: 44px; height: 44px; flex: none; border-radius: var(--r-pill);
-  background: rgba(255,255,255,0.08); border: 1px solid var(--fmode-btn-line);
+  background: color-mix(in srgb, var(--sheen) 8%, transparent); border: 1px solid var(--fmode-btn-line);
   color: var(--ink-2); cursor: pointer;
 }
 
@@ -422,7 +422,7 @@
 }
 .fmode__build-seg {
   flex: none; display: inline-flex; gap: 2px; padding: 3px;
-  border-radius: var(--r-pill); background: rgba(255,255,255,0.08); border: 1px solid var(--fmode-btn-line);
+  border-radius: var(--r-pill); background: color-mix(in srgb, var(--sheen) 8%, transparent); border: 1px solid var(--fmode-btn-line);
 }
 .fmode__build-tab {
   min-height: 44px; padding: 0 var(--sp-12); border: none; background: none; cursor: pointer;
@@ -441,7 +441,7 @@
   flex: none; width: 44px; height: 44px; padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid var(--fmode-btn-line); border-radius: var(--r-pill);
-  background: rgba(255, 255, 255, 0.1); color: var(--ink); cursor: pointer;
+  background: color-mix(in srgb, var(--sheen) 10%, transparent); color: var(--ink); cursor: pointer;
 }
 .fmode__build-undo:active { transform: scale(0.94); }
 .fmode__palette {
@@ -505,11 +505,11 @@
 .fmode__sideorder-go:disabled { opacity: 0.45; }
 .fmode__sideorder-x {
   min-height: 40px; padding: 0 var(--sp-12);
-  border: 1px solid rgba(255,255,255,0.16); border-radius: var(--r-button);
-  background: rgba(255,255,255,0.1); color: var(--ink);
+  border: 1px solid color-mix(in srgb, var(--sheen) 16%, transparent); border-radius: var(--r-button);
+  background: color-mix(in srgb, var(--sheen) 10%, transparent); color: var(--ink);
   font-size: var(--fs-caption); font-weight: 700;
 }
-.fmode__sideorder-track { display: block; height: 5px; border-radius: var(--r-pill); background: rgba(255,255,255,0.16); overflow: hidden; }
+.fmode__sideorder-track { display: block; height: 5px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--sheen) 16%, transparent); overflow: hidden; }
 .fmode__sideorder-fill { display: block; height: 100%; border-radius: var(--r-pill); background: var(--positive); transition: width var(--spring-standard); }
 
 /* Reserve a separate hint band; neither order panels nor action rails occupy it. */

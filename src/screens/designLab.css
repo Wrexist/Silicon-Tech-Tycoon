@@ -433,9 +433,9 @@
 .lab__cat--on {
   border-color: transparent;
   background: linear-gradient(155deg, color-mix(in srgb, var(--accent) 90%, white), var(--accent));
-  box-shadow: 0 8px 22px -10px color-mix(in srgb, var(--accent) 60%, transparent), inset 0 1px 0 color-mix(in srgb, #fff 30%, transparent);
+  box-shadow: 0 8px 22px -10px color-mix(in srgb, var(--accent) 60%, transparent), inset 0 1px 0 color-mix(in srgb, var(--sheen) 30%, transparent);
 }
-.lab__cat--on .lab__cat-icon { background: color-mix(in srgb, #fff 24%, transparent); color: var(--accent-ink); }
+.lab__cat--on .lab__cat-icon { background: color-mix(in srgb, var(--sheen) 24%, transparent); color: var(--accent-ink); }
 .lab__cat--on .lab__cat-name { color: var(--accent-ink); }
 .lab__cat--on .lab__cat-market { color: color-mix(in srgb, var(--accent-ink) 78%, transparent); }
 /* Locked teaser — dimmed + dashed, shows the era it unlocks. Not a button (no tap). */
@@ -467,8 +467,8 @@
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--positive) 40%, transparent); }
   50% { box-shadow: 0 0 0 3px color-mix(in srgb, var(--positive) 0%, transparent); }
 }
-.lab__cat--on .lab__cat-gen { background: color-mix(in srgb, #fff 22%, transparent); color: var(--accent-ink); }
-.lab__cat--on .lab__cat-gen--live { background: color-mix(in srgb, #fff 22%, transparent); color: var(--accent-ink); animation: none; }
+.lab__cat--on .lab__cat-gen { background: color-mix(in srgb, var(--sheen) 22%, transparent); color: var(--accent-ink); }
+.lab__cat--on .lab__cat-gen--live { background: color-mix(in srgb, var(--sheen) 22%, transparent); color: var(--accent-ink); animation: none; }
 @media (prefers-reduced-motion: reduce) {
   .lab__cat-gen--live { animation: none; }
 }
@@ -520,11 +520,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(150deg, color-mix(in srgb, #fff 12%, var(--tile-dark)), var(--tile-dark));
+  background: linear-gradient(150deg, color-mix(in srgb, var(--sheen) 12%, var(--tile-dark)), var(--tile-dark));
   color: var(--accent-ink);
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #fff 18%, transparent),
-    0 4px 10px -4px color-mix(in srgb, #000 45%, transparent);
+    inset 0 1px 0 color-mix(in srgb, var(--sheen) 18%, transparent),
+    0 4px 10px -4px color-mix(in srgb, var(--shade) 45%, transparent);
 }
 .lab__comp-info {
   display: flex;

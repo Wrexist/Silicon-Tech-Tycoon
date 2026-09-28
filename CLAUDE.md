@@ -14,7 +14,7 @@ new one, or touch an existing one, make it match:
    backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
    -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
    border: 1px solid var(--glass-modal-edge);  /* tint with the popup's accent where it has one */
-   box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0,0,0,0.5) /*, + accent glow */;
+   box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px color-mix(in srgb, var(--shade) 50%, transparent) /*, + accent glow */;
    ```
    Inner tiles/wells use `var(--glass-well)` + `var(--glass-well-edge)`; CTAs use the scoped glass
    button rules in `primitives.css` (translucent accent + specular sheen, soft focus halo, no hard

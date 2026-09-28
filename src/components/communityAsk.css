@@ -22,14 +22,14 @@
   backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
   -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
   border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--glass-modal-edge));
-  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5), 0 0 46px -18px color-mix(in srgb, var(--accent) 40%, transparent);
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px color-mix(in srgb, var(--shade) 50%, transparent), 0 0 46px -18px color-mix(in srgb, var(--accent) 40%, transparent);
   text-align: center;
   animation: cma-in var(--spring-gentle) both;
 }
 .cma__card--done {
   background: radial-gradient(130% 80% at 50% -10%, color-mix(in srgb, var(--positive) 14%, transparent), transparent 62%), var(--glass-modal);
   border-color: color-mix(in srgb, var(--positive) 26%, var(--glass-modal-edge));
-  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0, 0, 0, 0.5), 0 0 46px -18px color-mix(in srgb, var(--positive) 42%, transparent);
+  box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px color-mix(in srgb, var(--shade) 50%, transparent), 0 0 46px -18px color-mix(in srgb, var(--positive) 42%, transparent);
 }
 @keyframes cma-in { from { opacity: 0; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .cma__card { animation: none; } }
@@ -52,7 +52,7 @@
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12);
   padding: var(--sp-10) var(--sp-14); border-radius: var(--r-button);
   background: var(--glass-well); border: 1px solid var(--glass-well-edge);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sheen) 25%, transparent);
 }
 .cma__term-label { display: inline-flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-caption); font-weight: 600; color: var(--ink-2); }
 .cma__term-label svg { color: var(--ink-3); }
@@ -69,7 +69,7 @@
   display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
   padding: var(--sp-12); border-radius: var(--r-button);
   background: var(--glass-well); border: 1px solid var(--glass-well-edge);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sheen) 25%, transparent);
   font-size: var(--fs-nano); color: var(--ink-3); font-weight: 600;
 }
 .cma__chip-icon { color: var(--positive); display: inline-flex; }

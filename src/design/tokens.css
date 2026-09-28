@@ -34,6 +34,11 @@
   --glass-well: color-mix(in srgb, #ffffff 20%, transparent);
   --glass-well-edge: color-mix(in srgb, var(--ink) 12%, transparent);
   --glass-btn-rim: rgba(255, 255, 255, 0.5);
+  /* Pure light / pure shadow for specular sheens, rims and drop shadows. Always used through
+     color-mix(in srgb, var(--sheen) N%, transparent) so every highlight in the app reads from here
+     (they were ~120 scattered #fff / rgba(255,255,255,…) / rgba(0,0,0,…) literals). */
+  --sheen: #ffffff;
+  --shade: #000000;
   /* --accent darkened to #2563eb in light theme so white text on accent (incl. 13px .ds-btn--sm)
      meets 4.5:1. --accent-ink stays #fff. Dark theme overrides --accent back to #3b82f6. */
   --accent: #2463EB;

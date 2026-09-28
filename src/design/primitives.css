@@ -84,12 +84,12 @@
 .pwl .ds-btn--primary, .ds-sheet .ds-btn--primary,
 .cma .ds-btn--primary, .ern .ds-btn--primary, .stfm .ds-btn--primary, .rge .ds-btn--primary, .rev .ds-btn--primary, .cof .ds-btn--primary {
   background:
-    linear-gradient(180deg, color-mix(in srgb, #fff 46%, transparent), color-mix(in srgb, #fff 6%, transparent) 34%, transparent 66%),
+    linear-gradient(180deg, color-mix(in srgb, var(--sheen) 46%, transparent), color-mix(in srgb, var(--sheen) 6%, transparent) 34%, transparent 66%),
     color-mix(in srgb, var(--accent) 78%, transparent);
-  border: 1px solid color-mix(in srgb, #fff 30%, transparent);
+  border: 1px solid color-mix(in srgb, var(--sheen) 30%, transparent);
   box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.65),
-    inset 0 -16px 26px -18px color-mix(in srgb, #000 42%, transparent),
+    inset 0 1.5px 0 color-mix(in srgb, var(--sheen) 65%, transparent),
+    inset 0 -16px 26px -18px color-mix(in srgb, var(--shade) 42%, transparent),
     0 14px 32px -10px color-mix(in srgb, var(--accent) 70%, transparent);
 }
 .cele .ds-btn--secondary, .rvd .ds-btn--secondary, .eur .ds-btn--secondary, .awd .ds-btn--secondary,
@@ -97,10 +97,10 @@
 .pwl .ds-btn--secondary, .ds-sheet .ds-btn--secondary,
 .cma .ds-btn--secondary, .ern .ds-btn--secondary, .stfm .ds-btn--secondary, .rge .ds-btn--secondary, .rev .ds-btn--secondary, .cof .ds-btn--secondary {
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.24), transparent 52%),
+    linear-gradient(180deg, color-mix(in srgb, var(--sheen) 24%, transparent), transparent 52%),
     color-mix(in srgb, var(--accent) 22%, transparent);
   border: 1px solid var(--glass-well-edge);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sheen) 32%, transparent);
 }
 /* Keyboard focus inside a glass popup: swap the hard 2px offset ring (index.css) for a soft accent
    halo that hugs the capsule — same at-a-glance affordance for keyboard/switch users, none of the
@@ -114,7 +114,7 @@
 .cof .ds-btn:focus-visible {
   outline: none;
   box-shadow:
-    inset 0 1.5px 0 rgba(255, 255, 255, 0.65),
+    inset 0 1.5px 0 color-mix(in srgb, var(--sheen) 65%, transparent),
     0 0 0 3px color-mix(in srgb, var(--accent) 32%, transparent),
     0 12px 28px -10px color-mix(in srgb, var(--accent) 60%, transparent);
 }
@@ -195,7 +195,7 @@
     color-mix(in srgb, var(--surface-2) 94%, transparent),
     color-mix(in srgb, var(--surface-2) 60%, transparent));
   border: 1px solid color-mix(in srgb, var(--accent) 10%, var(--hairline));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 42%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sheen) 42%, transparent);
 }
 .ds-stat--tile::before {
   content: "";
@@ -220,7 +220,7 @@
   border-radius: var(--r-button);
   background: var(--glass-well);
   border: 1px solid var(--glass-well-edge);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 34%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sheen) 34%, transparent);
 }
 .ds-stattile__label {
   font-size: var(--fs-micro);
@@ -356,13 +356,13 @@
     radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 70%),
     color-mix(in srgb, var(--accent) 8%, var(--surface-2));
   box-shadow:
-    inset 0 1px 0 color-mix(in srgb, #fff 45%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--sheen) 45%, transparent),
     0 10px 26px -12px color-mix(in srgb, var(--accent) 50%, transparent);
   animation: ds-empty-breathe 4.2s ease-in-out infinite;
 }
 @keyframes ds-empty-breathe {
-  0%, 100% { transform: translateY(0); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 45%, transparent), 0 10px 26px -12px color-mix(in srgb, var(--accent) 45%, transparent); }
-  50% { transform: translateY(-3px); box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 45%, transparent), 0 18px 34px -12px color-mix(in srgb, var(--accent) 60%, transparent); }
+  0%, 100% { transform: translateY(0); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sheen) 45%, transparent), 0 10px 26px -12px color-mix(in srgb, var(--accent) 45%, transparent); }
+  50% { transform: translateY(-3px); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sheen) 45%, transparent), 0 18px 34px -12px color-mix(in srgb, var(--accent) 60%, transparent); }
 }
 @media (prefers-reduced-motion: reduce) {
   .ds-empty__glyph { animation: none; }
@@ -392,7 +392,7 @@
 }
 .ds-slider:focus-visible::-webkit-slider-thumb {
   box-shadow: 0 4px 10px color-mix(in srgb, var(--accent-local, var(--accent)) 40%, transparent),
-    0 0 0 4px color-mix(in srgb, var(--accent-local, var(--accent)) 35%, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+    0 0 0 4px color-mix(in srgb, var(--accent-local, var(--accent)) 35%, transparent), inset 0 1px 1px color-mix(in srgb, var(--sheen) 90%, transparent);
 }
 .ds-slider:focus-visible::-moz-range-thumb {
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent-local, var(--accent)) 35%, transparent);
@@ -411,13 +411,13 @@
       var(--bg-elevated) var(--pct),
       var(--bg-elevated) 100%
     );
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2), inset 0 -1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: inset 0 2px 5px color-mix(in srgb, var(--shade) 20%, transparent), inset 0 -1px 0 color-mix(in srgb, var(--sheen) 40%, transparent);
 }
 .ds-slider::-moz-range-track {
   height: 12px;
   border-radius: var(--r-pill);
   background: var(--bg-elevated);
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+  box-shadow: inset 0 2px 5px color-mix(in srgb, var(--shade) 20%, transparent);
 }
 .ds-slider::-moz-range-progress {
   height: 12px;
@@ -434,8 +434,8 @@
   border-radius: 50%;
   background: radial-gradient(circle at 35% 28%, #ffffff, #f1f5ff 42%, var(--accent-local, var(--accent)) 125%);
   border: 2px solid #fff;
-  box-shadow: 0 4px 10px color-mix(in srgb, var(--accent-local, var(--accent)) 40%, transparent), 0 1px 2px rgba(0, 0, 0, 0.25),
-    inset 0 1px 1px rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--accent-local, var(--accent)) 40%, transparent), 0 1px 2px color-mix(in srgb, var(--shade) 25%, transparent),
+    inset 0 1px 1px color-mix(in srgb, var(--sheen) 90%, transparent);
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 .ds-slider::-webkit-slider-thumb:hover {
@@ -447,12 +447,12 @@
   border-radius: 50%;
   background: radial-gradient(circle at 35% 28%, #ffffff, #f1f5ff 42%, var(--accent-local, var(--accent)) 125%);
   border: 2px solid #fff;
-  box-shadow: 0 4px 10px color-mix(in srgb, var(--accent-local, var(--accent)) 40%, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--accent-local, var(--accent)) 40%, transparent), inset 0 1px 1px color-mix(in srgb, var(--sheen) 90%, transparent);
 }
 .ds-slider:active::-webkit-slider-thumb {
   transform: scale(1.18);
   box-shadow: 0 6px 16px color-mix(in srgb, var(--accent-local, var(--accent)) 52%, transparent),
-    0 0 0 6px color-mix(in srgb, var(--accent-local, var(--accent)) 18%, transparent), inset 0 1px 1px rgba(255, 255, 255, 0.9);
+    0 0 0 6px color-mix(in srgb, var(--accent-local, var(--accent)) 18%, transparent), inset 0 1px 1px color-mix(in srgb, var(--sheen) 90%, transparent);
 }
 .ds-slider:active::-moz-range-thumb {
   transform: scale(1.18);
@@ -639,12 +639,12 @@
   padding: 1.5px;
   background: linear-gradient(
     135deg,
-    rgba(255, 255, 255, 0.66),
-    rgba(255, 255, 255, 0.12) 20%,
+    color-mix(in srgb, var(--sheen) 66%, transparent),
+    color-mix(in srgb, var(--sheen) 12%, transparent) 20%,
     transparent 42%,
     transparent 58%,
-    rgba(255, 255, 255, 0.16) 80%,
-    rgba(255, 255, 255, 0.5)
+    color-mix(in srgb, var(--sheen) 16%, transparent) 80%,
+    color-mix(in srgb, var(--sheen) 50%, transparent)
   );
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;

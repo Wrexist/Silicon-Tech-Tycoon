@@ -37,7 +37,7 @@
   border: 1px solid color-mix(in srgb, var(--gold) 26%, var(--glass-modal-edge));
   box-shadow:
     inset 0 1.5px 0 0 var(--glass-modal-rim),
-    0 24px 70px -24px rgba(0, 0, 0, 0.5),
+    0 24px 70px -24px color-mix(in srgb, var(--shade) 50%, transparent),
     0 0 46px -18px color-mix(in srgb, var(--gold) 44%, transparent);
   text-align: center;
   animation: pwl-in var(--spring-gentle) both;
@@ -245,7 +245,7 @@
   padding: var(--sp-10) var(--sp-12);
   border-radius: var(--r-card); text-align: left; cursor: pointer;
   background: var(--glass-well); border: 1px solid var(--glass-well-edge);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sheen) 25%, transparent);
   -webkit-tap-highlight-color: transparent;
   transition: border-color var(--spring-snappy), background var(--spring-snappy), transform var(--spring-snappy);
 }

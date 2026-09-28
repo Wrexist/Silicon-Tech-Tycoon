@@ -24,7 +24,7 @@ The popup card itself carries the frosted material — not a wrapper, not the sc
   border: 1px solid var(--glass-modal-edge);   /* tint with the popup's accent where it has one */
   box-shadow:
     inset 0 1.5px 0 0 var(--glass-modal-rim),
-    0 24px 70px -24px rgba(0, 0, 0, 0.5);      /* + an accent glow where it has one */
+    0 24px 70px -24px color-mix(in srgb, var(--shade) 50%, transparent);      /* + an accent glow where it has one */
 }
 ```
 

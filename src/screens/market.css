@@ -21,7 +21,7 @@
   padding: var(--sp-4);
   border-radius: var(--r-pill);
   background: var(--bg-elevated);
-  box-shadow: 0 6px 18px -12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 6px 18px -12px color-mix(in srgb, var(--shade) 50%, transparent);
 }
 .mkt__subtab {
   flex: 1;
