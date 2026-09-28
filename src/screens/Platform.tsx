@@ -58,11 +58,7 @@ const TEMPER_LABEL: Record<string, string> = {
   hardball: "Playing hardball — push at your peril",
 };
 
-function fmtBase(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 10_000) return `${Math.floor(n / 1_000)}k`; // floor so 999,999 reads "999k", not "1000k"
-  return n.toLocaleString();
-}
+const fmtBase = (n: number): string => formatCount(n); // one count formatter app-wide
 
 // Deterministic hue (0..359) from an app name, so each procedural App Store tile gets a stable,
 // distinct colour. The CSS owns the saturation/lightness (theme-aware); the TSX only passes the hue.
@@ -387,7 +383,7 @@ export function PlatformPanel({
         <div className="plat__store-closed">
           <span className="plat__store-closed-glyph" aria-hidden><Store size={22} /></span>
           <p className="plat__release-note plat__release-note--muted" style={{ margin: 0 }}>
-            Your store is quiet. Research the <strong>App Marketplace</strong> module below to open {osDisplayName(state)} to developers, they'll publish apps and you'll take a cut of every sale.
+            Your store is quiet. Build the <strong>App Marketplace</strong> module in Ecosystem to open {osDisplayName(state)} to developers, they'll publish apps and you'll take a cut of every sale.
           </p>
         </div>
       )}

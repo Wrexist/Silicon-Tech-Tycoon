@@ -300,7 +300,11 @@ function SaveRecovery() {
         <Button variant="tertiary" onClick={() => setReloadConfirm(false)}>Cancel</Button>
         <Button onClick={() => window.location.reload()}>Reload now</Button></div>
         : <Button variant="tertiary" onClick={() => setReloadConfirm(true)}>Reload saved company</Button>}</>}
-    <Button variant="secondary" onClick={() => { save(state); refresh(n => n + 1); }}>Retry saving</Button>
+    {issue && <Button variant="secondary" onClick={() => {
+      const ok = save(state);
+      refresh(n => n + 1);
+      showToast(ok ? "Saved" : "Still can't save, export a backup to be safe", { tone: ok ? "positive" : "negative" });
+    }}>Retry saving</Button>}
     {copies.map(copy => <div key={copy.id}>
       <p className="set__group-note">{copy.id === "backup" ? "Preserved recovery copy" : "Protected unreadable company"}. Export this copy before removing it. A newer app version may be needed to open it.</p>
       <div className="set__pair">
@@ -598,7 +602,7 @@ function TimeMachineGroup({ onClose }: { onClose: () => void }) {
           <div className="set__row-text">
             <span className="set__row-label">Rewind your company</span>
             <span className="set__row-sub">
-              Pro snapshots your company every quarter and keeps the last {MAX_SNAPSHOTS}. One bad
+              Pro snapshots your company every {SNAPSHOT_EVERY_WEEKS} weeks and keeps the last {MAX_SNAPSHOTS}. One bad
               launch no longer ends the run. Campaign only — scenarios and challenges stay scored on
               their own terms.
             </span>
@@ -627,7 +631,7 @@ function TimeMachineGroup({ onClose }: { onClose: () => void }) {
 
       {snapshots.length === 0 ? (
         <p className="set__group-note">
-          Nothing saved yet — the first snapshot lands at week {SNAPSHOT_EVERY_WEEKS}.
+          Nothing saved yet — the next snapshot lands at week {Math.floor(state.week / SNAPSHOT_EVERY_WEEKS) * SNAPSHOT_EVERY_WEEKS + SNAPSHOT_EVERY_WEEKS}.
         </p>
       ) : confirming ? (
         <div className="set__confirm" role="group" aria-label="Confirm rewind">
@@ -713,7 +717,7 @@ function CreativeModeGroup() {
             <span className="set__row-icon"><Lock size={18} /></span>
             <div className="set__row-text">
               <span className="set__row-label">Creative Mode</span>
-              <span className="set__row-sub">Design freely with no financial limits: an unlimited cash floor so you can never go bankrupt. Included with Silicon Pro.</span>
+              <span className="set__row-sub">Design freely with no limits: unlimited money & research, so you can never go bankrupt. Included with Silicon Pro.</span>
             </div>
           </div>
           <Button block onClick={() => { haptic.light(); openPaywall({ reason: "creativeMode", onUnlocked: () => setSandboxActive(true) }); }}>

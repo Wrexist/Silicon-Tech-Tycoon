@@ -131,8 +131,8 @@ describe("score formatting", () => {
   it("formats money metrics as currency, fans compactly, others as integers", () => {
     expect(formatScore("netWorth", 1_500_000)).toMatch(/^\$/);
     expect(formatScore("cumulativeRevenue", 250_000)).toMatch(/^\$/);
-    expect(formatScore("fans", 12_345)).toBe("12k");
-    expect(formatScore("fans", 2_000_000)).toBe("2.0M");
+    expect(formatScore("fans", 12_345)).toBe("12.3k"); // the shared formatCount — fans read the same on every screen
+    expect(formatScore("fans", 2_000_000)).toBe("2M");
     expect(formatScore("fans", 500)).toBe("500");
     expect(formatScore("reputation", 73.6)).toBe("74");
   });

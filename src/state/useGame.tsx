@@ -12,7 +12,7 @@ import {
   type ReactNode,
 } from "react";
 import { BALANCE } from "../engine/balance.ts";
-import { dollars, format, toDollars, type Money } from "../engine/money.ts";
+import { format, toDollars, type Money, formatShortDollars, formatCount } from "../engine/money.ts";
 import type { NegotiationOutcome } from "../engine/licenseOffers.ts";
 import type { ComponentKind, FactoryId, Product, RecruitTier, RegionId, StaffRole, SupplierId } from "../engine/types.ts";
 import type { ContractTerm } from "../engine/suppliers.ts";
@@ -218,20 +218,11 @@ function recordFounderFrom(state: GameState, opts: { prestige?: boolean; ipo?: b
   });
 }
 
-function fmtMilestone(d: number): string {
-  if (d >= 1_000_000_000) return `$${(d / 1_000_000_000).toFixed(1)}B`;
-  if (d >= 1_000_000) return `$${(d / 1_000_000).toFixed(1)}M`;
-  if (d >= 1_000) return `$${Math.round(d / 1_000)}k`;
-  return format(dollars(d));
-}
+const fmtMilestone = (d: number): string => formatShortDollars(d);
 
 const FAN_TOAST_THRESHOLDS = [1_000, 5_000, 10_000, 50_000, 100_000, 500_000, 1_000_000];
 
-function fmtFans(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}k`;
-  return String(n);
-}
+const fmtFans = (n: number): string => formatCount(n);
 
 /** Fire a celebratory toast when the fan count crosses a milestone. Only the HIGHEST threshold
  *  crossed this tick is announced — a fast-forward that vaults several at once is one line, not a
@@ -457,7 +448,7 @@ function announceScenarioStars(state: GameState): void {
   const name = scenarioById(state.activeScenario)?.name ?? "Scenario";
   setTimeout(() => {
     try {
-      showToast(`${best}★ earned, ${name}`, {
+      showToast(`${best} star${best === 1 ? "" : "s"} earned: ${name}`, {
         tone: "positive",
         glyph: createElement(achievementIcon("Star"), { size: 15 }),
       });
@@ -1347,7 +1338,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const card = secretById(id);
     const decrypted = (res.state.secretStages?.[id] ?? 0) >= STAGE_DECRYPTED;
     showToast(
-      decrypted ? `File open: ${card?.codename ?? "the dossier"}` : `A name surfaced: ${card?.codename ?? "something"}`,
+      decrypted ? `File decrypted: ${card?.codename ?? "the dossier"}` : `A name surfaced: ${card?.codename ?? "something"}`,
       { tone: "positive", glyph: <FileSearch size={15} /> },
     );
     store.set(res.state);
@@ -1931,7 +1922,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       const stars = getScenarioStars();
       const total = Object.values(stars).reduce((a, b) => a + (b ?? 0), 0);
       if (!scenarioUnlocked(sc, total)) {
-        showToast(`Locked — earn ${scenarioUnlockStars(sc)}★ across the scenarios to unlock this one.`, { tone: "negative" });
+        showToast(`Locked — earn ${scenarioUnlockStars(sc)} stars across the scenarios to unlock this one.`, { tone: "negative" });
         return;
       }
     }

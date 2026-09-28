@@ -78,7 +78,7 @@ export function ScenariosSheet({ onClose, initialName }: { onClose: () => void; 
           <p className="scn__sub">Hand-crafted challenges with star goals. Earn all three for mastery.</p>
         </div>
         <span className="scn__count tnum" aria-label={`${totalStars} of ${maxStars} stars earned`}>
-          {totalStars}<span className="scn__count-total">/{maxStars}★</span>
+          {totalStars}<span className="scn__count-total">/{maxStars}<Star size={12} fill="currentColor" aria-label="stars" /></span>
         </span>
       </div>
 
@@ -93,7 +93,7 @@ export function ScenariosSheet({ onClose, initialName }: { onClose: () => void; 
             <li key={s.id} className={`scn__card${earned > 0 ? " scn__card--played" : ""}${!unlocked ? " scn__card--locked" : ""}`}>
               <div className="scn__card-top">
                 <span className={`scn__diff scn__diff--${s.difficulty}`}>{DIFFICULTY_LABEL[s.difficulty]}</span>
-                {unlocked ? <Stars n={earned} /> : <span className="scn__lock"><Lock size={13} /> {needStars}★ to unlock</span>}
+                {unlocked ? <Stars n={earned} /> : <span className="scn__lock"><Lock size={13} /> {needStars} stars to unlock</span>}
               </div>
               <h3 className="scn__name">{s.name}</h3>
               <p className="scn__tagline">{s.tagline}</p>
@@ -131,7 +131,7 @@ export function ScenariosSheet({ onClose, initialName }: { onClose: () => void; 
                 }}
               >
                 {!unlocked
-                  ? <><Lock size={15} /> Earn {needStars}★ to unlock</>
+                  ? <><Lock size={15} /> Earn {needStars} stars to unlock</>
                   : proLocked(s.id)
                     ? <><Target size={15} /> Play scenario <ProChip /></>
                     : <><Target size={15} /> {isActive ? "Restart this scenario" : earned > 0 ? "Play again" : "Play scenario"}</>}

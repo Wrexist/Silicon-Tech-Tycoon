@@ -1,3 +1,4 @@
+import { formatCount } from "./money.ts";
 // Campaign epilogue (Track A: narrative & voice). When the player reaches the pinnacle (goes
 // public), the win overlay shows a "Five years later" passage that closes the story of THIS company,
 // branched on how it actually turned out: its standing, its scale, and the founder's legend. PURE +
@@ -19,14 +20,7 @@ export interface EpilogueInput {
   rivalry?: string;
 }
 
-function fmtFans(n: number): string {
-  const rounded = Math.max(0, Math.round(n));
-  if (rounded >= 1_000_000) return `${(rounded / 1_000_000).toFixed(1)}M`;
-  // Guard the 999.5k..999.999k band: rounding to thousands would render "1000k". Promote to "1.0M".
-  if (Math.round(rounded / 1000) >= 1000) return "1.0M";
-  if (rounded >= 1_000) return `${Math.round(rounded / 1000)}k`;
-  return String(rounded);
-}
+const fmtFans = (n: number): string => formatCount(Math.max(0, Math.round(n)));
 
 /** An authored 2-4 sentence "five years later" send-off, keyed on the run's outcome. */
 export function campaignEpilogue(i: EpilogueInput): string {

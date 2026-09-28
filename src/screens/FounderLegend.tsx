@@ -4,7 +4,7 @@
 // (getFounderRecord) + the live run (so the bar nudges up mid-game); writes nothing.
 import { Check, Crown, Lock } from "lucide-react";
 import { Button } from "../design/primitives.tsx";
-import { toDollars } from "../engine/money.ts";
+import { toDollars, formatShortDollars } from "../engine/money.ts";
 import { ipoValuation, industryRank, type GameState } from "../state/gameState.ts";
 import {
   getFounderRecord,
@@ -105,10 +105,4 @@ export function FounderLegendSheet({ state, onClose }: { state: GameState; onClo
 }
 
 /** peakValuationDollars is stored in whole dollars; render it with the same M/B/T shorthand as money. */
-function formatDollars(dollars: number): string {
-  if (dollars >= 1_000_000_000_000) return `$${(dollars / 1_000_000_000_000).toFixed(1)}T`;
-  if (dollars >= 1_000_000_000) return `$${(dollars / 1_000_000_000).toFixed(1)}B`;
-  if (dollars >= 1_000_000) return `$${(dollars / 1_000_000).toFixed(1)}M`;
-  if (dollars >= 1_000) return `$${Math.round(dollars / 1_000)}k`;
-  return `$${Math.round(dollars)}`;
-}
+const formatDollars = (dollars: number): string => formatShortDollars(dollars);

@@ -196,7 +196,7 @@ export function generateBoardMandate(seed: number, quarter: number, week: number
       const floor = Math.round(c.baseRevenue * rung / 1e6) * 1e6;
       const stretch = Math.round(Math.max(0, trailingRevenue) * (1 + c.revenueStretch) / 1e6) * 1e6;
       target = Math.max(floor, stretch);
-      title = `Post $${Math.round(target / 1e6)}M in revenue this quarter`;
+      title = `Post ${bigMoney(target)} in revenue this quarter`;
       break;
     }
     case "hits":
@@ -244,7 +244,12 @@ export function mandateComplete(m: BoardMandate, f: MandateFacts): boolean {
 
 /** A short human summary of a mandate reward (for the feed / HQ card). */
 export function mandateRewardSummary(m: BoardMandate): string {
-  return `$${Math.round(toDollars(m.reward.cash) / 1e6)}M + ${m.reward.rep} reputation`;
+  return `${bigMoney(toDollars(m.reward.cash))} + ${m.reward.rep} reputation`;
+}
+
+/** Whole-million money that rolls over to billions ("$12M", "$5.8B" — never "$5750M"). */
+function bigMoney(dollars: number): string {
+  return dollars >= 1e9 ? `$${(dollars / 1e9).toFixed(1).replace(/\.0$/, "")}B` : `$${Math.round(dollars / 1e6)}M`;
 }
 
 // ---- Board confidence & directive tiers (feature #5) ---------------------------------------------

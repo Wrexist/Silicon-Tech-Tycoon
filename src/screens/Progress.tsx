@@ -6,7 +6,7 @@
 // Gated (in App) on the first ship, so an empty garage isn't buried under systems.
 import { useState } from "react";
 import { Award, Boxes, CalendarDays, Crown, FileLock2, Target, Trophy, X, BookOpen, Map as MapIcon, Layers } from "lucide-react";
-import { ListChecks } from "lucide-react";
+import { ListChecks, Star } from "lucide-react";
 import { AchievementsSheet } from "./Achievements.tsx";
 import { MasterySheet } from "./Mastery.tsx";
 import { categoryMastery } from "../engine/mastery.ts";
@@ -217,7 +217,7 @@ export function ProgressPanel({ initialView = "hub", onClose, onOpen }: {
           <span className="prog__row-title">Scenarios</span>
           <span className="prog__row-sub">Hand-crafted challenges with star goals</span>
         </span>
-        <span className="prog__row-count tnum">{scenarioStars}<span className="prog__row-count-total">/{SCENARIOS.length * 3}★</span></span>
+        <span className="prog__row-count tnum">{scenarioStars}<span className="prog__row-count-total">/{SCENARIOS.length * 3}<Star size={11} fill="currentColor" aria-label="stars" /></span></span>
       </button>
 
       <button className="prog__row" onClick={() => setView("challenges")}>

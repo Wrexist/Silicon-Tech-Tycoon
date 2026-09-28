@@ -1,3 +1,4 @@
+import { formatCount, formatShortDollars } from "./money.ts";
 // Industry Buzz — the world reacting to you, live. A PURE fold over the current state into a short,
 // prioritised list of authored one-line headlines (rank, your latest launch, a rival's move, your
 // platform, fans, the next era…). The HQ shows them as a rotating "wire" so the world feels awake
@@ -32,11 +33,7 @@ export interface BuzzInput {
   licenseeCount: number;
 }
 
-function fmtCount(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n >= 10_000_000 ? 0 : 1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}k`;
-  return String(Math.max(0, Math.round(n)));
-}
+const fmtCount = (n: number): string => formatCount(Math.max(0, n));
 
 /** Prioritised, authored headlines for the current moment (most interesting first). Pure. */
 export function industryBuzz(i: BuzzInput): BuzzLine[] {
@@ -68,7 +65,7 @@ export function industryBuzz(i: BuzzInput): BuzzLine[] {
 
   // Momentum signals.
   if (i.fans >= 5_000) out.push({ id: "fans", text: `A fanbase ${fmtCount(i.fans)} strong is hanging on your next move.`, tone: "good" });
-  if (i.valuationDollars >= 1_000_000_000) out.push({ id: "val", text: `The Street values ${i.company} north of $${fmtCount(i.valuationDollars)}.`, tone: "good" });
+  if (i.valuationDollars >= 1_000_000_000) out.push({ id: "val", text: `The Street values ${i.company} north of ${formatShortDollars(i.valuationDollars)}.`, tone: "good" });
   if (i.eraProgress >= 0.6 && !i.listed) out.push({ id: "era", text: `Analysts whisper a new era is close.`, tone: "neutral" });
   if (i.reputation >= 85) out.push({ id: "rep", text: `${i.company}'s name alone now moves the market.`, tone: "hot" });
 

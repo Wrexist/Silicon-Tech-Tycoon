@@ -10,15 +10,11 @@ import { netWorth, challengeViewFor, type GameState } from "../state/gameState.t
 import type { ScenarioResult } from "../engine/scenarios.ts";
 import { scenarioById } from "../engine/scenarios.ts";
 import { encodeChallengeCode, formatScore, scoreMetricLabel } from "../engine/challenges.ts";
-import { format } from "../engine/money.ts";
+import { format, formatCount } from "../engine/money.ts";
 import { eraName } from "../engine/eras.ts";
 import "./resultCard.css";
 
-function fmtFans(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}k`;
-  return String(Math.round(n));
-}
+const fmtFans = (n: number): string => formatCount(n);
 
 function Stars({ n }: { n: number }) {
   return (
@@ -70,7 +66,7 @@ export function ResultCard({
   const sub = pm
     ? `Out of cash in the ${eraName(state.era)}${hits > 0 ? ` · ${hits} hit${hits > 1 ? "s" : ""} along the way` : ""}`
     : scn
-    ? (result?.stars === 3 ? "Mastered, all three stars" : result?.won ? `${result.stars}★ earned` : scn.tagline)
+    ? (result?.stars === 3 ? "Mastered, all three stars" : result?.won ? `${result.stars} star${result.stars === 1 ? "" : "s"} earned` : scn.tagline)
     : chv
     ? `${chScore} ${scoreMetricLabel(chv.challenge.scoreMetric)}${chv.final == null ? " so far" : ""}`
     : `${state.companyName} · Year ${years}`;

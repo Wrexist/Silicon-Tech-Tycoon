@@ -33,8 +33,8 @@ export function FoundingBrief({ companyName, onDone }: { companyName: string; on
           <div className="fbrief__glyph" aria-hidden><Compass size={38} strokeWidth={1.7} /></div>
           <h1 className="onboard__title">What are you building?</h1>
           <p className="onboard__tag">
-            {companyName} is yours to steer. Tell us what you're after and we'll point you at the
-            parts of Silicon that get you there.
+            {companyName} is yours to steer. Tell us what you're after and we'll show you what fits
+            that ambition.
           </p>
 
           <div className="fbrief__options" role="group" aria-label="What are you building?">
@@ -47,7 +47,7 @@ export function FoundingBrief({ companyName, onDone }: { companyName: string; on
           </div>
 
           <button className="onboard__scenario-link" onClick={skip}>
-            Skip — just let me play
+            Skip this question
           </button>
         </div>
       </div>
