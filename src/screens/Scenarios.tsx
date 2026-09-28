@@ -149,7 +149,13 @@ export function ScenariosSheet({ onClose, initialName }: { onClose: () => void; 
           onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setConfirmId(null); } }}>
           <div ref={confirmRef} tabIndex={-1} className="scn__confirm-card" onClick={(e) => e.stopPropagation()}>
             <p className="scn__confirm-title">Start “{confirmScenario.name}”?</p>
-            {state.activeChallenge || state.activeScenario ? (
+            {!state.onboarded ? (
+              // From the founding screen nothing exists yet to "keep safe" — don't promise a parked company.
+              <p className="scn__confirm-text">
+                This founds a fresh company inside the scenario, with its own goals and star targets. You can
+                start a free-play company any time after.
+              </p>
+            ) : state.activeChallenge || state.activeScenario ? (
               <p className="scn__confirm-text">
                 This starts a fresh scenario run in place of the current one. Your parked company is untouched — you'll still
                 return to it. Scenario stars and your museum are kept.

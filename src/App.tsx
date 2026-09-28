@@ -189,6 +189,11 @@ function AppShell() {
     [uiVersion, push, openProgress],
   );
   const viewFactory = useCallback(() => { setHqWorld("factory"); haptic.light(); }, []);
+  // The first-ship unlock card describes the Progress HUB — open the hub, not its Challenges view.
+  const openProgressHub = useCallback(
+    () => (uiVersion === "next" ? push("progress") : openProgress()),
+    [uiVersion, push, openProgress],
+  );
   // A deep link names the tab it was opened from; adopt it on FIRST mount so the nav highlight and
   // the URL agree. Runs once — after that the player's own tab taps own the state.
   const adoptedRoot = useRef(false);
@@ -316,7 +321,7 @@ function AppShell() {
             )}
           </div>
           <ErrorBoundary resetKey={`${tab}:${page ?? ""}`} fallback={(reset) => <ScreenError onHome={() => { reset(); setTab("hq"); }} />}>
-            <HQ onNavigate={setTab} onOpenBank={openBank} onOpenChallenges={openChallenges} onViewFactory={viewFactory} active={tab === "hq" && page == null} world={hqWorld} />
+            <HQ onNavigate={setTab} onOpenBank={openBank} onOpenChallenges={openChallenges} onOpenProgress={openProgressHub} onViewFactory={viewFactory} active={tab === "hq" && page == null} world={hqWorld} />
           </ErrorBoundary>
         </div>
         {designVisited.current && <div className="app__screen" hidden={page != null || tab !== "design"}>

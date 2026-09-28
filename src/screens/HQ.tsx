@@ -117,7 +117,7 @@ const FINE_POINTER = typeof window !== "undefined" && !!window.matchMedia?.("(po
  *  snapshot while hidden (useGameWhile), so the weekly tick doesn't re-render an invisible screen. */
 const HqActive = createContext(true);
 
-export const HQ = memo(function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, active = true, world = "office" }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; onOpenChallenges?: () => void; onViewFactory?: () => void; active?: boolean; world?: "office" | "factory" }) {
+export const HQ = memo(function HQ({ onNavigate, onOpenBank, onOpenChallenges, onOpenProgress, onViewFactory, active = true, world = "office" }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; onOpenChallenges?: () => void; onOpenProgress?: () => void; onViewFactory?: () => void; active?: boolean; world?: "office" | "factory" }) {
   const { state, advanceEra, goPublic, resolveChoice, resolvePoach, claimContract, fundMegaproject, buyLegacyPerk, buyFrontierTier } = useGameWhile(active);
   // The launch payoff (reveal, haptics, streak, review prompt) lives in a shared hook so the Office
   // card here and the global ready-to-launch popup release a product identically.
@@ -369,7 +369,7 @@ export const HQ = memo(function HQ({ onNavigate, onOpenBank, onOpenChallenges, o
       {/* Item A1 — a one-time, persistent "what your first ship just unlocked" card (replaces the old
           blink-and-miss toast). Only on a first-legacy company that has shipped and not yet dismissed it. */}
       {state.launched.length >= 1 && state.legacy === 0 && !state.seenFirstShipUnlocks && (
-        <UnlockCard onOpenBank={onOpenBank} onOpenProgress={onOpenChallenges} />
+        <UnlockCard onOpenBank={onOpenBank} onOpenProgress={onOpenProgress ?? onOpenChallenges} />
       )}
 
       {/* Rolling contract board — live, regenerating goals that give the endgame a directed chase

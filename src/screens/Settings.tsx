@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { readHomeSave } from "../state/persistence.ts";
+import { HelpSheet } from "./Help.tsx";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ALargeSmall,
+  BookOpen,
   Bell,
   Check,
   Contrast,
@@ -60,13 +63,22 @@ const PACES: { id: InterruptPace; label: string; sub: string }[] = [
 
 export function Settings({ onClose }: { onClose: () => void }) {
   const settings = useSettings();
-  const { state, restart, unlockPlatform, setInterruptPace } = useGame();
+  const { state, restart, unlockPlatform, setInterruptPace, homeSaved, returnHome } = useGame();
+  // Mid-scenario/challenge, restart() also clears the PARKED home company (the Scenarios/Challenges
+  // confirms promised it was "kept safe"). Name it in the confirm and offer the way back instead.
+  const inRun = !!(state.activeScenario || state.activeChallenge);
+  const parked = useMemo(() => (inRun && homeSaved ? readHomeSave() : null), [inRun, homeSaved]); // parse once, not every tick
   const [confirmReset, setConfirmReset] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  // Help & Guide lives in Progress, which only unlocks after the first ship — exactly when a new
+  // player most needs it. Settings is reachable from week 0, so it opens the same guide inline.
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const net = netWorth(state);
   const hits = state.launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
   const hitRate = state.launched.length > 0 ? Math.round((hits / state.launched.length) * 100) : 0;
+
+  if (helpOpen) return <HelpSheet onClose={() => setHelpOpen(false)} />;
 
   return (
     <div className="set">
@@ -223,14 +235,26 @@ export function Settings({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="set__group">
+        <Button block variant="secondary" onClick={() => { haptic.light(); setHelpOpen(true); }}>
+          <BookOpen size={16} /> Help &amp; Guide
+        </Button>
+      </div>
+
+      <div className="set__group">
         {confirmReset ? (
           <div className="set__confirm" role="group" aria-label="Confirm starting a new company">
             <span className="set__confirm-text">
               Start over? {state.companyName} — week {state.week}, {format(netWorth(state))} net
               worth — is deleted for good.
+              {parked && <> Your parked company, {parked.companyName} (week {parked.week}), is deleted too.</>}
             </span>
             <div className="set__confirm-row">
               <Button variant="tertiary" onClick={() => setConfirmReset(false)}>Cancel</Button>
+              {parked && (
+                <Button variant="secondary" onClick={() => { setConfirmReset(false); if (returnHome()) onClose(); }}>
+                  Return to {parked.companyName}
+                </Button>
+              )}
               <Button variant="destructive" onClick={() => { restart(); onClose(); }}>Restart</Button>
             </div>
           </div>

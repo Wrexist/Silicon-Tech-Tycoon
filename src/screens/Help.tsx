@@ -8,7 +8,7 @@ import type { LucideIcon } from "lucide-react";
 import { Button } from "../design/primitives.tsx";
 import { SCORE_INFO, STAT_INFO, TERM_INFO } from "../engine/glossary.ts";
 import { STAT_KEYS } from "../engine/types.ts";
-import { useGameActions } from "../state/useGame.tsx";
+import { useGameActions, useGameSelector } from "../state/useGame.tsx";
 import { haptic } from "../design/haptics.ts";
 import "./help.css";
 
@@ -25,6 +25,9 @@ const SECTIONS: HelpSection[] = [
 
 export function HelpSheet({ onClose }: { onClose: () => void }) {
   const { replayCoach } = useGameActions();
+  // The coach walks design → build → launch. Once something has shipped it can only show its final
+  // "your first product is live" card, so the replay is offered only while it can actually teach.
+  const canReplay = useGameSelector((s) => s.launched.length === 0);
   return (
     <div className="help">
       <div className="help__head">
@@ -55,7 +58,7 @@ export function HelpSheet({ onClose }: { onClose: () => void }) {
         </section>
       ))}
 
-      <div className="help__coach">
+      {canReplay && <div className="help__coach">
         <div className="help__coach-info">
           <span className="help__coach-title">New here, or need a refresher?</span>
           <span className="help__coach-sub">Replay the step-by-step build coach on your Home screen.</span>
@@ -63,7 +66,7 @@ export function HelpSheet({ onClose }: { onClose: () => void }) {
         <Button variant="secondary" size="sm" onClick={() => { replayCoach(); haptic.light(); onClose(); }}>
           <RotateCw size={14} /> Replay coach
         </Button>
-      </div>
+      </div>}
 
       <Button block variant="secondary" onClick={onClose}>Done</Button>
     </div>

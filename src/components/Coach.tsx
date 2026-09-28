@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { CSSProperties } from "react";
 import { ArrowRight, Hammer, PencilRuler, Rocket, Sparkles, X, type LucideIcon } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
@@ -17,8 +18,16 @@ interface Step {
 /** Progress-driven first-build coach. Reads game state to decide the current step, so it
  *  survives re-renders and never anchors to fragile DOM nodes. Disappears once the player
  *  launches their first product (or skips). */
+const COACH_AUTO_RETIRE_WEEKS = 4;
+
 export function Coach({ tab, onNavigate }: { tab: Tab; onNavigate: (t: Tab) => void }) {
   const { state, dismissTutorial } = useGame();
+  // The post-launch card is the only thing that ends the tutorial, and the Office's next-move card and
+  // contract board wait on that. A player who never taps "Got it" never saw either — so retire the
+  // card by itself once the first product has been selling for a few weeks.
+  const firstLaunchWeek = state.launched.length > 0 ? state.launched[state.launched.length - 1].launchedWeek : null; // newest-first
+  const settled = !state.tutorialDone && firstLaunchWeek != null && state.week - firstLaunchWeek >= COACH_AUTO_RETIRE_WEEKS;
+  useEffect(() => { if (settled) dismissTutorial(); }, [settled, dismissTutorial]);
   if (state.tutorialDone || state.bankrupt) return null;
 
   const step = currentStep(state, tab);
@@ -80,7 +89,7 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
       color: engOrange,
       icon: Hammer,
       title: "Manufacturing started",
-      text: "Time advances automatically as it builds, tap the Fast-forward button in the top bar to speed through the wait, or Pause to hold. Watch the progress on the Office tab; you'll launch once it's ready.",
+      text: "Time advances automatically as it builds, tap the speed button in the time controls at the bottom to speed through the wait, or Pause to hold. Watch the progress on the Office tab; you'll launch once it's ready.",
       cta: tab === "hq" ? undefined : { label: "Go to Office", tab: "hq" },
     };
   }
@@ -90,7 +99,7 @@ function currentStep(state: ReturnType<typeof useGame>["state"], tab: Tab): Step
     icon: PencilRuler,
     title: "Design your first device",
     text: tab === "design"
-      ? "It's already specced and fairly priced — you can ship it as-is. Tap the Launch tab up top, then Plan production to set a run size and campaign. (Tweak Components, Style or Specs first if you like.) You pay for the run upfront, so keep a cash cushion."
+      ? "It's already specced and fairly priced — you can ship it as-is. Tap the Launch tab up top, then Plan production to set a run size and campaign. (Tweak Components, Style or Camera first if you like.) You pay for the run upfront, so keep a cash cushion."
       : "A starter device is pre-filled and ready — open the Design Lab and head to the Launch tab to ship it. Tweak the parts and price first if you want.",
     cta: tab === "design" ? undefined : { label: "Open Design Lab", tab: "design" },
   };

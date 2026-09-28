@@ -224,7 +224,7 @@ export function ProgressPanel({ initialView = "hub", onClose, onOpen }: {
         <span className="prog__row-glyph" aria-hidden><CalendarDays size={20} /></span>
         <span className="prog__row-info">
           <span className="prog__row-title">Challenges</span>
-          <span className="prog__row-sub">A fresh seeded run every day, beat your best</span>
+          <span className="prog__row-sub">A fresh seeded run every day, one shot each</span>
         </span>
       </button>
 
