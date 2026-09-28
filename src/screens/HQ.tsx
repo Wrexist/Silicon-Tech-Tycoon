@@ -20,6 +20,7 @@ import { openPaywall } from "../state/paywall.ts";
 import { eraAdvanceLocked } from "../state/proGates.ts";
 import { useIsPro } from "../state/usePro.ts";
 import { useLaunchProduct } from "../state/useLaunchProduct.ts";
+import { ForecastChip } from "../components/ForecastChip.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
@@ -188,6 +189,7 @@ export const HQ = memo(function HQ({ onNavigate, onOpenBank, onOpenChallenges, o
               <div className="hq__ready-info">
                 <span className="hq__ready-name">{p.name}</span>
                 {p.plannedUnits != null && <span className="hq__ready-sub">{p.plannedUnits.toLocaleString()} units ready</span>}
+                <ForecastChip state={state} product={p} />
               </div>
               <Button size="sm" onClick={() => onLaunch(p.id)}>
                 <Rocket size={15} /> Launch

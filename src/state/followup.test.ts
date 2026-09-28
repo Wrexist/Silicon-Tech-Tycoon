@@ -61,3 +61,14 @@ describe("management readouts", () => {
     expect(fine.title).toMatch(/^Projected hit\./);
   });
 });
+
+describe("shared launch forecast", () => {
+  it("maps the effective score onto the live bars, flop at or below the flop bar", async () => {
+    const { forecastFromScore } = await import("./launchForecast.ts");
+    const bands = { hit: 80, solid: 60, flop: 30 };
+    expect(forecastFromScore(85, bands).label).toBe("Projected hit");
+    expect(forecastFromScore(65, bands).label).toBe("Solid performer");
+    expect(forecastFromScore(45, bands).label).toBe("Steady seller");
+    expect(forecastFromScore(30, bands)).toMatchObject({ label: "Needs refinement", flop: true });
+  });
+});

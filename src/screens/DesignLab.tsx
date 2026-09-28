@@ -75,6 +75,9 @@ import { prototypeCost } from "../engine/prototype.ts";
 import { useGame, useGameWhile, useHoldSim, useGameControls } from "../state/useGame.tsx";
 import { useUiVersion } from "../state/uiVersion.ts";
 import { useLaunchProduct } from "../state/useLaunchProduct.ts";
+import { forecastFromScore } from "../state/launchForecast.ts";
+import { predecessorOf } from "../design/launchReveal.ts";
+import { ForecastChip } from "../components/ForecastChip.tsx";
 import { claimReadyLaunch, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { BuildProgress } from "../components/BuildProgress.tsx";
 import { StatBars } from "../components/charts.tsx";
@@ -463,11 +466,7 @@ export function DesignLab({
   // expectations (recent track record), so the projection reflects the rising bar — a proven studio
   // sees "solid" where a newcomer would see "hit" for the identical product.
   const bands = launchBars(state);
-  const verdict =
-    effectiveScore >= bands.hit ? { label: "Projected hit", tone: "positive" as const }
-      : effectiveScore <= bands.flop ? { label: "Needs refinement", tone: "neutral" as const }
-        : effectiveScore >= bands.solid ? { label: "Solid performer", tone: "positive" as const }
-          : { label: "Steady seller", tone: "accent" as const };
+  const verdict = forecastFromScore(effectiveScore, bands);
   // Item 1: the verdict can swing while "Fit" is unchanged because rivals (competitionFactor)
   // drag the effective score. Flag that so the label never looks like it flipped at random.
   const competitionDrag = !!preview && preview.competitionFactor < 0.85 && (preview.betterRivals > 0 || preview.matchingRivals > 0);
@@ -583,7 +582,7 @@ export function DesignLab({
   const STAT_LABEL_FULL: Record<keyof Stats, string> = { performance: "Performance", quality: "Quality", battery: "Battery life", design: "Design", ecosystem: "Ecosystem" };
 
   const underserved = [...liveSegments.perSegment].sort((a, b) => b.size * (100 - b.fit) - a.size * (100 - a.fit))[0];
-  const advice = designAdvice({ buyerNeeds: underserved ? `${underserved.name}: ${segmentWantsById(underserved.id)}` : undefined, missing: missing.map(capSlot), priceRatio, weak: syn.weakest && capSlot(syn.weakest), fit, trend: topWantedDelta > .02 ? STAT_LABEL_FULL[topWanted] : null, forecast: preview ? { label: verdict.label, flop: effectiveScore <= bands.flop, betterRivals: preview.betterRivals } : undefined });
+  const advice = designAdvice({ buyerNeeds: underserved ? `${underserved.name}: ${segmentWantsById(underserved.id)}` : undefined, missing: missing.map(capSlot), priceRatio, weak: syn.weakest && capSlot(syn.weakest), fit, trend: topWantedDelta > .02 ? STAT_LABEL_FULL[topWanted] : null, forecast: preview ? { label: verdict.label, flop: verdict.flop, betterRivals: preview.betterRivals } : undefined });
   return (
     <div className="lab">
       {/* Header strip — subtitle + the live projected-verdict badge (mockup's "Steady Seller"). */}
@@ -775,6 +774,7 @@ export function DesignLab({
               <div className="lab__pipe-info">
                 <span className="lab__pipe-name">{p.name}</span>
                 {p.plannedUnits != null && <span className="lab__pipe-sub">{p.plannedUnits.toLocaleString()} units ready</span>}
+                <ForecastChip state={state} product={p} />
               </div>
               <Button size="sm" onClick={() => onLaunch(p.id)}>
                 <Rocket size={15} /> Launch
@@ -1991,6 +1991,9 @@ function DesignCompleteCard({
   const sellsOut = plan ? plan.sellsOut : done.sellsOut;
   const overall = plan ? plan.overall : done.overall;
   const profD = toDollars(profit);
+  // "Am I getting better?" — the build against the product it follows (same line, else category).
+  const prev = predecessorOf(done.product, state.launched.filter((l) => l.product.id !== done.builtId));
+  const vsPrev = prev ? Math.round(overall - overallScore(prev.stats, prev.product.category)) : null;
 
   const launchNow = () => {
     onClose(); // close first so the keynote reveal isn't stacked on the sheet
@@ -2022,7 +2025,14 @@ function DesignCompleteCard({
       </div>
 
       <div className="done__grid">
-        <Stat label="Overall" value={`${overall}`} hint={overall >= 75 ? "flagship tier" : overall >= 55 ? "strong build" : overall >= 35 ? "mid-tier" : "entry tier"} />
+        <Stat
+          label="Overall"
+          value={`${overall}`}
+          tone={vsPrev != null && vsPrev > 0 ? "positive" : undefined}
+          hint={vsPrev != null && vsPrev !== 0 && prev
+            ? `${vsPrev > 0 ? "+" : "−"}${Math.abs(vsPrev)} vs ${prev.product.name}`
+            : overall >= 75 ? "flagship tier" : overall >= 55 ? "strong build" : overall >= 35 ? "mid-tier" : "entry tier"}
+        />
         <Stat label="Run size" value={done.units.toLocaleString()} />
         <Stat
           label="Est. sales"
