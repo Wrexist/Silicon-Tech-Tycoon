@@ -92,9 +92,9 @@
 .hud__chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-4);
   flex-shrink: 0;
-  padding: 5px 9px;
+  padding: var(--sp-5) var(--sp-8);
   border-radius: var(--r-pill);
   background: var(--surface);
   border: 1px solid var(--hairline);
@@ -172,7 +172,7 @@
 
 /* Micro-label so an icon chip reads unambiguously ("Rep 8", not a bare gold star). */
 .hud__chip-tag {
-  font-size: 0.625rem;
+  font-size: var(--fs-nano);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;

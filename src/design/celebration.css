@@ -46,7 +46,7 @@
 .cele__rays { position: absolute; inset: 0; }
 .cele__rays i {
   position: absolute; top: 50%; left: 50%;
-  width: 3px; height: 14px; margin: -7px 0 0 -1.5px;
+  width: 3px; height: 14px; margin: -6px 0 0 -1.5px;
   border-radius: var(--r-pill); background: var(--accent);
   transform: rotate(var(--a)) translateY(-44px) scaleY(0);
   transform-origin: center;

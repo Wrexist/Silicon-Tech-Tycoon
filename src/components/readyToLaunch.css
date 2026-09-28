@@ -60,7 +60,7 @@
 .rtl__eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-5);
   font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--positive);
@@ -109,7 +109,7 @@
 .rtl__later {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-6);
   padding: var(--sp-8) var(--sp-12);
   background: none;
   border: none;

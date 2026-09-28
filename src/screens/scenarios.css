@@ -36,7 +36,7 @@
 /* Stars */
 .scn__stars {
   display: inline-flex;
-  gap: 2px;
+  gap: var(--sp-2);
   color: var(--ink-3);
 }
 .scn__star--on {
@@ -92,7 +92,7 @@
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  padding: 3px var(--sp-8);
+  padding: var(--sp-4) var(--sp-8);
   border-radius: var(--r-pill);
   background: var(--bg-elevated);
   color: var(--ink-2);
@@ -395,7 +395,7 @@
 .season__sub {
   font-size: var(--fs-caption);
   color: var(--ink-3);
-  margin: 2px 0 0;
+  margin: var(--sp-2) 0 0;
 }
 .season__count {
   font-size: var(--fs-title);

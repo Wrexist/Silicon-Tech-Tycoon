@@ -15,7 +15,7 @@
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--sp-4);
 }
 .stat-row__arrow {
   display: inline-block;
@@ -110,8 +110,8 @@
 }
 .ds-chart__ranges {
   display: inline-flex;
-  gap: 2px;
-  padding: 2px;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
   border-radius: var(--r-pill);
   background: var(--surface-2);
   border: 1px solid var(--hairline);

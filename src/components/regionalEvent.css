@@ -37,7 +37,7 @@
 }
 @keyframes rge-glyph { from { transform: scale(0.5) rotate(-8deg); opacity: 0; } to { transform: none; opacity: 1; } }
 .rge__region {
-  display: inline-flex; align-items: center; gap: 4px; margin-top: var(--sp-4);
+  display: inline-flex; align-items: center; gap: var(--sp-4); margin-top: var(--sp-4);
   font-size: var(--fs-micro); font-weight: 700; color: var(--ink-2);
 }
 .rge__region svg { color: var(--ink-3); }

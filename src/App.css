@@ -297,7 +297,7 @@
   font-size: var(--fs-caption);
   color: var(--ink-2);
   line-height: 1.35;
-  margin-top: 2px;
+  margin-top: var(--sp-2);
 }
 
 /* Team reaction emote (Garage3D CheerEmote): a quick pop, a beat, then a slow rise + fade so the
@@ -599,7 +599,7 @@
 .eb__report {
   text-align: left;
   font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
-  font-size: 0.6875rem;
+  font-size: var(--fs-micro);
   line-height: 1.5;
   color: var(--ink-2);
   background: var(--surface-2);
@@ -685,7 +685,7 @@
   left: 50%;
   width: 3px;
   height: 18px;
-  margin: -9px 0 0 -1.5px;
+  margin: -8px 0 0 -1.5px;
   border-radius: var(--r-pill);
   background: var(--accent);
   transform-origin: center;
@@ -742,7 +742,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: var(--sp-2);
   padding: var(--sp-12) var(--sp-8);
   border-radius: var(--r-card);
   background: var(--glass-well, var(--surface-2, color-mix(in srgb, var(--sheen) 50%, transparent)));
@@ -803,7 +803,7 @@
 
 /* Era Mandate draft (feature #6) — lives inside the era takeover's own gradient style (NOT liquid
    glass): the same well tiles + accent language as the rest of the modal. */
-.era-modal__section-label > svg { vertical-align: -1px; margin-right: 4px; }
+.era-modal__section-label > svg { vertical-align: -1px; margin-right: var(--sp-4); }
 .era-modal__draft-explain {
   font-size: var(--fs-caption);
   color: var(--ink-2);
@@ -858,13 +858,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-8);
-  margin-top: 2px;
+  margin-top: var(--sp-2);
 }
 .era-modal__mandate-up,
 .era-modal__mandate-down {
   font-size: var(--fs-micro);
   font-weight: 800;
-  padding: 3px var(--sp-8);
+  padding: var(--sp-4) var(--sp-8);
   border-radius: var(--r-pill);
 }
 .era-modal__mandate-up {

@@ -146,7 +146,7 @@
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--ink-2);
-  padding: 3px var(--sp-8);
+  padding: var(--sp-4) var(--sp-8);
   border-radius: var(--r-pill);
   background: var(--surface-2);
   border: 1px solid var(--hairline);

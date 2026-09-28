@@ -67,7 +67,7 @@
 .rvd__tagline { font-size: var(--fs-body); font-weight: 600; color: var(--ink); line-height: 1.4; margin-top: var(--sp-8); }
 .rvd__doctrine {
   display: inline-flex; align-items: center; margin-top: var(--sp-4);
-  padding: 4px 12px; border-radius: var(--r-pill);
+  padding: var(--sp-4) var(--sp-12); border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--negative) 12%, transparent); color: var(--negative);
   font-size: var(--fs-nano); font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase;
 }

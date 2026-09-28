@@ -29,7 +29,7 @@
 .set__company-stat {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--sp-2);
   font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--ink);
@@ -61,9 +61,9 @@
 }
 .set__seg {
   display: flex;
-  gap: 4px;
+  gap: var(--sp-4);
   background: var(--bg-elevated);
-  padding: 4px;
+  padding: var(--sp-4);
   border-radius: var(--r-button);
 }
 .set__seg-opt {
@@ -72,7 +72,7 @@
   align-items: center;
   justify-content: center;
   gap: var(--sp-6);
-  padding: 9px 4px;
+  padding: var(--sp-8) var(--sp-4);
   border-radius: 9px;
   font-size: var(--fs-caption);
   font-weight: 600;
@@ -115,7 +115,7 @@
   height: 29px;
   border-radius: var(--r-pill);
   background: var(--bg-elevated);
-  padding: 3px;
+  padding: var(--sp-4);
   flex-shrink: 0;
   transition: background var(--spring-snappy);
 }
@@ -202,7 +202,7 @@
 /* "Active" pill on the Silicon Pro status row. */
 .set__pro-badge {
   flex: 0 0 auto;
-  padding: 2px var(--sp-8);
+  padding: var(--sp-2) var(--sp-8);
   border-radius: var(--r-pill);
   font-size: var(--fs-nano);
   font-weight: 800;

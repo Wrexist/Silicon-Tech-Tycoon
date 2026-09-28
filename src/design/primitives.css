@@ -131,8 +131,8 @@
 .ds-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px var(--sp-12);
+  gap: var(--sp-6);
+  padding: var(--sp-6) var(--sp-12);
   border-radius: var(--r-pill);
   background: var(--bg-elevated);
   font-size: var(--fs-caption);
@@ -235,7 +235,7 @@
 }
 .ds-stattile__delta {
   align-self: flex-start;
-  padding: 2px var(--sp-8);
+  padding: var(--sp-2) var(--sp-8);
   border-radius: var(--r-pill);
   font-size: var(--fs-micro);
   font-weight: 700;
@@ -286,7 +286,7 @@
 .ds-keystats__text {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--sp-2);
   min-width: 0;
   flex: 1 1 auto;
 }

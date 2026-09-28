@@ -9,7 +9,7 @@
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-4);
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--ink-2);
@@ -31,7 +31,7 @@
 .mst__sub {
   font-size: var(--fs-caption);
   color: var(--ink-2);
-  margin-top: 2px;
+  margin-top: var(--sp-2);
 }
 .mst__count {
   flex-shrink: 0;
@@ -61,7 +61,7 @@
 .mst__legend-list {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--sp-4);
   list-style: none;
   font-size: var(--fs-caption);
   font-weight: 600;
@@ -114,7 +114,7 @@
 .mst__row-lock {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--sp-4);
   font-size: var(--fs-nano);
   font-weight: 700;
   color: var(--ink-3);
@@ -123,7 +123,7 @@
 .mst__pips {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-4);
   flex-shrink: 0;
 }
 .mst__pip {
@@ -168,7 +168,7 @@
 .mst__row-sig {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--sp-4);
   font-size: var(--fs-nano);
   font-weight: 700;
   color: var(--ink-3);

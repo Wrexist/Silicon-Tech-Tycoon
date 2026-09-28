@@ -34,7 +34,7 @@
 .prog__subtitle {
   font-size: var(--fs-caption);
   color: var(--ink-2);
-  margin-top: 2px;
+  margin-top: var(--sp-2);
 }
 .prog__close {
   width: 44px;

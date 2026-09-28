@@ -60,7 +60,7 @@
 .bank__flow-chip {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--sp-4);
   padding: var(--sp-4) var(--sp-10);
   border-radius: var(--r-pill);
   font-size: var(--fs-micro);

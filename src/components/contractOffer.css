@@ -64,7 +64,7 @@
 
 .cof__badge {
   display: inline-flex; align-items: center; gap: var(--sp-4);
-  padding: 2px var(--sp-8); border-radius: var(--r-pill);
+  padding: var(--sp-2) var(--sp-8); border-radius: var(--r-pill);
   font-size: var(--fs-nano); font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase;
   background: color-mix(in srgb, var(--gold) 22%, transparent); color: var(--gold);
 }

@@ -57,7 +57,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--sp-2);
 }
 .dinbox__eyebrow {
   font-size: var(--fs-micro);
@@ -78,7 +78,7 @@
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--sp-2);
   font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--accent);

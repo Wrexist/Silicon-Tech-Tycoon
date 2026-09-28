@@ -108,7 +108,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.rcard__stars { display: inline-flex; gap: 3px; color: var(--ink-3); flex-shrink: 0; }
+.rcard__stars { display: inline-flex; gap: var(--sp-4); color: var(--ink-3); flex-shrink: 0; }
 .rcard__star--on { color: var(--mat-gold); filter: drop-shadow(0 1px 4px color-mix(in srgb, var(--mat-gold) 55%, transparent)); }
 
 .rcard__hero {

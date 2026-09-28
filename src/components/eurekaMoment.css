@@ -45,7 +45,7 @@
 .eur__card--result.eur__card--jackpot .eur__eyebrow { color: var(--positive); }
 .eur__title { font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em; }
 .eur__sub { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.5; margin: var(--sp-2) 0 var(--sp-8); }
-.eur__kind { display: inline-flex; align-items: center; gap: 3px; font-weight: 700; color: var(--accent); text-transform: capitalize; }
+.eur__kind { display: inline-flex; align-items: center; gap: var(--sp-4); font-weight: 700; color: var(--accent); text-transform: capitalize; }
 
 .eur__choices { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-12); width: 100%; margin-top: var(--sp-8); align-items: stretch; }
 .eur__choice {

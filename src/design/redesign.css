@@ -155,7 +155,7 @@ body::before { display: none; }
 .app .lab__hero-cat--on { background: transparent; color: var(--ink-2); border: 0; padding: 0; }
 .app .lab__hero-stage { min-height: 140px; gap: var(--sp-4); }
 .app .lab__hero-line-hint { display: none; }
-.app .lab__hero-tag { padding: 2px 6px; }
+.app .lab__hero-tag { padding: var(--sp-2) var(--sp-6); }
 .app .lab__hero-name-row { gap: var(--sp-4); }
 .app .lab__hero .lab__hero-info .lab__hero-line:nth-last-child(1) { display: none; }
 .app .rd__head { align-items: start; }

@@ -15,7 +15,7 @@
 .fmini__lockbay-pad { fill: color-mix(in srgb, var(--ink) 7%, var(--bg)); stroke: color-mix(in srgb, var(--ink) 24%, transparent); stroke-width: 1.5; stroke-dasharray: 5 4; }
 .fmini__lockbay-body { fill: color-mix(in srgb, var(--ink) 42%, transparent); }
 .fmini__lockbay-shackle { fill: none; stroke: color-mix(in srgb, var(--ink) 42%, transparent); stroke-width: 2.5; stroke-linecap: round; }
-.fmini__lockbay-txt { fill: color-mix(in srgb, var(--ink) 52%, transparent); font-size: 0.6875rem; font-weight: 800; letter-spacing: 0.04em; }
+.fmini__lockbay-txt { fill: color-mix(in srgb, var(--ink) 52%, transparent); font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.04em; }
 .fmini__belt { fill: color-mix(in srgb, var(--ink) 36%, var(--bg)); }
 .fmini__belt--live { fill: color-mix(in srgb, var(--warning) 55%, var(--bg)); }
 .fmini--run .fmini__belt--live { animation: fmini-pulse 2.2s ease-in-out infinite; }
@@ -65,7 +65,7 @@
 .fmode__cap-line--hot { color: var(--warning); }
 .fmode__cap-line--hot .fmode__cap-fill { background: var(--warning); }
 .fmode__lineboon {
-  display: inline-flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: var(--sp-4);
   font-size: var(--fs-nano); font-weight: 700;
 }
 .fmode__lineboon--good { color: var(--positive); }
@@ -85,7 +85,7 @@
   position: absolute; left: 50%; top: var(--sp-8); bottom: auto; height: fit-content;
   transform: translateX(-50%);
   display: inline-flex; align-items: center; gap: var(--sp-6);
-  padding: 8px 14px; border-radius: var(--r-pill);
+  padding: var(--sp-8) var(--sp-14); border-radius: var(--r-pill);
   background: var(--fmode-btn-bg); border: 1px solid var(--fmode-btn-line);
   color: var(--ink-2); font-size: var(--fs-caption); font-weight: 600;
   white-space: nowrap; backdrop-filter: blur(8px); pointer-events: none;
@@ -130,17 +130,17 @@
 }
 .fmode__order { display: flex; gap: var(--sp-10); align-items: center; }
 .fmode__order-thumb { flex: none; }
-.fmode__order-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.fmode__order-info { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
 /* Stage stepper sits on the always-dark factory panel, so it reads off white-on-dark values
    rather than the theme surface (which would blend or glare depending on light/dark). */
-.fmode .strail { margin-top: 6px; }
+.fmode .strail { margin-top: var(--sp-6); }
 .fmode .strail__node { background: color-mix(in srgb, var(--sheen) 6%, transparent); border-color: var(--ink-2); color: var(--ink-2); }
 .fmode .strail__bar { background: color-mix(in srgb, var(--sheen) 14%, transparent); }
 .fmode .strail__step--done .strail__node { background: color-mix(in srgb, var(--accent) 30%, transparent); border-color: transparent; color: var(--ink); }
 .fmode .strail__step--done .strail__bar--done { background: color-mix(in srgb, var(--accent) 60%, color-mix(in srgb, var(--sheen) 14%, transparent)); }
 .fmode .strail__step--active .strail__node { color: var(--ink); }
 /* captions read on the dark panel; the whole trail fits the narrow order card */
-.fmode .strail__cap { color: var(--ink-2); font-size: 0.625rem; }
+.fmode .strail__cap { color: var(--ink-2); font-size: var(--fs-nano); }
 .fmode .strail__step--done .strail__cap { color: var(--ink-2); }
 .fmode .strail__step--active .strail__cap { color: var(--ink); }
 .fmode__order-name { font-size: var(--fs-caption); font-weight: 800; }
@@ -151,7 +151,7 @@
 .fmode__empty { margin: 0; font-size: var(--fs-micro); color: var(--ink-2); line-height: 1.4; }
 .fmode__stat {
   display: flex; justify-content: space-between; gap: var(--sp-8);
-  padding: 3px 0; font-size: var(--fs-micro); font-weight: 600;
+  padding: var(--sp-4) 0; font-size: var(--fs-micro); font-weight: 600;
 }
 /* Stat rows live INSIDE the light glass sheet (not the dark HUD), so labels use the ink token —
    the old white-alpha was invisible on the sheet surface. */
@@ -172,7 +172,7 @@
 }
 .fmode__tool {
   position: relative;
-  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-4);
   width: 58px; padding: var(--sp-8) 0;
   border-radius: var(--r-button);
   border: 1px solid var(--fmode-btn-line);
@@ -194,7 +194,7 @@
 .fmode__matsline { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-top: var(--sp-4); }
 .fmode__matschip {
   display: inline-flex; align-items: center; gap: var(--sp-4);
-  padding: 4px 9px; border-radius: var(--r-pill);
+  padding: var(--sp-4) var(--sp-8); border-radius: var(--r-pill);
   background: var(--surface-2); color: var(--ink);
   font-size: var(--fs-micro); font-weight: 700;
 }
@@ -219,10 +219,10 @@
 }
 .fmode__side-n {
   position: absolute; top: -5px; right: -5px;
-  min-width: 17px; height: 17px; padding: 0 4px;
+  min-width: 17px; height: 17px; padding: 0 var(--sp-4);
   border-radius: var(--r-pill);
   background: var(--negative); color: var(--ink);
-  font-size: 0.625rem; font-weight: 800; line-height: 17px; text-align: center;
+  font-size: var(--fs-nano); font-weight: 800; line-height: 17px; text-align: center;
 }
 
 /* sheets (rendered by the shared Sheet primitive — content only) */
@@ -248,11 +248,11 @@
   width: 34px; height: 34px; flex: none; border-radius: var(--r-button);
   background: var(--accent-soft); color: var(--accent);
 }
-.fmode__upline-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.fmode__upline-info { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; flex: 1; }
 .fmode__upline-name { font-size: var(--fs-caption); font-weight: 700; }
 .fmode__upline-sub { font-size: var(--fs-micro); color: var(--ink-2); line-height: 1.35; }
 .fmode__upline-max { font-size: var(--fs-micro); font-weight: 700; color: var(--ink-2); flex: none; }
-.fmode__upline-lock { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-micro); font-weight: 700; color: var(--ink-2); flex: none; }
+.fmode__upline-lock { display: inline-flex; align-items: center; gap: var(--sp-4); font-size: var(--fs-micro); font-weight: 700; color: var(--ink-2); flex: none; }
 .fmode__buy {
   min-height: 44px; padding: 0 var(--sp-12); flex: none;
   border: none; border-radius: var(--r-pill);
@@ -284,11 +284,11 @@
 }
 /* Armed for confirmation — a calm accent ring so it's clear this row is one tap from committing. */
 .fmode__layout--armed { box-shadow: inset 0 0 0 1.5px var(--accent); background: var(--accent-soft); }
-.fmode__layout-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.fmode__layout-info { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; flex: 1; }
 .fmode__layout-name { font-size: var(--fs-caption); font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fmode__layout-sub { font-size: var(--fs-micro); color: var(--ink-2); line-height: 1.35; }
 .fmode__layout-apply {
-  display: inline-flex; align-items: center; gap: 3px;
+  display: inline-flex; align-items: center; gap: var(--sp-4);
   min-height: 44px; padding: 0 var(--sp-12); flex: none;
   border: none; border-radius: var(--r-pill);
   background: var(--accent); color: var(--accent-ink);
@@ -345,7 +345,7 @@
 .fcard__chips { display: flex; flex-wrap: wrap; gap: var(--sp-6); padding: var(--sp-8) var(--sp-2) var(--sp-2); }
 .fcard__chip {
   display: inline-flex; align-items: center; gap: var(--sp-4);
-  padding: 4px 10px; border-radius: var(--r-pill);
+  padding: var(--sp-4) var(--sp-10); border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--surface) 82%, transparent);
   border: 1px solid var(--hairline);
   font-size: var(--fs-micro); font-weight: 700; color: var(--ink);
@@ -421,7 +421,7 @@
   }
 }
 .fmode__build-seg {
-  flex: none; display: inline-flex; gap: 2px; padding: 3px;
+  flex: none; display: inline-flex; gap: var(--sp-2); padding: var(--sp-4);
   border-radius: var(--r-pill); background: color-mix(in srgb, var(--sheen) 8%, transparent); border: 1px solid var(--fmode-btn-line);
 }
 .fmode__build-tab {
@@ -445,13 +445,13 @@
 }
 .fmode__build-undo:active { transform: scale(0.94); }
 .fmode__palette {
-  display: flex; gap: var(--sp-6); overflow-x: auto; padding-bottom: 2px;
+  display: flex; gap: var(--sp-6); overflow-x: auto; padding-bottom: var(--sp-2);
   scrollbar-width: none;
 }
 .fmode__palette::-webkit-scrollbar { display: none; }
 .fmode__ptile {
   flex: none;
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
   width: 62px; min-height: 62px; padding: var(--sp-8) 0;
   border-radius: var(--r-button);
   border: 1px solid var(--fmode-btn-line);
@@ -485,7 +485,7 @@
 /* Side order — a client commission on offer / running on the line. */
 .fmode__sideorder { display: flex; flex-direction: column; gap: var(--sp-8); }
 .fmode__sideorder-head {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; gap: var(--sp-6);
   font-size: var(--fs-micro); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
   color: var(--accent);
 }
@@ -516,9 +516,9 @@
 
 .fmode__left { max-height: calc(100dvh - 240px - env(safe-area-inset-top) - env(safe-area-inset-bottom)); overflow-y: auto; }
 @media (max-width: 619px) {
-  .fmode__panel { padding: 8px; }
-  .fmode__tool { width: 50px; padding: 7px 0; }
-  .fmode__rail { gap: 6px; }
+  .fmode__panel { padding: var(--sp-8); }
+  .fmode__tool { width: 50px; padding: var(--sp-6) 0; }
+  .fmode__rail { gap: var(--sp-6); }
 }
 
 .fmini__cell:focus-visible { outline: none; stroke: var(--accent); stroke-width: 3px; }

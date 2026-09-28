@@ -58,7 +58,7 @@
 .rst__eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-5);
   font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--negative-text, var(--negative));
@@ -77,7 +77,7 @@
   gap: var(--sp-12);
   padding: var(--sp-8) 0;
 }
-.rst__side { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; }
+.rst__side { flex: 1; display: flex; flex-direction: column; align-items: center; gap: var(--sp-4); min-width: 0; }
 .rst__side-name { font-size: var(--fs-micro); font-weight: 700; color: var(--ink-2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rst__side-score { font-size: var(--fs-headline); font-weight: 800; }
 .rst__side-score--win { color: var(--positive-text, var(--positive)); }
@@ -121,11 +121,11 @@
     0 10px 24px -10px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 .rst__act:disabled { opacity: 0.45; }
-.rst__act-label { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.rst__act-label { display: inline-flex; align-items: center; gap: var(--sp-6); white-space: nowrap; }
 .rst__act-val { flex-shrink: 0; font-weight: 800; white-space: nowrap; }
 .rst__act:not(.rst__act--primary) .rst__act-val { color: var(--ink-2); }
 .rst__hold {
-  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-6);
   min-height: 44px;
   border: none; background: none;
   font-size: var(--fs-caption); font-weight: 700; color: var(--ink-2);

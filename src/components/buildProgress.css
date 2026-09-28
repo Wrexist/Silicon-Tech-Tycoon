@@ -81,7 +81,7 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 2;
-  padding: 1px 8px;
+  padding: 1px var(--sp-8);
   border-radius: var(--r-pill);
   background: var(--surface);
   border: 1px solid var(--hairline);
@@ -106,7 +106,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--sp-4);
 }
 .bprog__name {
   font-weight: 700;
@@ -166,7 +166,7 @@
 .strail {
   display: flex;
   align-items: flex-start;
-  margin: 2px 0 0;
+  margin: var(--sp-2) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -188,7 +188,7 @@
    which machines this device needs, in order. */
 .strail__cap {
   align-self: flex-start;
-  margin-top: 6px;
+  margin-top: var(--sp-6);
   /* centre the caption under its node (node centre sits 10px in from the step's left edge) */
   transform: translateX(calc(10px - 50%));
   font-size: var(--fs-micro);
@@ -217,7 +217,7 @@
   flex: 1;
   height: 2px;
   min-width: 6px;
-  margin: 0 3px;
+  margin: 0 var(--sp-4);
   border-radius: 2px;
   background: var(--hairline);
   transition: background 320ms ease;

@@ -57,6 +57,6 @@
   width: 40px; height: 40px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--r-pill); background: color-mix(in srgb, var(--positive) 12%, var(--bg-elevated)); color: var(--positive);
 }
-.stfm__choice-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.stfm__choice-text { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
 .stfm__choice-name { font-weight: 800; font-size: var(--fs-body); }
 .stfm__choice-note { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.35; }
