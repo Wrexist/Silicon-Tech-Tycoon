@@ -48,3 +48,13 @@ describe("toast priority", () => {
     expect(__toastsForTest()[0].priority).toBe("normal");
   });
 });
+
+describe("toast duration", () => {
+  it("scales with length so a long reason can be read, within 2.6–7s", async () => {
+    const { toastDuration } = await import("./toast.tsx");
+    expect(toastDuration("Saved")).toBe(2600);
+    const long = "Not enough clear space to organize this line. Move props, remove equipment or expand the factory.";
+    expect(toastDuration(long)).toBeGreaterThan(5000);
+    expect(toastDuration("x".repeat(500))).toBe(7000);
+  });
+});

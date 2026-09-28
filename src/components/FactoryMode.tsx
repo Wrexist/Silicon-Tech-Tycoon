@@ -1,3 +1,4 @@
+import { COMPONENT_LINES } from "../engine/catalogs.ts";
 import { machineMounts } from "../garage3d/machineMounts.ts";
 import { inboxPendingKey, higherPriorityPending } from "../design/interruptPriority.ts";
 import { openDecision, useDecisionOpen } from "../design/decisionInbox.ts";
@@ -1005,12 +1006,12 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             <p className="fmode__sheet-note">Wire Intake → Packer for a build-speed bonus; cover the product's recipe and add Arms or Upgrades to deepen it.</p>
           )}
           <p className="fmode__sheet-note">Estimated parts remaining in committed runs; these are not warehouse stock.</p>
-          <div className="fmode__matsline" aria-label="Estimated parts committed to production">
+          <div className="fmode__matsline" role="group" aria-label="Estimated parts committed to production">
             {(Object.keys(MATERIAL_ICONS) as ComponentKind[]).map((kind) => {
               const Icon = MATERIAL_ICONS[kind];
               const n = d.materials.get(kind) ?? 0;
               return (
-                <span key={kind} className={`fmode__matschip${n === 0 ? " fmode__matschip--zero" : ""}`} title={kind}>
+                <span key={kind} className={`fmode__matschip${n === 0 ? " fmode__matschip--zero" : ""}`} role="img" title={COMPONENT_LINES[kind].displayName} aria-label={`${COMPONENT_LINES[kind].displayName}: ${formatCount(n)}`}>
                   <Icon size={13} aria-hidden /><span className="tnum">{formatCount(n)}</span>
                 </span>
               );

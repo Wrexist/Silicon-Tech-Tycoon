@@ -8,8 +8,8 @@ import { readyForecast } from "../state/launchForecast.ts";
 export function ForecastChip({ state, product }: { state: GameState; product: Product }) {
   const f = readyForecast(state, product);
   return (
-    <span className={`forecast-chip forecast-chip--${f.tone}`} aria-label={`Forecast: ${f.label}`} title={`Forecast: ${f.label}`}>
-      <TrendingUp size={11} aria-hidden /> <span aria-hidden>{f.label}</span>
+    <span className={`forecast-chip forecast-chip--${f.tone}`} title={`Forecast: ${f.label}`}>
+      <TrendingUp size={11} aria-hidden /> <span className="sr-only">Forecast: </span>{f.label}
     </span>
   );
 }

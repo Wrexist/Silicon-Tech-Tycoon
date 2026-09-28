@@ -18,7 +18,7 @@ const fmtFans = (n: number): string => formatCount(n);
 
 function Stars({ n }: { n: number }) {
   return (
-    <span className="rcard__stars" aria-label={`${n} of 3 stars`}>
+    <span className="rcard__stars" role="img" aria-label={`${n} of 3 stars`}>
       {[1, 2, 3].map((i) => (
         <Star key={i} size={18} fill={i <= n ? "currentColor" : "none"}
           className={i <= n ? "rcard__star rcard__star--on" : "rcard__star"} strokeWidth={1.8} />

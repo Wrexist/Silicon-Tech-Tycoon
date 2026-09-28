@@ -30,9 +30,9 @@ export function StatBars({
               {STAT_LABEL[k]}
               {/* A dot that shows ONLY when in demand — a presence signal, so "hot" reads without
                   relying on the bar's green-vs-blue tint alone (colour-blind safe). */}
-              {hot && <span className="stat-row__hot" aria-label="in demand" title="In demand" />}
-              {rising && <span className="stat-row__arrow stat-row__arrow--up" aria-label="rising" />}
-              {falling && <span className="stat-row__arrow stat-row__arrow--down" aria-label="falling" />}
+              {hot && <span className="stat-row__hot" role="img" aria-label="in demand" title="In demand" />}
+              {rising && <span className="stat-row__arrow stat-row__arrow--up" role="img" aria-label="rising" />}
+              {falling && <span className="stat-row__arrow stat-row__arrow--down" role="img" aria-label="falling" />}
             </span>
             <div className="stat-row__track">
               <div

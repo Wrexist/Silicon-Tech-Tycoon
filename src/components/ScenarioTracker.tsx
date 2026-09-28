@@ -29,7 +29,7 @@ function fmtMetric(metric: ScenarioMetric, value: number): string {
 
 function Stars({ n }: { n: number }) {
   return (
-    <span className="scn__stars" aria-label={`${n} of 3 stars earned`}>
+    <span className="scn__stars" role="img" aria-label={`${n} of 3 stars earned`}>
       {[1, 2, 3].map((i) => (
         <Star key={i} size={14} className={i <= n ? "scn__star scn__star--on" : "scn__star"}
           fill={i <= n ? "currentColor" : "none"} strokeWidth={1.8} />

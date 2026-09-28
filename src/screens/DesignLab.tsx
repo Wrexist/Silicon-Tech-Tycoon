@@ -620,7 +620,7 @@ export function DesignLab({
               {/* The 3rd tab is "Camera" only when the device has one; otherwise it holds display/
                   storage specs (a monitor's refresh, a desktop's capacity), so label it "Specs". */}
               {t.id === "camera" ? (hasCamera ? "Camera" : "Specs") : t.label}
-              {needs && <span className="lab__tab-badge lab__tab-badge--warn" aria-label="components incomplete" />}
+              {needs && <span className="lab__tab-badge lab__tab-badge--warn" role="img" aria-label="components incomplete" />}
               {ready && <span className="lab__tab-badge lab__tab-badge--ready" aria-hidden><Check size={10} /></span>}
             </button>
           );
@@ -1670,8 +1670,8 @@ export function DesignLab({
                       return (
                         <span key={k} className={`lab__cat-focus-stat${good ? " lab__cat-focus-stat--good" : ""}`}>
                           {STAT_FULL[k]}
-                          {trend === "up" && <span className="lab__cat-focus-arrow lab__cat-focus-arrow--up" aria-label="rising" />}
-                          {trend === "down" && <span className="lab__cat-focus-arrow lab__cat-focus-arrow--down" aria-label="falling" />}
+                          {trend === "up" && <span className="lab__cat-focus-arrow lab__cat-focus-arrow--up" role="img" aria-label="rising" />}
+                          {trend === "down" && <span className="lab__cat-focus-arrow lab__cat-focus-arrow--down" role="img" aria-label="falling" />}
                         </span>
                       );
                     })}

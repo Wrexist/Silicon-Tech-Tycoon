@@ -30,7 +30,7 @@ const DIFFICULTY_LABEL: Record<Scenario["difficulty"], string> = {
 /** Three stars, filled up to `n` (gold), the rest outlined. */
 function Stars({ n, size = 16 }: { n: number; size?: number }) {
   return (
-    <span className="scn__stars" aria-label={`${n} of 3 stars`}>
+    <span className="scn__stars" role="img" aria-label={`${n} of 3 stars`}>
       {[1, 2, 3].map((i) => (
         <Star
           key={i}
@@ -77,7 +77,7 @@ export function ScenariosSheet({ onClose, initialName }: { onClose: () => void; 
           <h2 className="scn__title">Scenarios</h2>
           <p className="scn__sub">Hand-crafted challenges with star goals. Earn all three for mastery.</p>
         </div>
-        <span className="scn__count tnum" aria-label={`${totalStars} of ${maxStars} stars earned`}>
+        <span className="scn__count tnum" role="img" aria-label={`${totalStars} of ${maxStars} stars earned`}>
           {totalStars}<span className="scn__count-total">/{maxStars}<Star size={12} fill="currentColor" aria-label="stars" /></span>
         </span>
       </div>

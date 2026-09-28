@@ -225,3 +225,6 @@ body.hq-deco-open .app__dock { display: none; }
 .forecast-chip { display: inline-flex; align-items: center; gap: var(--sp-4); align-self: flex-start; margin-top: var(--sp-2); padding: var(--sp-2) var(--sp-8); border-radius: var(--r-pill); font-size: var(--fs-nano); font-weight: 700; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; background: var(--surface-2); color: var(--ink-2); }
 .forecast-chip--positive { background: var(--positive-soft); color: var(--positive-text); }
 .forecast-chip--accent { background: var(--accent-soft); color: var(--accent); }
+/* The visible reason beside a disabled action (a hover `title` never reaches touch players). */
+.why-note { display: block; margin-top: var(--sp-4); font-size: var(--fs-micro); color: var(--ink-3); }
+.why-note--in { margin-top: var(--sp-2); font-weight: 600; color: inherit; opacity: 0.85; }

@@ -766,6 +766,7 @@ function MoraleCard({ state }: { state: GameState }) {
               }}
             >
               {o.label} · +{o.lift} · {format(moraleCost(state, o.kind))}
+              {why && <span className="why-note why-note--in">{why}</span>}
             </Button>
             );
           })}
@@ -1305,7 +1306,7 @@ function TeamOutputCard({ state }: { state: GameState }) {
         ].filter((s) => s.count > 0);
         if (segs.length === 0) return null;
         return (
-          <div className="co__alloc-bar" aria-label="Staff allocation">
+          <div className="co__alloc-bar" aria-hidden>{/* decorative: the counts are in the grid above */}
             {segs.map((seg) => (
               <div
                 key={seg.label}
@@ -1697,7 +1698,7 @@ function RecruitPanel({
               onClick={() => onRecruit(tier)}
             >
               <span className="co__recruit-tier-name">{t.label}</span>
-              <span className="co__recruit-tier-meta">{t.weeks} wk · skill {t.minLevel}–{t.maxLevel}</span>
+              <span className="co__recruit-tier-meta">{affordable ? `${t.weeks} wk · skill ${t.minLevel}–${t.maxLevel}` : `Needs ${format(sub(t.cost, state.cash))} more cash`}</span>
               <span className="co__recruit-tier-cost">{format(t.cost)}</span>
             </button>
           );

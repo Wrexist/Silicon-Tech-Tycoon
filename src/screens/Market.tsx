@@ -486,8 +486,10 @@ export function Market({ onDesignSuccessor, onOpenDesignLab, focusProductId, onF
                                 setOpenedRegion(r);
                               }}
                             >
-                              <Globe size={14} aria-hidden /> Buy licence · {format(r.unlockCost)}
+                              <Globe size={14} aria-hidden /> Buy license · {format(r.unlockCost)}
                             </Button>
+                            {/* Visible, not a hover title: touch has no hover and a disabled button can't be focused. */}
+                            {!afford && <span className="why-note">Needs {format(sub(r.unlockCost, state.cash))} more cash</span>}
                           </>
                         )}
                       </div>

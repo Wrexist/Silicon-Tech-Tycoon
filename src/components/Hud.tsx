@@ -32,7 +32,7 @@ export function Hud({ onSettings, onOpenBank, onOpenProgress, progressAttention 
           type="button"
           className="hud__cash"
           onClick={onOpenBank}
-          aria-label={`Open Bank. Cash ${format(state.cash)}${critical ? `, ${runway} weeks of runway left` : ""}`}
+          aria-label={`Open Bank. Cash ${format(state.cash)}${critical ? `, ${runway} week${runway === 1 ? "" : "s"} of runway left` : ""}`}
         >
           <span className="hud__cash-text">
             <span className={`hud__cash-label${critical ? " hud__cash-label--danger" : ""}`} aria-hidden>
@@ -62,7 +62,8 @@ export function Hud({ onSettings, onOpenBank, onOpenProgress, progressAttention 
       <div className="hud__chips">
         <div
           className="hud__chip hud__chip--rp"
-          title="Research Points"
+          role="img"
+          title="Research points"
           aria-label={`Research points: ${Math.floor(state.researchPoints)}`}
         >
           <FlaskConical size={13} strokeWidth={2.2} aria-hidden />
@@ -73,6 +74,7 @@ export function Hud({ onSettings, onOpenBank, onOpenProgress, progressAttention 
         </div>
         <div
           className="hud__chip"
+          role="img"
           title="Reputation"
           aria-label={`Reputation ${Math.round(state.reputation)} of 100`}
         >
@@ -82,8 +84,9 @@ export function Hud({ onSettings, onOpenBank, onOpenProgress, progressAttention 
         </div>
         <div
           className="hud__chip hud__chip--muted"
+          role="img"
           title={`${eraName(state.era)} · ${weekLabel(state.week)}`}
-          aria-label={`Week ${state.week}`}
+          aria-label={`Week ${state.week}, ${weekLabel(state.week)}, ${eraName(state.era)}`}
         >
           <Calendar size={13} strokeWidth={2.2} aria-hidden />
           <span className="tnum" aria-hidden>Wk {state.week}</span>

@@ -193,7 +193,8 @@ export function SectionHeader({
 }) {
   return (
     <div className="ds-section">
-      <span className="ds-section__title">{title}</span>
+      {/* A real heading so screen-reader users can jump between the ~70 sections (visually unchanged). */}
+      <h3 className="ds-section__title">{title}</h3>
       {accessory && <span className="ds-section__accessory">{accessory}</span>}
     </div>
   );
