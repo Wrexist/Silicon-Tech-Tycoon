@@ -35,7 +35,6 @@ export function FounderLegendSheet({ state, onClose }: { state: GameState; onClo
   const peak = record.peakValuationDollars > 0 ? formatDollars(record.peakValuationDollars) : "—";
 
   const stats: { label: string; value: string }[] = [
-    { label: "Companies founded", value: String(record.prestiges + 1) },
     { label: "New Game+ ascensions", value: String(record.prestiges) },
     { label: "IPOs", value: String(record.ipos) },
     { label: "Best hits in one run", value: String(record.bestHitsInRun) },

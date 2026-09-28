@@ -693,7 +693,7 @@ function FinancingCard({ state }: { state: GameState }) {
             <span>
               You receive <b className="tnum">{formatShortDollars(Math.round(amount * (1 - BALANCE.financing.originationFee)))}</b>
               {BALANCE.financing.originationFee > 0 ? ` after a ${Math.round(BALANCE.financing.originationFee * 100)}% fee` : ""},
-              repay <b className="tnum">{format(cents(weeklyPay))}</b>/wk for {BALANCE.financing.termWeeks} wks
+              repay <b className="tnum">{format(cents(weeklyPay))}</b>/wk for {BALANCE.financing.termWeeks} wk
             </span>
           </div>
           <Button block variant="primary" onClick={() => { takeLoan(amount * 100); haptic.success(); sfx("cash"); }}>

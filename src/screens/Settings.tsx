@@ -517,7 +517,7 @@ function ProGroup() {
         sfx("confirm");
         showToast("Purchases restored — Silicon Pro is active", { tone: "positive" });
       } else if (creativeRestored) {
-        showToast("Creative Mode restored", { tone: "positive" });
+        showToast("Creative Mode restored. Silicon Pro is a separate purchase.", { tone: "positive" });
       } else {
         showToast("No previous purchases found for this Apple ID.", { tone: "neutral" });
       }

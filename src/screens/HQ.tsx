@@ -1668,7 +1668,7 @@ function LiveOpsRow({ lp, open, onToggle }: { lp: LaunchedProduct; open: boolean
         <div className="hq__ops-row-titles">
           <span className="hq__ops-row-name">{lp.product.name}</span>
           <span className="hq__ops-row-sub">
-            {OPS_PHASE_LABEL[mom.phase]} · {mom.weeksLeft}w left
+            {OPS_PHASE_LABEL[mom.phase]} · {mom.weeksLeft} wk left
             {mom.crossedPeakBoostUnused && <span className="hq__ops-row-flag"><Zap size={10} aria-hidden /> boost now</span>}
           </span>
         </div>
@@ -1772,7 +1772,7 @@ function LiveOpsRow({ lp, open, onToggle }: { lp: LaunchedProduct; open: boolean
                 return (
                   <div className="hq__ops-reorder">
                     <p className="hq__ops-reorder-cap">
-                      <RotateCw size={12} aria-hidden /> Auto-reorder — orders arrive in <strong className="tnum">{lead}</strong>{lead === 1 ? " wk" : " wks"}
+                      <RotateCw size={12} aria-hidden /> Auto-reorder — orders arrive in <strong className="tnum">{lead}</strong>{" wk"}
                       {inTransit > 0 ? <> · <span className="tnum">{formatCount(inTransit)}</span> in transit</> : null}
                     </p>
                     <div className="hq__ops-reorder-opts">

@@ -74,7 +74,7 @@ export function GoalsPanel() {
                 <div className="gl__row-top">
                   <span className="gl__chip" aria-hidden><Icon size={13} /> {g.sourceLabel}</span>
                   {g.weeksLeft != null && !g.done && (
-                    <span className="gl__deadline"><Clock size={12} aria-hidden /> {g.weeksLeft}w left</span>
+                    <span className="gl__deadline"><Clock size={12} aria-hidden /> {g.weeksLeft} wk left</span>
                   )}
                   {g.done && <span className="gl__met"><Check size={12} aria-hidden /> Met</span>}
                 </div>

@@ -510,7 +510,7 @@ export function DesignLab({
         missing.length > 0 ? "Pick every component first."
           : state.bankrupt ? "Company is bankrupt."
           : epOver ? `Over design budget (${epUsed} / ${epTotal} EP) — lower a component tier.`
-          : "Give your device a name before you build it",
+          : "Give your product a name before you build it.",
         { tone: "negative", glyph: <AlertTriangle size={15} /> },
       );
       return;
@@ -522,7 +522,7 @@ export function DesignLab({
   function confirmBuild(units: number, channelId: ChannelId, regions: RegionId[], strategy: CapacityStrategy) {
     if (!draft.name.trim()) {
       haptic.error();
-      showToast("Give your device a name before you build it", { tone: "negative", glyph: <AlertTriangle size={15} /> });
+      showToast("Give your product a name before you build it.", { tone: "negative", glyph: <AlertTriangle size={15} /> });
       return;
     }
     // Snapshot the finished design + its forecast BEFORE building (state mutates after) so the

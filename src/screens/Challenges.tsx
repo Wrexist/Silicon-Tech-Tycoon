@@ -66,7 +66,7 @@ function ChallengeCard({ challenge, onPlay }: { challenge: Challenge; onPlay: ()
           <span className="scn__best tnum"><Trophy size={13} /> {formatScore(challenge.scoreMetric, best)}</span>
         )}
       </div>
-      <h3 className="scn__name">{isWeekly ? "Weekly Challenge" : "Daily Challenge"}</h3>
+      <h3 className="scn__name">{isWeekly ? "Weekly challenge" : "Daily challenge"}</h3>
       <p className="scn__tagline">Highest {scoreMetricLabel(challenge.scoreMetric)} by week {challenge.scoreWeek}</p>
 
       <ul className="scn__tiers">

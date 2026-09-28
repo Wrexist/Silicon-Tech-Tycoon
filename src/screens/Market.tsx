@@ -1737,7 +1737,7 @@ function TradeSheet({ comp, onClose }: { comp: CompetitorState; onClose: () => v
               >
                 <Landmark size={14} />
                 {nudgeReady
-                  ? `Delay their launch · −${t.nudgeDelayWeeks} wks`
+                  ? `Delay their launch · −${t.nudgeDelayWeeks} wk`
                   : `Nudge on cooldown · ${cooldown} wk${cooldown !== 1 ? "s" : ""}`}
               </Button>
             )}

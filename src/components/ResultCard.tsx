@@ -62,7 +62,7 @@ export function ResultCard({
   const chCode = chv ? encodeChallengeCode(chv.challenge.kind, chv.challenge.dateKey) : null;
   const headline = pm
     ? `${years} years in business`
-    : scn ? scn.name : chv ? `${chv.challenge.kind === "weekly" ? "Weekly" : "Daily"} Challenge` : `${eraName(state.era)} empire`;
+    : scn ? scn.name : chv ? `${chv.challenge.kind === "weekly" ? "Weekly" : "Daily"} challenge` : `${eraName(state.era)} empire`;
   const sub = pm
     ? `Out of cash in the ${eraName(state.era)}${hits > 0 ? ` · ${hits} hit${hits > 1 ? "s" : ""} along the way` : ""}`
     : scn

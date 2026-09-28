@@ -37,7 +37,8 @@ import {
 } from "../state/gameState.ts";
 import { osReleaseReward, rivalLicenseFee, licenseeStrengthUplift, osSynergyRows, osFeatureById, OS_PHILOSOPHIES, philosophyEffectLabel, featuredApps, appsPublishedPerWeek, securityStanding } from "../engine/platform.ts";
 import { offerTemper } from "../engine/licenseOffers.ts";
-import { format, add, toDollars, formatCount, type Money } from "../engine/money.ts";
+import { format, add, scale, toDollars, formatCount, type Money } from "../engine/money.ts";
+import { BALANCE } from "../engine/balance.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
 import { useGame } from "../state/useGame.tsx";
 import { PLATFORM_SECTIONS, SECTION_LABELS, type PlatformSection } from "../state/platformSections.ts";
@@ -172,6 +173,14 @@ export function PlatformPanel({
   const rp = Math.floor(state.researchPoints);
   // OS-completion celebration: shown when the player builds the LAST remaining module.
   const [celebrate, setCelebrate] = useState(false);
+  // Revoking a licence is permanent (a licensee can't be re-enlisted at will) — arm first, confirm
+  // second, like every other irreversible spend. The arm decays after 4s.
+  const [revokeArm, setRevokeArm] = useState<string | null>(null);
+  useEffect(() => {
+    if (!revokeArm) return;
+    const t = setTimeout(() => setRevokeArm(null), 4000);
+    return () => clearTimeout(t);
+  }, [revokeArm]);
   // OS version-release celebration: captures the launch-day reward so it survives the card swapping
   // to "up to date" the instant the version ships.
   const [released, setReleased] = useState<{ version: number; fans: number; rep: number; base: number } | null>(null);
@@ -540,10 +549,13 @@ export function PlatformPanel({
           {state.osLicensees.map((id) => {
             const c = state.competitors.find((r) => r.id === id);
             if (!c) return null;
-            const fee = rivalLicenseFee(c.reputation, tier.tier);
+            const exclusive = id in (state.osExclusive ?? {});
+            // Same maths as weeklyLicenseFees: exclusive partners pay the richer royalty, so the rows
+            // add up to the section total instead of reading ~29% low.
+            const baseFee = rivalLicenseFee(c.reputation, tier.tier);
+            const fee = exclusive ? scale(baseFee, BALANCE.platform.contract.exclusiveRoyaltyMult) : baseFee;
             const health = licenseeHealthOf(state, id);
             const mood = licenseeMoodOf(state, id);
-            const exclusive = (state.osExclusive ?? {})[id];
             return (
               <li key={id} className="plat__rival plat__rival--on">
                 <div className="plat__rival-top">
@@ -554,14 +566,16 @@ export function PlatformPanel({
                   <span className="plat__rival-fee tnum">{format(fee)}/wk</span>
                   <Button
                     size="sm"
-                    variant="tertiary"
+                    variant={revokeArm === id ? "destructive" : "tertiary"}
                     onClick={() => {
                       haptic.light();
+                      if (revokeArm !== id) { setRevokeArm(id); return; }
+                      setRevokeArm(null);
                       revokeOsLicense(id);
                       showToast(`${c.name} no longer licenses ${osDisplayName(state)}`, { tone: "neutral" });
                     }}
                   >
-                    Revoke
+                    {revokeArm === id ? `Confirm · lose ${format(fee)}/wk` : "Revoke"}
                   </Button>
                 </div>
                 <div className="plat__rel">
