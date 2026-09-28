@@ -30,13 +30,25 @@ function useMotionFrame(callback: Parameters<typeof useFrame>[0]) {
   const { reduced, stopped, revision } = useContext(MotionContext);
   const initialize = useRef(true);
   const elapsed = useRef(0);
+  // ONE view of the root state per subscriber, reused every frame: reads fall through (prototype) to
+  // the live RootState, and only the local clock is overridden. Spreading RootState + Clock + a fresh
+  // closure per subscriber per frame was hundreds of allocations a frame — steady GC churn on phones.
+  const view = useRef<{ state: Parameters<Parameters<typeof useFrame>[0]>[0]; clock: { elapsedTime: number } } | null>(null);
   useEffect(() => { initialize.current = true; }, [revision]);
   useFrame((state, delta, frame) => {
     if ((reduced || stopped) && !initialize.current) return;
     const dt = animationDelta(delta, stopped, reduced);
     elapsed.current += dt;
     // Local animation time never jumps after pause, a hidden tab or a suspended overlay.
-    callback({ ...state, clock: { ...state.clock, elapsedTime: elapsed.current, getElapsedTime: () => elapsed.current } as typeof state.clock }, dt, frame);
+    if (!view.current || Object.getPrototypeOf(view.current.state) !== state) {
+      const clock = Object.create(state.clock) as { elapsedTime: number; getElapsedTime: () => number };
+      clock.getElapsedTime = () => clock.elapsedTime;
+      const v = Object.create(state) as typeof state;
+      Object.defineProperty(v, "clock", { value: clock });
+      view.current = { state: v, clock };
+    }
+    view.current.clock.elapsedTime = elapsed.current;
+    callback(view.current.state, dt, frame);
     initialize.current = false;
   });
 }
@@ -537,7 +549,9 @@ function TravelingItem({ index, itemsT, pl, marks, look }: {
 
 function HotLight({ on, y = 2.4 }: { on: boolean; y?: number }) {
   const accent = useAccent();
-  return on ? <pointLight position={[0, y, 0]} intensity={9} distance={4.2} color={accent} /> : null;
+  // Always mounted, dimmed to 0 when idle: adding/removing a light changes the scene's light count,
+  // which makes three.js recompile every material program — a hitch each time a machine went hot.
+  return <pointLight position={[0, y, 0]} intensity={on ? 9 : 0} distance={4.2} color={accent} />;
 }
 
 /** Intake hopper — raw material funnels onto the line (Sourcing). */
@@ -1051,7 +1065,13 @@ function PropAt({ prop }: { prop: PlacedProp }) {
           {[-0.16, 0.16].map((dx) => (
             <mesh key={dx} position={[dx, 1.0, 0.05]}><boxGeometry args={[0.24, 0.16, 0.1]} /><meshStandardMaterial color="#fff4d6" emissive="#ffe8b0" emissiveIntensity={1.4} toneMapped={false} /></mesh>
           ))}
-          <pointLight position={[0, 1.05, 0.3]} intensity={2.4} distance={4} decay={2} color="#ffd9a0" />
+          {/* A painted light POOL, not a real pointLight: the prop is cheap and uncapped, and every
+              real light adds per-fragment cost to the whole floor and recompiles all materials on
+              place/erase. The emissive heads above carry the "lamp is on" read. */}
+          <mesh position={[0, 0.02, 0.45]} rotation={[-Math.PI / 2, 0, 0]}>
+            <circleGeometry args={[1.1, 24]} />
+            <meshBasicMaterial color="#ffd9a0" transparent opacity={0.16} depthWrite={false} toneMapped={false} />
+          </mesh>
         </group>
       );
     case "tote":
@@ -1456,13 +1476,17 @@ function TapFlash({ flash }: { flash: { c: number; r: number; ok: boolean; n: nu
   const mesh = useRef<THREE.Mesh>(null);
   const born = useRef(0);
   const seen = useRef(-1);
-  useFrame(({ clock }) => {
+  // Wall-clock age, and request the next frame while fading: under the "demand" frameloop (paused,
+  // a decision card up, Reduce Motion) nothing else invalidates, so the flash used to freeze at 75%.
+  useFrame(({ invalidate }) => {
     if (!mesh.current) return;
-    if (seen.current !== flash.n) { seen.current = flash.n; born.current = clock.elapsedTime; }
-    const age = clock.elapsedTime - born.current;
+    const now = performance.now() / 1000;
+    if (seen.current !== flash.n) { seen.current = flash.n; born.current = now; }
+    const age = now - born.current;
     const a = Math.max(0, 0.75 - age * 1.6);
     (mesh.current.material as THREE.MeshBasicMaterial).opacity = a;
     mesh.current.visible = a > 0.01;
+    if (a > 0.01) invalidate();
   });
   const [x, z] = worldOf(flash.c, flash.r);
   return (
@@ -1635,7 +1659,12 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       cur = cur.c !== to.c
         ? { c: cur.c + Math.sign(to.c - cur.c), r: cur.r }
         : { c: cur.c, r: cur.r + Math.sign(to.r - cur.r) };
-      if (!run.some((x) => x.c === cur.c && x.r === cur.r)) run.push(cur); // skip immediate backtracks
+      // Doubling back over the run TRUNCATES it to that cell. Merely skipping re-visited cells left the
+      // abandoned tail in the run, and since each tile aims at the next entry, the tail's last tile
+      // pointed back into the run — a loop, with the new branch disconnected.
+      const seenAt = run.findIndex((x) => x.c === cur.c && x.r === cur.r);
+      if (seenAt >= 0) run.splice(seenAt + 1);
+      else run.push(cur);
     }
   };
   const onPaintDown = (e: { point: THREE.Vector3; nativeEvent: PointerEvent; target?: { setPointerCapture?: (id: number) => void } }) => {
@@ -1766,7 +1795,9 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   // Long-press detection: begins on a piece's pointer-down WITHOUT stopping propagation (quick taps
   // must still reach the pad for the upgrade/erase tools). Movement or an early release cancels it.
   const beginHold = (e: { nativeEvent: PointerEvent }, piece: { type: "machine" | "prop"; id: string }) => {
-    if (p.preview || p.paintBelts || gesture.current.blocked || e.nativeEvent.button !== 0) return; // painting must never pick up a machine
+    // Build mode only: in plain view a slightly-long press before an orbit drag picked a machine up and
+    // relocated it (breaking the line), and the Undo for it lives in the build strip, out of sight.
+    if (!p.buildMode || p.preview || p.paintBelts || gesture.current.blocked || e.nativeEvent.button !== 0) return; // painting must never pick up a machine
     holdCancel.current?.();
     const x = e.nativeEvent.clientX, y = e.nativeEvent.clientY;
     const timer = window.setTimeout(() => { cleanup(); beginCarry(piece); }, 420);

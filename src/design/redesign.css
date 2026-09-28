@@ -96,7 +96,11 @@ body::before { display: none; }
 .app :is(.lab__tab--on,.rd__subtab--on,.mkt__subtab--on,.co__subtab--on) { background: var(--primary); color: var(--accent-ink); box-shadow: none; }
 /* Size tabs by their label, then share the spare width: a single long word ("Components") can't wrap,
    so equal-width flex:1 clipped it against the pill edge on a 390px phone. */
-.app :is(.lab__tab,.rd__subtab,.mkt__subtab,.co__subtab) { flex: 1 1 auto; overflow-wrap: anywhere; }
+.app :is(.lab__tab,.rd__subtab,.mkt__subtab,.co__subtab) { flex: 1 0 auto; white-space: nowrap; }
+/* At large text sizes the labels can outgrow a 390px strip: scroll the strip sideways rather than
+   break a word ("Component/s") or clip it. At default size everything fits and nothing scrolls. */
+.app :is(.lab__tabs,.rd__subnav,.mkt__subnav,.co__subnav) { overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+.app :is(.lab__tabs,.rd__subnav,.mkt__subnav,.co__subnav)::-webkit-scrollbar { display: none; }
 .app .lab__tab-badge { top: 2px; right: 2px; }
 .app .rd { gap: var(--sp-12); }
 .rd__balance { display: flex; align-items: center; gap: var(--sp-12); }
