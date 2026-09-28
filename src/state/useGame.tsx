@@ -2218,6 +2218,33 @@ export function useGameControls(): GameControlsValue {
   return ctx;
 }
 
+/** Read the LIVE state at call time without subscribing to it. For handlers that only need state
+ *  when the player taps (launch, confirm…): a full useGame() there re-renders the owner every tick
+ *  just to keep a closure fresh. The returned getter has a stable identity. */
+export function useGameStateGetter(): () => GameState {
+  const store = useContext(StoreContext);
+  if (!store) throw new Error("useGameStateGetter must be used within GameProvider");
+  return store.getState;
+}
+
+/** useGame() for a screen that stays MOUNTED while hidden (the Design Lab keeps its draft, sheets and
+ *  scroll position across tab switches). While `active` is false the state snapshot is frozen at its
+ *  last value, so the weekly tick doesn't re-render a ~2,500-line screen nobody can see — measured at
+ *  roughly half the app's per-week script time. The moment it becomes active it reads live state again. */
+export function useGameWhile(active: boolean): GameContextValue {
+  const store = useContext(StoreContext);
+  const controls = useContext(ControlsContext);
+  const actions = useContext(ActionsContext);
+  if (!store || !controls || !actions) throw new Error("useGameWhile must be used within GameProvider");
+  const frozen = useRef<GameState | null>(null);
+  const getSnapshot = useCallback(() => {
+    if (active || frozen.current === null) frozen.current = store.getState();
+    return frozen.current;
+  }, [store, active]);
+  const state = useSyncExternalStore(store.subscribe, getSnapshot, getSnapshot);
+  return { state, ...controls, ...actions };
+}
+
 /** The stable action set. Identity never changes for the life of the provider, so action-only
  *  consumers (sheets, modals, dispatch rows) render once and stay quiet while the sim runs. */
 export function useGameActions(): GameActionsValue {

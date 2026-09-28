@@ -75,8 +75,8 @@ import { availableMegaprojects, mandateComplete, mandateProgress, mandateRewardS
 import { LEGACY_TREE, legacyPerkAvailable } from "../engine/legacyTree.ts";
 import { frontierCost, frontierBonuses, frontierBandName, FRONTIER_LANES, nextFrontierBandUnlock, type FrontierLaneId } from "../engine/frontier.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { useGame, useGameActions, useGameControls } from "../state/useGame.tsx";
+import { Suspense, createContext, lazy, memo, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useGameActions, useGameControls, useGameWhile } from "../state/useGame.tsx";
 import { getSettings, setSettings, useSettings } from "../state/settings.ts";
 import { OfficeFloorMap } from "../components/OfficeFloorMap.tsx";
 import { DecorateTutorial } from "../components/DecorateTutorial.tsx";
@@ -110,8 +110,13 @@ const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ de
 // place the WASD camera hint makes sense. Touch phones report a coarse pointer and get no hint.
 const FINE_POINTER = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: fine)").matches;
 
-export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, active = true, world = "office" }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; onOpenChallenges?: () => void; onViewFactory?: () => void; active?: boolean; world?: "office" | "factory" }) {
-  const { state, advanceEra, goPublic, resolveChoice, resolvePoach, claimContract, fundMegaproject, buyLegacyPerk, buyFrontierTier } = useGame();
+/** Whether the Office screen is the one on show. HQ stays MOUNTED while other tabs are open (so the
+ *  WebGL office keeps its GPU context); every HQ-internal subscriber reads this to freeze its state
+ *  snapshot while hidden (useGameWhile), so the weekly tick doesn't re-render an invisible screen. */
+const HqActive = createContext(true);
+
+export const HQ = memo(function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, active = true, world = "office" }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; onOpenChallenges?: () => void; onViewFactory?: () => void; active?: boolean; world?: "office" | "factory" }) {
+  const { state, advanceEra, goPublic, resolveChoice, resolvePoach, claimContract, fundMegaproject, buyLegacyPerk, buyFrontierTier } = useGameWhile(active);
   // The launch payoff (reveal, haptics, streak, review prompt) lives in a shared hook so the Office
   // card here and the global ready-to-launch popup release a product identically.
   const launchProduct = useLaunchProduct();
@@ -155,6 +160,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
   };
 
   return (
+    <HqActive.Provider value={active}>
     <div className="hq">
       {/* The 3D office stays MOUNTED (hidden) while the Factory world shows, so its WebGL
           context survives the swap — the same rule that keeps it alive across bottom tabs.
@@ -430,8 +436,9 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       )}
       </HqGroup></details>
     </div>
+    </HqActive.Provider>
   );
-}
+});
 
 /** A labelled zone of the HQ scroll. The label hides itself when the group rendered no cards (every
  *  card in a group self-gates and can return null), so an early-game player never sees an "Operations"
@@ -518,7 +525,7 @@ function OfficeOverview({ state, zones, crowded }: { state: GameState; zones: Re
 
 // The garage/office scene + the interactive furniture builder ("Decorate" mode).
 function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, onOpenBank }: { use3d: boolean; reducedMotion: boolean; hasProduction: boolean; active: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
-  const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, applyLayoutSnapshot, setLayout, setFloorStyle, setWallStyle } = useGame();
+  const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, applyLayoutSnapshot, setLayout, setFloorStyle, setWallStyle } = useGameWhile(useContext(HqActive));
   // The office hold = manual HUD pause OR the ref-counted `suspended` flag an interrupt overlay takes.
   // Using both means a decision card holds the office (and its chatter) exactly like a manual pause.
   const { paused: manualPaused, suspended: simSuspended } = useGameControls();
@@ -946,7 +953,7 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
 }
 
 function Upgrades() {
-  const { state, buyUpgrade, upgradeHQ } = useGame();
+  const { state, buyUpgrade, upgradeHQ } = useGameWhile(useContext(HqActive));
   const fac = facility(state);
   const nextFac = BALANCE.facilities[state.facilityTier];
 
@@ -1572,7 +1579,7 @@ function MomentumMeter({ pct, phase }: { pct: number; phase: OpsPhase }) {
 }
 
 function LiveOpsCard() {
-  const { state } = useGame();
+  const { state } = useGameWhile(useContext(HqActive));
   const live = useMemo(
     () =>
       state.launched
@@ -1615,7 +1622,7 @@ function LiveOpsCard() {
 }
 
 function LiveOpsRow({ lp, open, onToggle }: { lp: LaunchedProduct; open: boolean; onToggle: () => void }) {
-  const { state, cutProductPrice, marketingPush, restockProduct, setReorderRate, harvestProduct } = useGame();
+  const { state, cutProductPrice, marketingPush, restockProduct, setReorderRate, harvestProduct } = useGameWhile(useContext(HqActive));
   const [panel, setPanel] = useState<null | "boost" | "price" | "restock" | "harvest">(null);
   const mom = productMomentum(lp);
 

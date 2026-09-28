@@ -1,7 +1,7 @@
 import { continueWithPreservedRecovery } from "./state/persistence.ts";
 import { useSaveHealth } from "./state/saveHealth.ts";
 import { hasFactoryAccess } from "./state/factorySummary.ts";
-import { Suspense, lazy, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { Suspense, lazy, memo, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, Check, CircuitBoard, CircleX, Compass, Copy, Cpu, Crown, Factory, Flame, FlaskConical, Home, Layers, Minus, Plus, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
 import { GameProvider, useGame, useGameActions, useHoldSim } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
@@ -77,7 +77,9 @@ import { HQ } from "./screens/HQ.tsx";
 // them was landing in the initial bundle. They already render conditionally on `tab`, so splitting
 // them costs nothing but a Suspense boundary — and the chunk only downloads when the tab is opened.
 // HQ itself stays eager: it IS the first paint, so deferring it would just add a round trip.
-const DesignLab = lazy(() => import("./screens/DesignLab.tsx").then((m) => ({ default: m.DesignLab })));
+// memo: the Lab stays mounted (hidden) across tabs; with stable props the shell's own re-render
+// doesn't cascade into it, and its state snapshot is frozen while hidden (useGameWhile).
+const DesignLab = lazy(() => import("./screens/DesignLab.tsx").then((m) => ({ default: memo(m.DesignLab) })));
 const Research = lazy(() => import("./screens/Research.tsx").then((m) => ({ default: m.Research })));
 const Market = lazy(() => import("./screens/Market.tsx").then((m) => ({ default: m.Market })));
 const Company = lazy(() => import("./screens/Company.tsx").then((m) => ({ default: m.Company })));
@@ -113,10 +115,10 @@ function AppShell() {
   const [progressOpen, setProgressOpen] = useState(false);
   // Which view the Progress sheet opens on — "challenges" when HQ's daily-challenge card deep-links.
   const [progressView, setProgressView] = useState<"hub" | "challenges">("hub");
-  const openProgress = (view: "hub" | "challenges" = "hub") => {
+  const openProgress = useCallback((view: "hub" | "challenges" = "hub") => {
     setProgressView(view);
     setProgressOpen(true);
-  };
+  }, []);
   const [bankOpen, setBankOpen] = useState(false);
   // Stable identity: this handler reaches the memoized Garage3D office scene (HQ → OfficeScene →
   // onTapBank). A fresh inline arrow each render defeats its shallow prop compare and re-renders the
@@ -146,6 +148,7 @@ function AppShell() {
   const designVisited = useRef(false);
   if (tab === "design") designVisited.current = true;
   const [successorSeed, setSuccessorSeed] = useState<Product | null>(null);
+  const clearSuccessorSeed = useCallback(() => setSuccessorSeed(null), []);
   const designSuccessor = (p: Product) => {
     setSuccessorSeed(p);
     setTab("design");
@@ -179,6 +182,13 @@ function AppShell() {
   const layoutMode = useLayoutMode();
   const showRail = uiVersion === "next" && railShown(layoutMode);
   const { page, params, push, pop, clear, root: routeRoot } = usePageNav(tab);
+  // Stable identities for HQ's props: HQ is memoized and stays mounted (hidden) across tabs, so fresh
+  // inline arrows here would re-render the whole Office stream on every shell render.
+  const openChallenges = useCallback(
+    () => (uiVersion === "next" ? push("progress", { section: "challenges" }) : openProgress("challenges")),
+    [uiVersion, push, openProgress],
+  );
+  const viewFactory = useCallback(() => { setHqWorld("factory"); haptic.light(); }, []);
   // A deep link names the tab it was opened from; adopt it on FIRST mount so the nav highlight and
   // the URL agree. Runs once — after that the player's own tab taps own the state.
   const adoptedRoot = useRef(false);
@@ -306,14 +316,14 @@ function AppShell() {
             )}
           </div>
           <ErrorBoundary resetKey={`${tab}:${page ?? ""}`} fallback={(reset) => <ScreenError onHome={() => { reset(); setTab("hq"); }} />}>
-            <HQ onNavigate={setTab} onOpenBank={openBank} onOpenChallenges={() => (uiVersion === "next" ? push("progress", { section: "challenges" }) : openProgress("challenges"))} onViewFactory={() => { setHqWorld("factory"); haptic.light(); }} active={tab === "hq" && page == null} world={hqWorld} />
+            <HQ onNavigate={setTab} onOpenBank={openBank} onOpenChallenges={openChallenges} onViewFactory={viewFactory} active={tab === "hq" && page == null} world={hqWorld} />
           </ErrorBoundary>
         </div>
         {designVisited.current && <div className="app__screen" hidden={page != null || tab !== "design"}>
           {uiVersion !== "next" && <h1 className="app__title">Design Lab</h1>}
           <ErrorBoundary resetKey={tab} fallback={(reset) => <ScreenError onHome={() => { reset(); setTab("hq"); }} />}>
             <Suspense fallback={<ScreenLoading />}>
-              <DesignLab key={gameId} active={tab === "design" && page == null} seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} />
+              <DesignLab key={gameId} active={tab === "design" && page == null} seed={successorSeed} onSeedConsumed={clearSuccessorSeed} />
             </Suspense>
           </ErrorBoundary>
         </div>}

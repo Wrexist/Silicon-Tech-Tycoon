@@ -72,7 +72,7 @@ import {
 import { runwayWeeks } from "../engine/economy.ts";
 import { forecastBand, forecastConfidenceLabel } from "../engine/forecast.ts";
 import { prototypeCost } from "../engine/prototype.ts";
-import { useGame, useHoldSim, useGameControls } from "../state/useGame.tsx";
+import { useGame, useGameWhile, useHoldSim, useGameControls } from "../state/useGame.tsx";
 import { useUiVersion } from "../state/uiVersion.ts";
 import { useLaunchProduct } from "../state/useLaunchProduct.ts";
 import { claimReadyLaunch, readyLaunchClaimed } from "../design/overlayGuard.ts";
@@ -265,7 +265,9 @@ export function DesignLab({
   seed?: Product | null;
   onSeedConsumed?: () => void;
 } = {}) {
-  const { state, build, unlockLens, unlockFinish, negotiateContract, runPrototype, clearPrototype } = useGame();
+  // Frozen while the tab is hidden (the Lab stays mounted to keep the draft and its sheets) — the
+  // weekly tick no longer re-renders it off-screen. Live again the moment the tab is shown.
+  const { state, build, unlockLens, unlockFinish, negotiateContract, runPrototype, clearPrototype } = useGameWhile(active);
   const uiVersion = useUiVersion();
   const [contractSheet, setContractSheet] = useState<SupplierId | null>(null);
   const { tabBlocked } = useGameControls();
