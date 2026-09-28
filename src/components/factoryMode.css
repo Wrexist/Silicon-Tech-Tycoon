@@ -329,7 +329,7 @@
    events pass through to the card button (tap opens fullscreen) and the page (drags scroll). */
 .fcard__scene {
   display: block; width: 100%; aspect-ratio: 16 / 10;
-  background: #0b0e12; /* the factory world's dark chrome — intrinsic scene colour */
+  background: var(--factory-chrome); /* the factory world's dark chrome — intrinsic scene colour */
   border-radius: var(--r-card);
   overflow: hidden;
 }
@@ -467,7 +467,7 @@
 .fmode__ptile--erase.fmode__ptile--on { background: var(--negative); border-color: var(--negative); }
 /* can't afford this yet — dimmed with a warning-tinted price (still selectable; placement toasts) */
 .fmode__ptile--broke:not(.fmode__ptile--on) { opacity: 0.5; }
-.fmode__ptile--broke:not(.fmode__ptile--on) .fmode__ptile-cost { color: color-mix(in srgb, var(--warning) 80%, #fff); }
+.fmode__ptile--broke:not(.fmode__ptile--on) .fmode__ptile-cost { color: color-mix(in srgb, var(--warning) 80%, var(--sheen)); }
 
 /* ---------------- gentle "line paused" card (not an error) ---------------- */
 .fmode__stopped { border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
@@ -491,10 +491,10 @@
 }
 /* This panel lives on the always-dark factory HUD, so every text/track colour is an explicit
    white-on-dark value — theme ink tokens would go near-invisible in light mode. */
-.fmode__sideorder--live .fmode__sideorder-head { color: color-mix(in srgb, var(--positive) 55%, #fff); }
+.fmode__sideorder--live .fmode__sideorder-head { color: color-mix(in srgb, var(--positive) 55%, var(--sheen)); }
 .fmode__sideorder-body { margin: 0; font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.45; }
 .fmode__sideorder-body b { color: var(--ink); }
-.fmode__sideorder-warn { margin: 0; font-size: var(--fs-micro); font-weight: 700; color: color-mix(in srgb, var(--negative) 55%, #fff); }
+.fmode__sideorder-warn { margin: 0; font-size: var(--fs-micro); font-weight: 700; color: color-mix(in srgb, var(--negative) 55%, var(--sheen)); }
 .fmode__sideorder-actions { display: flex; align-items: center; gap: var(--sp-8); }
 .fmode__sideorder-go {
   flex: 1; min-height: 40px;

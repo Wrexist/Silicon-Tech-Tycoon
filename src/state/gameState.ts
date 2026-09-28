@@ -4091,7 +4091,9 @@ function paintBeltRunImpl(state: GameState, cells: { c: number; r: number }[], f
     if (brokeAt) return { state, ok: false, reason: `Belts cost ${format(BELT_COST)} a tile.` };
     return { state, ok: false, reason: "Can't lay a belt there." };
   }
-  return { state: { ...state, factoryFloor: floor, cash }, ok: true };
+  // A run cut short by the budget still succeeds — but say so, or a long drag silently lays half a line.
+  const reason = brokeAt ? `Laid ${placed} tile${placed === 1 ? "" : "s"}, out of cash for the rest (${format(BELT_COST)} each).` : undefined;
+  return { state: { ...state, factoryFloor: floor, cash }, ok: true, reason };
 }
 
 /** The price of the NEXT floor expansion (escalating), or null if maxed out. */

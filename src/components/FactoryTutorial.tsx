@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 
 import { useEscapeLayer } from "../design/overlayGuard.ts";
 import { createPortal } from "react-dom";
 import {
-  ArrowLeft, ArrowRight, Boxes, Check, Factory, Grab, Hammer, Hand, Maximize2, Move, Palette,
+  ArrowLeft, ArrowRight, Bot, Boxes, Check, Factory, Grab, Hand, Maximize2, Move, Palette,
   Truck, Workflow, X, ZoomIn, Zap, type LucideIcon,
 } from "lucide-react";
 import { haptic } from "../design/haptics.ts";
@@ -80,7 +80,7 @@ function LineVisual() {
 /** The three ways to grow the floor, as glyph chips. */
 function GrowVisual() {
   const acts: { icon: LucideIcon; label: string }[] = [
-    { icon: Hammer, label: "Upgrades" },
+    { icon: Bot, label: "Upgrades" },
     { icon: Palette, label: "Style" },
     { icon: Maximize2, label: "Expand" },
   ];
@@ -119,7 +119,7 @@ const STEPS: TStep[] = [
     icon: Palette,
     accent: "var(--fn-design)",
     title: "Make it yours",
-    text: "Upgrades boost your robots and output. Style repaints the walls and floor and drops in decor. Expand grows the whole floor when you outgrow it.",
+    text: "Upgrades boost your robots and output. Style repaints the walls and floor, and Build → Decor drops in props. Expand grows the whole floor when you outgrow it.",
     visual: <GrowVisual />,
   },
 ];

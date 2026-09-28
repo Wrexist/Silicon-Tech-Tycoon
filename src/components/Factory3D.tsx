@@ -123,6 +123,9 @@ export interface Factory3DProps {
   focusMachine?: string;
   showRoute?: boolean;
   onTapCell?: (c: number, r: number) => void;
+  /** Erase / Upgrade armed: a TAP on a machine or prop reports ITS anchor cell. Resolving the cell from
+   *  the floor behind a tall machine (the default pad hit) landed 1–2 cells back from the finger. */
+  tapPieces?: boolean;
   /** A machine being placed as a movable ghost (before it's bought): rendered translucent at (c,r),
    *  tinted by `valid`. Tapping the pad moves it (via onTapCell); the HUD's Place/Cancel commits. */
   pending?: { kind: MachineKind; c: number; r: number; valid: boolean } | null;
@@ -1452,9 +1455,11 @@ function CameraReset({ signal, cx, preview, focus }: { signal: number; cx: numbe
   const controls = useThree((s) => s.controls) as { target: THREE.Vector3; enableDamping: boolean; update: () => void } | null;
   const size = useThree((s) => s.size);
   const seen = useRef("");
+  // Built once per render, not per frame (the per-frame template string + join was steady garbage).
+  // Orientation still comes from the live size, which re-renders this on rotate.
+  const portrait = preview ? size.height > size.width : window.innerHeight > window.innerWidth;
+  const revision = `${signal}:${size.width}:${portrait}:${cx}:${focus?.join(",") ?? ""}`;
   useFrame(() => {
-    const portrait = preview ? size.height > size.width : window.innerHeight > window.innerWidth;
-    const revision = `${signal}:${size.width}:${portrait}:${cx}:${focus?.join(",") ?? ""}`;
     if (seen.current === revision) return;
     seen.current = revision;
     // Flush accumulated orbit deltas before writing the final reset pose.
@@ -1590,6 +1595,8 @@ function CarriedRig({ kind, position }: { kind: MachineKind; position: [number, 
 }
 
 function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
+  // Baked contact shadows re-render when the layout changes; key memoised (the scene renders every tick).
+  const shadowKey = useMemo(() => JSON.stringify([p.floor, p.props, p.floorW]), [p.floor, p.props, p.floorW]);
   const { size, gl } = useThree();
   const gesture = useRef(new FactoryGestureGuard());
   const portrait = p.preview ? size.height > size.width : window.innerHeight > window.innerWidth;
@@ -1643,6 +1650,17 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
     if (Math.hypot(e.nativeEvent.clientX - start.x, e.nativeEvent.clientY - start.y) > 10) return; // a drag, not a tap
     const cell = cellAt(e.point);
     if (cell) p.onTapCell(cell.c, cell.r);
+  };
+
+  // Erase / Upgrade: a tap ON a piece targets that piece (see `tapPieces`), and stops the pad behind it
+  // from also resolving a (wrong) floor cell.
+  const tapPiece = (e: { nativeEvent: PointerEvent; stopPropagation: () => void }, c: number, r: number) => {
+    const start = padDown.current;
+    if (!p.tapPieces || !p.buildMode || !p.onTapCell || !start || gesture.current.blocked) return;
+    if (Math.hypot(e.nativeEvent.clientX - start.x, e.nativeEvent.clientY - start.y) > 10) return;
+    e.stopPropagation();
+    padDown.current = null;
+    p.onTapCell(c, r);
   };
 
   // BELT tool: drag to PAINT a continuous run. Camera rotate is suspended (see OrbitControls) so a
@@ -2023,14 +2041,14 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {p.floor.machines
         .filter((m) => !(carry?.type === "machine" && carry.id === m.id))
         .map((m) => (
-          <group key={m.id} onPointerDown={(e) => beginHold(e, { type: "machine", id: m.id })}>
+          <group key={m.id} onPointerDown={(e) => beginHold(e, { type: "machine", id: m.id })} onPointerUp={(e) => tapPiece(e, m.c, m.r)}>
             <MachineAt m={m} mount={mounts.get(m.id)} active={p.active && connectedIds.has(m.id) && (p.workingKinds?.includes(m.kind) ?? p.activeKind === m.kind)} activeKind={p.activeKind} pl={pl} itemsT={itemsT} />
           </group>
         ))}
       {p.props
         ?.filter((pr) => !(carry?.type === "prop" && carry.id === pr.id))
         .map((pr) => (
-          <group key={pr.id} onPointerDown={(e) => beginHold(e, { type: "prop", id: pr.id })}>
+          <group key={pr.id} onPointerDown={(e) => beginHold(e, { type: "prop", id: pr.id })} onPointerUp={(e) => tapPiece(e, pr.c, pr.r)}>
             <PropAt prop={pr} />
           </group>
         ))}
@@ -2072,7 +2090,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {dock && <CompletionPop count={p.readyCount} pallet={dock.pallet} truck={dock.truck} yaw={dock.yaw} />}
       <Agvs tier={p.robotTier} overtime={p.overtime} active={p.active && p.lineOk} />
 
-      {!p.preview && <ContactShadows key={JSON.stringify([p.floor, p.props, p.floorW])} position={[(floorW - FLOOR.w) / 2, 0.11, 0]} opacity={0.5} scale={Math.max(26, floorW + 2)} blur={2.2} far={4} frames={1} />}
+      {!p.preview && <ContactShadows key={shadowKey} position={[(floorW - FLOOR.w) / 2, 0.11, 0]} opacity={0.5} scale={Math.max(26, floorW + 2)} blur={2.2} far={4} frames={1} />}
     </group>
     </AccentContext.Provider>
   );
@@ -2086,8 +2104,13 @@ export default function Factory3D(p: Factory3DProps) {
   // Hold-to-move: while a piece is in hand the CAMERA freezes entirely, so the drag steers the
   // piece — not the view. Mirrored out to the caller for haptics/hints via onCarryChange.
   const [carrying, setCarrying] = useState(false);
+  // The layout revision (re-seats paused animations after an edit) and the context value are memoised:
+  // this component re-renders every sim tick, and stringifying the whole floor each time was waste —
+  // floor/props are replaced (never mutated) on edit, so their identity IS the revision key.
+  const revision = useMemo(() => JSON.stringify([p.floor, p.props, p.floorW]), [p.floor, p.props, p.floorW]);
+  const motion = useMemo(() => ({ reduced, stopped: !!p.motionPaused, revision }), [reduced, p.motionPaused, revision]);
   return (
-    <MotionContext.Provider value={{ reduced, stopped: !!p.motionPaused, revision: JSON.stringify([p.floor, p.props, p.floorW]) }}><Canvas
+    <MotionContext.Provider value={motion}><Canvas
       role="img"
       aria-label="Factory floor, 3D view"
       frameloop={p.paused ? "never" : p.motionPaused || reduced ? "demand" : "always"}

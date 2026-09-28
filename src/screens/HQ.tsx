@@ -78,6 +78,7 @@ import { frontierCost, frontierBonuses, frontierBandName, FRONTIER_LANES, nextFr
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { Suspense, createContext, lazy, memo, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useGameActions, useGameControls, useGameWhile } from "../state/useGame.tsx";
+import { useEscapeLayer } from "../design/overlayGuard.ts";
 import { getSettings, setSettings, useSettings } from "../state/settings.ts";
 import { OfficeFloorMap } from "../components/OfficeFloorMap.tsx";
 import { DecorateTutorial } from "../components/DecorateTutorial.tsx";
@@ -639,7 +640,7 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
     const prev = history.current.at(-1);
     if (!prev) return;
     if (!applyLayoutSnapshot(prev)) {
-      showToast("Cannot undo: the refunded cash has already been spent.", { tone: "negative" });
+      showToast("Can't undo: the refunded cash has already been spent.", { tone: "negative" });
       haptic.warning();
       return;
     }
@@ -685,8 +686,7 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
       const item = layoutRef.current.find(x => x.iid === iid);
       if (item?.c === c && item.r === r) return;
       if (!edit(() => moveFurniture(iid, c, r), "Not enough space here. Your furniture stayed in place.")) return;
-      haptic.light();
-      showToast("Furniture moved", { tone: "positive" });
+      haptic.light(); // no toast: the piece visibly lands under the finger (the factory dropped the same echo)
     },
     onSelectItem: (iid) => {
       setSelectedIid(iid);
@@ -718,6 +718,9 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
     history.current = [];
     setHistLen(0);
   };
+  // Decorate is a full-screen editor: Escape leaves it, like Factory mode (frontmost layer only, so
+  // the decorate tutorial or a sheet on top still takes the Escape first).
+  useEscapeLayer(build, exit);
 
   // Tapping a catalog item drops it into the first free cell + selects it, so the player can
   // immediately drag it where they want.
