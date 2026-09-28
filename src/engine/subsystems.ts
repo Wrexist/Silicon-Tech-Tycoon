@@ -49,7 +49,7 @@ export const SUBSYSTEMS: readonly Subsystem[] = [
     // A monitor is judged on its panel: colour fidelity is the spec pros pay for, lifting quality +
     // design.
     categories: ["monitor"],
-    name: "Colour Accuracy",
+    name: "Color Accuracy",
     optionLabels: ["Standard gamut", "Wide gamut", "Reference grade"],
     perStep: { quality: 7, design: 3 },
     unitCost: dollars(6),

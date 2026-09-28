@@ -61,7 +61,7 @@ export function ResultCard({
   const chScore = chv ? formatScore(chv.challenge.scoreMetric, chv.final ?? chv.current) : null;
   const chCode = chv ? encodeChallengeCode(chv.challenge.kind, chv.challenge.dateKey) : null;
   const headline = pm
-    ? `A ${years}-year run`
+    ? `${years} years in business`
     : scn ? scn.name : chv ? `${chv.challenge.kind === "weekly" ? "Weekly" : "Daily"} Challenge` : `${eraName(state.era)} empire`;
   const sub = pm
     ? `Out of cash in the ${eraName(state.era)}${hits > 0 ? ` · ${hits} hit${hits > 1 ? "s" : ""} along the way` : ""}`

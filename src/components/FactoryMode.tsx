@@ -43,7 +43,7 @@ import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { isDarkTheme, webglSupported } from "../garage3d/support.ts";
 import { ErrorBoundary } from "./ErrorBoundary.tsx";
-import { withArticle } from "../design/copy.ts";
+import { withArticle } from "../engine/text.ts";
 import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, connectedChain, connectedMachines, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineLayoutBreakdown, lineSpeedMult, lineUnitMult, machineCells, machineUpgradeCostAt, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { PROP_DEFS, propCellSet, factoryDecorSpeedMult, utilityDecorKinds, type PropKind } from "../engine/factoryProps.ts";
@@ -1200,7 +1200,7 @@ function BoostButton({ selectedJob }: { selectedJob?: string }) {
       className="fmode__boost"
       onClick={() => {
         const res = rushBuild(id);
-        if (res.ok) { haptic.success(); sfx("build"); showToast("Line rushed, one week saved", { tone: "positive" }); }
+        if (res.ok) { haptic.success(); sfx("build"); showToast("Line rushed — one week saved", { tone: "positive" }); }
         else { haptic.warning(); showToast(res.reason ?? "Can't rush right now", { tone: "negative" }); }
       }}
     >

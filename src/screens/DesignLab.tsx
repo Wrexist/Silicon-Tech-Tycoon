@@ -1240,7 +1240,7 @@ export function DesignLab({
         {labTab === "style" && (
           <>
             <Card>
-              <SectionHeader title="Finish & colour" />
+              <SectionHeader title="Finish & color" />
               {(() => {
                 // Premium finishes (titanium, gold) are RP-unlocked — locked chips render masked
                 // with a lock, and an inline research buy unlocks + selects the next material.

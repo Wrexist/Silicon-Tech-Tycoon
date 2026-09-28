@@ -27,7 +27,7 @@ describe("category subsystems", () => {
 
   it("tablets/monitors/AR glasses have signature subsystems; phones stay bare (sim-safe)", () => {
     expect(subsystemFor("tablet")?.name).toBe("Stylus");
-    expect(subsystemFor("monitor")?.name).toBe("Colour Accuracy");
+    expect(subsystemFor("monitor")?.name).toBe("Color Accuracy");
     expect(subsystemFor("experimental")?.name).toBe("Optics");
     expect(subsystemFor("phone")).toBeNull(); // the phone-only balance sim must stay byte-identical
   });

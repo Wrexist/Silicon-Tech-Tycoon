@@ -155,6 +155,7 @@ import {
   industryRank,
   type GameState,
   industryLeaderboard,
+  fanMilestoneText,
 } from "./gameState.ts";
 import { getLegacy, setLegacy } from "./legacy.ts";
 import { recordStars, getScenarioStars, mergeScenarioStars } from "./scenarioProgress.ts";
@@ -232,7 +233,8 @@ function withFanToasts(prev: GameState, next: GameState): void {
   const top = crossed.at(-1);
   if (top == null) return;
   try {
-    showToast(`${fmtFans(top)} fans, your brand is growing!`, { tone: "positive", priority: "low" });
+    // Same words as the feed line for this milestone, so the toast and the record never disagree.
+    showToast(fanMilestoneText(top) ?? `${fmtFans(top)} fans, your brand is growing!`, { tone: "positive", priority: "low" });
   } catch { /* toast host not mounted */ }
 }
 
@@ -317,7 +319,7 @@ function withRevToasts(prev: GameState, next: GameState): void {
   const top = REV_MILESTONES.filter((m) => prevD < m && nextD >= m).at(-1);
   if (top == null) return;
   try {
-    showToast(`Revenue milestone, ${fmtMilestone(top)} earned lifetime!`, { tone: "positive", priority: "low" });
+    showToast(`Revenue milestone: ${fmtMilestone(top)} lifetime`, { tone: "positive", priority: "low" });
   } catch { /* toast host not mounted */ }
 }
 
@@ -360,14 +362,14 @@ function announceAchievements(unlocked: readonly string[]): void {
       haptic.success();
       if (earned.length === 1) {
         const a = earned[0];
-        showToast(`Achievement unlocked, ${a.title}`, {
+        showToast(`Achievement unlocked: ${a.title}`, {
           tone: "positive",
           glyph: createElement(achievementIcon(a.icon), { size: 15 }),
         });
       } else {
         const names = earned.slice(0, 2).map((a) => a.title).join(" · ");
         const extra = earned.length > 2 ? ` +${earned.length - 2} more` : "";
-        showToast(`${earned.length} milestones unlocked, ${names}${extra}`, {
+        showToast(`${earned.length} achievements unlocked: ${names}${extra}`, {
           tone: "positive",
           glyph: createElement(achievementIcon("Trophy"), { size: 15 }),
         });
@@ -884,7 +886,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
             if (why) {
               setSkipping(false);
               setPaused(true);
-              showToast(`Paused, ${why.toLowerCase()}`, { tone: "neutral" });
+              showToast(`Paused: ${why}`, { tone: "neutral" }); // keep the reason's casing (proper nouns)
             }
           }
         }
@@ -921,7 +923,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
           // A commission finishing is a payday — celebrate it from any tab.
           if ((next.sideOrdersCompleted ?? 0) > (s.sideOrdersCompleted ?? 0)) {
             sfx("cash");
-            showToast("Commission delivered — payment banked", { tone: "positive" });
+            showToast("Client order delivered — payment banked", { tone: "positive" });
           }
           // A paid-for recruiter shortlist EXPIRES quietly — the arrival must not (the player
           // may be on any tab when the candidates land).
@@ -1122,7 +1124,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // A claim is a payday the player asked for — say what landed (the passive GainFX token is
     // throttled and can swallow a claim made right after a weekly tick).
     const c = (prev.contracts ?? []).find((x) => x.id === id);
-    if (c) showToast(`Contract complete, ${rewardSummary(c.reward)}`, { tone: "positive" });
+    if (c) showToast(`Contract complete: ${rewardSummary(c.reward)}`, { tone: "positive" });
     store.set(res.state);
   }, []);
   // Fund a moonshot megaproject (item 4.1) — a post-IPO cash + RP sink with a prestige payoff.

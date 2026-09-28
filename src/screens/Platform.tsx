@@ -354,7 +354,7 @@ export function PlatformPanel({
 
   const appStoreCard = (
     <Card>
-      <SectionHeader title="App Store" accessory={storeOpen ? `${formatCount(apps)} apps` : "closed"} />
+      <SectionHeader title="App Marketplace" accessory={storeOpen ? `${formatCount(apps)} apps` : "closed"} />
       {storeOpen ? (
         <>
           <div className="plat__store-hero">
@@ -516,7 +516,7 @@ export function PlatformPanel({
               if (!r) return;
               if (r.outcome === "improved") showToast(`They sweetened it, +${format(r.bonusDelta)} upfront`, { tone: "positive" });
               else if (r.outcome === "walked") showToast(`${offer.rivalName} walked away from the deal`, { tone: "negative" });
-              else showToast("They held firm, the original terms stand", { tone: "neutral" });
+              else showToast("They held firm — the original terms stand", { tone: "neutral" });
             }}
           >
             {offer.negotiated ? "Already pushed" : "Negotiate for more"}

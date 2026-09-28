@@ -38,7 +38,7 @@ interface Target { kind: ChallengeKind; dateKey: string; }
 
 function shareCode(kind: ChallengeKind, dateKey: string): void {
   const code = encodeChallengeCode(kind, dateKey);
-  const onCopied = () => showToast(`Code copied, ${code}`, { tone: "positive", glyph: <Share2 size={15} /> });
+  const onCopied = () => showToast(`Code copied: ${code}`, { tone: "positive", glyph: <Share2 size={15} /> });
   // Clipboard unavailable or denied → surface the code so the player can copy it manually.
   const onFallback = () => showToast(`Share code: ${code}`, { tone: "neutral", glyph: <Share2 size={15} /> });
   try {

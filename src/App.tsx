@@ -302,7 +302,7 @@ function AppShell() {
           <div className="app__titlerow">
             <h1 className="app__title">{state.companyName || TAB_TITLE.hq}</h1>
             {showWorldTabs && (
-              <div className="worldtabs" role="group" aria-label="Headquarters world">
+              <div className="worldtabs" role="group" aria-label="Office view">
                 <button
                   className={`worldtabs__tab${hqWorld === "office" ? " worldtabs__tab--on" : ""}`}
                   aria-pressed={hqWorld === "office"}
@@ -868,7 +868,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
             { icon: <BadgeDollarSign size={14} />, value: `+${format(nextBonus.cash)}`, label: "starting cash" },
             { icon: <Sparkles size={14} />, value: `+${nextBonus.reputation}`, label: "reputation" },
             { icon: <Users size={14} />, value: `+${nextBonus.fans.toLocaleString()}`, label: "fans" },
-            { icon: <FlaskConical size={14} />, value: `+${nextBonus.rp}`, label: "research" },
+            { icon: <FlaskConical size={14} />, value: `+${nextBonus.rp}`, label: "RP" },
           ]}
           confirmLabel={ascend > 0 ? `Found at ${ascensionName(ascend)}` : "Found the next empire"}
           onConfirm={() => prestige(ascend)}

@@ -3,11 +3,14 @@
 // it was, and when it shipped, so the gallery reads as a career, not a spreadsheet. PURE. No em dashes.
 import { eraName } from "./eras.ts";
 import { CATEGORIES } from "./catalogs.ts";
+import { categoryNoun, withArticle } from "./text.ts";
+
+const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 import type { CategoryId } from "./types.ts";
 
 /** A short authored legacy line for a shipped device, from its verdict + era + category. */
 export function deviceLegacy(input: { verdict?: string; era: number; category: CategoryId }): string {
-  const cat = (CATEGORIES[input.category]?.displayName ?? "device").toLowerCase();
+  const cat = categoryNoun(CATEGORIES[input.category]?.displayName ?? "device");
   const era = eraName(input.era);
   switch (input.verdict) {
     case "hit":
@@ -19,6 +22,6 @@ export function deviceLegacy(input: { verdict?: string; era: number; category: C
     case "steady":
       return `A steady ${cat} from the ${era}; it held its own without making noise.`;
     default:
-      return `A ${cat} shipped in the ${era}.`;
+      return `${capitalise(withArticle(cat))} shipped in the ${era}.`;
   }
 }

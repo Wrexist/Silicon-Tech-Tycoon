@@ -1,3 +1,4 @@
+import { categoryNoun } from "../engine/text.ts";
 import { connectedMachines } from "../engine/factoryFloor.ts";
 // GameState + pure reducers. Composes the engine; owns NO React. Fully testable.
 // The React hook (useGame) wraps these and drives the tick.
@@ -809,6 +810,11 @@ function revMilestoneItems(prev: Money, next: Money, week: number): FeedItem[] {
   return REV_MILESTONES
     .filter((m) => prevD < m && nextD >= m)
     .map((m) => feedItem(week, `Revenue milestone: ${format(dollars(m))} earned lifetime.`, "positive"));
+}
+
+/** The feed's wording for a fan milestone — the live toast reuses it so both say the same thing. */
+export function fanMilestoneText(fans: number): string | null {
+  return FAN_MILESTONES.find((m) => m.fans === fans)?.text ?? null;
 }
 
 const FAN_MILESTONES: { fans: number; text: string; repBonus: number }[] = [
@@ -3598,16 +3604,16 @@ function resolveChainStep(s: GameState, week: number): GameState {
 }
 
 function pushRivalFeed(feed: FeedItem[], l: CompetitorLaunch, activePlayerCats?: ReadonlySet<CategoryId>, productName?: string, contested?: boolean) {
-  const catName = CATEGORIES[l.category]?.displayName ?? l.category;
+  const catLine = categoryNoun(CATEGORIES[l.category]?.displayName ?? l.category).replace(/^pair of /, "");
   const threat = activePlayerCats?.has(l.category);
   // The product name already carries the rival's name (e.g. "Pomelo Vync Pro"), so use it as the
   // subject; fall back to the bare rival name for callers that don't generate a product.
   const subject = productName ?? l.competitor;
   const text = contested
-    ? `${subject} undercuts your ${catName} on price, a value war for the segment.`
+    ? `${subject} undercuts your ${catLine} line on price, a value war for the segment.`
     : threat
-      ? `${subject} launches, your active ${catName} faces new competition.`
-      : `${subject} launches into ${catName}.`;
+      ? `${subject} launches, your ${catLine} line faces new competition.`
+      : `${subject} enters the ${catLine} market.`;
   feed.push(feedItem(l.week, text, threat || contested ? "negative" : "neutral"));
 }
 

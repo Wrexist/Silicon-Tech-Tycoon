@@ -1240,7 +1240,7 @@ function ProductDetailSheet({
       {live && (
         <div className="pd__ops-note">
           <Activity size={14} aria-hidden />
-          <span>Still selling — tune Boost, price, restock &amp; harvest on the <strong>Live products</strong> board at HQ.</span>
+          <span>Still selling — tune Boost, price, restock &amp; harvest on the <strong>Live products</strong> board on the Office tab.</span>
         </div>
       )}
 

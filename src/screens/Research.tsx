@@ -289,7 +289,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
     <div className="rd">
       {/* Header strip — subtitle + era badge, mirroring the Design Lab's header treatment. */}
       <div className="rd__head">
-        <p className="rd__subtitle">Spend Research Points to unlock new tech and abilities.</p>
+        <p className="rd__subtitle">Spend research points to unlock new tech and abilities.</p>
         <span className="rd__era-badge"><FlaskConical size={13} aria-hidden /> {eraName(state.era)}</span>
       </div>
       <Card className="rd__balance">
@@ -298,7 +298,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         <span className="rd__generation">+{perWeek.toFixed(1)}/wk</span>
       </Card>
       {state.activeResearch ? <Card className="rd__active"><ResearchProgress research={state.activeResearch} /></Card> : <p className="mg-empty-inline">Your lab is ready. Choose a project or component below.</p>}
-      {perWeek === 0 && <div className="mg-advice">Assign staff to R&amp;D to earn Research Points. {onNavigate && <Button size="sm" variant="secondary" onClick={() => onNavigate("company")}>Manage team</Button>}</div>}
+      {perWeek === 0 && <div className="mg-advice">Assign staff to R&amp;D to earn research points. {onNavigate && <Button size="sm" variant="secondary" onClick={() => onNavigate("company")}>Manage team</Button>}</div>}
       <details className="mg-disclosure"><summary>{availableProjects.length} projects available{queueFull ? " - queue full" : ""}</summary>
         <p>{availableProjects.length ? "Choose an available project below, or explore component technology." : state.activeResearch ? "Research is in progress. Explore component technology or future era unlocks below." : "No new projects are available in this era. Check prerequisites and component technology below."}</p>
         {nextGoal && <p>Saving for {nextGoal.name}: {rp} / {nextGoal.rpCost} RP.</p>}

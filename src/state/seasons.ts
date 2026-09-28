@@ -112,7 +112,7 @@ export function seasonRewards(seasonId: string): SeasonReward[] {
   const wallId = pick(SEASON_WALL_IDS);
   const badge = pick(SEASON_BADGES);
   return [
-    { rung: SEASON_RUNGS[0], type: "colorway", cosmeticId: `col:${swatch}`, name: `${swatch} colourway` },
+    { rung: SEASON_RUNGS[0], type: "colorway", cosmeticId: `col:${swatch}`, name: `${swatch} colorway` },
     { rung: SEASON_RUNGS[1], type: "floor", cosmeticId: `flr:${floorId}`, name: `${floorName(floorId)} floor` },
     { rung: SEASON_RUNGS[2], type: "wall", cosmeticId: `wal:${wallId}`, name: `${wallName(wallId)} walls` },
     { rung: SEASON_RUNGS[3], type: "badge", cosmeticId: `bdg:${badge.id}`, name: badge.name },

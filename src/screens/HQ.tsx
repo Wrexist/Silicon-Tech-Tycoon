@@ -746,7 +746,7 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
         }
       }
     }
-    showToast("No room, remove something first.", { tone: "negative" });
+    showToast("No room — remove something first.", { tone: "negative" });
     haptic.error();
   };
 
@@ -1999,7 +1999,7 @@ function EraGoalCard({ state }: { state: GameState }) {
  *  render-time only (reads existing tone + text), so nothing in the engine or the feed data changes. */
 function feedSalience(item: FeedItem): "high" | "normal" | "low" {
   const t = item.text;
-  if (/revenue milestone|[\d,]+ fans[,!.]/i.test(t)) return "low"; // milestone spam
+  if (/revenue milestone|(?:[\d,]+|million) fans[,!.]/i.test(t)) return "low"; // milestone spam
   if (item.tone === "negative") return "high";
   if (item.tone === "positive" && /\bhit\b|went public|overtook|climbed past|#1|Board mandate|Megaproject|Legacy perk|award|reached the (top|pinnacle)/i.test(t)) return "high";
   return "normal";

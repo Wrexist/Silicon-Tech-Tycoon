@@ -7,3 +7,14 @@ export function withArticle(noun: string): string {
   const vowelSound = acronym ? /^[AEFHILMNORSX]/.test(w) : /^[aeiou]/i.test(w);
   return `${vowelSound ? "an" : "a"} ${w}`;
 }
+
+/** A category's display name as a noun inside a sentence: lower-case except acronyms ("AR"), and a
+ *  plural category reads as one item ("a pair of AR glasses"), so "A breakout ar glasses" and
+ *  "launches into Phone." can't happen. Pure string. */
+export function categoryNoun(displayName: string): string {
+  const noun = displayName
+    .split(" ")
+    .map((w) => (/^[A-Z]{2,}$/.test(w) ? w : w.toLowerCase()))
+    .join(" ");
+  return /glasses$/i.test(noun) ? `pair of ${noun}` : noun;
+}

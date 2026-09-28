@@ -86,7 +86,7 @@ export const LINE_RECIPES: Record<LineFamily, LineStage[]> = {
     { from: 0.0, key: "source", kind: "intake", machine: "Intake Hopper", short: "Intake", label: "Sourcing components", sub: "Panels & driver ICs inbound", icon: "source" },
     { from: 0.2, key: "panel", kind: "screen", machine: "Panel Laminator", short: "Panel", label: "Panel lamination", sub: "Bonding the display stack", icon: "panel" },
     { from: 0.44, key: "board", kind: "arm", machine: "Driver Board Cell", short: "Driver", label: "Driver board", sub: "Mounting driver & ports", icon: "board" },
-    { from: 0.66, key: "calibrate", kind: "qa", machine: "Colour Calibrator", short: "Cal.", label: "Colour calibration", sub: "Tuning every panel", icon: "calibrate" },
+    { from: 0.66, key: "calibrate", kind: "qa", machine: "Color Calibrator", short: "Cal.", label: "Color calibration", sub: "Tuning every panel", icon: "calibrate" },
     { from: 0.82, key: "qa", kind: "qa", machine: "QA Scan", short: "Test", label: "Quality assurance", sub: "Dead-pixel & QA scan", icon: "qa" },
     { from: 0.93, key: "pack", kind: "packer", machine: "Packing Station", short: "Pack", label: "Packaging & shipping", sub: "Boxing the run", icon: "pack" },
   ],

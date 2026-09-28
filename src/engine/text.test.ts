@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { withArticle } from "./copy.ts";
+import { withArticle } from "./text.ts";
 
 describe("withArticle", () => {
   it("picks a/an by the sound of the first letter", () => {
@@ -8,5 +8,14 @@ describe("withArticle", () => {
     expect(withArticle("Board Press")).toBe("a Board Press");
     expect(withArticle("AR headset")).toBe("an AR headset");
     expect(withArticle("CNC Mill")).toBe("a CNC Mill");
+  });
+});
+
+describe("categoryNoun", () => {
+  it("lower-cases words but keeps acronyms, and makes plural categories one item", async () => {
+    const { categoryNoun } = await import("./text.ts");
+    expect(categoryNoun("Phone")).toBe("phone");
+    expect(categoryNoun("Neural Band")).toBe("neural band");
+    expect(categoryNoun("AR Glasses")).toBe("pair of AR glasses");
   });
 });

@@ -6,7 +6,7 @@ import { TERM_INFO } from "../engine/glossary.ts";
 import { format, sub, toDollars } from "../engine/money.ts";
 import { holdingsValue } from "../engine/stocks.ts";
 import { runwayWeeks } from "../engine/economy.ts";
-import { burn, companyValuation, founderStakeValue, netWorth, nextWeekRevenue, weeklyRpGen } from "../state/gameState.ts";
+import { weeklyOutflow, companyValuation, founderStakeValue, netWorth, nextWeekRevenue, weeklyRpGen } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
 import "./bank.css";
 
@@ -17,11 +17,13 @@ export function Bank({ open, onClose }: { open: boolean; onClose: () => void }) 
   const { state } = useGame();
 
   const wkRev = nextWeekRevenue(state);
-  const wkBurn = burn(state);
+  // Total weekly outflow INCLUDING loan payments — the same figure the HUD's runway warning and the
+  // Company screen use. `burn()` (operating costs only) made the Bank show a longer runway than the HUD.
+  const wkBurn = weeklyOutflow(state);
   const net = sub(wkRev, wkBurn);
   const runway = runwayWeeks(state.cash, wkBurn, wkRev);
   const runwayTone = runway === Infinity ? "good" : runway < 8 ? "bad" : runway < 20 ? "warn" : "good";
-  const runwayText = runway === Infinity ? "Profitable" : runway > 520 ? "10y+ runway" : runway > 52 ? `${Math.round(runway / 52)}y runway` : `${runway} wk runway`;
+  const runwayText = runway === Infinity ? "Profitable" : runway > 520 ? "10+ yr runway" : runway > 52 ? `${Math.round(runway / 52)} yr runway` : `${runway} wk runway`;
 
   const portfolio = holdingsValue(state.holdings, state.competitors);
   const stake = founderStakeValue(state);
