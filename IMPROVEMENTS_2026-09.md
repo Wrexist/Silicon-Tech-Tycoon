@@ -80,21 +80,23 @@ Nothing here touches the engine's simulation path — the determinism pin is unt
 | 44 | Draft/library localStorage grows forever across New Game+ runs. | ✅ prune stale run keys |
 | 45 | Seasons read (`localStorage` + JSON.parse) on every tick from the office scene. | ✅ raw-string cache |
 | 46 | Confetti timers never pruned; Settings "copied" timer not cleared; drag handlers ignore `pointercancel`. | ✅ |
-| 47 | `AppShell` re-renders the whole app every tick (`useGameSelector` has zero consumers). | ⏭️ large refactor with regression risk; tracked |
+| 47 | Hidden screens (Office, Design Lab) re-rendered on every sim tick. | ✅ `useGameWhile(active)` freezes a hidden screen's snapshot; `useLaunchProduct` reads state at tap time; HQ/Lab memoized — **54 → 18 ms script per sim week** (measured, headless Chromium, fast speed) |
 | 48 | z-index: magic numbers across the overlay stack. | ✅ `--z-dock … --z-celebrate` tokens own every full-screen layer (in-screen stacking contexts keep local numbers) |
-| 49 | 164 off-grid spacing values, literal `999px`, `transition: all` ×10. | partial ✅ (`transition: all`, `999px`); spacing snap ⏭️ (pixel-shifts every screen — needs a dedicated visual review) |
+| 49 | Off-grid spacing, literal `999px`, `transition: all` ×10, white/black colour literals, literal font sizes. | ✅ 3/7/9/11px snapped and 398 spacing values tokenised (pixel-diff reviewed: 1–2px shifts only); 119 sheen/shade literals → `--sheen`/`--shade` (DOM screens byte-identical); nano/micro font sizes tokenised |
 
-## Deliberately deferred (tracked, not forgotten)
+## Second pass (after the first report)
 
-| Item | Why it waits |
+| Item | Status |
 |---|---|
-| Edge-reflection rim scrolls with the content on popup cards that overflow (12 cards). | Needs an inner `…__scroll` wrapper per card (the paywall's pattern) — a markup + padding move in 12 different layouts. Only visible when a card is taller than the screen. |
-| `AppShell` re-renders the whole tree every tick (#47). | Real win, but a broad context-selector refactor; wants its own branch with a profiler before/after. |
-| Snap 164 off-grid spacing values to the 8pt scale; ~40 white-sheen literals → `--sheen*` tokens; 34 literal font sizes. | Pixel-shifts nearly every screen — needs a dedicated visual-review pass, not a drive-by. |
+| Edge-reflection rim scrolled away on tall popup cards (12 cards). | ✅ the overlay scrolls, not the card — one shared rule; verified at 375×480 |
+| Hidden screens re-rendering every tick (#47). | ✅ see #47 — ~3× less main-thread script per sim week |
+| Spacing / colour / font-size token cleanup (#49). | ✅ see #49 |
+| "Ready to launch" rows gave no forecast. | ✅ shared `launchForecast` + a forecast chip on the HQ and Lab rows |
+| "Design complete" had no comparison. | ✅ Overall shows ±N vs the product it follows |
 
 ## Verification
 
-- `npx tsc -b --noEmit` clean; `npx vitest run` → 212 files / 2,179 tests green (determinism pin included).
+- `npx tsc -b --noEmit` clean; `npx vitest run` → 213 files / 2,180 tests green (determinism pin included).
 - New guards: `design/encoding.test.ts` (mojibake), `design/overlayGuard.test.ts` (overlay stack),
   `design/launchReveal.test.ts` (history comparison), draft-storage eviction, forecast-aware design advice,
   and a rewritten `bottomChrome.test.ts` that pins the real dock relationships.
