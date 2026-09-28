@@ -33,6 +33,9 @@ new one, or touch an existing one, make it match:
    `.x__card::after` to that selector list (and give the card `position: relative`). Bottom sheets
    (`.ds-sheet`) show only their top edge, so their `inset 0 1.5px 0 0 var(--glass-modal-rim)` top rim
    is their reflection — that's enough.
+   A centred card must not be its own scroll container (the rim would scroll away with the content):
+   add its overlay/card/scrim to the "the OVERLAY scrolls, not the card" rule at the end of
+   `primitives.css` instead of giving the card `max-height` + `overflow-y: auto`.
 
 Popups already on this style: celebration, awards, rival strike, rivalry, eureka, community ask,
 earnings call, ready-to-launch, launch reveal, decorate tutorial, the Silicon Pro paywall,

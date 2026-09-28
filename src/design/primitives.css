@@ -773,3 +773,27 @@
   height: max(100%, 44px);
   transform: translate(-50%, -50%);
 }
+
+/* Tall popup cards: the OVERLAY scrolls, not the card. When a card was its own scroll container
+   (max-height:100% + overflow-y:auto), the absolutely-positioned edge-reflection ::after above
+   scrolled away with the content, so on a short phone or at XL text the rim slid off the glass.
+   Letting the card grow to its content and scrolling the fixed overlay instead keeps the rim on the
+   card's real edge. Auto block margins centre a short card and collapse to 0 when it overflows, so
+   its top can never be pushed out of reach (plain align-items:center would). `html` lifts the
+   specificity over each card's own lazily-loaded stylesheet. */
+html :is(.ern, .cma, .eur, .awd, .rst, .rvd, .rtl, .lreveal, .rev, .cof, .stfm, .rge) {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  align-items: flex-start;
+}
+html :is(.ern__card, .cma__card, .eur__card, .awd__card, .rst__card, .rvd__card, .rtl__card,
+  .lreveal__card, .rev__card, .cof__card, .stfm__card, .rge__card) {
+  max-height: none;
+  overflow: visible;
+  flex-shrink: 0;
+  margin-block: auto;
+}
+/* The separate scrim layers stay put while the overlay scrolls over them. */
+html :is(.ern__scrim, .cma__scrim, .eur__scrim, .rev__scrim, .cof__scrim, .stfm__scrim, .rge__scrim) {
+  position: fixed;
+}
