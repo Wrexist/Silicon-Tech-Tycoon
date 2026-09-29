@@ -10,19 +10,15 @@ import { netWorth, challengeViewFor, type GameState } from "../state/gameState.t
 import type { ScenarioResult } from "../engine/scenarios.ts";
 import { scenarioById } from "../engine/scenarios.ts";
 import { encodeChallengeCode, formatScore, scoreMetricLabel } from "../engine/challenges.ts";
-import { format } from "../engine/money.ts";
+import { format, formatCount } from "../engine/money.ts";
 import { eraName } from "../engine/eras.ts";
 import "./resultCard.css";
 
-function fmtFans(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(n >= 10_000 ? 0 : 1)}k`;
-  return String(Math.round(n));
-}
+const fmtFans = (n: number): string => formatCount(n);
 
 function Stars({ n }: { n: number }) {
   return (
-    <span className="rcard__stars" aria-label={`${n} of 3 stars`}>
+    <span className="rcard__stars" role="img" aria-label={`${n} of 3 stars`}>
       {[1, 2, 3].map((i) => (
         <Star key={i} size={18} fill={i <= n ? "currentColor" : "none"}
           className={i <= n ? "rcard__star rcard__star--on" : "rcard__star"} strokeWidth={1.8} />
@@ -65,12 +61,12 @@ export function ResultCard({
   const chScore = chv ? formatScore(chv.challenge.scoreMetric, chv.final ?? chv.current) : null;
   const chCode = chv ? encodeChallengeCode(chv.challenge.kind, chv.challenge.dateKey) : null;
   const headline = pm
-    ? `A ${years}-year run`
-    : scn ? scn.name : chv ? `${chv.challenge.kind === "weekly" ? "Weekly" : "Daily"} Challenge` : `${eraName(state.era)} empire`;
+    ? `${years} years in business`
+    : scn ? scn.name : chv ? `${chv.challenge.kind === "weekly" ? "Weekly" : "Daily"} challenge` : `${eraName(state.era)} empire`;
   const sub = pm
     ? `Out of cash in the ${eraName(state.era)}${hits > 0 ? ` · ${hits} hit${hits > 1 ? "s" : ""} along the way` : ""}`
     : scn
-    ? (result?.stars === 3 ? "Mastered, all three stars" : result?.won ? `${result.stars}★ earned` : scn.tagline)
+    ? (result?.stars === 3 ? "Mastered, all three stars" : result?.won ? `${result.stars} star${result.stars === 1 ? "" : "s"} earned` : scn.tagline)
     : chv
     ? `${chScore} ${scoreMetricLabel(chv.challenge.scoreMetric)}${chv.final == null ? " so far" : ""}`
     : `${state.companyName} · Year ${years}`;

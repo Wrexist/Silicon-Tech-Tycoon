@@ -71,7 +71,7 @@
 .hq__era-body {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--sp-2);
 }
 .hq__era-title {
   font-weight: 700;
@@ -90,11 +90,6 @@
 }
 /* The vital-signs row. One row now — the old second row (`.hq__fin-pills`) existed only because the
    pills didn't fit, and was negative-margined up to pretend it was the same row anyway. */
-.hq__stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-8);
-}
 /* Item 5.3 — the rank-ladder "next boss" line on the home screen. */
 .hq__ladder {
   display: flex; align-items: center; gap: var(--sp-4);
@@ -229,16 +224,11 @@
   font-weight: 700;
   color: var(--ink);
 }
-.hq__goal-text {
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-  line-height: 1.4;
-}
 .hq__goal-or {
   font-size: var(--fs-micro);
   color: var(--ink-3);
   text-align: center;
-  margin-top: 2px;
+  margin-top: var(--sp-2);
 }
 .hq__goal-eta {
   font-size: var(--fs-micro);
@@ -251,7 +241,7 @@
 .hq__goalbar {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--sp-4);
 }
 .hq__goalbar-head {
   display: flex;
@@ -293,7 +283,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--sp-6);
-  padding: 8px 14px;
+  padding: var(--sp-8) var(--sp-14);
   border-radius: var(--r-pill);
   font-size: var(--fs-caption);
   font-weight: 700;
@@ -409,7 +399,7 @@
 .hqb__cat--room {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-5);
   /* Stand apart from the furniture categories: this chip is a mode (paint the floor/walls), not
      another shelf of items — accent-tinted at rest so it can't be scrolled past unnoticed. */
   color: var(--accent);
@@ -446,7 +436,7 @@
      squeezed by the Shop's flex-column panel. */
   flex-shrink: 0;
   scrollbar-width: none;
-  padding-bottom: 2px;
+  padding-bottom: var(--sp-2);
 }
 .hqb__swatches::-webkit-scrollbar {
   display: none;
@@ -456,8 +446,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  padding: 6px;
+  gap: var(--sp-5);
+  padding: var(--sp-6);
   border-radius: var(--r-button);
   border: 2px solid transparent;
   transition: border-color var(--spring-snappy), transform var(--spring-snappy);
@@ -511,7 +501,7 @@
      shop, so it must read as scrollable. Slim styled bar + edge fades that hint "more →". */
   scrollbar-width: thin;
   scrollbar-color: var(--accent) transparent;
-  padding-bottom: 7px;
+  padding-bottom: var(--sp-6);
   -webkit-mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
   mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 14px), transparent 100%);
 }
@@ -528,13 +518,13 @@
 }
 .hqb__cat {
   flex-shrink: 0;
-  padding: 6px 12px;
+  padding: var(--sp-6) var(--sp-12);
   border-radius: var(--r-pill);
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--ink-2);
   background: var(--bg-elevated);
-  transition: all var(--spring-snappy);
+  transition: background-color var(--spring-snappy), color var(--spring-snappy), border-color var(--spring-snappy), box-shadow var(--spring-snappy), transform var(--spring-snappy), opacity var(--spring-snappy);
 }
 .hqb__cat--on {
   color: var(--accent-ink);
@@ -549,12 +539,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 5px;
-  padding: 8px 6px 10px;
+  gap: var(--sp-5);
+  padding: var(--sp-8) var(--sp-6) var(--sp-10);
   border-radius: var(--r-button);
   background: var(--surface-2);
   border: 1px solid var(--hairline);
-  transition: all var(--spring-snappy);
+  transition: background-color var(--spring-snappy), color var(--spring-snappy), border-color var(--spring-snappy), box-shadow var(--spring-snappy), transform var(--spring-snappy), opacity var(--spring-snappy);
 }
 .hqb__item--on {
   border-color: var(--accent);
@@ -626,8 +616,8 @@
 .hqb__tool {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 7px 11px;
+  gap: var(--sp-5);
+  padding: var(--sp-6) var(--sp-10);
   border-radius: var(--r-pill);
   font-size: var(--fs-caption);
   font-weight: 600;
@@ -755,7 +745,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--sp-2);
 }
 .hqu__name {
   font-weight: 700;
@@ -773,9 +763,10 @@
 }
 .hqu__effect-next {
   align-self: flex-start;
-  margin-top: 3px;
-  padding: 2px 8px;
-  border-radius: var(--r-pill);
+  margin-top: var(--sp-4);
+  padding: var(--sp-2) var(--sp-8);
+  /* A pill turns into a lozenge when a long effect wraps to two lines — a chip radius stays tidy. */
+  border-radius: var(--r-button);
   background: var(--accent-soft);
   font-size: var(--fs-micro);
   font-weight: 700;
@@ -797,7 +788,7 @@
 .hqu__lv {
   flex-shrink: 0;
   align-self: flex-start;
-  padding: 3px 9px;
+  padding: var(--sp-4) var(--sp-8);
   border-radius: var(--r-pill);
   font-size: var(--fs-micro);
   font-weight: 800;
@@ -807,7 +798,7 @@
 }
 .hqu__pips {
   display: flex;
-  gap: 5px;
+  gap: var(--sp-5);
   margin-bottom: var(--sp-12);
 }
 .hqu__pip {
@@ -934,99 +925,13 @@
 .hqu__maxed {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-5);
   font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--positive-text);
 }
 
 /* Marketing sheet */
-.mkts {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-16);
-}
-.mkts__head {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-12);
-}
-.mkts__thumb {
-  flex-shrink: 0;
-}
-.mkts__title {
-  font-size: var(--fs-headline);
-  font-weight: 700;
-}
-.mkts__sub {
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-}
-.mkts__list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-8);
-}
-.mkts__opt {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-12);
-  padding: var(--sp-12);
-  border-radius: var(--r-button);
-  border: 1px solid var(--hairline);
-  background: var(--surface-2);
-  text-align: left;
-  transition: all var(--spring-snappy);
-}
-.mkts__opt:disabled {
-  opacity: 0.4;
-}
-.mkts__opt--on {
-  border-color: var(--fn-mkt);
-  background: var(--fn-mkt-soft);
-}
-.mkts__opt:active:not(:disabled) {
-  transform: scale(0.98);
-}
-.mkts__opt-icon {
-  width: 36px;
-  height: 36px;
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--r-pill);
-  background: var(--fn-mkt-soft);
-  color: var(--fn-mkt);
-}
-.mkts__opt-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-}
-.mkts__opt-name {
-  font-weight: 600;
-}
-.mkts__opt-blurb {
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-}
-.mkts__opt-meta {
-  text-align: right;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.mkts__opt-cost {
-  font-weight: 700;
-  font-size: var(--fs-caption);
-}
-.mkts__opt-hype {
-  font-size: var(--fs-micro);
-  font-weight: 600;
-  color: var(--fn-mkt-text);
-}
 
 /* ---------- Performance card ---------- */
 .hq__perf-grid {
@@ -1048,14 +953,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: var(--sp-2);
   padding: var(--sp-8) var(--sp-4);
   border-radius: var(--r-button);
   background: linear-gradient(165deg,
     color-mix(in srgb, var(--surface-2) 94%, transparent),
     color-mix(in srgb, var(--surface-2) 58%, transparent));
   border: 1px solid color-mix(in srgb, var(--accent) 9%, var(--hairline));
-  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 38%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sheen) 38%, transparent);
   min-width: 0;
 }
 /* A hairline accent rule along the top edge ties the tiles to the premium stat language. */
@@ -1103,13 +1008,13 @@
 .hq__rev-arrow--up { color: var(--positive); flex-shrink: 0; }
 .hq__rev-arrow--down { color: var(--negative); flex-shrink: 0; }
 .hq__rev-flat { color: var(--ink-3); font-size: var(--fs-micro); flex-shrink: 0; }
-.hq__rev-delta { font-size: var(--fs-micro); font-weight: 700; padding: 1px 5px; border-radius: var(--r-pill); }
+.hq__rev-delta { font-size: var(--fs-micro); font-weight: 700; padding: 1px var(--sp-5); border-radius: var(--r-pill); }
 .hq__rev-delta--up { color: var(--positive-text, var(--positive)); background: color-mix(in srgb, var(--positive) 12%, transparent); }
 .hq__rev-delta--down { color: var(--negative-text, var(--negative)); background: color-mix(in srgb, var(--negative) 12%, transparent); }
 .hq__rev-sub { font-size: var(--fs-micro); font-weight: 500; color: var(--ink-3); }
 .hq__forecast {
   display: flex;
-  gap: 6px;
+  gap: var(--sp-6);
   height: 40px;
   align-items: flex-end;
   margin: var(--sp-8) 0;
@@ -1119,7 +1024,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: var(--sp-4);
   height: 100%;
 }
 .hq__forecast-bar-wrap {
@@ -1137,7 +1042,7 @@
   transition: height 0.4s ease;
 }
 .hq__forecast-label {
-  font-size: 0.5625rem;
+  font-size: var(--fs-nano);
   font-weight: 700;
   color: var(--ink-3);
   letter-spacing: 0.02em;
@@ -1264,7 +1169,7 @@
 }
 .hq__insight-chevron {
   flex-shrink: 0;
-  margin-top: 4px;
+  margin-top: var(--sp-4);
   color: var(--ink-3);
 }
 
@@ -1326,13 +1231,13 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
+  gap: var(--sp-2);
   padding: var(--sp-12);
   border-radius: var(--r-button);
   background: var(--surface);
   border: 1.5px solid var(--hairline);
   text-align: left;
-  transition: all var(--spring-snappy);
+  transition: background-color var(--spring-snappy), color var(--spring-snappy), border-color var(--spring-snappy), box-shadow var(--spring-snappy), transform var(--spring-snappy), opacity var(--spring-snappy);
   width: 100%;
 }
 .hq__choice-opt:hover {
@@ -1368,7 +1273,7 @@
   display: flex; align-items: flex-start; gap: var(--sp-8);
   font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4;
 }
-.hq__unlock-list li svg { flex: none; margin-top: 2px; color: var(--accent); }
+.hq__unlock-list li svg { flex: none; margin-top: var(--sp-2); color: var(--accent); }
 .hq__unlock-list strong { color: var(--ink); font-weight: 700; }
 .hq__unlock-actions { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
 .hq__unlock-actions > * { flex: 1 1 auto; }
@@ -1416,14 +1321,14 @@
 /* Ladder progress bar */
 .hq__next-bar {
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--hairline);
   overflow: hidden;
   margin: 0 0 var(--sp-12);
 }
 .hq__next-bar-fill {
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--accent);
   transition: width var(--spring-standard);
 }
@@ -1600,13 +1505,13 @@
 }
 .hq__contract-bar {
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--hairline);
   overflow: hidden;
 }
 .hq__contract-fill {
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--accent);
   transition: width var(--spring-standard);
 }
@@ -1655,13 +1560,13 @@
 }
 .hq__board-bar {
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--hairline);
   overflow: hidden;
 }
 .hq__board-fill {
   height: 100%;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--accent);
   transition: width var(--spring-standard);
 }
@@ -1767,18 +1672,18 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--sp-4);
 }
 .hqb__office-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 4px;
+  gap: var(--sp-4);
 }
 .hqb__office-label {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--sp-4);
   font-size: var(--fs-nano);
   font-weight: 600;
   color: var(--ink-2);
@@ -1805,7 +1710,7 @@
   display: inline-flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 5px;
+  gap: var(--sp-5);
   font-size: var(--fs-caption);
   color: var(--ink-2);
 }
@@ -1817,7 +1722,7 @@
 .hqb__zones {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--sp-2);
   padding: var(--sp-6) var(--sp-8);
   border-radius: var(--r-button);
   background: var(--surface-2);
@@ -1830,7 +1735,7 @@
 .hqb__zones-head {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-5);
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--ink-2);
@@ -1850,7 +1755,7 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 3px;
+  gap: var(--sp-4);
   margin-top: 1px;
 }
 .hqb__attr {
@@ -1950,7 +1855,7 @@ body.hq-deco-open .hq > *:not(.hq__world) {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   background: var(--surface);
-  box-shadow: 0 -12px 30px -18px rgba(0, 0, 0, 0.28);
+  box-shadow: 0 -12px 30px -18px color-mix(in srgb, var(--shade) 28%, transparent);
   /* the rounded lip reads as a sheet lifting over the scene */
   border-radius: var(--r-card) var(--r-card) 0 0;
   padding-bottom: calc(var(--sp-16) + env(safe-area-inset-bottom));
@@ -1999,8 +1904,8 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 .hq__community-eyebrow { font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
 .hq__community-label { font-size: var(--fs-body); font-weight: 700; color: var(--ink); }
 .hq__community-superfans {
-  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
-  padding: 4px 10px; border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; gap: var(--sp-4); flex-shrink: 0;
+  padding: var(--sp-4) var(--sp-10); border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--warning) 16%, transparent); color: var(--warning-text, var(--warning));
   font-size: var(--fs-nano); font-weight: 800;
 }
@@ -2038,8 +1943,8 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 .hq__duel-eyebrow { font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
 .hq__duel-label { font-size: var(--fs-body); font-weight: 700; color: var(--ink); }
 .hq__duel-count {
-  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
-  padding: 4px 10px; border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; gap: var(--sp-4); flex-shrink: 0;
+  padding: var(--sp-4) var(--sp-10); border-radius: var(--r-pill);
   background: var(--accent-soft); color: var(--accent); font-size: var(--fs-nano); font-weight: 800;
 }
 .hq__duel-count svg { flex: none; }
@@ -2057,7 +1962,7 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 }
 .hq__duel-foot svg { color: var(--accent); flex-shrink: 0; }
 .hq__duel-trophies {
-  display: inline-flex; align-items: center; gap: 4px; margin-left: auto; flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: var(--sp-4); margin-left: auto; flex-shrink: 0;
   color: var(--warning-text, var(--warning)); font-weight: 800;
 }
 .hq__duel-trophies svg { color: var(--warning-text, var(--warning)); }
@@ -2074,8 +1979,8 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 .hq__ops-eyebrow { font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-3); }
 .hq__ops-label { font-size: var(--fs-body); font-weight: 700; color: var(--ink); }
 .hq__ops-attention {
-  display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;
-  padding: 4px 10px; border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; gap: var(--sp-4); flex-shrink: 0;
+  padding: var(--sp-4) var(--sp-10); border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent);
   font-size: var(--fs-nano); font-weight: 800;
 }
@@ -2102,7 +2007,7 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 .hq__ops-row-name { font-size: var(--fs-caption); font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hq__ops-row-sub { display: flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-nano); color: var(--ink-3); font-weight: 600; }
 .hq__ops-row-flag {
-  display: inline-flex; align-items: center; gap: 3px;
+  display: inline-flex; align-items: center; gap: var(--sp-4);
   color: var(--accent); font-weight: 800;
 }
 .hq__ops-row-flag svg { flex: none; }
@@ -2119,7 +2024,7 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 .hq__ops-body { padding: 0 var(--sp-12) var(--sp-12); display: flex; flex-direction: column; gap: var(--sp-10); }
 .hq__ops-acts { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-8); }
 .hq__ops-act {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2);
   padding: var(--sp-8) var(--sp-10); border-radius: var(--r-button);
   background: var(--surface); border: 1px solid var(--hairline);
   cursor: pointer; -webkit-tap-highlight-color: transparent; text-align: left;
@@ -2147,7 +2052,7 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 .hq__ops-reorder-cap svg { flex: none; color: var(--ink-2); }
 .hq__ops-reorder-opts { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
 .hq__ops-reorder-opt {
-  padding: 5px 10px; border-radius: var(--r-pill);
+  padding: var(--sp-5) var(--sp-10); border-radius: var(--r-pill);
   background: var(--surface); border: 1px solid var(--hairline);
   font-size: var(--fs-nano); font-weight: 700; color: var(--ink-2);
   cursor: pointer; -webkit-tap-highlight-color: transparent;
@@ -2165,29 +2070,6 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 
 /* The "simplified view" note under the 2D office scene. Quiet by design — it is a reassurance, not
    a warning: the player has lost nothing, the picture is just less detailed. */
-.hq__scene-note {
-  position: absolute;
-  left: var(--sp-16);
-  right: var(--sp-16);
-  bottom: var(--sp-12);
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  gap: var(--sp-6);
-  /* Cap the measure and centre the whole row, so the glyph stays beside the first line instead of
-     drifting to the far edge once the sentence wraps. */
-  max-width: 42ch;
-  margin: 0 auto;
-  font-size: var(--fs-caption);
-  line-height: 1.35;
-  color: var(--ink-3);
-  text-align: left;
-  pointer-events: none;
-}
-.hq__scene-note svg {
-  flex: none;
-  margin-top: 2px;
-}
 
 /* ── Tap-target floor (audit 3.3) ─────────────────────────────────────────────
    The build-catalog pills and the selection toolbar buttons render ~29–31px tall;
@@ -2225,3 +2107,15 @@ body.hq-deco-open .hq > *:not(.hq__world) {
 .office-map__move { display: grid; grid-template-columns: 1fr 1fr auto; align-items: end; gap: var(--sp-8); margin-top: var(--sp-8); }
 .office-map--build { position: absolute; inset: calc(var(--sp-48) + var(--sp-16)) 0 0; overflow-y: auto; overscroll-behavior: contain; padding-top: var(--sp-8); padding-bottom: var(--sp-16); }
 .office-map--build .office-map__floor { max-height: 200px; }
+
+/* "Reward ready" pip on a collapsed HQ group summary — the promise behind the tab's attention dot. */
+.hq__summary-chip {
+  display: inline-flex; align-items: center;
+  margin-left: var(--sp-8);
+  padding: var(--sp-2) var(--sp-8);
+  border-radius: var(--r-pill);
+  background: var(--positive-soft);
+  color: var(--positive-text);
+  font-size: var(--fs-micro); font-weight: 700;
+  vertical-align: middle;
+}

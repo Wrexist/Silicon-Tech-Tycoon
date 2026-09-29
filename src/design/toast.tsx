@@ -45,7 +45,13 @@ export function showToast(text: string, opts: { glyph?: ReactNode; tone?: Tone; 
   const id = nextId++;
   toasts = [...toasts, { id, text, glyph: opts.glyph, tone: opts.tone ?? "neutral", priority }];
   emit();
-  setTimeout(() => dismiss(id), 2600);
+  setTimeout(() => dismiss(id), toastDuration(text));
+}
+
+/** Long enough to READ: a flat 2.6s let 100-character refusal reasons vanish mid-sentence (WCAG
+ *  2.2.1). ~45ms per character on top of a 1.2s floor, clamped to 2.6–7s. Tap still dismisses early. */
+export function toastDuration(text: string): number {
+  return Math.min(7000, Math.max(2600, 1200 + text.length * 45));
 }
 
 export function ToastHost() {
@@ -57,7 +63,8 @@ export function ToastHost() {
     () => toasts,
     () => toasts,
   );
-  if (list.length === 0) return null;
+  // The live region stays MOUNTED even when empty: screen readers only announce changes to a region
+  // that already exists, so creating it with its first toast made that toast silent.
   return (
     <div className="ds-toast-host" role="status" aria-live="polite">
       {list.map((t) => (
@@ -66,10 +73,10 @@ export function ToastHost() {
           key={t.id}
           className={`ds-toast${t.tone === "neutral" ? "" : ` ds-toast--${t.tone}`}`}
           onClick={() => dismiss(t.id)}
-          aria-label={`${t.text}. Tap to dismiss.`}
         >
           {t.glyph && <span aria-hidden>{t.glyph}</span>}
-          <span aria-hidden>{t.text}</span>
+          <span>{t.text}</span>
+          <span className="sr-only">. Tap to dismiss.</span>
         </button>
       ))}
     </div>

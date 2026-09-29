@@ -1,3 +1,4 @@
+import { COMPONENT_LINES } from "../engine/catalogs.ts";
 import { machineMounts } from "../garage3d/machineMounts.ts";
 import { inboxPendingKey, higherPriorityPending } from "../design/interruptPriority.ts";
 import { openDecision, useDecisionOpen } from "../design/decisionInbox.ts";
@@ -42,7 +43,8 @@ import { showToast } from "../design/toast.tsx";
 import { emitCelebrate } from "../design/celebrateFx.ts";
 import { isDarkTheme, webglSupported } from "../garage3d/support.ts";
 import { ErrorBoundary } from "./ErrorBoundary.tsx";
-import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, connectedChain, connectedMachines, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineLayoutBreakdown, lineSpeedMult, lineUnitMult, machineCells, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
+import { withArticle } from "../engine/text.ts";
+import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, connectedChain, connectedMachines, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineLayoutBreakdown, lineSpeedMult, lineUnitMult, machineCells, machineUpgradeCostAt, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { PROP_DEFS, propCellSet, factoryDecorSpeedMult, utilityDecorKinds, type PropKind } from "../engine/factoryProps.ts";
 import { sideOrderPayout, SIDE_ORDER_CANCEL_PCT } from "../engine/sideOrders.ts";
@@ -268,18 +270,22 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const [deletedLayout, setDeletedLayout] = useState<import("../engine/factoryLayout.ts").FactoryLayout | null>(null);
   const [confirmLayout, setConfirmLayout] = useState<string | null>(null); // arms a layout's Apply → shows the diff + Confirm
   const [flash, setFlash] = useState<{ c: number; r: number; ok: boolean; n: number } | null>(null);
-  // Tapping the expansion bay buys it directly: first tap arms the pill (confirm), second commits.
-  // The arm decays so a stray tap can't leave a live $50K+ trigger sitting on the floor.
   // Cancelling a commission forfeits a chunk of the payout — arm the button first so one stray tap
-  // can't burn the fee. Decays like the expand arm.
+  // can't burn the fee. The arm decays so a stray tap can't leave a live trigger behind.
   const [cancelArm, setCancelArm] = useState(false);
   useEffect(() => {
     if (!cancelArm) return;
     const t = setTimeout(() => setCancelArm(false), 4000);
     return () => clearTimeout(t);
   }, [cancelArm]);
-  // Disarm the bay whenever the floor actually grows — buying an expansion via the Style sheet
-  // would otherwise leave the arm live, so one stray bay tap buys the NEXT tier with no confirm.
+  // Floor expansion ($50K–$400K, irreversible) is the same two-tap arm: first tap shows "Confirm",
+  // the second buys. Decays after 4s.
+  const [expandArm, setExpandArm] = useState(false);
+  useEffect(() => {
+    if (!expandArm) return;
+    const t = setTimeout(() => setExpandArm(false), 4000);
+    return () => clearTimeout(t);
+  }, [expandArm]);
   // Panels fold so the floor stays visible on portrait — the scene is the star, not the chrome.
   const [orderOpen, setOrderOpen] = useState(() => window.innerWidth >= 620);
   // Camera: drag/touch to orbit, pinch to zoom (Factory3D owns OrbitControls); the recenter button
@@ -329,7 +335,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   const undoBuild = () => {
     const prev = history.current.at(-1);
     if (!prev) return;
-    if (!d.game.applyFactorySnapshot(prev)) { showToast("Cannot undo: the refunded cash has already been spent.", { tone: "negative" }); return; }
+    if (!d.game.applyFactorySnapshot(prev)) { showToast("Can't undo: the refunded cash has already been spent.", { tone: "negative" }); return; }
     history.current.pop(); setHistLen(history.current.length);
     setPendingCell(null);
     // No toast: the floor visibly snaps back to the previous layout, which says "undone" better than
@@ -362,14 +368,32 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   };
   // Arm a machine → seed the ghost at the nearest-to-centre free cell; disarm → clear it.
   useEffect(() => {
-    setPendingCell(pendingKind ? findPlacementCell(pendingKind) : null);
+    const cell = pendingKind ? findPlacementCell(pendingKind) : null;
+    setPendingCell(cell);
+    // A full floor used to drop the ghost onto the Intake with a dead "Place" and no reason.
+    if (pendingKind && cell && !placeableAt(pendingKind, cell.c, cell.r)) {
+      showToast(`No room for ${withArticle(MACHINE_DEFS[pendingKind].name)}, erase something or expand the floor`, { tone: "neutral" });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buildTool]);
   const pendingValid = pendingKind != null && pendingCell != null && placeableAt(pendingKind, pendingCell.c, pendingCell.r);
 
-  const onTapCell = (c: number, r: number) => {
+  // `centered`: a finger tap in the 3D scene centres the machine ghost on the touch point. The 2D grid
+  // (keyboard / no-WebGL) names an exact cell ("Column 15, row 9"), so there the cell IS the anchor.
+  const onTapCell = (c: number, r: number, centered = false) => {
     if (!buildTool) return;
-    if (pendingKind) { setPendingCell({ c, r }); haptic.light(); return; } // machine: tap moves the ghost, Place commits
+    if (pendingKind) {
+      // 3D: centre the footprint on the finger (as hold-to-move does), clamped to the floor — anchoring
+      // the top-left corner on the tap made edge taps read red "doesn't fit".
+      const def = MACHINE_DEFS[pendingKind];
+      const w = floorWidth(state.factoryExpansion);
+      setPendingCell(centered ? {
+        c: Math.max(0, Math.min(w - def.w, c - Math.floor((def.w - 1) / 2))),
+        r: Math.max(0, Math.min(FLOOR.h - def.d, r - Math.floor((def.d - 1) / 2))),
+      } : { c, r });
+      haptic.light();
+      return;
+    } // machine: tap moves the ghost, Place commits
     if (buildTool === "erase") {
       snapshot();
       if (!clearFloorCell(c, r)) {
@@ -384,9 +408,10 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
     }
     if (buildTool === "upgrade") {
       snapshot();
+      const price = machineUpgradeCostAt(state.factoryFloor, c, r);
       const res = upgradeFloorMachine(c, r);
       setFlash((f) => ({ c, r, ok: res.ok, n: (f?.n ?? 0) + 1 }));
-      if (res.ok) { haptic.success(); sfx("build"); showToast("Machine tuned up — the line builds faster", { tone: "positive" }); }
+      if (res.ok) { haptic.success(); sfx("build"); showToast(`Machine tuned up${price != null ? ` for ${format(price)}` : ""} — the line builds faster`, { tone: "positive" }); }
       else { dropSnapshot(); haptic.warning(); showToast(res.reason ?? "Nothing to upgrade here", { tone: "negative" }); }
       return;
     }
@@ -494,15 +519,16 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               lockedBay={(() => {
                 const cost = nextExpansionCost(state.factoryExpansion);
                 if (cost == null) return null;
-                return { cols: EXPAND_STEP, label: `Expand - ${format(cost)}` };
+                return { cols: EXPAND_STEP, label: `Expand · ${format(cost)}` };
               })()}
               onTapLockedBay={() => { haptic.light(); setSheet("decor"); }}
-              onTapCell={onTapCell}
+              onTapCell={(c, r) => onTapCell(c, r, true)}
               paintBelts={buildTool === "belt"}
+              tapPieces={buildTool === "erase" || buildTool === "upgrade"}
               onPaintBelts={(cells) => {
                 snapshot(); // one painted RUN undoes as one action, not tile by tile
                 const res = d.game.paintBeltRun(cells, beltDir);
-                if (res.ok) { haptic.light(); sfx("build"); }
+                if (res.ok) { haptic.light(); sfx("build"); if (res.reason) showToast(res.reason, { tone: "neutral" }); }
                 else { dropSnapshot(); haptic.warning(); showToast(res.reason ?? "Can't lay a belt there", { tone: "negative" }); }
               }}
               onCarryChange={(carrying) => { if (carrying) haptic.light(); }}
@@ -565,7 +591,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                 <span className="fmode__order-name">{d.lead.product.name}</span>
                 <span className="fmode__order-units tnum">{(d.lead.plannedUnits ?? 0).toLocaleString()} units</span>
                 <span className="fmode__order-track" role="progressbar" aria-label="Production progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(d.progress * 100)}><span className="fmode__order-fill" style={{ width: `${Math.round(d.progress * 100)}%` }} /></span>
-                <span className="fmode__order-eta">{Math.round(d.progress * 100)}% · {d.weeksLeft > 0 ? `${d.weeksLeft} wk left` : "Finishing on next simulation tick"}</span>
+                <span className="fmode__order-eta">{Math.round(d.progress * 100)}% · {d.weeksLeft > 0 ? `${d.weeksLeft} wk left` : "Finishing this week"}</span>
                 {orderOpen && <StageTrail category={d.lead.product.category} frac={d.progress} />}
                 {orderOpen && d.util != null && (
                   <span className={`fmode__cap-line${d.overtime ? " fmode__cap-line--hot" : ""}`}>
@@ -614,7 +640,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               </p>
               {!can && (
                 <p className="fmode__sideorder-warn">
-                  {!wired ? "Needs a wired Intake → Packer line." : `Needs a ${MACHINE_DEFS[missingKinds[0]]?.name ?? "machine"} connected to the line.`}
+                  {!wired ? "Needs a wired Intake → Packer line." : `Needs ${withArticle(MACHINE_DEFS[missingKinds[0]]?.name ?? "machine")} connected to the line.`}
                 </p>
               )}
               <div className="fmode__sideorder-actions">
@@ -657,6 +683,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
       {/* right tool rail */}
       <div className="fmode__rail">
         <button
+          aria-pressed={buildTool != null}
           className={`fmode__tool${buildTool != null ? " fmode__tool--on" : ""}`}
           onClick={() => {
             haptic.light();
@@ -719,7 +746,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                         else { dropSnapshot(); haptic.warning(); showToast(res.reason ?? "Can't place there", { tone: "negative" }); }
                       }}
                     >
-                      {broke ? "Can't afford" : `Place · ${format(cost)}`}
+                      {broke ? "Can't afford" : !pendingValid ? "Blocked, tap a clear spot" : `Place · ${format(cost)}`}
                     </button>
                     <button className="fmode__autoquote-x" aria-label="Cancel placement" onClick={() => { haptic.light(); setBuildTool(null); }}><X size={16} /></button>
                   </>
@@ -759,7 +786,10 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                     <button role="tab" id="fmode-build-tab-machine" aria-controls="fmode-build-palette" aria-selected={buildCat === "machine"} className={`fmode__build-tab${buildCat === "machine" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Machines</button>
                     <button role="tab" id="fmode-build-tab-decor" aria-controls="fmode-build-palette" aria-selected={buildCat === "decor"} className={`fmode__build-tab${buildCat === "decor" ? " fmode__build-tab--on" : ""}`} onClick={() => { haptic.light(); setBuildCat("decor"); setBuildTool("crates"); }}>Decor</button>
                   </div>
-                  <span className="fmode__build-rule">{buildTool === "belt" ? "Drag to paint a belt run · tap for one · Auto routes it all." : buildCat === "machine" ? "Tap to place · hold any piece to move it. Erase refunds half." : "Tap to place · hold a prop to move it. Erase refunds half."}</span>
+                  <span className="fmode__build-rule">{buildTool === "belt" ? "Drag to paint a belt run · tap for one · Auto routes it all."
+                    : buildTool === "upgrade" ? "Tap a machine to tune it up · you pay per level."
+                    : buildTool === "erase" ? "Tap a piece to remove it · refunds half."
+                    : buildCat === "machine" ? "Tap to place · hold any piece to move it. Erase refunds half." : "Tap to place · hold a prop to move it. Erase refunds half."}</span>
                   {/* Undo: a true reversal of the last build action, cash included — the same deal the
                       office builder has always offered. Hidden until there IS something to undo. */}
                   {histLen > 0 && (
@@ -778,6 +808,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             {buildCat === "machine" ? (
               <>
                 <button
+                  aria-pressed={buildTool === "belt"}
                   className={`fmode__ptile${buildTool === "belt" ? " fmode__ptile--on" : ""}${state.cash < BELT_COST ? " fmode__ptile--broke" : ""}`}
                   onClick={() => { haptic.light(); armTool("belt"); }}
                 >
@@ -794,6 +825,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                   <span className="fmode__ptile-name">Turn</span>
                 </button>
                 <button
+                  aria-pressed={autoArmed}
                   className={`fmode__ptile fmode__ptile--util${autoArmed ? " fmode__ptile--on" : ""}`}
                   aria-label="Auto-lay a long conveyor track from the Intake to the Packer"
                   title="Lay a long conveyor track across the whole floor and tidy your machines into clean lanes beside it (shows the price first)"
@@ -813,6 +845,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                   return (
                     <button
                       key={k}
+                      aria-pressed={buildTool === k}
                       className={`fmode__ptile${buildTool === k ? " fmode__ptile--on" : ""}${broke ? " fmode__ptile--broke" : ""}`}
                       title={MACHINE_DEFS[k].blurb}
                       onClick={() => { haptic.light(); armTool(k); }}
@@ -831,7 +864,8 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                 return (
                   <button
                     key={k}
-                    className={`fmode__ptile${buildTool === k ? " fmode__ptile--on" : ""}${broke ? " fmode__ptile--broke" : ""}`}
+                    aria-pressed={buildTool === k}
+                      className={`fmode__ptile${buildTool === k ? " fmode__ptile--on" : ""}${broke ? " fmode__ptile--broke" : ""}`}
                     onClick={() => { haptic.light(); armTool(k); }}
                   >
                     <span className="fmode__ptile-icon"><Icon size={20} /></span>
@@ -843,6 +877,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             )}
             {buildCat === "machine" && (
               <button
+                aria-pressed={buildTool === "upgrade"}
                 className={`fmode__ptile${buildTool === "upgrade" ? " fmode__ptile--on" : ""}`}
                 onClick={() => { haptic.light(); armTool("upgrade"); }}
                 title="Tap a machine to tune it up a tier (faster builds)"
@@ -852,6 +887,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               </button>
             )}
             <button
+              aria-pressed={buildTool === "erase"}
               className={`fmode__ptile fmode__ptile--erase${buildTool === "erase" ? " fmode__ptile--on" : ""}`}
               onClick={() => { haptic.light(); armTool("erase"); }}
             >
@@ -867,7 +903,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           {d.game.paused ? <Play size={16} aria-hidden /> : <Pause size={16} aria-hidden />}
           {canReviewDecision ? "Review decision" : d.game.tabBlocked ? "Running in another tab" : d.game.suspended ? "Waiting for decision" : d.game.paused ? "Resume game" : "Pause game"}
         </button>
-        <BoostButton selectedJob={d.lead?.product.id} />
+        <BoostButton lead={d.lead} weeksLeft={d.weeksLeft} rushBuild={d.game.rushBuild} />
         <button
           className="fmode__side"
           title={`${d.readyCount} ready to launch`}
@@ -967,17 +1003,17 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             </span>
           </div>
           {d.missing.length > 0 ? (
-            <p className="fmode__sheet-note">This order wants a {d.missing.map((k) => MACHINE_DEFS[k].name).join(", ")} on the floor — add {d.missing.length > 1 ? "them" : "one"} in Build to speed it up. Arms and machine upgrades build faster too.</p>
+            <p className="fmode__sheet-note">This order needs {d.missing.length === 1 ? withArticle(MACHINE_DEFS[d.missing[0]].name) : d.missing.map((k) => MACHINE_DEFS[k].name).join(", ")} on the floor — add {d.missing.length > 1 ? "them" : "one"} in Build to speed it up. Arms and machine upgrades build faster too.</p>
           ) : (
             <p className="fmode__sheet-note">Wire Intake → Packer for a build-speed bonus; cover the product's recipe and add Arms or Upgrades to deepen it.</p>
           )}
           <p className="fmode__sheet-note">Estimated parts remaining in committed runs; these are not warehouse stock.</p>
-          <div className="fmode__matsline" aria-label="Estimated parts committed to production">
+          <div className="fmode__matsline" role="group" aria-label="Estimated parts committed to production">
             {(Object.keys(MATERIAL_ICONS) as ComponentKind[]).map((kind) => {
               const Icon = MATERIAL_ICONS[kind];
               const n = d.materials.get(kind) ?? 0;
               return (
-                <span key={kind} className={`fmode__matschip${n === 0 ? " fmode__matschip--zero" : ""}`} title={kind}>
+                <span key={kind} className={`fmode__matschip${n === 0 ? " fmode__matschip--zero" : ""}`} role="img" title={COMPONENT_LINES[kind].displayName} aria-label={`${COMPONENT_LINES[kind].displayName}: ${formatCount(n)}`}>
                   <Icon size={13} aria-hidden /><span className="tnum">{formatCount(n)}</span>
                 </span>
               );
@@ -1051,16 +1087,18 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               if (cost == null) return <span className="fmode__upline-max">Max size</span>;
               return (
                 <button className="fmode__buy" disabled={state.cash < cost} onClick={() => {
+                  if (!expandArm) { haptic.light(); setExpandArm(true); return; }
+                  setExpandArm(false);
                   const res = d.game.buyFloorExpansion();
                   if (res.ok) { haptic.success(); sfx("build"); emitCelebrate(); setResetView((v) => v + 1); showToast("New bay unlocked — the floor grows east", { tone: "positive" }); }
                   else { haptic.warning(); showToast(res.reason ?? "Can't expand", { tone: "negative" }); }
-                }}>{format(cost)}</button>
+                }}>{expandArm ? `Confirm · ${format(cost)}` : format(cost)}</button>
               );
             })()}
           </div>
 
           <span className="fmode__decor-label">Saved layouts</span>
-          {deletedLayout && <button className="fmode__layout-savebtn" onClick={() => { const result = d.game.restoreFactoryLayout(deletedLayout); if (result.ok) setDeletedLayout(null); else showToast(result.reason ?? "Cannot restore", { tone: "negative" }); }}>Undo deletion: {deletedLayout.name}</button>}
+          {deletedLayout && <button className="fmode__layout-savebtn" onClick={() => { const result = d.game.restoreFactoryLayout(deletedLayout); if (result.ok) setDeletedLayout(null); else showToast(result.reason ?? "Can't restore", { tone: "negative" }); }}>Undo deletion: {deletedLayout.name}</button>}
           <div className="fmode__layouts">
             {state.factoryLayouts.length === 0 && (
               <p className="fmode__sheet-note">Snapshot this floor to save its design, then switch between layouts anytime. Applying one charges (or refunds) only the difference.</p>
@@ -1151,11 +1189,16 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
 
 /** BOOST — the reference's paid time boost, translated honestly: rushBuild completes one week
  *  of the lead run for an overtime premium. Disabled when idle or unaffordable. */
-function BoostButton({ selectedJob }: { selectedJob?: string }) {
-  const d = useFactoryData(selectedJob);
-  const { rushBuild } = d.game;
+// Takes the parent's already-computed factory data as props: calling useFactoryData here ran the
+// whole chain walk / financials a second (and, with the card underneath, third) time per tick.
+function BoostButton({ lead, weeksLeft, rushBuild }: {
+  lead: ReturnType<typeof useFactoryData>["lead"];
+  weeksLeft: number;
+  rushBuild: ReturnType<typeof useFactoryData>["game"]["rushBuild"];
+}) {
+  const d = { lead, weeksLeft };
   if (!d.lead || d.weeksLeft <= 0) {
-    const why = "No build running — plan a production run to rush it";
+    const why = d.lead ? "Finishing this week — nothing left to rush" : "No build running — plan a production run to rush it";
     return <button className="fmode__boost" disabled title={why} aria-label={`BOOST — ${why}`}><Zap size={16} aria-hidden /> BOOST</button>;
   }
   const id = d.lead.product.id;
@@ -1164,7 +1207,7 @@ function BoostButton({ selectedJob }: { selectedJob?: string }) {
       className="fmode__boost"
       onClick={() => {
         const res = rushBuild(id);
-        if (res.ok) { haptic.success(); sfx("build"); showToast("Line rushed, one week saved", { tone: "positive" }); }
+        if (res.ok) { haptic.success(); sfx("build"); showToast("Line rushed — one week saved", { tone: "positive" }); }
         else { haptic.warning(); showToast(res.reason ?? "Can't rush right now", { tone: "negative" }); }
       }}
     >

@@ -57,9 +57,10 @@ export const SCORE_INFO: { term: string; def: string }[] = [
 export const TERM_INFO: { term: string; def: string }[] = [
   { term: "Cash", def: "Money you can spend right now, on builds, hires, marketing and upgrades. Hit zero for too long and you go bankrupt." },
   { term: "Runway", def: "How many weeks your cash lasts at the current weekly loss. \"Profitable\" means you're earning more than you spend." },
-  { term: "Burn", def: "Your total spending each week, payroll, rent and overheads. Lower it or out-earn it to extend your runway." },
+  { term: "Outflow", def: "Everything that leaves each week: payroll, rent, overheads and loan payments. Lower it or out-earn it to extend your runway." },
   { term: "Net worth", def: "Everything you're worth: cash, the value of your stake in your own company, and any rival shares you hold." },
   { term: "Research points", def: "RP, the research currency, earned weekly by staff in R&D. Spent on tech tiers and company research projects." },
+  { term: "Engineering points", def: "EP, the design budget each product gets. Every component tier costs EP, so a build is a trade-off, not \"max everything\". Research projects raise the budget." },
   { term: "Reputation", def: "How much the market trusts your brand (0–100). Rises with hits, falls with flops; gates new eras and the IPO." },
   { term: "Fans", def: "Loyal customers who pre-order your next product. Hits grow your fanbase; flops shrink it." },
   // --- Advanced systems: the vocabulary that gates the game's depth, defined in one place ---

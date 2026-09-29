@@ -1,3 +1,4 @@
+import { categoryNoun } from "../engine/text.ts";
 import { connectedMachines } from "../engine/factoryFloor.ts";
 // GameState + pure reducers. Composes the engine; owns NO React. Fully testable.
 // The React hook (useGame) wraps these and drives the tick.
@@ -811,6 +812,11 @@ function revMilestoneItems(prev: Money, next: Money, week: number): FeedItem[] {
     .map((m) => feedItem(week, `Revenue milestone: ${format(dollars(m))} earned lifetime.`, "positive"));
 }
 
+/** The feed's wording for a fan milestone — the live toast reuses it so both say the same thing. */
+export function fanMilestoneText(fans: number): string | null {
+  return FAN_MILESTONES.find((m) => m.fans === fans)?.text ?? null;
+}
+
 const FAN_MILESTONES: { fans: number; text: string; repBonus: number }[] = [
   { fans:     1_000, text: "1,000 fans, your brand is gaining recognition.", repBonus: 1 },
   { fans:     5_000, text: "5,000 fans, a real community is forming.", repBonus: 1 },
@@ -1601,7 +1607,7 @@ function sourcingExposureWithContracts(s: GameState): number {
   const products = s.building.length
     ? s.building.map((j) => j.product)
     : s.launched.length
-      ? [s.launched[s.launched.length - 1].product]
+      ? [s.launched[0].product] // `launched` is newest-first: [0] is the LAST shipped, not the first
       : [];
   if (!products.length) return 1;
   const mults = products.map((p) => {
@@ -3598,16 +3604,16 @@ function resolveChainStep(s: GameState, week: number): GameState {
 }
 
 function pushRivalFeed(feed: FeedItem[], l: CompetitorLaunch, activePlayerCats?: ReadonlySet<CategoryId>, productName?: string, contested?: boolean) {
-  const catName = CATEGORIES[l.category]?.displayName ?? l.category;
+  const catLine = categoryNoun(CATEGORIES[l.category]?.displayName ?? l.category).replace(/^pair of /, "");
   const threat = activePlayerCats?.has(l.category);
   // The product name already carries the rival's name (e.g. "Pomelo Vync Pro"), so use it as the
   // subject; fall back to the bare rival name for callers that don't generate a product.
   const subject = productName ?? l.competitor;
   const text = contested
-    ? `${subject} undercuts your ${catName} on price, a value war for the segment.`
+    ? `${subject} undercuts your ${catLine} line on price, a value war for the segment.`
     : threat
-      ? `${subject} launches, your active ${catName} faces new competition.`
-      : `${subject} launches into ${catName}.`;
+      ? `${subject} launches, your ${catLine} line faces new competition.`
+      : `${subject} enters the ${catLine} market.`;
   feed.push(feedItem(l.week, text, threat || contested ? "negative" : "neutral"));
 }
 
@@ -4091,7 +4097,9 @@ function paintBeltRunImpl(state: GameState, cells: { c: number; r: number }[], f
     if (brokeAt) return { state, ok: false, reason: `Belts cost ${format(BELT_COST)} a tile.` };
     return { state, ok: false, reason: "Can't lay a belt there." };
   }
-  return { state: { ...state, factoryFloor: floor, cash }, ok: true };
+  // A run cut short by the budget still succeeds — but say so, or a long drag silently lays half a line.
+  const reason = brokeAt ? `Laid ${placed} tile${placed === 1 ? "" : "s"}, out of cash for the rest (${format(BELT_COST)} each).` : undefined;
+  return { state: { ...state, factoryFloor: floor, cash }, ok: true, reason };
 }
 
 /** The price of the NEXT floor expansion (escalating), or null if maxed out. */
@@ -5717,7 +5725,14 @@ export function revokeOsLicense(state: GameState, rivalId: string): GameState {
   if (!state.osLicensees.includes(rivalId)) return state;
   const osLicenseeHealth = { ...state.osLicenseeHealth };
   delete osLicenseeHealth[rivalId];
-  return { ...state, osLicensees: state.osLicensees.filter((id) => id !== rivalId), osLicenseeHealth };
+  // Drop the exclusivity flag too: left behind, a rival that later re-signed a NON-exclusive deal
+  // would still be billed (and shown) at the exclusive royalty. Absent field stays absent.
+  let osExclusive = state.osExclusive;
+  if (osExclusive && rivalId in osExclusive) {
+    osExclusive = { ...osExclusive };
+    delete osExclusive[rivalId];
+  }
+  return { ...state, osLicensees: state.osLicensees.filter((id) => id !== rivalId), osLicenseeHealth, ...(osExclusive !== state.osExclusive ? { osExclusive } : {}) };
 }
 
 /** OS feature modules with their install/locked/affordable status, for the Platform screen. */

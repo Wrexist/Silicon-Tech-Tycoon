@@ -60,6 +60,6 @@ describe("contracts (rolling goal board)", () => {
     const s = rewardSummary({ cash: dollars(3_000), rep: 2, fans: 0 });
     expect(s).toContain("rep");
     expect(s).not.toContain("fans");
-    expect(s).toContain("$3k");
+    expect(s).toContain("$3K");
   });
 });

@@ -8,17 +8,19 @@ body::before { display: none; }
 .app :is(.lab,.rd) { --accent: var(--primary); --accent-soft: color-mix(in srgb, var(--primary) 8%, var(--surface)); }
 .app .ds-card { background: var(--surface); border: 1px solid var(--hairline); box-shadow: var(--shadow-subtle); }
 .app .ds-btn { min-height: 44px; white-space: normal; line-height: 1.25; padding-top: var(--sp-8); padding-bottom: var(--sp-8); will-change: auto; }
-.app .ds-btn--primary { background: var(--primary); box-shadow: none; color: var(--accent-ink); }
-.app .ds-btn--secondary { background: var(--surface); color: var(--accent); border: 1px solid var(--hairline); box-shadow: none; }
-.app :is(button,input,select,summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-.app :is(.ds-page-header,.page-header) { margin-bottom: var(--sp-12); }
+/* Flat management buttons — but never inside a glass popup: these load later at equal specificity, so
+   without the :not() they flattened the liquid-glass CTAs of every interrupt mounted inside .app
+   (rivalry, eureka, strike, launch reveal, paywall…) while portaled ones kept the glass. */
+.app .ds-btn--primary:not(:is(.cele,.rvd,.eur,.awd,.rst,.rtl,.lreveal,.dtut,.pwl,.ds-sheet,.cma,.ern,.stfm,.rge,.rev,.cof) *) { background: var(--primary); box-shadow: none; color: var(--accent-ink); }
+.app .ds-btn--secondary:not(:is(.cele,.rvd,.eur,.awd,.rst,.rtl,.lreveal,.dtut,.pwl,.ds-sheet,.cma,.ern,.stfm,.rge,.rev,.cof) *) { background: var(--surface); color: var(--accent); border: 1px solid var(--hairline); box-shadow: none; }
+.app :is(button,input,select,summary):focus-visible { outline: var(--focus-width, 2px) solid var(--accent); outline-offset: 3px; }
 .app .hud { gap: var(--sp-4); padding-top: calc(var(--sp-6) + env(safe-area-inset-top)); padding-bottom: var(--sp-6); background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; }
 .app .hud__pause { width: 44px; height: 44px; border: 0; background: var(--surface-2); border-radius: var(--r-button); }
 .app .hud__cash { min-height: 44px; }
 .app .hud__cash-value { font-size: 1.25rem; }
 .app .hud__chip { border: 0; padding: var(--sp-2) var(--sp-4); background: transparent; font-size: var(--fs-micro); }
 .app .hud__chips { justify-content: space-between; }
-.app__dock { position: fixed; z-index: 30; bottom: 0; left: 0; right: 0; max-width: 540px; margin: 0 auto; background: var(--surface); border-top: 1px solid var(--hairline); padding-bottom: env(safe-area-inset-bottom); }
+.app__dock { position: fixed; z-index: var(--z-dock); bottom: 0; left: 0; right: 0; max-width: 540px; margin: 0 auto; background: var(--surface); border-top: 1px solid var(--hairline); padding-bottom: env(safe-area-inset-bottom); }
 .app .bnav { position: static; border-top: 1px solid var(--hairline); padding: var(--sp-4) var(--sp-8); }
 .app .bnav__item { min-height: 50px; animation: none; }
 .app .bnav__item--active { color: var(--primary); }
@@ -92,6 +94,14 @@ body::before { display: none; }
 .app :is(.lab__tabs,.rd__subnav,.mkt__subnav,.co__subnav) { display: flex; gap: var(--sp-4); padding: var(--sp-4); background: var(--surface); border: 1px solid var(--hairline); box-shadow: none; border-radius: var(--r-button); }
 .app :is(.lab__tab,.rd__subtab,.mkt__subtab,.co__subtab) { flex: 1; min-width: 0; min-height: 44px; padding: var(--sp-8) var(--sp-4); font-size: var(--fs-caption); border-radius: var(--r-button); background: transparent; color: var(--ink-2); box-shadow: none; white-space: normal; }
 .app :is(.lab__tab--on,.rd__subtab--on,.mkt__subtab--on,.co__subtab--on) { background: var(--primary); color: var(--accent-ink); box-shadow: none; }
+/* Size tabs by their label, then share the spare width: a single long word ("Components") can't wrap,
+   so equal-width flex:1 clipped it against the pill edge on a 390px phone. */
+.app :is(.lab__tab,.rd__subtab,.mkt__subtab,.co__subtab) { flex: 1 0 auto; white-space: nowrap; }
+/* At large text sizes the labels can outgrow a 390px strip: scroll the strip sideways rather than
+   break a word ("Component/s") or clip it. At default size everything fits and nothing scrolls. */
+.app :is(.lab__tabs,.rd__subnav,.mkt__subnav,.co__subnav) { overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+.app :is(.lab__tabs,.rd__subnav,.mkt__subnav,.co__subnav)::-webkit-scrollbar { display: none; }
+.app .lab__tab-badge { top: 2px; right: 2px; }
 .app .rd { gap: var(--sp-12); }
 .rd__balance { display: flex; align-items: center; gap: var(--sp-12); }
 .rd__balance > div { flex: 1; display: flex; flex-direction: column; gap: var(--sp-4); font-size: var(--fs-caption); color: var(--ink-2); }
@@ -134,7 +144,6 @@ body::before { display: none; }
 .co-role-grid button { display: flex; flex-direction: column; align-items: center; background: var(--surface-2); border: 1px solid var(--hairline); border-radius: var(--r-button); padding: var(--sp-8) var(--sp-4); min-width: 0; }
 .co-role-grid strong { font-size: var(--fs-micro); }
 .co-role-grid span { font-size: var(--fs-micro); color: var(--ink-2); }
-.app :is(.co__member,.co__staff) { box-shadow: none; }
 .app .ds-sheet { background: var(--surface); backdrop-filter: none; -webkit-backdrop-filter: none; border: 1px solid var(--hairline); }
 @media (min-width: 800px) { .app__dock { left: calc(var(--rail-w) + var(--sp-24)); max-width: 760px; border: 1px solid var(--hairline); border-radius: var(--r-card) var(--r-card) 0 0; } }
 @media (max-width: 360px) { .time-controls { padding-left: var(--sp-4); padding-right: var(--sp-4); } .time-controls button { font-size: var(--fs-micro); } .app .lab__hero-grid { grid-template-columns: minmax(85px,.7fr) minmax(0,1.3fr); } .app .lab__hero-stage svg { max-width: 100%; } }
@@ -150,10 +159,9 @@ body::before { display: none; }
 .app .lab__hero-cat--on { background: transparent; color: var(--ink-2); border: 0; padding: 0; }
 .app .lab__hero-stage { min-height: 140px; gap: var(--sp-4); }
 .app .lab__hero-line-hint { display: none; }
-.app .lab__hero-tag { padding: 2px 6px; }
+.app .lab__hero-tag { padding: var(--sp-2) var(--sp-6); }
 .app .lab__hero-name-row { gap: var(--sp-4); }
 .app .lab__hero .lab__hero-info .lab__hero-line:nth-last-child(1) { display: none; }
-.app .lab__rivals { font-size: var(--fs-micro); }
 .app .rd__head { align-items: start; }
 .app .rd__era { font-size: var(--fs-micro); }
 .app .research-work { padding: var(--sp-12); }
@@ -186,6 +194,7 @@ body.hq-deco-open .app__dock { display: none; }
 .mg-table-scroll th { font-weight: 650; }
 .product-compare table { min-width: 420px; }
 .product-compare th > span { display: block; overflow-wrap: anywhere; max-width: 140px; }
+.product-compare td.compare-lead { color: var(--positive-text); font-weight: 750; background: var(--positive-soft); }
 .compare-pickers { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
 .compare-pickers label { flex: 1; min-width: 120px; font-size: var(--fs-caption); color: var(--ink-2); }
 .compare-pickers select { display: block; width: 100%; min-height: 44px; margin-top: var(--sp-4); background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-button); color: var(--ink); }
@@ -199,6 +208,9 @@ body.hq-deco-open .app__dock { display: none; }
 .weekly-recap dl { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: var(--sp-8); }
 .weekly-recap dt { font-size: var(--fs-micro); color: var(--ink-2); }
 .weekly-recap dd { margin: var(--sp-4) 0; font-weight: 650; font-size: var(--fs-caption); }
+.weekly-recap__delta { display: block; margin-top: var(--sp-2); font-size: var(--fs-nano); font-weight: 600; }
+.weekly-recap__delta--up { color: var(--positive-text); }
+.weekly-recap__delta--down { color: var(--negative-text); }
 .weekly-recap ul { padding-left: var(--sp-16); font-size: var(--fs-caption); line-height: 1.5; }
 .app .co-role-grid .game-art { width: 48px; height: 48px; }
 .draft-library form, .draft-library__actions { display: flex; flex-wrap: wrap; gap: var(--sp-8); align-items: end; margin: var(--sp-8) 0; }
@@ -209,3 +221,10 @@ body.hq-deco-open .app__dock { display: none; }
 .draft-library ul { list-style: none; padding: 0; }
 .draft-library li { border-top: 1px solid var(--hairline); padding: var(--sp-12) 0; overflow-wrap: anywhere; }
 .draft-library li > small { display: block; color: var(--ink-2); margin-top: var(--sp-4); }
+.app .co__member { box-shadow: none; }
+.forecast-chip { display: inline-flex; align-items: center; gap: var(--sp-4); align-self: flex-start; margin-top: var(--sp-2); padding: var(--sp-2) var(--sp-8); border-radius: var(--r-pill); font-size: var(--fs-nano); font-weight: 700; white-space: nowrap; max-width: 100%; overflow: hidden; text-overflow: ellipsis; background: var(--surface-2); color: var(--ink-2); }
+.forecast-chip--positive { background: var(--positive-soft); color: var(--positive-text); }
+.forecast-chip--accent { background: var(--accent-soft); color: var(--accent); }
+/* The visible reason beside a disabled action (a hover `title` never reaches touch players). */
+.why-note { display: block; margin-top: var(--sp-4); font-size: var(--fs-micro); color: var(--ink-3); }
+.why-note--in { margin-top: var(--sp-2); font-weight: 600; color: inherit; opacity: 0.85; }

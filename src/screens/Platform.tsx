@@ -37,7 +37,8 @@ import {
 } from "../state/gameState.ts";
 import { osReleaseReward, rivalLicenseFee, licenseeStrengthUplift, osSynergyRows, osFeatureById, OS_PHILOSOPHIES, philosophyEffectLabel, featuredApps, appsPublishedPerWeek, securityStanding } from "../engine/platform.ts";
 import { offerTemper } from "../engine/licenseOffers.ts";
-import { format, add, toDollars, formatCount, type Money } from "../engine/money.ts";
+import { format, add, scale, toDollars, formatCount, type Money } from "../engine/money.ts";
+import { BALANCE } from "../engine/balance.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
 import { useGame } from "../state/useGame.tsx";
 import { PLATFORM_SECTIONS, SECTION_LABELS, type PlatformSection } from "../state/platformSections.ts";
@@ -58,11 +59,7 @@ const TEMPER_LABEL: Record<string, string> = {
   hardball: "Playing hardball — push at your peril",
 };
 
-function fmtBase(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 10_000) return `${Math.floor(n / 1_000)}k`; // floor so 999,999 reads "999k", not "1000k"
-  return n.toLocaleString();
-}
+const fmtBase = (n: number): string => formatCount(n); // one count formatter app-wide
 
 // Deterministic hue (0..359) from an app name, so each procedural App Store tile gets a stable,
 // distinct colour. The CSS owns the saturation/lightness (theme-aware); the TSX only passes the hue.
@@ -176,6 +173,14 @@ export function PlatformPanel({
   const rp = Math.floor(state.researchPoints);
   // OS-completion celebration: shown when the player builds the LAST remaining module.
   const [celebrate, setCelebrate] = useState(false);
+  // Revoking a licence is permanent (a licensee can't be re-enlisted at will) — arm first, confirm
+  // second, like every other irreversible spend. The arm decays after 4s.
+  const [revokeArm, setRevokeArm] = useState<string | null>(null);
+  useEffect(() => {
+    if (!revokeArm) return;
+    const t = setTimeout(() => setRevokeArm(null), 4000);
+    return () => clearTimeout(t);
+  }, [revokeArm]);
   // OS version-release celebration: captures the launch-day reward so it survives the card swapping
   // to "up to date" the instant the version ships.
   const [released, setReleased] = useState<{ version: number; fans: number; rep: number; base: number } | null>(null);
@@ -358,7 +363,7 @@ export function PlatformPanel({
 
   const appStoreCard = (
     <Card>
-      <SectionHeader title="App Store" accessory={storeOpen ? `${formatCount(apps)} apps` : "closed"} />
+      <SectionHeader title="App Marketplace" accessory={storeOpen ? `${formatCount(apps)} apps` : "closed"} />
       {storeOpen ? (
         <>
           <div className="plat__store-hero">
@@ -387,7 +392,7 @@ export function PlatformPanel({
         <div className="plat__store-closed">
           <span className="plat__store-closed-glyph" aria-hidden><Store size={22} /></span>
           <p className="plat__release-note plat__release-note--muted" style={{ margin: 0 }}>
-            Your store is quiet. Research the <strong>App Marketplace</strong> module below to open {osDisplayName(state)} to developers, they'll publish apps and you'll take a cut of every sale.
+            Your store is quiet. Build the <strong>App Marketplace</strong> module in Ecosystem to open {osDisplayName(state)} to developers, they'll publish apps and you'll take a cut of every sale.
           </p>
         </div>
       )}
@@ -520,7 +525,7 @@ export function PlatformPanel({
               if (!r) return;
               if (r.outcome === "improved") showToast(`They sweetened it, +${format(r.bonusDelta)} upfront`, { tone: "positive" });
               else if (r.outcome === "walked") showToast(`${offer.rivalName} walked away from the deal`, { tone: "negative" });
-              else showToast("They held firm, the original terms stand", { tone: "neutral" });
+              else showToast("They held firm — the original terms stand", { tone: "neutral" });
             }}
           >
             {offer.negotiated ? "Already pushed" : "Negotiate for more"}
@@ -544,10 +549,13 @@ export function PlatformPanel({
           {state.osLicensees.map((id) => {
             const c = state.competitors.find((r) => r.id === id);
             if (!c) return null;
-            const fee = rivalLicenseFee(c.reputation, tier.tier);
+            const exclusive = id in (state.osExclusive ?? {});
+            // Same maths as weeklyLicenseFees: exclusive partners pay the richer royalty, so the rows
+            // add up to the section total instead of reading ~29% low.
+            const baseFee = rivalLicenseFee(c.reputation, tier.tier);
+            const fee = exclusive ? scale(baseFee, BALANCE.platform.contract.exclusiveRoyaltyMult) : baseFee;
             const health = licenseeHealthOf(state, id);
             const mood = licenseeMoodOf(state, id);
-            const exclusive = (state.osExclusive ?? {})[id];
             return (
               <li key={id} className="plat__rival plat__rival--on">
                 <div className="plat__rival-top">
@@ -558,14 +566,16 @@ export function PlatformPanel({
                   <span className="plat__rival-fee tnum">{format(fee)}/wk</span>
                   <Button
                     size="sm"
-                    variant="tertiary"
+                    variant={revokeArm === id ? "destructive" : "tertiary"}
                     onClick={() => {
                       haptic.light();
+                      if (revokeArm !== id) { setRevokeArm(id); return; }
+                      setRevokeArm(null);
                       revokeOsLicense(id);
                       showToast(`${c.name} no longer licenses ${osDisplayName(state)}`, { tone: "neutral" });
                     }}
                   >
-                    Revoke
+                    {revokeArm === id ? `Confirm · lose ${format(fee)}/wk` : "Revoke"}
                   </Button>
                 </div>
                 <div className="plat__rel">

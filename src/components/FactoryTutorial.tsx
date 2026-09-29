@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEscapeLayer } from "../design/overlayGuard.ts";
 import { createPortal } from "react-dom";
 import {
-  ArrowLeft, ArrowRight, Boxes, Check, Factory, Grab, Hammer, Hand, Maximize2, Move, Palette,
+  ArrowLeft, ArrowRight, Bot, Boxes, Check, Factory, Grab, Hand, Maximize2, Move, Palette,
   Truck, Workflow, X, ZoomIn, Zap, type LucideIcon,
 } from "lucide-react";
 import { haptic } from "../design/haptics.ts";
@@ -79,7 +80,7 @@ function LineVisual() {
 /** The three ways to grow the floor, as glyph chips. */
 function GrowVisual() {
   const acts: { icon: LucideIcon; label: string }[] = [
-    { icon: Hammer, label: "Upgrades" },
+    { icon: Bot, label: "Upgrades" },
     { icon: Palette, label: "Style" },
     { icon: Maximize2, label: "Expand" },
   ];
@@ -118,7 +119,7 @@ const STEPS: TStep[] = [
     icon: Palette,
     accent: "var(--fn-design)",
     title: "Make it yours",
-    text: "Upgrades boost your robots and output. Style repaints the walls and floor and drops in decor. Expand grows the whole floor when you outgrow it.",
+    text: "Upgrades boost your robots and output. Style repaints the walls and floor, and Build → Decor drops in props. Expand grows the whole floor when you outgrow it.",
     visual: <GrowVisual />,
   },
 ];
@@ -138,12 +139,7 @@ export function FactoryTutorial({ open, onClose }: { open: boolean; onClose: () 
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   useDialogFocus(cardRef, open); // trap Tab within the dialog + restore focus to the opener on close
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onCloseRef.current(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  useEscapeLayer(open, () => { onCloseRef.current(); });
 
   if (!open) return null;
 

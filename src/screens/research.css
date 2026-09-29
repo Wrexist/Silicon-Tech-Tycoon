@@ -24,7 +24,7 @@
   padding: var(--sp-4);
   border-radius: var(--r-pill);
   background: var(--bg-elevated);
-  box-shadow: 0 6px 18px -12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 6px 18px -12px color-mix(in srgb, var(--shade) 50%, transparent);
 }
 .rd__subtab {
   flex: 1;
@@ -43,12 +43,6 @@
   color: var(--accent-ink);
   box-shadow: var(--shadow-subtle);
 }
-.rd__bank {
-  position: relative;
-  overflow: hidden;
-  background: linear-gradient(135deg, var(--accent-soft), var(--surface));
-  border-color: color-mix(in srgb, var(--accent) 42%, var(--hairline));
-}
 /* Active-research hero card — a faint accent wash + edge so the in-progress ring reads as "live". */
 .rd__active {
   background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 7%, var(--surface)), var(--surface));
@@ -56,55 +50,6 @@
 }
 /* Immersive section backdrop matching the share card: an engineering-accent glow, a dot texture,
    and the parametric circuit motif, so the RP bank reads as live research intel. */
-.rd__bank-backdrop { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
-.rd__bank-glow {
-  position: absolute;
-  top: -42%; right: -18%;
-  width: 70%; height: 95%;
-  border-radius: 50%;
-  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 30%, transparent), transparent 68%);
-  filter: blur(6px);
-}
-.rd__bank-grid {
-  position: absolute;
-  inset: 0;
-  background-image: radial-gradient(circle at center, color-mix(in srgb, var(--accent) 12%, transparent) 1px, transparent 1.4px);
-  background-size: 15px 15px;
-  -webkit-mask-image: linear-gradient(160deg, #000 6%, transparent 70%);
-  mask-image: linear-gradient(160deg, #000 6%, transparent 70%);
-}
-.rd__bank-circuit { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.4; }
-.rd__bank-circuit .circuitm__traces path {
-  fill: none;
-  stroke: color-mix(in srgb, var(--accent) 38%, transparent);
-  stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round;
-}
-.rd__bank-circuit .circuitm__nodes circle {
-  fill: color-mix(in srgb, var(--accent) 68%, transparent);
-  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--accent) 55%, transparent));
-}
-.rd__bank > :not(.rd__bank-backdrop) { position: relative; z-index: 1; }
-.rd__bank-main {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-12);
-  color: var(--accent);
-}
-.rd__bank-value {
-  font-size: var(--fs-title);
-  font-weight: 800;
-  color: var(--ink);
-  letter-spacing: -0.02em;
-}
-.rd__bank-sub {
-  font-size: var(--fs-caption);
-  font-weight: 600;
-  color: var(--positive-text);
-}
-.rd__bank-hint {
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-}
 /* Research income breakdown — where the weekly RP comes from */
 .rd__income-list { list-style: none; display: flex; flex-direction: column; gap: var(--sp-8); margin: var(--sp-4) 0 var(--sp-12); }
 .rd__income-row { display: flex; align-items: center; gap: var(--sp-12); }
@@ -113,92 +58,7 @@
 .rd__income-bar i { display: block; height: 100%; border-radius: var(--r-pill); background: var(--fn-eng); transition: width var(--spring-gentle); }
 .rd__income-rp { flex: 0 0 auto; min-width: 40px; text-align: right; font-size: var(--fs-caption); font-weight: 700; color: var(--fn-eng-text, var(--fn-eng)); }
 .rd__income-hint { font-size: var(--fs-caption); color: var(--ink-3); line-height: 1.4; }
-.rd__bank-ready {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
-  border-radius: var(--r-pill);
-  font-size: var(--fs-micro);
-  font-weight: 700;
-  color: var(--positive-text, var(--positive));
-  background: color-mix(in srgb, var(--positive) 12%, transparent);
-  margin-left: auto;
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-.rd__bank-cta {
-  margin-top: var(--sp-12);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-8);
-}
-.rd__bank-goal {
-  margin-top: var(--sp-12);
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-6);
-}
-.rd__bank-goal-head {
-  display: flex;
-  align-items: baseline;
-  gap: var(--sp-8);
-}
-.rd__bank-goal-label {
-  font-size: var(--fs-micro);
-  font-weight: 700;
-  color: var(--ink-3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  flex-shrink: 0;
-}
-.rd__bank-goal-name {
-  flex: 1;
-  font-size: var(--fs-caption);
-  font-weight: 700;
-  color: var(--ink);
-}
-.rd__bank-goal-eta {
-  font-size: var(--fs-micro);
-  font-weight: 700;
-  color: var(--accent);
-  flex-shrink: 0;
-}
-.rd__bank-goal-track {
-  height: 6px;
-  border-radius: var(--r-pill);
-  background: var(--surface-2);
-  overflow: hidden;
-}
-.rd__bank-goal-fill {
-  height: 100%;
-  border-radius: var(--r-pill);
-  background: var(--accent);
-  transition: width 0.6s ease;
-  min-width: 4px;
-}
-.rd__bank-goal-nums {
-  display: flex;
-  justify-content: space-between;
-  font-size: var(--fs-micro);
-  font-weight: 600;
-  color: var(--ink-3);
-}
 /* Eureka insight meter — a quiet "the lab is priming" strip under the RP banner. */
-.rd__insight {
-  position: relative; z-index: 1;
-  display: flex; align-items: center; gap: var(--sp-8);
-  margin-top: var(--sp-12); padding-top: var(--sp-12);
-  border-top: 1px solid var(--hairline);
-}
-.rd__insight-label { display: inline-flex; align-items: center; gap: 4px; font-size: var(--fs-nano); font-weight: 700; color: var(--fn-eng, var(--accent)); flex-shrink: 0; }
-.rd__insight-track { flex: 1; height: 5px; border-radius: var(--r-pill); background: var(--surface-2); overflow: hidden; }
-.rd__insight-track i {
-  display: block; height: 100%; border-radius: var(--r-pill); min-width: 3px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--fn-eng, var(--accent)) 55%, transparent), var(--fn-eng, var(--accent)));
-  transition: width 0.6s ease;
-}
-.rd__insight-hint { font-size: var(--fs-nano); color: var(--ink-3); flex-shrink: 0; }
 .rd__project {
   display: flex;
   align-items: center;
@@ -211,7 +71,7 @@
 .rd__fork-tag {
   display: inline-block;
   margin-left: var(--sp-8);
-  padding: 1px 7px;
+  padding: 1px var(--sp-6);
   border-radius: var(--r-pill);
   font-size: var(--fs-micro, 10px);
   font-weight: 700;
@@ -224,7 +84,7 @@
 .rd__project-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--sp-2);
   min-width: 0;
 }
 .rd__contrib--muted {
@@ -235,24 +95,7 @@
   font-size: var(--fs-micro, 10px);
   line-height: 1.4;
   color: color-mix(in srgb, var(--accent) 85%, var(--ink-2));
-  margin-top: 2px;
-}
-.rd__intro {
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-  line-height: 1.5;
-}
-.rd__tier {
-  font-size: var(--fs-caption);
-  font-weight: 700;
-  color: var(--ink-2);
-}
-.rd__current {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-12);
-  flex-wrap: wrap;
-  margin-bottom: var(--sp-12);
+  margin-top: var(--sp-2);
 }
 .rd__contrib {
   font-size: var(--fs-caption);
@@ -269,18 +112,13 @@
   background: var(--surface-2);
   border: 1px solid var(--hairline);
 }
-.rd__next-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
 .rd__next-name {
   font-weight: 600;
 }
 .rd__maxed {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-5);
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--positive-text);
@@ -288,7 +126,7 @@
 .rd__locked {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-5);
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--ink-3);
@@ -313,7 +151,7 @@
 .rd__boost-name {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-4);
   font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--accent);
@@ -334,8 +172,8 @@
 .rd__boost-chip {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 5px 10px;
+  gap: var(--sp-4);
+  padding: var(--sp-5) var(--sp-10);
   border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--accent) 8%, transparent);
   border: 1px solid color-mix(in srgb, var(--accent) 20%, transparent);
@@ -349,26 +187,11 @@
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--accent);
-  padding: 2px 0;
+  padding: var(--sp-2) 0;
 }
 .rd__boosts-toggle:active { opacity: 0.7; }
 
 /* Tier progress pips for component tech cards */
-.rd__tier-pips {
-  display: flex;
-  gap: 3px;
-  margin-bottom: var(--sp-12);
-}
-.rd__tier-pip {
-  flex: 1;
-  height: 4px;
-  border-radius: var(--r-pill);
-  background: var(--bg-elevated);
-  transition: background var(--spring-standard);
-}
-.rd__tier-pip--on {
-  background: var(--accent);
-}
 
 /* Era grouping for research projects */
 .rd__era-group {
@@ -379,14 +202,14 @@
 .rd__era-label {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-5);
   width: 100%;
   font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--accent);
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin-bottom: 2px;
+  margin-bottom: var(--sp-2);
 }
 .rd__era-label--locked {
   color: var(--ink-3);
@@ -404,7 +227,7 @@
 .rd__roadmap-hint {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-6);
   margin: 0;
   padding: var(--sp-4) var(--sp-2);
   font-size: var(--fs-caption);
@@ -416,7 +239,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 3px;
+  gap: var(--sp-4);
   flex-shrink: 0;
 }
 .rd__weeks-away {
@@ -427,8 +250,8 @@
 }
 /* Status pill on a research row that's already developing (active) or lined up (queued). */
 .rd__slot {
-  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; flex-shrink: 0;
-  padding: 5px 10px; border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; gap: var(--sp-4); white-space: nowrap; flex-shrink: 0;
+  padding: var(--sp-5) var(--sp-10); border-radius: var(--r-pill);
   font-size: var(--fs-micro); font-weight: 800; letter-spacing: 0.01em;
 }
 .rd__slot--active { color: var(--accent); background: var(--accent-soft); }
@@ -439,7 +262,7 @@
 .rd__era-badge {
   font-size: var(--fs-micro);
   font-weight: 700;
-  padding: 2px 8px;
+  padding: var(--sp-2) var(--sp-8);
   border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--accent) 14%, transparent);
   color: var(--accent);
@@ -466,7 +289,7 @@
   flex: 1;
   min-height: 16px;
   background: var(--hairline);
-  margin: 4px 0;
+  margin: var(--sp-4) 0;
 }
 .rd__roadmap-body {
   flex: 1;
@@ -521,7 +344,7 @@
 .rd__roadmap-tag {
   display: inline-flex;
   align-items: center;
-  padding: 2px 7px;
+  padding: var(--sp-2) var(--sp-6);
   border-radius: var(--r-pill);
   font-size: var(--fs-micro);
   font-weight: 600;
@@ -546,34 +369,7 @@
 }
 
 /* "Used in" category tags on component tech cards */
-.rd__used-in {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-4);
-  margin-bottom: var(--sp-10);
-}
-.rd__used-cat {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: var(--fs-micro);
-  font-weight: 600;
-  color: var(--ink-3);
-  background: var(--bg-elevated);
-  border-radius: var(--r-pill);
-  padding: 2px 7px;
-}
 
-.rd__active-hint {
-  font-size: var(--fs-micro);
-  font-weight: 600;
-  color: var(--accent);
-  margin-bottom: var(--sp-8);
-  line-height: 1.35;
-}
-.rd__active-hint strong {
-  font-weight: 800;
-}
 
 /* Component tech era coverage bar */
 .rd__comp-coverage {
@@ -628,7 +424,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--sp-2);
 }
 .rd__unlock-name {
   font-weight: 700;
@@ -665,7 +461,7 @@
 .rd__sprint-name-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-6);
   overflow: hidden;
 }
 .rd__sprint-name {
@@ -680,9 +476,9 @@
 }
 .rd__trend-badge {
   display: inline-block;
-  padding: 1px 5px;
+  padding: 1px var(--sp-5);
   border-radius: var(--r-pill);
-  font-size: 0.5625rem;
+  font-size: var(--fs-nano);
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -701,7 +497,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 3px;
+  gap: var(--sp-4);
   flex-shrink: 0;
 }
 
@@ -721,25 +517,25 @@
   border-radius: var(--r-button);
   display: inline-flex; align-items: center; justify-content: center;
   background: var(--tile-dark);
-  color: #fff;
+  color: var(--accent-ink);
 }
-.rd__comp-info { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: 2px; }
+.rd__comp-info { display: flex; flex-direction: column; flex: 1; min-width: 0; gap: var(--sp-2); }
 .rd__comp-cat {
   display: flex; align-items: center; gap: var(--sp-6);
   font-size: var(--fs-micro); font-weight: 600; color: var(--ink-2);
 }
-.rd__comp-pips { display: inline-flex; align-items: center; gap: 3px; }
+.rd__comp-pips { display: inline-flex; align-items: center; gap: var(--sp-4); }
 .rd__comp-pip { width: 5px; height: 5px; border-radius: 50%; background: color-mix(in srgb, var(--ink-3) 25%, transparent); }
 .rd__comp-pip--on { background: var(--fn-eng); }
 .rd__comp-tcount { color: var(--ink-3); font-weight: 700; }
 .rd__comp-name { font-size: var(--fs-fx); font-weight: 700; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .rd__comp-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); font-size: var(--fs-micro); font-weight: 600; }
-.rd__comp-next { display: inline-flex; align-items: center; gap: 3px; color: var(--ink-2); min-width: 0; }
+.rd__comp-next { display: inline-flex; align-items: center; gap: var(--sp-4); color: var(--ink-2); min-width: 0; }
 .rd__comp-next svg { color: var(--fn-eng); flex-shrink: 0; }
 .rd__comp-delta { color: var(--positive-text); font-weight: 700; }
 .rd__comp-done { display: inline-flex; align-items: center; gap: var(--sp-4); color: var(--positive-text); }
 .rd__comp-eralock { display: inline-flex; align-items: center; gap: var(--sp-4); color: var(--ink-3); }
-.rd__comp-buy { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+.rd__comp-buy { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2); flex-shrink: 0; }
 
 /* Header strip — mirrors the Design Lab header treatment */
 .rd__head {
@@ -751,8 +547,8 @@
 }
 .rd__subtitle { font-size: var(--fs-caption); color: var(--ink-2); }
 .rd__era-badge {
-  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
-  padding: 6px 12px; border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; gap: var(--sp-5); flex-shrink: 0;
+  padding: var(--sp-6) var(--sp-12); border-radius: var(--r-pill);
   background: var(--fn-eng-soft); color: var(--fn-eng);
   font-size: var(--fs-caption); font-weight: 700;
 }
@@ -767,7 +563,7 @@
 .rd__moonshot-count {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-5);
   font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--accent);
@@ -792,19 +588,19 @@
 .rd__moonshot-info {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--sp-4);
   min-width: 0;
 }
 .rd__moonshot-name {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-6);
   font-weight: 700;
   color: var(--accent);
 }
 .rd__moonshot-odds {
-  margin-left: 2px;
-  padding: 1px 8px;
+  margin-left: var(--sp-2);
+  padding: 1px var(--sp-8);
   border-radius: var(--r-pill);
   font-size: var(--fs-micro, 10px);
   font-weight: 700;
@@ -820,7 +616,7 @@
 .rd__moonshot-reward {
   display: inline-flex;
   align-items: baseline;
-  gap: 5px;
+  gap: var(--sp-5);
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--positive-text);
@@ -835,7 +631,7 @@
 .rd__moonshot-cooldown {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-5);
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--ink-3);
@@ -846,13 +642,13 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 5px;
+  gap: var(--sp-5);
   flex-shrink: 0;
 }
 .rd__moonshot-warn {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-4);
   font-size: var(--fs-micro, 10px);
   font-weight: 700;
   color: var(--warning-text);

@@ -38,3 +38,25 @@ describe('named design library', () => {
     expect(writeLibrary(store,record.run,0,items)).toBe(false);
   });
 });
+
+describe('design storage is bounded across runs', () => {
+  it('evicts every design key of runs pushed past the recent-runs cap, and nothing else', async () => {
+    const { saveDraft, draftKey, RECENT_RUNS_MAX } = await import('./designDraft.ts');
+    const data = new Map<string, string>();
+    const store = { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => { data.set(k, v); }, removeItem: (k: string) => { data.delete(k); } };
+    data.set('silicon.save', 'untouched'); // unrelated keys are never swept
+    const runs = Array.from({ length: RECENT_RUNS_MAX + 2 }, (_, i) => `seed${i}:0`);
+    for (const run of runs) {
+      expect(saveDraft(store, { ...record, run })).toBe(true);
+      expect(saveDraft(store, { ...record, run, product: { ...product, name: 'Two' } })).toBe(true); // leaves a :backup
+      expect(writeLibrary(store, run, 0, [])).toBe(true);
+    }
+    for (const gone of runs.slice(0, 2)) {
+      expect(data.has(draftKey(gone))).toBe(false);
+      expect(data.has(`${draftKey(gone)}:backup`)).toBe(false);
+      expect(data.has(libraryKey(gone))).toBe(false);
+    }
+    for (const kept of runs.slice(2)) expect(data.has(draftKey(kept))).toBe(true);
+    expect(data.get('silicon.save')).toBe('untouched');
+  });
+});

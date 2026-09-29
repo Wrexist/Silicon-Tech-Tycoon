@@ -19,7 +19,7 @@ import {
   type Challenge,
   type ChallengeKind,
 } from "../engine/challenges.ts";
-import { bestScore, challengeKey, challengeHistory } from "../state/challengeProgress.ts";
+import { bestScore, challengeKey, challengeHistory, hasAttemptedChallenge } from "../state/challengeProgress.ts";
 import {
   currentSeasonId,
   seasonLabel,
@@ -38,7 +38,7 @@ interface Target { kind: ChallengeKind; dateKey: string; }
 
 function shareCode(kind: ChallengeKind, dateKey: string): void {
   const code = encodeChallengeCode(kind, dateKey);
-  const onCopied = () => showToast(`Code copied, ${code}`, { tone: "positive", glyph: <Share2 size={15} /> });
+  const onCopied = () => showToast(`Code copied: ${code}`, { tone: "positive", glyph: <Share2 size={15} /> });
   // Clipboard unavailable or denied → surface the code so the player can copy it manually.
   const onFallback = () => showToast(`Share code: ${code}`, { tone: "neutral", glyph: <Share2 size={15} /> });
   try {
@@ -51,7 +51,11 @@ function shareCode(kind: ChallengeKind, dateKey: string): void {
 
 function ChallengeCard({ challenge, onPlay }: { challenge: Challenge; onPlay: () => void }) {
   const isWeekly = challenge.kind === "weekly";
-  const best = bestScore(challengeKey(challenge.kind, challenge.dateKey));
+  const key = challengeKey(challenge.kind, challenge.dateKey);
+  const best = bestScore(key);
+  // Each challenge is ONE shot (startChallenge refuses a replay). "Beat your best" invited a tap the
+  // game then refused after the confirm dialog — say it's been played, and when the next one lands.
+  const played = hasAttemptedChallenge(key);
   return (
     <li className="scn__card scn__card--played">
       <div className="scn__card-top">
@@ -62,7 +66,7 @@ function ChallengeCard({ challenge, onPlay }: { challenge: Challenge; onPlay: ()
           <span className="scn__best tnum"><Trophy size={13} /> {formatScore(challenge.scoreMetric, best)}</span>
         )}
       </div>
-      <h3 className="scn__name">{isWeekly ? "Weekly Challenge" : "Daily Challenge"}</h3>
+      <h3 className="scn__name">{isWeekly ? "Weekly challenge" : "Daily challenge"}</h3>
       <p className="scn__tagline">Highest {scoreMetricLabel(challenge.scoreMetric)} by week {challenge.scoreWeek}</p>
 
       <ul className="scn__tiers">
@@ -75,9 +79,15 @@ function ChallengeCard({ challenge, onPlay }: { challenge: Challenge; onPlay: ()
       </ul>
 
       <div className="scn__card-actions">
-        <Button size="sm" onClick={onPlay}>
-          <Target size={15} /> {best != null ? "Beat your best" : "Play"}
-        </Button>
+        {played ? (
+          <Button size="sm" disabled>
+            <Check size={15} /> Played · new one {isWeekly ? "next week" : "tomorrow"}
+          </Button>
+        ) : (
+          <Button size="sm" onClick={onPlay}>
+            <Target size={15} /> Play
+          </Button>
+        )}
         <Button size="sm" variant="secondary" onClick={() => { haptic.light(); shareCode(challenge.kind, challenge.dateKey); }}>
           <Share2 size={15} /> Share
         </Button>
@@ -93,9 +103,9 @@ const REWARD_ICON: Record<SeasonRewardType, typeof Palette> = {
   badge: Award,
 };
 const REWARD_KIND: Record<SeasonRewardType, string> = {
-  colorway: "Device colourway",
-  floor: "HQ floor",
-  wall: "HQ walls",
+  colorway: "Device colorway",
+  floor: "Office floor",
+  wall: "Office walls",
   badge: "Profile badge",
 };
 
@@ -190,7 +200,7 @@ export function ChallengesSheet({ onClose }: { onClose: () => void }) {
       <div className="scn__head">
         <div>
           <h2 className="scn__title">Challenges</h2>
-          <p className="scn__sub">A fresh, seeded challenge every day. One run, beat your own best, or share a code.</p>
+          <p className="scn__sub">A fresh, seeded challenge every day. One shot each, set your best, or share a code.</p>
         </div>
       </div>
 

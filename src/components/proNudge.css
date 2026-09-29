@@ -9,7 +9,7 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(66px + env(safe-area-inset-bottom));
+  bottom: calc(var(--dock-height) + var(--sp-8)); /* the measured dock already includes the safe area */
   z-index: 28; /* under the Decision Inbox (29) and the bottom nav (30) */
   padding: 0 var(--sp-12);
   pointer-events: none;
@@ -38,7 +38,7 @@
   -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
   backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
   border: 1px solid var(--glass-modal-edge);
-  box-shadow: 0 12px 34px -14px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 var(--glass-modal-rim);
+  box-shadow: 0 12px 34px -14px color-mix(in srgb, var(--shade) 50%, transparent), inset 0 1px 0 0 var(--glass-modal-rim);
   text-align: left;
   cursor: pointer;
   transition: transform var(--spring-snappy);
@@ -51,8 +51,6 @@
   width: 30px; height: 30px; border-radius: var(--r-pill);
   display: inline-flex; align-items: center; justify-content: center;
 }
-.pnudge--neutral .pnudge__card { border-color: color-mix(in srgb, var(--gold) 30%, var(--glass-modal-edge)); }
-.pnudge--neutral .pnudge__glyph { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--warning-text); }
 /* A failing payment is the one that costs the player access, so it carries the warning colour. */
 .pnudge--warn .pnudge__card { border-color: color-mix(in srgb, var(--warning) 40%, var(--glass-modal-edge)); }
 .pnudge--warn .pnudge__glyph { background: color-mix(in srgb, var(--warning) 20%, transparent); color: var(--warning-text); }

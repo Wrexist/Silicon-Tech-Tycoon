@@ -51,4 +51,24 @@ describe("management readouts", () => {
     expect(designAdvice({ missing: ["Chip"], priceRatio: 2, weak: null, fit: 20, trend: null }).step).toBe("components");
     expect(designAdvice({ missing: [], priceRatio: 2, weak: null, fit: 85, trend: null }).step).toBe("launch");
   });
+
+  it("never calls a forecast flop 'no issue' when rivals are what's dragging it", () => {
+    const flop = designAdvice({ missing: [], priceRatio: 1, weak: null, fit: 80, trend: null, forecast: { label: "Needs refinement", flop: true, betterRivals: 2 } });
+    expect(flop.tone).toBe("warning");
+    expect(flop.title).toMatch(/2 rivals outclass/);
+    const fine = designAdvice({ missing: [], priceRatio: 1, weak: null, fit: 80, trend: null, forecast: { label: "Projected hit", flop: false, betterRivals: 0 } });
+    expect(fine.tone).toBe("positive");
+    expect(fine.title).toMatch(/^Projected hit\./);
+  });
+});
+
+describe("shared launch forecast", () => {
+  it("maps the effective score onto the live bars, flop at or below the flop bar", async () => {
+    const { forecastFromScore } = await import("./launchForecast.ts");
+    const bands = { hit: 80, solid: 60, flop: 30 };
+    expect(forecastFromScore(85, bands).label).toBe("Projected hit");
+    expect(forecastFromScore(65, bands).label).toBe("Solid performer");
+    expect(forecastFromScore(45, bands).label).toBe("Steady seller");
+    expect(forecastFromScore(30, bands)).toMatchObject({ label: "Needs refinement", flop: true });
+  });
 });

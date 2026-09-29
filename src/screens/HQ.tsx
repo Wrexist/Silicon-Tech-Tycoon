@@ -20,9 +20,11 @@ import { openPaywall } from "../state/paywall.ts";
 import { eraAdvanceLocked } from "../state/proGates.ts";
 import { useIsPro } from "../state/usePro.ts";
 import { useLaunchProduct } from "../state/useLaunchProduct.ts";
+import { ForecastChip } from "../components/ForecastChip.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST } from "../engine/catalogs.ts";
 import { eraName, maxEra } from "../engine/eras.ts";
+import { moodBand } from "../engine/staff.ts";
 import { ascensionName } from "../engine/ascension.ts";
 import { lineComplete } from "../engine/factoryFloor.ts";
 import { currentObjective, type ObjectiveIconName } from "../engine/objectives.ts";
@@ -74,8 +76,9 @@ import { availableMegaprojects, mandateComplete, mandateProgress, mandateRewardS
 import { LEGACY_TREE, legacyPerkAvailable } from "../engine/legacyTree.ts";
 import { frontierCost, frontierBonuses, frontierBandName, FRONTIER_LANES, nextFrontierBandUnlock, type FrontierLaneId } from "../engine/frontier.ts";
 import { emitCelebrate } from "../design/celebrateFx.ts";
-import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { useGame, useGameActions, useGameControls } from "../state/useGame.tsx";
+import { Suspense, createContext, lazy, memo, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useGameActions, useGameControls, useGameWhile } from "../state/useGame.tsx";
+import { useEscapeLayer } from "../design/overlayGuard.ts";
 import { getSettings, setSettings, useSettings } from "../state/settings.ts";
 import { OfficeFloorMap } from "../components/OfficeFloorMap.tsx";
 import { DecorateTutorial } from "../components/DecorateTutorial.tsx";
@@ -109,12 +112,22 @@ const Garage3D = lazy(() => import("../garage3d/Garage3D.tsx").then((m) => ({ de
 // place the WASD camera hint makes sense. Touch phones report a coarse pointer and get no hint.
 const FINE_POINTER = typeof window !== "undefined" && !!window.matchMedia?.("(pointer: fine)").matches;
 
-export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, active = true, world = "office" }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; onOpenChallenges?: () => void; onViewFactory?: () => void; active?: boolean; world?: "office" | "factory" }) {
-  const { state, advanceEra, goPublic, resolveChoice, resolvePoach, claimContract, fundMegaproject, buyLegacyPerk, buyFrontierTier } = useGame();
+/** Whether the Office screen is the one on show. HQ stays MOUNTED while other tabs are open (so the
+ *  WebGL office keeps its GPU context); every HQ-internal subscriber reads this to freeze its state
+ *  snapshot while hidden (useGameWhile), so the weekly tick doesn't re-render an invisible screen. */
+const HqActive = createContext(true);
+
+export const HQ = memo(function HQ({ onNavigate, onOpenBank, onOpenChallenges, onOpenProgress, onViewFactory, active = true, world = "office" }: { onNavigate: (t: Tab) => void; onOpenBank: () => void; onOpenChallenges?: () => void; onOpenProgress?: () => void; onViewFactory?: () => void; active?: boolean; world?: "office" | "factory" }) {
+  const { state, advanceEra, goPublic, resolveChoice, resolvePoach, claimContract, fundMegaproject, buyLegacyPerk, buyFrontierTier } = useGameWhile(active);
   // The launch payoff (reveal, haptics, streak, review prompt) lives in a shared hook so the Office
   // card here and the global ready-to-launch popup release a product identically.
   const launchProduct = useLaunchProduct();
   const onLaunch = (id: string) => { launchProduct(id); };
+  // A claimable contract lights the HQ tab dot, but its card sits in the collapsed "Company & goals"
+  // group — open that group (once, when a reward becomes ready) so the dot never points at nothing.
+  const contractReady = !!state.tutorialDone && (state.contracts ?? []).some((c) => contractProgress(c, contractFacts(state)).done);
+  const companyGroupRef = useRef<HTMLDetailsElement>(null);
+  useEffect(() => { if (contractReady && companyGroupRef.current) companyGroupRef.current.open = true; }, [contractReady]);
   const reducedMotion = useReducedMotionLive();
   const pro = useIsPro();
   // The 3D office is THE office — there is no 2D alternative view any more, and no preference that
@@ -149,6 +162,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
   };
 
   return (
+    <HqActive.Provider value={active}>
     <div className="hq">
       {/* The 3D office stays MOUNTED (hidden) while the Factory world shows, so its WebGL
           context survives the swap — the same rule that keeps it alive across bottom tabs.
@@ -159,7 +173,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       {world === "factory" && <FactoryCard onNavigate={onNavigate} active={active} />}
       <MetricGrid>
         <Metric label="Staff" value={state.staff.length} hint={`${state.staff.filter((s) => s.assignment !== "idle").length} assigned to work`} />
-        <Metric label="Team morale" value={state.staff.length ? `${Math.round(state.staff.reduce((n, s) => n + s.mood, 0) / state.staff.length)}%` : "?"} hint={state.staff.length ? "Average across your team" : "Hire your first teammate"} />
+        <Metric label="Team morale" value={state.staff.length ? `${Math.round(state.staff.reduce((n, s) => n + s.mood, 0) / state.staff.length)}%` : "—"} hint={state.staff.length ? "Average across your team" : "Hire your first teammate"} />
       </MetricGrid>
       <WeeklyRecap state={state} />
       {state.tutorialDone && <NextMoveCard state={state} onNavigate={onNavigate} />}
@@ -176,6 +190,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
               <div className="hq__ready-info">
                 <span className="hq__ready-name">{p.name}</span>
                 {p.plannedUnits != null && <span className="hq__ready-sub">{p.plannedUnits.toLocaleString()} units ready</span>}
+                <ForecastChip state={state} product={p} />
               </div>
               <Button size="sm" onClick={() => onLaunch(p.id)}>
                 <Rocket size={15} /> Launch
@@ -323,7 +338,9 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
           decision, a milestone you've earned). From here down the screen is grouped into three
           labelled zones instead of one undifferentiated column of ~20 cards, so the scroll is
           navigable: where you STAND, how the business RUNS, and the RECORD of what happened. */}
-      <details className="mg-disclosure"><summary>Company &amp; goals</summary><HqGroup label="Your company">
+      {/* The HQ tab's attention dot lights for a claimable contract, whose card lives in here — so a
+          ready reward opens the group instead of pointing the player at a closed disclosure. */}
+      <details className="mg-disclosure" ref={companyGroupRef}><summary>Company &amp; goals{contractReady && <span className="hq__summary-chip">Reward ready</span>}</summary><HqGroup label="Your company">
       {/* The vital signs — ONE row, cut to four. It used to be two rows of six, with the second
           negative-margined up to look like the first, and it led with trivia: "Products" duplicates
           the Performance card's own Shipped count, and "Team" is both the Company tab's whole subject
@@ -352,7 +369,7 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       {/* Item A1 — a one-time, persistent "what your first ship just unlocked" card (replaces the old
           blink-and-miss toast). Only on a first-legacy company that has shipped and not yet dismissed it. */}
       {state.launched.length >= 1 && state.legacy === 0 && !state.seenFirstShipUnlocks && (
-        <UnlockCard onOpenBank={onOpenBank} onOpenProgress={onOpenChallenges} />
+        <UnlockCard onOpenBank={onOpenBank} onOpenProgress={onOpenProgress ?? onOpenChallenges} />
       )}
 
       {/* Rolling contract board — live, regenerating goals that give the endgame a directed chase
@@ -422,8 +439,9 @@ export function HQ({ onNavigate, onOpenBank, onOpenChallenges, onViewFactory, ac
       )}
       </HqGroup></details>
     </div>
+    </HqActive.Provider>
   );
-}
+});
 
 /** A labelled zone of the HQ scroll. The label hides itself when the group rendered no cards (every
  *  card in a group self-gates and can return null), so an early-game player never sees an "Operations"
@@ -510,7 +528,7 @@ function OfficeOverview({ state, zones, crowded }: { state: GameState; zones: Re
 
 // The garage/office scene + the interactive furniture builder ("Decorate" mode).
 function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, onOpenBank }: { use3d: boolean; reducedMotion: boolean; hasProduction: boolean; active: boolean; onNavigate: (t: Tab) => void; onOpenBank: () => void }) {
-  const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, applyLayoutSnapshot, setLayout, setFloorStyle, setWallStyle } = useGame();
+  const { state, placeFurniture, moveFurniture, rotateFurniture, removeFurniture, duplicateFurniture, applyLayoutSnapshot, setLayout, setFloorStyle, setWallStyle } = useGameWhile(useContext(HqActive));
   // The office hold = manual HUD pause OR the ref-counted `suspended` flag an interrupt overlay takes.
   // Using both means a decision card holds the office (and its chatter) exactly like a manual pause.
   const { paused: manualPaused, suspended: simSuspended } = useGameControls();
@@ -622,7 +640,7 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
     const prev = history.current.at(-1);
     if (!prev) return;
     if (!applyLayoutSnapshot(prev)) {
-      showToast("Cannot undo: the refunded cash has already been spent.", { tone: "negative" });
+      showToast("Can't undo: the refunded cash has already been spent.", { tone: "negative" });
       haptic.warning();
       return;
     }
@@ -668,8 +686,7 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
       const item = layoutRef.current.find(x => x.iid === iid);
       if (item?.c === c && item.r === r) return;
       if (!edit(() => moveFurniture(iid, c, r), "Not enough space here. Your furniture stayed in place.")) return;
-      haptic.light();
-      showToast("Furniture moved", { tone: "positive" });
+      haptic.light(); // no toast: the piece visibly lands under the finger (the factory dropped the same echo)
     },
     onSelectItem: (iid) => {
       setSelectedIid(iid);
@@ -682,7 +699,7 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
   // identity, desk count, a coarse mood band and the headline skills — so keep the same array
   // until one of those actually changes.
   const staffSceneKey = state.staff
-    .map((s) => `${s.id}${s.appearance.skin}${s.appearance.hair}${s.appearance.hairColor}${s.appearance.shirt}${s.appearance.accessory}${Math.round(s.mood / 12)}${s.skills.engineering},${s.skills.design},${s.skills.marketing}`)
+    .map((s) => `${s.id}${s.appearance.skin}${s.appearance.hair}${s.appearance.hairColor}${s.appearance.shirt}${s.appearance.accessory}${moodBand(s.mood)}${s.skills.engineering},${s.skills.design},${s.skills.marketing}`)
     .join(";");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const staff3d = useMemo(() => state.staff, [staffSceneKey]);
@@ -701,6 +718,9 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
     history.current = [];
     setHistLen(0);
   };
+  // Decorate is a full-screen editor: Escape leaves it, like Factory mode (frontmost layer only, so
+  // the decorate tutorial or a sheet on top still takes the Escape first).
+  useEscapeLayer(build, exit);
 
   // Tapping a catalog item drops it into the first free cell + selects it, so the player can
   // immediately drag it where they want.
@@ -726,7 +746,7 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
         }
       }
     }
-    showToast("No room, remove something first.", { tone: "negative" });
+    showToast("No room — remove something first.", { tone: "negative" });
     haptic.error();
   };
 
@@ -938,7 +958,7 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
 }
 
 function Upgrades() {
-  const { state, buyUpgrade, upgradeHQ } = useGame();
+  const { state, buyUpgrade, upgradeHQ } = useGameWhile(useContext(HqActive));
   const fac = facility(state);
   const nextFac = BALANCE.facilities[state.facilityTier];
 
@@ -1564,7 +1584,7 @@ function MomentumMeter({ pct, phase }: { pct: number; phase: OpsPhase }) {
 }
 
 function LiveOpsCard() {
-  const { state } = useGame();
+  const { state } = useGameWhile(useContext(HqActive));
   const live = useMemo(
     () =>
       state.launched
@@ -1607,7 +1627,7 @@ function LiveOpsCard() {
 }
 
 function LiveOpsRow({ lp, open, onToggle }: { lp: LaunchedProduct; open: boolean; onToggle: () => void }) {
-  const { state, cutProductPrice, marketingPush, restockProduct, setReorderRate, harvestProduct } = useGame();
+  const { state, cutProductPrice, marketingPush, restockProduct, setReorderRate, harvestProduct } = useGameWhile(useContext(HqActive));
   const [panel, setPanel] = useState<null | "boost" | "price" | "restock" | "harvest">(null);
   const mom = productMomentum(lp);
 
@@ -1648,7 +1668,7 @@ function LiveOpsRow({ lp, open, onToggle }: { lp: LaunchedProduct; open: boolean
         <div className="hq__ops-row-titles">
           <span className="hq__ops-row-name">{lp.product.name}</span>
           <span className="hq__ops-row-sub">
-            {OPS_PHASE_LABEL[mom.phase]} · {mom.weeksLeft}w left
+            {OPS_PHASE_LABEL[mom.phase]} · {mom.weeksLeft} wk left
             {mom.crossedPeakBoostUnused && <span className="hq__ops-row-flag"><Zap size={10} aria-hidden /> boost now</span>}
           </span>
         </div>
@@ -1752,7 +1772,7 @@ function LiveOpsRow({ lp, open, onToggle }: { lp: LaunchedProduct; open: boolean
                 return (
                   <div className="hq__ops-reorder">
                     <p className="hq__ops-reorder-cap">
-                      <RotateCw size={12} aria-hidden /> Auto-reorder — orders arrive in <strong className="tnum">{lead}</strong>{lead === 1 ? " wk" : " wks"}
+                      <RotateCw size={12} aria-hidden /> Auto-reorder — orders arrive in <strong className="tnum">{lead}</strong>{" wk"}
                       {inTransit > 0 ? <> · <span className="tnum">{formatCount(inTransit)}</span> in transit</> : null}
                     </p>
                     <div className="hq__ops-reorder-opts">
@@ -1904,17 +1924,36 @@ function contractRemaining(c: Contract, f: ContractFacts): string {
 
 /** Compact card showing what's needed to advance to the next era (or reach IPO). */
 function EraGoalCard({ state }: { state: GameState }) {
-  if (state.era >= maxEra()) {
-    if (state.wentPublic) return null;
-    const repNeeded = BALANCE.ipo.minReputation - state.reputation;
-    if (repNeeded <= 0) return null;
+  if (state.era >= maxEra()) return null; // the final era — nothing left to advance to
+  // The AI Era's rep/rev bars are Infinity: the way on is going PUBLIC, then a Frontier breakthrough
+  // (gameState `canAdvance`). Branch on the IPO era itself — tying this to maxEra() broke when the
+  // post-IPO Autonomy Era raised it to 5, and the card read "Both thresholds are required" over no bars.
+  if (state.era === BALANCE.ipo.minEra) {
+    if (!state.wentPublic) {
+      if (state.reputation >= BALANCE.ipo.minReputation) return null; // the IPO call-to-action takes over
+      return (
+        <div className="hq__goal hq__goal--card">
+          <div className="hq__goal-head">
+            <span className="hq__goal-label">IPO goal</span>
+            <span className="hq__goal-era">{BALANCE.ipo.minReputation} reputation</span>
+          </div>
+          <GoalBar label="Reputation" value={state.reputation} target={BALANCE.ipo.minReputation} />
+          <p className="hq__goal-or">Going public opens Frontier Tech, the road to the {eraName(state.era + 1)}.</p>
+        </div>
+      );
+    }
+    const tier = state.frontierTier ?? 0;
+    const target = BALANCE.autonomyEra.tierToAdvance;
+    if (tier >= target) return null;
+    const cost = frontierCost(tier);
     return (
       <div className="hq__goal hq__goal--card">
         <div className="hq__goal-head">
-          <span className="hq__goal-label">IPO goal</span>
-          <span className="hq__goal-era">{BALANCE.ipo.minReputation} reputation</span>
+          <span className="hq__goal-label">Next era</span>
+          <span className="hq__goal-era">{eraName(state.era + 1)}</span>
         </div>
-        <GoalBar label="Reputation" value={state.reputation} target={BALANCE.ipo.minReputation} />
+        <GoalBar label={`Legacy Points for a Frontier breakthrough (need ${cost})`} value={state.legacyPoints ?? 0} target={cost} />
+        <p className="hq__goal-or">Reach Frontier Tech tier {target} to advance.</p>
       </div>
     );
   }
@@ -1960,7 +1999,7 @@ function EraGoalCard({ state }: { state: GameState }) {
  *  render-time only (reads existing tone + text), so nothing in the engine or the feed data changes. */
 function feedSalience(item: FeedItem): "high" | "normal" | "low" {
   const t = item.text;
-  if (/revenue milestone|[\d,]+ fans[,!.]/i.test(t)) return "low"; // milestone spam
+  if (/revenue milestone|(?:[\d,]+|million) fans[,!.]/i.test(t)) return "low"; // milestone spam
   if (item.tone === "negative") return "high";
   if (item.tone === "positive" && /\bhit\b|went public|overtook|climbed past|#1|Board mandate|Megaproject|Legacy perk|award|reached the (top|pinnacle)/i.test(t)) return "high";
   return "normal";

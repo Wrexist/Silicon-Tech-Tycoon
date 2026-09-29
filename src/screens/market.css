@@ -21,7 +21,7 @@
   padding: var(--sp-4);
   border-radius: var(--r-pill);
   background: var(--bg-elevated);
-  box-shadow: 0 6px 18px -12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 6px 18px -12px color-mix(in srgb, var(--shade) 50%, transparent);
 }
 .mkt__subtab {
   flex: 1;
@@ -39,12 +39,6 @@
   background: var(--accent);
   color: var(--accent-ink);
   box-shadow: var(--shadow-subtle);
-}
-.mkt__hint {
-  margin-top: var(--sp-12);
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-  line-height: 1.4;
 }
 .mkt__feed {
   list-style: none;
@@ -69,12 +63,6 @@
 .mkt__feed-item--positive .mkt__feed-icon { color: var(--positive); }
 .mkt__feed-item--negative .mkt__feed-icon { color: var(--negative); }
 .mkt__feed-item--accent .mkt__feed-icon { color: var(--accent); }
-.mkt__feed-empty {
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-  text-align: center;
-  padding: var(--sp-16) 0;
-}
 .mkt__feed-week {
   flex-shrink: 0;
   color: var(--ink-3);
@@ -96,7 +84,7 @@
 .mkt__trend-label {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-4);
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--ink-2);
@@ -167,31 +155,6 @@
 }
 
 /* ---------- Net worth + equity + stock exchange ---------- */
-.mkt__networth {
-  background: linear-gradient(135deg, var(--accent-soft), var(--surface) 75%);
-}
-.mkt__nw-main {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: var(--sp-12);
-}
-.mkt__nw-label {
-  font-size: var(--fs-micro);
-  font-weight: 600;
-  color: var(--ink-2);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.mkt__nw-value {
-  font-size: var(--fs-large-title);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-}
-.mkt__nw-row {
-  display: flex;
-  gap: var(--sp-8);
-  flex-wrap: wrap;
-}
 .mkt__co-grid {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -199,24 +162,6 @@
   margin-bottom: var(--sp-16);
 }
 /* Performance-reactive company value: a sparkline + change pill (Track B). */
-.mkt__co-spark {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-8);
-  margin: var(--sp-4) 0 var(--sp-12);
-}
-.mkt__co-spark > :first-child { flex: 1; min-width: 0; }
-.mkt__co-change {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: var(--fs-caption);
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-}
-.mkt__co-change--up { color: var(--positive); }
-.mkt__co-change--down { color: var(--negative); }
 .mkt__co-hint {
   font-size: var(--fs-caption);
   color: var(--ink-2);
@@ -227,7 +172,7 @@
 .mkt__board-list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--sp-2);
   margin-top: var(--sp-4);
 }
 .mkt__board-row {
@@ -402,18 +347,18 @@
   display: flex;
   gap: var(--sp-8);
   flex-wrap: wrap;
-  margin-top: 2px;
+  margin-top: var(--sp-2);
 }
 .mkt__stock-cat {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-4);
   font-size: var(--fs-micro);
   font-weight: 600;
   color: var(--ink-3);
   background: var(--bg-elevated);
   border-radius: var(--r-pill);
-  padding: 2px 7px;
+  padding: var(--sp-2) var(--sp-6);
 }
 .mkt__stock-cat--threat {
   color: var(--negative);
@@ -427,11 +372,11 @@
 .mkt__stock-upcoming {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-5);
   font-size: var(--fs-micro);
   font-weight: 700;
   color: var(--accent);
-  margin-top: 4px;
+  margin-top: var(--sp-4);
 }
 
 /* Trade / IPO sheet */
@@ -459,7 +404,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 3px;
+  gap: var(--sp-4);
   flex-shrink: 0;
 }
 .trade__price {
@@ -470,7 +415,7 @@
 .trade__ch {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--sp-4);
   font-size: var(--fs-micro);
   font-weight: 700;
 }
@@ -497,7 +442,7 @@
 .trade__cat-name {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-4);
   font-size: var(--fs-micro);
   font-weight: 600;
   color: var(--ink-2);
@@ -540,7 +485,7 @@
 .trade__invest-row {
   display: flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-5);
   font-size: var(--fs-micro);
   font-weight: 600;
   color: var(--ink-3);
@@ -578,25 +523,25 @@
 }
 .trade__stake-tiers { display: flex; gap: var(--sp-8); }
 .trade__stake-tier {
-  display: inline-flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: var(--sp-4);
   font-size: var(--fs-micro); font-weight: 700; color: var(--ink-3);
-  padding: 3px 8px; border-radius: var(--r-pill); background: var(--surface-2);
+  padding: var(--sp-4) var(--sp-8); border-radius: var(--r-pill); background: var(--surface-2);
 }
 .trade__stake-tier svg { opacity: 0.55; }
 .trade__stake-tier.is-on { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .trade__stake-tier.is-on svg { opacity: 1; }
 .trade__stake-intel {
-  display: flex; flex-direction: column; gap: 5px;
+  display: flex; flex-direction: column; gap: var(--sp-5);
   font-size: var(--fs-caption); line-height: 1.4; color: var(--ink-2);
   padding: var(--sp-8) var(--sp-10); border-radius: var(--r-button);
   background: var(--surface-2); border: 1px solid var(--hairline);
 }
-.trade__stake-intel p { display: flex; align-items: flex-start; gap: 6px; margin: 0; }
-.trade__stake-intel svg { flex-shrink: 0; margin-top: 2px; color: var(--ink-3); }
+.trade__stake-intel p { display: flex; align-items: flex-start; gap: var(--sp-6); margin: 0; }
+.trade__stake-intel svg { flex-shrink: 0; margin-top: var(--sp-2); color: var(--ink-3); }
 .trade__stake-intel strong { color: var(--ink); font-weight: 700; }
 .trade__stake-doctrine { color: var(--ink-3); }
 .trade__stake-hint {
-  display: flex; align-items: center; gap: 6px; margin: 0;
+  display: flex; align-items: center; gap: var(--sp-6); margin: 0;
   font-size: var(--fs-caption); line-height: 1.4; color: var(--ink-3);
   padding: var(--sp-8) var(--sp-10); border-radius: var(--r-button);
   background: var(--surface-2); border: 1px dashed var(--hairline);
@@ -627,7 +572,7 @@
   gap: var(--sp-12);
   background: var(--bg-elevated);
   border-radius: var(--r-pill);
-  padding: 4px;
+  padding: var(--sp-4);
 }
 .trade__stepper button {
   min-width: 44px;
@@ -667,7 +612,7 @@
   gap: var(--sp-8);
 }
 .trade__acquire {
-  display: flex; flex-direction: column; gap: 6px;
+  display: flex; flex-direction: column; gap: var(--sp-6);
   margin-top: var(--sp-4); padding-top: var(--sp-12);
   border-top: 1px solid var(--hairline);
 }
@@ -694,16 +639,16 @@
 
 /* ---------- Franchises (your lines + rival profiles) ---------- */
 .mkt__fr-list { display: flex; flex-direction: column; gap: var(--sp-12); }
-.mkt__fr { display: flex; flex-direction: column; gap: 4px; }
+.mkt__fr { display: flex; flex-direction: column; gap: var(--sp-4); }
 .mkt__fr-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
 .mkt__fr-name { font-weight: 700; font-size: var(--fs-body); }
 .mkt__fr-tag {
   font-size: var(--fs-nano); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
-  padding: 2px 7px; border-radius: var(--r-pill); color: var(--ink-2); background: var(--bg-elevated); white-space: nowrap;
+  padding: var(--sp-2) var(--sp-6); border-radius: var(--r-pill); color: var(--ink-2); background: var(--bg-elevated); white-space: nowrap;
 }
 .mkt__fr-tag--established, .mkt__fr-tag--iconic { color: var(--positive-text, var(--positive)); background: var(--positive-soft, var(--bg-elevated)); }
 .mkt__fr-tag--tarnished { color: var(--negative-text, var(--negative)); background: var(--negative-soft, var(--bg-elevated)); }
-.mkt__fr-sub { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-caption); color: var(--ink-2); }
+.mkt__fr-sub { display: inline-flex; align-items: center; gap: var(--sp-5); font-size: var(--fs-caption); color: var(--ink-2); }
 .mkt__fr-bar { height: 5px; border-radius: var(--r-pill); background: var(--hairline); overflow: hidden; }
 .mkt__fr-fill { display: block; height: 100%; border-radius: var(--r-pill); background: var(--fn-mkt); transition: width var(--spring-snappy); }
 /* Tappable franchise row → detail sheet */
@@ -712,12 +657,12 @@
 .mkt__fr-chev { color: var(--ink-3); flex-shrink: 0; }
 
 /* Franchise Mastery (feature #8) — the boon / countdown status line under a franchise row */
-.mkt__fr-boon { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 2px; font-size: var(--fs-caption); color: var(--ink-2); }
+.mkt__fr-boon { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-6); margin-top: var(--sp-2); font-size: var(--fs-caption); color: var(--ink-2); }
 .mkt__fr-boon-glyph { color: var(--ink-3); flex-shrink: 0; }
 .mkt__fr-boon-prog { color: var(--ink-2); font-weight: 600; }
 .mkt__fr-boon-tier {
   font-size: var(--fs-nano); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
-  padding: 1px 6px; border-radius: var(--r-pill); color: var(--ink-3); background: var(--bg-elevated);
+  padding: 1px var(--sp-6); border-radius: var(--r-pill); color: var(--ink-3); background: var(--bg-elevated);
 }
 .mkt__fr-boon-tier--on { color: var(--positive-text, var(--positive)); background: var(--positive-soft, var(--bg-elevated)); }
 .mkt__fr-boon-nudge { color: var(--accent); font-weight: 700; }
@@ -725,7 +670,7 @@
 .mkt__fr-boon--earned { color: var(--accent); }
 .mkt__fr-boon--earned .mkt__fr-boon-name {
   font-weight: 800; letter-spacing: 0.01em;
-  padding: 1px 8px; border-radius: var(--r-pill);
+  padding: 1px var(--sp-8); border-radius: var(--r-pill);
   color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 .mkt__fr-boon-blurb { flex-basis: 100%; color: var(--ink-2); font-weight: 400; }
@@ -769,7 +714,7 @@
   background: var(--bg-elevated); border-radius: var(--r-button);
 }
 .rprof__doctrine strong { color: var(--ink); font-weight: 700; }
-.rprof__doctrine svg { flex-shrink: 0; margin-top: 2px; color: var(--ink-3); }
+.rprof__doctrine svg { flex-shrink: 0; margin-top: var(--sp-2); color: var(--ink-3); }
 /* Head-to-head memory line — same quiet inset treatment as the doctrine note. */
 .rprof__memory {
   display: flex; align-items: flex-start; gap: var(--sp-6);
@@ -778,27 +723,27 @@
   background: var(--bg-elevated); border-radius: var(--r-button);
 }
 .rprof__memory strong { color: var(--ink); font-weight: 700; }
-.rprof__memory svg { flex-shrink: 0; margin-top: 2px; color: var(--ink-3); }
-.rprof__acquire { display: flex; flex-direction: column; gap: 6px; }
+.rprof__memory svg { flex-shrink: 0; margin-top: var(--sp-2); color: var(--ink-3); }
+.rprof__acquire { display: flex; flex-direction: column; gap: var(--sp-6); }
 .rprof__acquire-note { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4; text-align: center; }
 .rprof__status { display: flex; flex-wrap: wrap; gap: var(--sp-8); }
 .rprof__badge {
   font-size: var(--fs-caption); font-weight: 700;
-  padding: 5px 10px; border-radius: var(--r-pill);
+  padding: var(--sp-5) var(--sp-10); border-radius: var(--r-pill);
   background: var(--bg-elevated); color: var(--ink-2);
 }
 .rprof__badge--license { color: var(--fn-mkt); background: var(--fn-mkt-soft); }
 .rprof__badge--board { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .rprof__badge--control { color: var(--positive); background: color-mix(in srgb, var(--positive) 16%, transparent); }
-.rprof__badge svg { vertical-align: -1px; margin-right: 3px; }
+.rprof__badge svg { vertical-align: -1px; margin-right: var(--sp-4); }
 .rprof__intel {
-  display: flex; flex-direction: column; gap: 5px;
+  display: flex; flex-direction: column; gap: var(--sp-5);
   font-size: var(--fs-caption); line-height: 1.45; color: var(--ink-2);
   padding: var(--sp-10) var(--sp-12); border-radius: var(--r-button);
   background: var(--surface-2); border: 1px solid var(--hairline);
 }
-.rprof__intel p { display: flex; align-items: flex-start; gap: 6px; margin: 0; }
-.rprof__intel svg { flex-shrink: 0; margin-top: 2px; color: var(--ink-3); }
+.rprof__intel p { display: flex; align-items: flex-start; gap: var(--sp-6); margin: 0; }
+.rprof__intel svg { flex-shrink: 0; margin-top: var(--sp-2); color: var(--ink-3); }
 .rprof__intel strong { color: var(--ink); font-weight: 700; }
 .rprof__intel--positive {
   background: color-mix(in srgb, var(--positive) 8%, var(--surface-2));
@@ -812,7 +757,7 @@
 .rprof__intel--negative svg { color: var(--negative); }
 
 /* ---------- Arch-rival / nemesis ---------- */
-.mkt__board-nemesis { color: var(--negative); vertical-align: -1px; margin-left: 4px; flex-shrink: 0; }
+.mkt__board-nemesis { color: var(--negative); vertical-align: -1px; margin-left: var(--sp-4); flex-shrink: 0; }
 .rprof__rivalry {
   border-radius: var(--r-button); padding: var(--sp-12) var(--sp-16);
   background: color-mix(in srgb, var(--negative) 8%, var(--surface-2));
@@ -831,7 +776,7 @@
 .rprof__rivalry-label { font-weight: 800; font-size: var(--fs-body); color: var(--negative); flex: 1; }
 .rprof__rivalry-tier {
   font-size: var(--fs-nano); font-weight: 800; letter-spacing: 0.02em; text-transform: uppercase;
-  padding: 3px 9px; border-radius: var(--r-pill);
+  padding: var(--sp-4) var(--sp-8); border-radius: var(--r-pill);
 }
 .rprof__rivalry-tier--simmering { color: var(--ink-2); background: var(--bg-elevated); }
 .rprof__rivalry-tier--heated { color: var(--warning-text, var(--warning)); background: color-mix(in srgb, var(--warning) 15%, transparent); }
@@ -859,14 +804,14 @@
   padding: var(--sp-8); border-radius: var(--r-card); background: var(--bg-elevated);
 }
 .mkt__rival-thumb { flex-shrink: 0; width: 48px; display: flex; align-items: center; justify-content: center; }
-.mkt__rival-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.mkt__rival-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
 .mkt__rival-name { font-weight: 700; font-size: var(--fs-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mkt__rival-sub { display: inline-flex; align-items: center; gap: 5px; font-size: var(--fs-caption); color: var(--ink-2); font-weight: 600; }
-.mkt__rival-meta { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.mkt__rival-sub { display: inline-flex; align-items: center; gap: var(--sp-5); font-size: var(--fs-caption); color: var(--ink-2); font-weight: 600; }
+.mkt__rival-meta { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-4); }
 .mkt__rival-price { font-size: var(--fs-caption); font-weight: 700; }
 .mkt__rival-tone {
   font-size: var(--fs-nano); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em;
-  padding: 2px 6px; border-radius: var(--r-pill); color: var(--ink-2); background: var(--surface-2);
+  padding: var(--sp-2) var(--sp-6); border-radius: var(--r-pill); color: var(--ink-2); background: var(--surface-2);
 }
 .mkt__rival-tone--premium { color: var(--fn-design); background: var(--fn-design-soft, var(--surface-2)); }
 .mkt__rival-tone--value { color: var(--positive-text, var(--positive)); background: var(--positive-soft, var(--surface-2)); }
@@ -877,7 +822,7 @@
   text-align: left;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--sp-6);
   padding: var(--sp-8);
   border-radius: var(--r-card);
   background: var(--bg-elevated);
@@ -941,7 +886,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--sp-2);
 }
 .mkt__product-name {
   font-weight: 700;
@@ -953,7 +898,7 @@
 .mkt__product-sub {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-5);
   font-size: var(--fs-caption);
   color: var(--ink-2);
   font-weight: 600;
@@ -963,7 +908,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 4px;
+  gap: var(--sp-4);
 }
 .mkt__product-live {
   font-size: var(--fs-micro);
@@ -1064,7 +1009,7 @@
   transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-5);
   padding: var(--sp-8) var(--sp-12);
   border-radius: var(--r-pill);
   border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--hairline));
@@ -1250,7 +1195,7 @@
 .pd__reviews-outlet-score {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: var(--sp-4);
   font-weight: 800;
   font-size: var(--fs-caption);
   color: var(--accent);
@@ -1307,7 +1252,7 @@
 .pd__driver {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--sp-4);
 }
 /* C1 — the decisive factors are emphasised; the rest are context. */
 .pd__driver--key {
@@ -1357,165 +1302,7 @@
 }
 
 /* Mid-lifecycle price cut section */
-.pd__pricecut {
-  border-radius: var(--r-card);
-  overflow: hidden;
-}
 /* Live Product Ops (feature #2) — the standing auto-reorder policy control. */
-.pd__reorder {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-8);
-  padding: var(--sp-12) var(--sp-16);
-  border-radius: var(--r-card);
-  background: var(--bg-elevated);
-  border: 1px solid color-mix(in srgb, var(--accent) 14%, transparent);
-}
-.pd__reorder-head {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-8);
-  font-size: var(--fs-caption);
-  font-weight: 700;
-  color: var(--ink);
-}
-.pd__reorder-head svg { color: var(--accent); flex-shrink: 0; }
-.pd__reorder-tag {
-  margin-left: auto;
-  padding: var(--sp-2) var(--sp-8);
-  border-radius: var(--r-pill);
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: var(--fs-micro);
-  font-weight: 700;
-}
-.pd__reorder-hint {
-  font-size: var(--fs-nano);
-  color: var(--ink-3);
-  font-weight: 600;
-  line-height: 1.4;
-  margin: 0;
-}
-.pd__reorder-opts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--sp-8);
-}
-.pd__reorder-opt {
-  flex: 1;
-  min-width: 0;
-  padding: var(--sp-8) var(--sp-4);
-  border-radius: var(--r-button);
-  border: 1px solid var(--hairline);
-  background: transparent;
-  color: var(--ink-2);
-  font-size: var(--fs-micro);
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: background var(--spring-snappy), color var(--spring-snappy), border-color var(--spring-snappy);
-}
-.pd__reorder-opt--on {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent);
-}
-.pd__pricecut-trigger {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: var(--sp-8);
-  padding: var(--sp-12) var(--sp-16);
-  border-radius: var(--r-card);
-  background: var(--bg-elevated);
-  font-size: var(--fs-caption);
-  font-weight: 600;
-  color: var(--ink-2);
-  text-align: left;
-  transition: background var(--spring-snappy);
-}
-.pd__pricecut-trigger svg {
-  flex-shrink: 0;
-  color: var(--accent);
-}
-.pd__pricecut-trigger:active {
-  background: var(--surface);
-}
-.pd__pricecut-caret {
-  margin-left: auto;
-  font-size: 1.125rem;
-  font-weight: 400;
-  color: var(--ink-3);
-  line-height: 1;
-}
-.pd__pricecut-panel {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-12);
-  padding: var(--sp-16);
-  border-radius: var(--r-card);
-  background: var(--bg-elevated);
-  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
-}
-.pd__pricecut-title {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--sp-8);
-  font-weight: 700;
-  font-size: var(--fs-body);
-  color: var(--accent);
-}
-.pd__pricecut-row {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-12);
-}
-.pd__pricecut-from {
-  font-size: var(--fs-headline);
-  font-weight: 700;
-  color: var(--ink-3);
-  text-decoration: line-through;
-  opacity: 0.6;
-}
-.pd__pricecut-arrow {
-  font-size: 1rem;
-  color: var(--ink-3);
-  flex-shrink: 0;
-}
-.pd__pricecut-to {
-  font-size: var(--fs-headline);
-  font-weight: 800;
-  color: var(--positive-text, var(--positive));
-}
-.pd__pricecut-hint {
-  font-size: var(--fs-caption);
-  color: var(--ink-2);
-  line-height: 1.4;
-  margin-top: -4px;
-}
-.pd__pricecut-actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--sp-8);
-}
-.pd__pricecut-done {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-8);
-  padding: var(--sp-10) var(--sp-14);
-  border-radius: var(--r-card);
-  background: var(--bg-elevated);
-  font-size: var(--fs-caption);
-  font-weight: 600;
-  color: var(--ink-2);
-}
-.pd__pricecut-done svg {
-  flex-shrink: 0;
-  color: var(--positive);
-}
-.pd__pricecut-done strong {
-  color: var(--ink);
-}
 
 /* Post-launch improvement tips */
 .pd__tips {
@@ -1571,7 +1358,7 @@
 .mkt__compmap-cat {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-4);
   min-width: 82px;
   flex-shrink: 0;
   font-size: var(--fs-caption);
@@ -1654,7 +1441,7 @@
 .mkt__product-rival {
   font-size: var(--fs-micro);
   font-weight: 700;
-  padding: 2px 6px;
+  padding: var(--sp-2) var(--sp-6);
   border-radius: var(--r-pill);
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -1683,7 +1470,7 @@
 .mkt__portfolio-cat {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-4);
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--ink-2);
@@ -1815,7 +1602,7 @@
 .mkt__product-stage {
   display: inline-flex;
   align-items: center;
-  padding: 2px 6px;
+  padding: var(--sp-2) var(--sp-6);
   border-radius: var(--r-pill);
   font-size: var(--fs-nano);
   font-weight: 700;
@@ -1893,7 +1680,6 @@
 .mkt__co-actions { display: flex; flex-direction: column; gap: var(--sp-8); }
 
 /* Global expansion — the "garage → global empire" reach meter + region licence cards */
-.mkt__regions-lead { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4; margin: calc(-1 * var(--sp-4)) 0 var(--sp-8); }
 
 /* Empire reach meter */
 .mkt__reach { margin: 0 0 var(--sp-12); padding: var(--sp-12) var(--sp-16); border-radius: var(--r-button); background: var(--surface-2); border: 1px solid var(--hairline); }
@@ -1912,17 +1698,17 @@
   width: 38px; height: 38px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
   border-radius: var(--r-pill); background: color-mix(in srgb, hsl(var(--rgn-h, 210) 62% 52%) 16%, transparent); color: hsl(var(--rgn-h, 210) 62% 46%);
 }
-.mkt__region--open .mkt__region-emblem { background: linear-gradient(150deg, hsl(var(--rgn-h, 210) 66% 56%), hsl(var(--rgn-h, 210) 60% 44%)); color: #fff; box-shadow: var(--shadow-subtle); }
+.mkt__region--open .mkt__region-emblem { background: linear-gradient(150deg, hsl(var(--rgn-h, 210) 66% 56%), hsl(var(--rgn-h, 210) 60% 44%)); color: var(--accent-ink); box-shadow: var(--shadow-subtle); }
 .mkt__region-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
 .mkt__region-name { display: inline-flex; align-items: center; gap: var(--sp-4); font-weight: 700; font-size: var(--fs-body); }
 .mkt__region-check { color: hsl(var(--rgn-h, 210) 60% 46%); }
 .mkt__region-blurb { font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4; }
 .mkt__region-taste { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-4); margin-top: var(--sp-4); }
 .mkt__region-taste-lead { font-size: var(--fs-nano); color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; }
-.mkt__region-taste-chip { font-size: var(--fs-nano); font-weight: 700; color: hsl(var(--rgn-h, 210) 55% 44%); background: color-mix(in srgb, hsl(var(--rgn-h, 210) 60% 50%) 14%, transparent); padding: 2px 7px; border-radius: var(--r-pill); }
+.mkt__region-taste-chip { font-size: var(--fs-nano); font-weight: 700; color: hsl(var(--rgn-h, 210) 55% 44%); background: color-mix(in srgb, hsl(var(--rgn-h, 210) 60% 50%) 14%, transparent); padding: var(--sp-2) var(--sp-6); border-radius: var(--r-pill); }
 .mkt__region-size { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 0; }
 .mkt__region-size-val { font-size: var(--fs-body); font-weight: 800; color: var(--ink); line-height: 1.1; }
-.mkt__region-size-cap { font-size: 0.625rem; color: var(--ink-3); }
+.mkt__region-size-cap { font-size: var(--fs-nano); color: var(--ink-3); }
 .mkt__region-foot { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-8); }
 .mkt__region-foot > .ds-btn { flex: 1; min-width: 60%; }
 .mkt__region-tag { flex-shrink: 0; font-size: var(--fs-micro); font-weight: 800; color: hsl(var(--rgn-h, 210) 55% 46%); text-transform: uppercase; letter-spacing: 0.04em; }
@@ -1941,7 +1727,7 @@
 .pd__supply {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--sp-6);
   margin-top: var(--sp-8);
   font-size: var(--fs-micro);
   font-weight: 600;
@@ -1961,3 +1747,32 @@
 }
 .pd__ops-note svg { color: var(--accent); flex-shrink: 0; }
 .pd__ops-note strong { color: var(--ink); font-weight: 800; }
+
+/* Product-list filter chips (All · Live · Hits · Flops) — shown once the catalogue is long. */
+.mkt__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-8);
+  margin-bottom: var(--sp-12);
+}
+.mkt__filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: 36px;
+  padding: 0 var(--sp-12);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--hairline);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--fs-caption);
+  font-weight: 650;
+  cursor: pointer;
+  position: relative;
+}
+.mkt__filter::before { content: ""; position: absolute; inset: -4px 0; } /* 44pt hit area */
+.mkt__filter .tnum { color: var(--ink-3); font-weight: 600; }
+.mkt__filter--on { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.mkt__filter--on .tnum { color: var(--accent); }
+.mkt__filter:disabled { opacity: 0.45; cursor: default; }
+.mkt__show-all { display: flex; width: 100%; justify-content: center; margin-top: var(--sp-8); }

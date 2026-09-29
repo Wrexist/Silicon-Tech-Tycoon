@@ -23,7 +23,7 @@ export function BuzzTicker() {
 
   const lines = useMemo(() => {
     const board = industryLeaderboard(state);
-    const latest = state.launched[state.launched.length - 1] ?? null;
+    const latest = state.launched[0] ?? null; // launched is newest-first too
     const rival = state.rivalReleases[0] ?? null; // rivalReleases is newest-first
     const eraDef = BALANCE.eras.find((e) => e.era === state.era);
     const eraProgress = eraDef && Number.isFinite(eraDef.repToAdvance) && eraDef.repToAdvance > 0
@@ -49,7 +49,7 @@ export function BuzzTicker() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     state.companyName, state.reputation, state.fans, state.era, state.wentPublic, state.listed,
-    state.launched.length, state.launched[state.launched.length - 1]?.verdict,
+    state.launched.length, state.launched[0]?.verdict,
     state.rivalReleases[0]?.product.id, state.platformUnlocked, state.osLicensees.length, state.osName,
   ]);
 

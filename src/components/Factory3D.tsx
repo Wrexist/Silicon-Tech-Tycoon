@@ -30,13 +30,25 @@ function useMotionFrame(callback: Parameters<typeof useFrame>[0]) {
   const { reduced, stopped, revision } = useContext(MotionContext);
   const initialize = useRef(true);
   const elapsed = useRef(0);
+  // ONE view of the root state per subscriber, reused every frame: reads fall through (prototype) to
+  // the live RootState, and only the local clock is overridden. Spreading RootState + Clock + a fresh
+  // closure per subscriber per frame was hundreds of allocations a frame — steady GC churn on phones.
+  const view = useRef<{ state: Parameters<Parameters<typeof useFrame>[0]>[0]; clock: { elapsedTime: number } } | null>(null);
   useEffect(() => { initialize.current = true; }, [revision]);
   useFrame((state, delta, frame) => {
     if ((reduced || stopped) && !initialize.current) return;
     const dt = animationDelta(delta, stopped, reduced);
     elapsed.current += dt;
     // Local animation time never jumps after pause, a hidden tab or a suspended overlay.
-    callback({ ...state, clock: { ...state.clock, elapsedTime: elapsed.current, getElapsedTime: () => elapsed.current } as typeof state.clock }, dt, frame);
+    if (!view.current || Object.getPrototypeOf(view.current.state) !== state) {
+      const clock = Object.create(state.clock) as { elapsedTime: number; getElapsedTime: () => number };
+      clock.getElapsedTime = () => clock.elapsedTime;
+      const v = Object.create(state) as typeof state;
+      Object.defineProperty(v, "clock", { value: clock });
+      view.current = { state: v, clock };
+    }
+    view.current.clock.elapsedTime = elapsed.current;
+    callback(view.current.state, dt, frame);
     initialize.current = false;
   });
 }
@@ -111,6 +123,9 @@ export interface Factory3DProps {
   focusMachine?: string;
   showRoute?: boolean;
   onTapCell?: (c: number, r: number) => void;
+  /** Erase / Upgrade armed: a TAP on a machine or prop reports ITS anchor cell. Resolving the cell from
+   *  the floor behind a tall machine (the default pad hit) landed 1–2 cells back from the finger. */
+  tapPieces?: boolean;
   /** A machine being placed as a movable ghost (before it's bought): rendered translucent at (c,r),
    *  tinted by `valid`. Tapping the pad moves it (via onTapCell); the HUD's Place/Cancel commits. */
   pending?: { kind: MachineKind; c: number; r: number; valid: boolean } | null;
@@ -537,7 +552,9 @@ function TravelingItem({ index, itemsT, pl, marks, look }: {
 
 function HotLight({ on, y = 2.4 }: { on: boolean; y?: number }) {
   const accent = useAccent();
-  return on ? <pointLight position={[0, y, 0]} intensity={9} distance={4.2} color={accent} /> : null;
+  // Always mounted, dimmed to 0 when idle: adding/removing a light changes the scene's light count,
+  // which makes three.js recompile every material program — a hitch each time a machine went hot.
+  return <pointLight position={[0, y, 0]} intensity={on ? 9 : 0} distance={4.2} color={accent} />;
 }
 
 /** Intake hopper — raw material funnels onto the line (Sourcing). */
@@ -1051,7 +1068,13 @@ function PropAt({ prop }: { prop: PlacedProp }) {
           {[-0.16, 0.16].map((dx) => (
             <mesh key={dx} position={[dx, 1.0, 0.05]}><boxGeometry args={[0.24, 0.16, 0.1]} /><meshStandardMaterial color="#fff4d6" emissive="#ffe8b0" emissiveIntensity={1.4} toneMapped={false} /></mesh>
           ))}
-          <pointLight position={[0, 1.05, 0.3]} intensity={2.4} distance={4} decay={2} color="#ffd9a0" />
+          {/* A painted light POOL, not a real pointLight: the prop is cheap and uncapped, and every
+              real light adds per-fragment cost to the whole floor and recompiles all materials on
+              place/erase. The emissive heads above carry the "lamp is on" read. */}
+          <mesh position={[0, 0.02, 0.45]} rotation={[-Math.PI / 2, 0, 0]}>
+            <circleGeometry args={[1.1, 24]} />
+            <meshBasicMaterial color="#ffd9a0" transparent opacity={0.16} depthWrite={false} toneMapped={false} />
+          </mesh>
         </group>
       );
     case "tote":
@@ -1432,9 +1455,11 @@ function CameraReset({ signal, cx, preview, focus }: { signal: number; cx: numbe
   const controls = useThree((s) => s.controls) as { target: THREE.Vector3; enableDamping: boolean; update: () => void } | null;
   const size = useThree((s) => s.size);
   const seen = useRef("");
+  // Built once per render, not per frame (the per-frame template string + join was steady garbage).
+  // Orientation still comes from the live size, which re-renders this on rotate.
+  const portrait = preview ? size.height > size.width : window.innerHeight > window.innerWidth;
+  const revision = `${signal}:${size.width}:${portrait}:${cx}:${focus?.join(",") ?? ""}`;
   useFrame(() => {
-    const portrait = preview ? size.height > size.width : window.innerHeight > window.innerWidth;
-    const revision = `${signal}:${size.width}:${portrait}:${cx}:${focus?.join(",") ?? ""}`;
     if (seen.current === revision) return;
     seen.current = revision;
     // Flush accumulated orbit deltas before writing the final reset pose.
@@ -1456,13 +1481,17 @@ function TapFlash({ flash }: { flash: { c: number; r: number; ok: boolean; n: nu
   const mesh = useRef<THREE.Mesh>(null);
   const born = useRef(0);
   const seen = useRef(-1);
-  useFrame(({ clock }) => {
+  // Wall-clock age, and request the next frame while fading: under the "demand" frameloop (paused,
+  // a decision card up, Reduce Motion) nothing else invalidates, so the flash used to freeze at 75%.
+  useFrame(({ invalidate }) => {
     if (!mesh.current) return;
-    if (seen.current !== flash.n) { seen.current = flash.n; born.current = clock.elapsedTime; }
-    const age = clock.elapsedTime - born.current;
+    const now = performance.now() / 1000;
+    if (seen.current !== flash.n) { seen.current = flash.n; born.current = now; }
+    const age = now - born.current;
     const a = Math.max(0, 0.75 - age * 1.6);
     (mesh.current.material as THREE.MeshBasicMaterial).opacity = a;
     mesh.current.visible = a > 0.01;
+    if (a > 0.01) invalidate();
   });
   const [x, z] = worldOf(flash.c, flash.r);
   return (
@@ -1566,6 +1595,8 @@ function CarriedRig({ kind, position }: { kind: MachineKind; position: [number, 
 }
 
 function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
+  // Baked contact shadows re-render when the layout changes; key memoised (the scene renders every tick).
+  const shadowKey = useMemo(() => JSON.stringify([p.floor, p.props, p.floorW]), [p.floor, p.props, p.floorW]);
   const { size, gl } = useThree();
   const gesture = useRef(new FactoryGestureGuard());
   const portrait = p.preview ? size.height > size.width : window.innerHeight > window.innerWidth;
@@ -1621,6 +1652,17 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
     if (cell) p.onTapCell(cell.c, cell.r);
   };
 
+  // Erase / Upgrade: a tap ON a piece targets that piece (see `tapPieces`), and stops the pad behind it
+  // from also resolving a (wrong) floor cell.
+  const tapPiece = (e: { nativeEvent: PointerEvent; stopPropagation: () => void }, c: number, r: number) => {
+    const start = padDown.current;
+    if (!p.tapPieces || !p.buildMode || !p.onTapCell || !start || gesture.current.blocked) return;
+    if (Math.hypot(e.nativeEvent.clientX - start.x, e.nativeEvent.clientY - start.y) > 10) return;
+    e.stopPropagation();
+    padDown.current = null;
+    p.onTapCell(c, r);
+  };
+
   // BELT tool: drag to PAINT a continuous run. Camera rotate is suspended (see OrbitControls) so a
   // one-finger drag lays belt instead of orbiting; a mere tap lays a single tile. Cells are sampled on
   // move and joined with an orthogonal L-path so a rough drag still yields a clean, connected run. A
@@ -1635,7 +1677,12 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       cur = cur.c !== to.c
         ? { c: cur.c + Math.sign(to.c - cur.c), r: cur.r }
         : { c: cur.c, r: cur.r + Math.sign(to.r - cur.r) };
-      if (!run.some((x) => x.c === cur.c && x.r === cur.r)) run.push(cur); // skip immediate backtracks
+      // Doubling back over the run TRUNCATES it to that cell. Merely skipping re-visited cells left the
+      // abandoned tail in the run, and since each tile aims at the next entry, the tail's last tile
+      // pointed back into the run — a loop, with the new branch disconnected.
+      const seenAt = run.findIndex((x) => x.c === cur.c && x.r === cur.r);
+      if (seenAt >= 0) run.splice(seenAt + 1);
+      else run.push(cur);
     }
   };
   const onPaintDown = (e: { point: THREE.Vector3; nativeEvent: PointerEvent; target?: { setPointerCapture?: (id: number) => void } }) => {
@@ -1776,10 +1823,12 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       window.clearTimeout(timer);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
       holdCancel.current = null;
     };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up); // a cancelled touch must not turn into a pickup
     holdCancel.current = cleanup;
   };
 
@@ -1808,8 +1857,14 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
         p.onMovePiece?.({ type: cur.type, id: cur.id }, cur.cell.c, cur.cell.r);
       }
     };
+    // A cancelled pointer (iOS system gesture) is not a drop: the piece snaps home.
+    const cancel = () => { setCarry(null); p.onCarryActive?.(false); };
     window.addEventListener("pointerup", up);
-    return () => window.removeEventListener("pointerup", up);
+    window.addEventListener("pointercancel", cancel);
+    return () => {
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [carrying]);
 
@@ -1984,14 +2039,14 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {p.floor.machines
         .filter((m) => !(carry?.type === "machine" && carry.id === m.id))
         .map((m) => (
-          <group key={m.id} onPointerDown={(e) => beginHold(e, { type: "machine", id: m.id })}>
+          <group key={m.id} onPointerDown={(e) => beginHold(e, { type: "machine", id: m.id })} onPointerUp={(e) => tapPiece(e, m.c, m.r)}>
             <MachineAt m={m} mount={mounts.get(m.id)} active={p.active && connectedIds.has(m.id) && (p.workingKinds?.includes(m.kind) ?? p.activeKind === m.kind)} activeKind={p.activeKind} pl={pl} itemsT={itemsT} />
           </group>
         ))}
       {p.props
         ?.filter((pr) => !(carry?.type === "prop" && carry.id === pr.id))
         .map((pr) => (
-          <group key={pr.id} onPointerDown={(e) => beginHold(e, { type: "prop", id: pr.id })}>
+          <group key={pr.id} onPointerDown={(e) => beginHold(e, { type: "prop", id: pr.id })} onPointerUp={(e) => tapPiece(e, pr.c, pr.r)}>
             <PropAt prop={pr} />
           </group>
         ))}
@@ -2033,7 +2088,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {dock && <CompletionPop count={p.readyCount} pallet={dock.pallet} truck={dock.truck} yaw={dock.yaw} />}
       <Agvs tier={p.robotTier} overtime={p.overtime} active={p.active && p.lineOk} />
 
-      {!p.preview && <ContactShadows key={JSON.stringify([p.floor, p.props, p.floorW])} position={[(floorW - FLOOR.w) / 2, 0.11, 0]} opacity={0.5} scale={Math.max(26, floorW + 2)} blur={2.2} far={4} frames={1} />}
+      {!p.preview && <ContactShadows key={shadowKey} position={[(floorW - FLOOR.w) / 2, 0.11, 0]} opacity={0.5} scale={Math.max(26, floorW + 2)} blur={2.2} far={4} frames={1} />}
     </group>
     </AccentContext.Provider>
   );
@@ -2047,8 +2102,13 @@ export default function Factory3D(p: Factory3DProps) {
   // Hold-to-move: while a piece is in hand the CAMERA freezes entirely, so the drag steers the
   // piece — not the view. Mirrored out to the caller for haptics/hints via onCarryChange.
   const [carrying, setCarrying] = useState(false);
+  // The layout revision (re-seats paused animations after an edit) and the context value are memoised:
+  // this component re-renders every sim tick, and stringifying the whole floor each time was waste —
+  // floor/props are replaced (never mutated) on edit, so their identity IS the revision key.
+  const revision = useMemo(() => JSON.stringify([p.floor, p.props, p.floorW]), [p.floor, p.props, p.floorW]);
+  const motion = useMemo(() => ({ reduced, stopped: !!p.motionPaused, revision }), [reduced, p.motionPaused, revision]);
   return (
-    <MotionContext.Provider value={{ reduced, stopped: !!p.motionPaused, revision: JSON.stringify([p.floor, p.props, p.floorW]) }}><Canvas
+    <MotionContext.Provider value={motion}><Canvas
       role="img"
       aria-label="Factory floor, 3D view"
       frameloop={p.paused ? "never" : p.motionPaused || reduced ? "demand" : "always"}

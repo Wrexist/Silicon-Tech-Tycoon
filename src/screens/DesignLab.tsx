@@ -8,9 +8,6 @@ import { Button, Card, Sheet, SectionHeader, Slider, Stat, StatPill } from "../d
 import { CategoryIcon, ComponentIcon } from "../design/icons.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
-import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
-import { maybePromptFirstLaunchReview } from "../state/review.ts";
-import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
 import { showToast } from "../design/toast.tsx";
 import { CATEGORIES, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { categoryLevelOf, MASTERY_MAX_LEVEL } from "../engine/mastery.ts";
@@ -56,7 +53,6 @@ import {
   hypeBonus,
   lensUnlockCost,
   finishUnlockCost,
-  insightFromPlan,
   marketerSkill,
   prototypeState,
   forecastConfidenceInput,
@@ -76,9 +72,12 @@ import {
 import { runwayWeeks } from "../engine/economy.ts";
 import { forecastBand, forecastConfidenceLabel } from "../engine/forecast.ts";
 import { prototypeCost } from "../engine/prototype.ts";
-import { useGame, useHoldSim, useGameControls } from "../state/useGame.tsx";
+import { useGame, useGameWhile, useHoldSim, useGameControls } from "../state/useGame.tsx";
 import { useUiVersion } from "../state/uiVersion.ts";
 import { useLaunchProduct } from "../state/useLaunchProduct.ts";
+import { forecastFromScore } from "../state/launchForecast.ts";
+import { predecessorOf } from "../design/launchReveal.ts";
+import { ForecastChip } from "../components/ForecastChip.tsx";
 import { claimReadyLaunch, readyLaunchClaimed } from "../design/overlayGuard.ts";
 import { BuildProgress } from "../components/BuildProgress.tsx";
 import { StatBars } from "../components/charts.tsx";
@@ -269,7 +268,9 @@ export function DesignLab({
   seed?: Product | null;
   onSeedConsumed?: () => void;
 } = {}) {
-  const { state, build, launchReady, unlockLens, unlockFinish, negotiateContract, runPrototype, clearPrototype } = useGame();
+  // Frozen while the tab is hidden (the Lab stays mounted to keep the draft and its sheets) — the
+  // weekly tick no longer re-renders it off-screen. Live again the moment the tab is shown.
+  const { state, build, unlockLens, unlockFinish, negotiateContract, runPrototype, clearPrototype } = useGameWhile(active);
   const uiVersion = useUiVersion();
   const [contractSheet, setContractSheet] = useState<SupplierId | null>(null);
   const { tabBlocked } = useGameControls();
@@ -465,14 +466,24 @@ export function DesignLab({
   // expectations (recent track record), so the projection reflects the rising bar — a proven studio
   // sees "solid" where a newcomer would see "hit" for the identical product.
   const bands = launchBars(state);
-  const verdict =
-    effectiveScore >= bands.hit ? { label: "Projected hit", tone: "positive" as const }
-      : effectiveScore <= bands.flop ? { label: "Needs refinement", tone: "neutral" as const }
-        : effectiveScore >= bands.solid ? { label: "Solid performer", tone: "positive" as const }
-          : { label: "Steady seller", tone: "accent" as const };
+  const verdict = forecastFromScore(effectiveScore, bands);
   // Item 1: the verdict can swing while "Fit" is unchanged because rivals (competitionFactor)
   // drag the effective score. Flag that so the label never looks like it flipped at random.
   const competitionDrag = !!preview && preview.competitionFactor < 0.85 && (preview.betterRivals > 0 || preview.matchingRivals > 0);
+
+  // Juice: a brief "+3" / "−2" chip beside Market fit whenever an edit moves it, so each tier,
+  // finish or price tweak visibly pays (or costs). Keyed to the draft id so switching drafts is silent.
+  const lastFit = useRef({ id: draft.id, fit });
+  const [fitDelta, setFitDelta] = useState<{ d: number; n: number } | null>(null);
+  useEffect(() => {
+    const prev = lastFit.current;
+    lastFit.current = { id: draft.id, fit };
+    if (prev.id !== draft.id) { setFitDelta(null); return; }
+    if (prev.fit === fit) return;
+    setFitDelta((cur) => ({ d: fit - prev.fit, n: (cur?.n ?? 0) + 1 }));
+    const t = setTimeout(() => setFitDelta(null), 1400);
+    return () => clearTimeout(t);
+  }, [fit, draft.id]);
 
   function set(partial: Partial<Product>) {
     setDraft((d) => ({ ...d, ...partial }));
@@ -499,7 +510,7 @@ export function DesignLab({
         missing.length > 0 ? "Pick every component first."
           : state.bankrupt ? "Company is bankrupt."
           : epOver ? `Over design budget (${epUsed} / ${epTotal} EP) — lower a component tier.`
-          : "Give your device a name before you build it",
+          : "Give your product a name before you build it.",
         { tone: "negative", glyph: <AlertTriangle size={15} /> },
       );
       return;
@@ -511,7 +522,7 @@ export function DesignLab({
   function confirmBuild(units: number, channelId: ChannelId, regions: RegionId[], strategy: CapacityStrategy) {
     if (!draft.name.trim()) {
       haptic.error();
-      showToast("Give your device a name before you build it", { tone: "negative", glyph: <AlertTriangle size={15} /> });
+      showToast("Give your product a name before you build it.", { tone: "negative", glyph: <AlertTriangle size={15} /> });
       return;
     }
     // Snapshot the finished design + its forecast BEFORE building (state mutates after) so the
@@ -551,49 +562,12 @@ export function DesignLab({
     clearPrototype(); // a new design starts with a clean prototype slate
   }
 
-  // Launch a finished product straight from the Lab — same premium beat HQ uses (haptics, sound,
-  // celebrate FX on a hit, verdict toast) so the whole loop (design → build → launch) lives in one
-  // place and never forces a trip to another tab.
+  // Launch a finished product straight from the Lab through the SAME shared action HQ and the
+  // ready-to-launch popup use — a hand-copied version here had drifted and skipped the Category
+  // Mastery and Franchise "Iconic" celebrations when you shipped from the Lab.
+  const launchFromLab = useLaunchProduct();
   function onLaunch(id: string) {
-    // Snapshot the launched list BEFORE launchReady records this product (for first-ever/first-hit).
-    const launchedBefore = state.launched;
-    const product = state.ready.find((p) => p.id === id);
-    // Pre-launch plan + stats feed the deterministic critic reviews shown in the reveal.
-    const plan = product ? planProduction(state, product, product.plannedUnits ?? BALANCE.build.minRun, (product.channelId as ChannelId) ?? "none") : null;
-    const res = launchReady(id);
-    if (!res.ok) { haptic.error(); showToast(res.reason ?? "That product couldn't launch.", { tone: "negative" }); return; }
-    haptic.success();
-    // launchOutcome keys the celebration off the ACTUAL recorded verdict (competition-adjusted),
-    // not the raw score — and is shared with HQ so the two launch surfaces can't drift.
-    const { isHit } = launchOutcome(res, launchedBefore);
-    sfx("launch");
-    if (isHit) setTimeout(() => sfx("hit"), 380);
-    // Debut peak — first product ever ships (mirrors HQ): heavier thump + a triumphant chime atop
-    // the reveal's confetti so the core-loop payoff lands as a genuine high.
-    if (launchedBefore.length === 0) {
-      haptic.heavy();
-      if (!isHit) setTimeout(() => sfx("hit"), 420);
-    }
-    // Hit-streak dopamine (mirrors HQ): a hit extends the pre-launch streak; anything else breaks it.
-    const streak = isHit ? currentHitStreak(launchedBefore) + 1 : 0;
-    if (streak >= 3) setTimeout(() => haptic.heavy(), 200);
-    if (product && plan) {
-      emitLaunchReveal(buildLaunchReveal({
-        product,
-        stats: productStats(state, product),
-        verdict: res.verdict ?? "steady",
-        demandFit: plan.demandFit,
-        priceFit: plan.priceFit,
-        betterRivals: plan.betterRivals,
-        units: plan.projectedSales,
-        isHit,
-        firstLaunch: launchedBefore.length === 0,
-        streak,
-        insight: insightFromPlan(plan),
-      }));
-      // First product ever shipped — a real high point. Ask for an App Store review (once).
-      if (launchedBefore.length === 0) maybePromptFirstLaunchReview();
-    }
+    launchFromLab(id, (reason) => { haptic.error(); showToast(reason ?? "That product couldn't launch.", { tone: "negative" }); });
   }
 
   // Derive top-wanted stat for the market hint (highest target weight vs current weight delta)
@@ -608,7 +582,7 @@ export function DesignLab({
   const STAT_LABEL_FULL: Record<keyof Stats, string> = { performance: "Performance", quality: "Quality", battery: "Battery life", design: "Design", ecosystem: "Ecosystem" };
 
   const underserved = [...liveSegments.perSegment].sort((a, b) => b.size * (100 - b.fit) - a.size * (100 - a.fit))[0];
-  const advice = designAdvice({ buyerNeeds: underserved ? `${underserved.name}: ${segmentWantsById(underserved.id)}` : undefined, missing: missing.map(capSlot), priceRatio, weak: syn.weakest && capSlot(syn.weakest), fit, trend: topWantedDelta > .02 ? STAT_LABEL_FULL[topWanted] : null });
+  const advice = designAdvice({ buyerNeeds: underserved ? `${underserved.name}: ${segmentWantsById(underserved.id)}` : undefined, missing: missing.map(capSlot), priceRatio, weak: syn.weakest && capSlot(syn.weakest), fit, trend: topWantedDelta > .02 ? STAT_LABEL_FULL[topWanted] : null, forecast: preview ? { label: verdict.label, flop: verdict.flop, betterRivals: preview.betterRivals } : undefined });
   return (
     <div className="lab">
       {/* Header strip — subtitle + the live projected-verdict badge (mockup's "Steady Seller"). */}
@@ -646,7 +620,7 @@ export function DesignLab({
               {/* The 3rd tab is "Camera" only when the device has one; otherwise it holds display/
                   storage specs (a monitor's refresh, a desktop's capacity), so label it "Specs". */}
               {t.id === "camera" ? (hasCamera ? "Camera" : "Specs") : t.label}
-              {needs && <span className="lab__tab-badge lab__tab-badge--warn" aria-label="components incomplete" />}
+              {needs && <span className="lab__tab-badge lab__tab-badge--warn" role="img" aria-label="components incomplete" />}
               {ready && <span className="lab__tab-badge lab__tab-badge--ready" aria-hidden><Check size={10} /></span>}
             </button>
           );
@@ -685,7 +659,14 @@ export function DesignLab({
             </div>
             <div className="lab__hero-fit">
               <span className="lab__hero-fit-label">Market fit</span>
-              <span className="lab__hero-fit-val tnum">{fit} <span className="lab__den">/ 100</span></span>
+              <span className="lab__hero-fit-val tnum">
+                {fitDelta != null && (
+                  <span key={fitDelta.n} className={`lab__fit-delta lab__fit-delta--${fitDelta.d > 0 ? "up" : "down"}`} aria-hidden>
+                    {fitDelta.d > 0 ? "+" : "−"}{Math.abs(fitDelta.d)}
+                  </span>
+                )}
+                {fit} <span className="lab__den">/ 100</span>
+              </span>
               <div className="lab__hero-bar"><div className="lab__hero-bar-fill" style={{ width: `${Math.max(0, Math.min(100, fit))}%` }} /></div>
             </div>
             <div className="lab__hero-line">
@@ -793,6 +774,7 @@ export function DesignLab({
               <div className="lab__pipe-info">
                 <span className="lab__pipe-name">{p.name}</span>
                 {p.plannedUnits != null && <span className="lab__pipe-sub">{p.plannedUnits.toLocaleString()} units ready</span>}
+                <ForecastChip state={state} product={p} />
               </div>
               <Button size="sm" onClick={() => onLaunch(p.id)}>
                 <Rocket size={15} /> Launch
@@ -1002,6 +984,20 @@ export function DesignLab({
                     {lag.length === 1
                       ? `Your ${lag[0].name} is T${lag[0].tier}, but you've researched T${lag[0].researched} — shipping behind your own lab scores far lower.`
                       : `${lag.length} components sit below your research (${list}) — shipping behind your own lab scores far lower.`}
+                    {/* One tap instead of one stepper per part — successor drafts inherit old tiers,
+                        so this lands often. The budget meter below still gates the build. */}
+                    <button
+                      type="button"
+                      className="mg-text-action lab__frontier-fix"
+                      onClick={() => {
+                        haptic.light();
+                        const tiers = { ...draft.tiers };
+                        for (const l of lag) tiers[l.kind] = l.researched;
+                        set({ tiers });
+                      }}
+                    >
+                      Use researched tiers <ArrowRight size={12} aria-hidden />
+                    </button>
                   </span>
                 </p>
               );
@@ -1244,7 +1240,7 @@ export function DesignLab({
         {labTab === "style" && (
           <>
             <Card>
-              <SectionHeader title="Finish & colour" />
+              <SectionHeader title="Finish & color" />
               {(() => {
                 // Premium finishes (titanium, gold) are RP-unlocked — locked chips render masked
                 // with a lock, and an inline research buy unlocks + selects the next material.
@@ -1674,8 +1670,8 @@ export function DesignLab({
                       return (
                         <span key={k} className={`lab__cat-focus-stat${good ? " lab__cat-focus-stat--good" : ""}`}>
                           {STAT_FULL[k]}
-                          {trend === "up" && <span className="lab__cat-focus-arrow lab__cat-focus-arrow--up" aria-label="rising" />}
-                          {trend === "down" && <span className="lab__cat-focus-arrow lab__cat-focus-arrow--down" aria-label="falling" />}
+                          {trend === "up" && <span className="lab__cat-focus-arrow lab__cat-focus-arrow--up" role="img" aria-label="rising" />}
+                          {trend === "down" && <span className="lab__cat-focus-arrow lab__cat-focus-arrow--down" role="img" aria-label="falling" />}
                         </span>
                       );
                     })}
@@ -1701,7 +1697,10 @@ export function DesignLab({
               <Slider
                 value={toDollars(draft.price)}
                 min={0}
-                max={5000}
+                // Scale the track to what buyers will pay (2.5× the top of the expected band, never
+                // below $1,500, never below the current price) — a fixed $5,000 track squeezed the
+                // useful ~$300–$900 band into a sliver of a phone-width slider.
+                max={Math.max(1500, Math.ceil((toDollars(guidance.hi) * 2.5) / 500) * 500, Math.ceil(toDollars(draft.price) / 500) * 500)}
                 step={10}
                 ariaLabel="Price"
                 accent={priceSliderAccent}
@@ -1992,6 +1991,9 @@ function DesignCompleteCard({
   const sellsOut = plan ? plan.sellsOut : done.sellsOut;
   const overall = plan ? plan.overall : done.overall;
   const profD = toDollars(profit);
+  // "Am I getting better?" — the build against the product it follows (same line, else category).
+  const prev = predecessorOf(done.product, state.launched.filter((l) => l.product.id !== done.builtId));
+  const vsPrev = prev ? Math.round(overall - overallScore(prev.stats, prev.product.category)) : null;
 
   const launchNow = () => {
     onClose(); // close first so the keynote reveal isn't stacked on the sheet
@@ -2023,7 +2025,14 @@ function DesignCompleteCard({
       </div>
 
       <div className="done__grid">
-        <Stat label="Overall" value={`${overall}`} hint={overall >= 75 ? "flagship tier" : overall >= 55 ? "strong build" : overall >= 35 ? "mid-tier" : "entry tier"} />
+        <Stat
+          label="Overall"
+          value={`${overall}`}
+          tone={vsPrev != null && vsPrev > 0 ? "positive" : undefined}
+          hint={vsPrev != null && vsPrev !== 0 && prev
+            ? `${vsPrev > 0 ? "+" : "−"}${Math.abs(vsPrev)} vs ${prev.product.name}`
+            : overall >= 75 ? "flagship tier" : overall >= 55 ? "strong build" : overall >= 35 ? "mid-tier" : "entry tier"}
+        />
         <Stat label="Run size" value={done.units.toLocaleString()} />
         <Stat
           label="Est. sales"

@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { Star } from "lucide-react";
 import { Button, useDialogFocus } from "../design/primitives.tsx";
 import { useHoldSim } from "../state/useGame.tsx";
-import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { useEscapeLayer } from "../design/overlayGuard.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { onReviewPrompt, requestAppStoreReview } from "../state/review.ts";
 import { haptic } from "../design/haptics.ts";
@@ -28,10 +28,6 @@ export function ReviewPrompt() {
   const showing = queued && !revealUp;
 
   useHoldSim(showing);
-  useEffect(() => {
-    if (!showing) return;
-    return registerAppOverlay();
-  }, [showing]);
   useDialogFocus(dialogRef, showing);
 
   // A gentle, rewarding cue once when it appears.
@@ -44,12 +40,7 @@ export function ReviewPrompt() {
     haptic.success();
   }, [showing]);
 
-  useEffect(() => {
-    if (!showing) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setQueued(false); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [showing]);
+  useEscapeLayer(showing, () => { setQueued(false); });
 
   if (!showing) return null;
 

@@ -9,7 +9,9 @@ import { useDialogFocus } from "../design/primitives.tsx";
 import { useGame, useHoldSim } from "../state/useGame.tsx";
 import { marketingPushQuote } from "../state/gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
-import { registerAppOverlay } from "../design/overlayGuard.ts";
+import { useEscapeLayer } from "../design/overlayGuard.ts";
+import { FirstTimeNote } from "./FirstTimeNote.tsx";
+import { categoryNoun } from "../engine/text.ts";
 import { isLaunchRevealActive, onLaunchRevealActiveChange } from "../design/launchReveal.ts";
 import { higherPriorityPending } from "../design/interruptPriority.ts";
 import { format, sub, cents, type Money } from "../engine/money.ts";
@@ -43,18 +45,9 @@ export function RivalStrike() {
     haptic.warning?.();
     sfx("confirm");
   }, [showing]);
-  useEffect(() => {
-    if (!showing) return;
-    return registerAppOverlay();
-  }, [showing]);
 
   useDialogFocus(dialogRef, showing);
-  useEffect(() => {
-    if (!showing) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") resolveStrike("hold"); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [showing, resolveStrike]);
+  useEscapeLayer(showing, () => { resolveStrike("hold"); });
 
   if (!strike || !showing) return null;
 
@@ -93,12 +86,13 @@ export function RivalStrike() {
         <div className="rst__eyebrow">
           <Swords size={13} aria-hidden /> {feud ? `Your nemesis strikes${tierLabel ? ` · ${tierLabel}` : ""}` : "Rival strike"}
         </div>
-        <h2 className="rst__title">{strike.rivalName} moves on {CATEGORIES[strike.category].displayName.toLowerCase()}s</h2>
+        <h2 className="rst__title">{strike.rivalName} moves on the {categoryNoun(CATEGORIES[strike.category].displayName).replace(/^pair of /, "")} market</h2>
         <p className="rst__sub">
           {feud && "It's personal — "}Their new {strike.rivalProductName} just landed in {strike.productName}'s market — your remaining sales take a {Math.round(BALANCE.market.competition.rivalEntrySalesHaircut * 100)}% hit unless the launch fades.
           {feud && " Answer them and you bank a win in the feud."}
         </p>
         {historyLine && <p className="rst__history">{historyLine}</p>}
+        <FirstTimeNote intro="rivalStrike" />
 
         <div className="rst__duel">
           <div className="rst__side">

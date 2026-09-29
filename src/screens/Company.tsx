@@ -693,7 +693,7 @@ function FinancingCard({ state }: { state: GameState }) {
             <span>
               You receive <b className="tnum">{formatShortDollars(Math.round(amount * (1 - BALANCE.financing.originationFee)))}</b>
               {BALANCE.financing.originationFee > 0 ? ` after a ${Math.round(BALANCE.financing.originationFee * 100)}% fee` : ""},
-              repay <b className="tnum">{format(cents(weeklyPay))}</b>/wk for {BALANCE.financing.termWeeks} wks
+              repay <b className="tnum">{format(cents(weeklyPay))}</b>/wk for {BALANCE.financing.termWeeks} wk
             </span>
           </div>
           <Button block variant="primary" onClick={() => { takeLoan(amount * 100); haptic.success(); sfx("cash"); }}>
@@ -766,6 +766,7 @@ function MoraleCard({ state }: { state: GameState }) {
               }}
             >
               {o.label} · +{o.lift} · {format(moraleCost(state, o.kind))}
+              {why && <span className="why-note why-note--in">{why}</span>}
             </Button>
             );
           })}
@@ -1103,7 +1104,10 @@ function buildRevenueHistory(launched: LaunchedProduct[], cashHistory: { week: n
 function StatsSheet({ state, onClose }: { state: GameState; onClose: () => void }) {
   const launched = state.launched;
   const cashData = state.cashHistory.map((h) => h.cash);
-  const revData = buildRevenueHistory(launched, state.cashHistory);
+  // Prefer the RECORDED weekly ledger: the reconstruction multiplies forecast units by today's price,
+  // so a price cut restated every earlier week. Older saves without a ledger keep the estimate.
+  const ledger = state.financialHistory ?? [];
+  const revData = ledger.length >= 2 ? ledger.map((w) => w.revenue) : buildRevenueHistory(launched, state.cashHistory);
   const netWorth = state.cash;
 
   // Aggregates derived from existing tracked data (no invented engine state).
@@ -1302,7 +1306,7 @@ function TeamOutputCard({ state }: { state: GameState }) {
         ].filter((s) => s.count > 0);
         if (segs.length === 0) return null;
         return (
-          <div className="co__alloc-bar" aria-label="Staff allocation">
+          <div className="co__alloc-bar" aria-hidden>{/* decorative: the counts are in the grid above */}
             {segs.map((seg) => (
               <div
                 key={seg.label}
@@ -1694,7 +1698,7 @@ function RecruitPanel({
               onClick={() => onRecruit(tier)}
             >
               <span className="co__recruit-tier-name">{t.label}</span>
-              <span className="co__recruit-tier-meta">{t.weeks} wk · skill {t.minLevel}–{t.maxLevel}</span>
+              <span className="co__recruit-tier-meta">{affordable ? `${t.weeks} wk · skill ${t.minLevel}–${t.maxLevel}` : `Needs ${format(sub(t.cost, state.cash))} more cash`}</span>
               <span className="co__recruit-tier-cost">{format(t.cost)}</span>
             </button>
           );

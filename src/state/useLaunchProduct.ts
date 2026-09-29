@@ -4,7 +4,7 @@
 import { useCallback } from "react";
 import { createElement } from "react";
 import { Star, Crown } from "lucide-react";
-import { useGame } from "./useGame.tsx";
+import { useGameActions, useGameStateGetter } from "./useGame.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { insightFromPlan, planProduction, productStats } from "./gameState.ts";
 import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
@@ -29,9 +29,13 @@ import type { LaunchedProduct } from "../engine/types.ts";
 /** Returns `launch(productId)` — ships a product from the `ready` shelf and fires the full launch
  *  celebration. Returns whether the launch went through (false if the id wasn't launchable). */
 export function useLaunchProduct() {
-  const { state, launchReady } = useGame();
+  // State is read at TAP time, not subscribed: this hook lives in HQ and the Design Lab, and a full
+  // useGame() here re-rendered both on every sim tick just to keep this closure fresh.
+  const getState = useGameStateGetter();
+  const { launchReady } = useGameActions();
   return useCallback(
-    (id: string): boolean => {
+    (id: string, onRefused?: (reason?: string) => void): boolean => {
+      const state = getState();
       const launchedBefore = state.launched; // before launchReady records this product
       const product = state.ready.find((p) => p.id === id);
       // Pre-launch plan + stats feed the deterministic critic reviews shown in the reveal.
@@ -39,7 +43,7 @@ export function useLaunchProduct() {
         ? planProduction(state, product, product.plannedUnits ?? BALANCE.build.minRun, (product.channelId as ChannelId) ?? "none")
         : null;
       const res = launchReady(id);
-      if (!res.ok) return false;
+      if (!res.ok) { onRefused?.(res.reason); return false; }
       haptic.success();
       // Keys the celebration off the recorded (competition-adjusted) verdict so the launch moment
       // can never contradict what Market/feed record.
@@ -62,11 +66,14 @@ export function useLaunchProduct() {
           demandFit: plan.demandFit,
           priceFit: plan.priceFit,
           betterRivals: plan.betterRivals,
-          units: plan.projectedSales,
+          units: res.totalUnits ?? plan.projectedSales,
+          fansGained: res.fansGained,
+          repGained: res.repGained,
           isHit,
           firstLaunch: launchedBefore.length === 0,
           streak,
           insight: insightFromPlan(plan),
+          launchedBefore,
         }));
         // First product ever shipped — a real high point. Ask for an App Store review (once).
         if (launchedBefore.length === 0) maybePromptFirstLaunchReview();
@@ -115,6 +122,6 @@ export function useLaunchProduct() {
       }
       return true;
     },
-    [state, launchReady],
+    [getState, launchReady],
   );
 }

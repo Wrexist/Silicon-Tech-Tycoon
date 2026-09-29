@@ -727,8 +727,18 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
         setDragCell(null);
       }
     };
+    // iOS cancels a pointer (a system gesture, an incoming call, a scroll takeover) without a pointerup —
+    // without this the carried piece stayed stuck to the finger until the next tap. A cancel is not a
+    // drop: the piece snaps home.
+    const cancel = () => {
+      if (live.current.iid) { setDragIid(null); setDragCell(null); }
+    };
     window.addEventListener("pointerup", up);
-    return () => window.removeEventListener("pointerup", up);
+    window.addEventListener("pointercancel", cancel);
+    return () => {
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
+    };
   }, []);
 
   const placeOk = hover && b.placingType ? canPlace(b.layout, b.placingType, hover.c, hover.r, b.placeRot, undefined, facilityTier) : false;

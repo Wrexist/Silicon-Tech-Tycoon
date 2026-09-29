@@ -49,9 +49,12 @@ export function Confetti() {
         if (reducedMotion()) return;
         const burst = makeBurst();
         setBursts((b) => [...b.slice(-2), burst]);
-        timers.current.push(
-          setTimeout(() => setBursts((b) => b.filter((x) => x.id !== burst.id)), 2200),
-        );
+        // Prune each timer as it fires so a long session of celebrations doesn't grow the list forever.
+        const t = setTimeout(() => {
+          timers.current = timers.current.filter((x) => x !== t);
+          setBursts((b) => b.filter((x) => x.id !== burst.id));
+        }, 2200);
+        timers.current.push(t);
       }),
     [],
   );

@@ -23,7 +23,7 @@
 .dailyc__side { display: inline-flex; align-items: center; gap: var(--sp-6); flex: none; }
 .dailyc__best {
   display: inline-flex; align-items: center; gap: var(--sp-4);
-  padding: 3px 8px; border-radius: var(--r-pill);
+  padding: var(--sp-4) var(--sp-8); border-radius: var(--r-pill);
   background: var(--warning-soft); color: var(--warning-text);
   font-size: var(--fs-micro); font-weight: 700;
 }

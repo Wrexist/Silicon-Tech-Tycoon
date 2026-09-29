@@ -9,6 +9,8 @@ import { Button } from "../design/primitives.tsx";
 import { useGame } from "../state/useGame.tsx";
 import { isInsider, type GameState } from "../state/gameState.ts";
 import { eraRoadmap, type EraRoadmapEntry } from "../engine/roadmap.ts";
+import { BALANCE } from "../engine/balance.ts";
+import { format } from "../engine/money.ts";
 import "./roadmap.css";
 
 type EraStatus = "done" | "current" | "locked";
@@ -31,20 +33,31 @@ interface LateItem {
 }
 
 const LATE_GAME: readonly LateItem[] = [
+  // Two different milestones that used to share one row: LISTING (revenue-gated, any era — sell a
+  // stake for cash) and reaching the PINNACLE (AI Era + rep 85 — the win that opens the Legacy Era).
+  // The row checked `listed` under the pinnacle's gate text, so it could tick in era 2.
+  {
+    key: "list",
+    icon: Landmark,
+    title: "List on the exchange (IPO)",
+    detail: "Sell a stake in your company on the exchange for a cash infusion, and trade rival shares.",
+    gate: `${format(BALANCE.ipo.minRevenueToList)} lifetime revenue`,
+    unlocked: (s) => !!s.listed,
+  },
   {
     key: "ipo",
-    icon: Landmark,
-    title: "Go public",
-    detail: "List on the exchange for a cash infusion, then answer to quarterly board mandates and a confidence ladder from a Doubtful to a Visionary board.",
+    icon: Crown,
+    title: "Reach the pinnacle",
+    detail: "Take the company all the way to the top: the win, New Game+, quarterly board mandates and a confidence ladder from a Doubtful to a Visionary board.",
     gate: "AI Era · reputation 85+",
-    unlocked: (s) => s.listed,
+    unlocked: (s) => s.wentPublic,
   },
   {
     key: "legacy",
     icon: Sparkles,
     title: "Megaprojects & the Legacy Tree",
     detail: "Moonshot megaprojects bank Legacy Points; spend them on a tiered tree of permanent, route-defining boons.",
-    gate: "Reach the pinnacle (go public)",
+    gate: "After reaching the pinnacle",
     unlocked: (s) => s.wentPublic,
   },
   {
@@ -52,7 +65,7 @@ const LATE_GAME: readonly LateItem[] = [
     icon: FlaskConical,
     title: "Frontier Tech",
     detail: "Endless research lanes and breakthrough bands that push your labs past the industry ceiling — and open the Autonomy Era.",
-    gate: "Post-IPO — spend Legacy Points",
+    gate: "After the pinnacle — spend Legacy Points",
     unlocked: (s) => s.wentPublic,
   },
   {

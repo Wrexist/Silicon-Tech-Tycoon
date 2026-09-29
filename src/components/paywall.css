@@ -6,7 +6,9 @@
    Gold rather than the app accent: this is the one prestige surface in the product, and the token
    system already owns --gold for awards / contracts / rank-1. */
 .pwl {
-  position: fixed; inset: 0; z-index: 62; /* above every interrupt overlay — it is always the answer */
+  position: fixed; inset: 0; z-index: var(--z-paywall); /* above every interrupt AND the era/IPO/bankrupt takeovers (75–80) — the IPO screen
+     raises it (Raise Heat, New Game+), and at 62 it opened invisibly behind. Below the frozen-tab
+     notice (90) and the celebration layer (100). */
   display: flex; align-items: center; justify-content: center;
   padding: var(--edge);
   padding-top: calc(var(--edge) + env(safe-area-inset-top));
@@ -35,7 +37,7 @@
   border: 1px solid color-mix(in srgb, var(--gold) 26%, var(--glass-modal-edge));
   box-shadow:
     inset 0 1.5px 0 0 var(--glass-modal-rim),
-    0 24px 70px -24px rgba(0, 0, 0, 0.5),
+    0 24px 70px -24px color-mix(in srgb, var(--shade) 50%, transparent),
     0 0 46px -18px color-mix(in srgb, var(--gold) 44%, transparent);
   text-align: center;
   animation: pwl-in var(--spring-gentle) both;
@@ -70,7 +72,7 @@
      line of the auto-renew disclosure must never be the thing it dims. */
   mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent 100%);
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent 100%);
-  padding-bottom: 16px;
+  padding-bottom: var(--sp-16);
 }
 .pwl__scroll::-webkit-scrollbar { width: 0; height: 0; }
 
@@ -167,14 +169,14 @@
   background: var(--glass-well); border: 1px solid var(--glass-well-edge);
 }
 .pwl__proof-item {
-  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2);
   min-width: 0; flex: 1; padding: 0 var(--sp-4);
 }
 /* Hairline rules read as one instrument panel rather than four loose numbers. */
 .pwl__proof-item + .pwl__proof-item { border-left: 1px solid var(--glass-well-edge); }
 .pwl__proof-num { font-size: var(--fs-body); font-weight: 800; letter-spacing: -0.02em; color: var(--gold); }
 .pwl__proof-label {
-  font-size: 0.5625rem; font-weight: 600; color: var(--ink-3);
+  font-size: var(--fs-nano); font-weight: 600; color: var(--ink-3);
   text-transform: uppercase; letter-spacing: 0.05em;
   white-space: nowrap; /* a wrapped label collides with its neighbours and reads as broken */
 }
@@ -243,7 +245,7 @@
   padding: var(--sp-10) var(--sp-12);
   border-radius: var(--r-card); text-align: left; cursor: pointer;
   background: var(--glass-well); border: 1px solid var(--glass-well-edge);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sheen) 25%, transparent);
   -webkit-tap-highlight-color: transparent;
   transition: border-color var(--spring-snappy), background var(--spring-snappy), transform var(--spring-snappy);
 }
@@ -265,8 +267,8 @@
 .pwl__plan-title { font-size: var(--fs-caption); font-weight: 700; white-space: nowrap; }
 .pwl__plan-badge {
   flex: 0 0 auto; white-space: nowrap;
-  font-size: 0.5625rem; font-weight: 800; letter-spacing: 0.05em;
-  padding: 2px var(--sp-6); border-radius: var(--r-pill);
+  font-size: var(--fs-nano); font-weight: 800; letter-spacing: 0.05em;
+  padding: var(--sp-2) var(--sp-6); border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--gold) 20%, transparent); color: var(--warning-text);
 }
 .pwl__plan-badge--owned { background: color-mix(in srgb, var(--positive) 18%, transparent); color: var(--positive-text); }
@@ -304,7 +306,7 @@
    neither can wrap raggedly. The sub-line is deliberately quieter than the headline verb AND
    quieter than the billed amount on the plan row — nothing here may out-shout that (3.1.2(c)). */
 .pwl__cta-label {
-  display: inline-flex; flex-direction: column; align-items: center; gap: 3px;
+  display: inline-flex; flex-direction: column; align-items: center; gap: var(--sp-4);
   line-height: 1.15;
   /* Holds two lines' worth of height even when the label is one line (Processing…, or a paid plan
      before the store has answered). Without it the button shrinks mid-purchase and the whole pinned
@@ -325,7 +327,7 @@
 .pwl__trust {
   width: 100%; margin: var(--sp-8) 0 0; padding: 0; list-style: none;
   display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
-  gap: 2px var(--sp-8);
+  gap: var(--sp-2) var(--sp-8);
   font-size: var(--fs-nano); font-weight: 600; color: var(--ink-3);
 }
 .pwl__trust > li { display: inline-flex; align-items: center; white-space: nowrap; }
@@ -356,13 +358,13 @@
    three are App Review requirements. Losing 22px is always better than losing a required link. */
 .pwl__legal {
   margin-top: var(--sp-8);
-  display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 2px var(--sp-6);
+  display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: var(--sp-2) var(--sp-6);
   font-size: var(--fs-micro); color: var(--ink-3);
 }
 /* Each item stays intact; only the row between them may break. */
 .pwl__legal > * { white-space: nowrap; }
 .pwl__legal-link {
-  display: inline-flex; align-items: center; gap: 4px;
+  display: inline-flex; align-items: center; gap: var(--sp-4);
   background: none; border: 0; padding: 0; cursor: pointer;
   font: inherit; font-weight: 600; color: var(--ink-3); text-decoration: none;
 }
@@ -467,7 +469,7 @@
   .pwl__summary { margin-bottom: var(--sp-8); }
   .pwl__trust { margin-top: var(--sp-6); }
   .pwl__skip { margin-top: var(--sp-4); }
-  .pwl__fineprint { font-size: 0.5625rem; line-height: 1.4; }
+  .pwl__fineprint { font-size: var(--fs-nano); line-height: 1.4; } /* the renewal disclosure never drops below 10px (Guideline 3.1.2 legibility) */
 }
 
 /* Shorter than this (landscape phone, a floating iPad pane) the pitch gives up its floor entirely.
@@ -478,8 +480,8 @@
 
 /* ---------- the "Pro" chip used on locked rows elsewhere ---------- */
 .pwl-chip {
-  display: inline-flex; align-items: center; gap: 3px;
-  padding: 2px var(--sp-6); border-radius: var(--r-pill);
+  display: inline-flex; align-items: center; gap: var(--sp-4);
+  padding: var(--sp-2) var(--sp-6); border-radius: var(--r-pill);
   font-size: var(--fs-nano); font-weight: 800; letter-spacing: 0.04em;
   background: color-mix(in srgb, var(--gold) 18%, transparent);
   color: var(--warning-text);

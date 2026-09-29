@@ -30,7 +30,7 @@ const DIFFICULTY_LABEL: Record<Scenario["difficulty"], string> = {
 /** Three stars, filled up to `n` (gold), the rest outlined. */
 function Stars({ n, size = 16 }: { n: number; size?: number }) {
   return (
-    <span className="scn__stars" aria-label={`${n} of 3 stars`}>
+    <span className="scn__stars" role="img" aria-label={`${n} of 3 stars`}>
       {[1, 2, 3].map((i) => (
         <Star
           key={i}
@@ -77,8 +77,8 @@ export function ScenariosSheet({ onClose, initialName }: { onClose: () => void; 
           <h2 className="scn__title">Scenarios</h2>
           <p className="scn__sub">Hand-crafted challenges with star goals. Earn all three for mastery.</p>
         </div>
-        <span className="scn__count tnum" aria-label={`${totalStars} of ${maxStars} stars earned`}>
-          {totalStars}<span className="scn__count-total">/{maxStars}★</span>
+        <span className="scn__count tnum" role="img" aria-label={`${totalStars} of ${maxStars} stars earned`}>
+          {totalStars}<span className="scn__count-total">/{maxStars}<Star size={12} fill="currentColor" aria-label="stars" /></span>
         </span>
       </div>
 
@@ -93,7 +93,7 @@ export function ScenariosSheet({ onClose, initialName }: { onClose: () => void; 
             <li key={s.id} className={`scn__card${earned > 0 ? " scn__card--played" : ""}${!unlocked ? " scn__card--locked" : ""}`}>
               <div className="scn__card-top">
                 <span className={`scn__diff scn__diff--${s.difficulty}`}>{DIFFICULTY_LABEL[s.difficulty]}</span>
-                {unlocked ? <Stars n={earned} /> : <span className="scn__lock"><Lock size={13} /> {needStars}★ to unlock</span>}
+                {unlocked ? <Stars n={earned} /> : <span className="scn__lock"><Lock size={13} /> {needStars} stars to unlock</span>}
               </div>
               <h3 className="scn__name">{s.name}</h3>
               <p className="scn__tagline">{s.tagline}</p>
@@ -131,7 +131,7 @@ export function ScenariosSheet({ onClose, initialName }: { onClose: () => void; 
                 }}
               >
                 {!unlocked
-                  ? <><Lock size={15} /> Earn {needStars}★ to unlock</>
+                  ? <><Lock size={15} /> Earn {needStars} stars to unlock</>
                   : proLocked(s.id)
                     ? <><Target size={15} /> Play scenario <ProChip /></>
                     : <><Target size={15} /> {isActive ? "Restart this scenario" : earned > 0 ? "Play again" : "Play scenario"}</>}
@@ -149,7 +149,13 @@ export function ScenariosSheet({ onClose, initialName }: { onClose: () => void; 
           onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); setConfirmId(null); } }}>
           <div ref={confirmRef} tabIndex={-1} className="scn__confirm-card" onClick={(e) => e.stopPropagation()}>
             <p className="scn__confirm-title">Start “{confirmScenario.name}”?</p>
-            {state.activeChallenge || state.activeScenario ? (
+            {!state.onboarded ? (
+              // From the founding screen nothing exists yet to "keep safe" — don't promise a parked company.
+              <p className="scn__confirm-text">
+                This founds a fresh company inside the scenario, with its own goals and star targets. You can
+                start a free-play company any time after.
+              </p>
+            ) : state.activeChallenge || state.activeScenario ? (
               <p className="scn__confirm-text">
                 This starts a fresh scenario run in place of the current one. Your parked company is untouched — you'll still
                 return to it. Scenario stars and your museum are kept.

@@ -13,7 +13,7 @@
 .buzz__wire {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--sp-5);
   flex: none;
   color: var(--accent);
 }

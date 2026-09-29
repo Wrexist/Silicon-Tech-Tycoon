@@ -21,6 +21,7 @@ export const INTRO_COPY: Record<string, string> = {
   staffEvent: "Your people hit personal turning points. How you respond shapes their morale and whether they stay.",
   postLaunch: "Products on shelves hit mid-life moments — a hot streak, a stall, a supply pinch — for you to manage.",
   eureka: "Your lab can strike a breakthrough: bank it for a safe gain, or gamble on chasing the full prototype.",
+  rivalStrike: "When a rival launches into a market you're selling in, it bites into your remaining sales. Cut your price, run a campaign, or hold your ground.",
 };
 
 function read(): Set<string> {

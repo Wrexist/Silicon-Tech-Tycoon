@@ -251,7 +251,7 @@
   border-radius: 22px;
   background: var(--glass-well);
   border: 1px solid var(--glass-well-edge);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 18px 44px -22px rgba(0, 0, 0, 0.7);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sheen) 14%, transparent), 0 18px 44px -22px color-mix(in srgb, var(--shade) 70%, transparent);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
 }
@@ -263,9 +263,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--accent-ink);
   background: linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 50%, #10163a));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sheen) 30%, transparent);
 }
 .notifopt__note-body {
   min-width: 0;
@@ -297,7 +297,7 @@
   font-size: var(--fs-caption);
   color: var(--ink-2);
   line-height: 1.35;
-  margin-top: 2px;
+  margin-top: var(--sp-2);
 }
 
 /* Team reaction emote (Garage3D CheerEmote): a quick pop, a beat, then a slow rise + fade so the
@@ -312,16 +312,6 @@
 }
 
 /* Sheets */
-.app__sheet-title {
-  font-size: var(--fs-title);
-  font-weight: 700;
-  margin-bottom: var(--sp-8);
-}
-.app__sheet-text {
-  font-size: var(--fs-body);
-  color: var(--ink-2);
-  margin-bottom: var(--sp-16);
-}
 /* Shared stat label/value tiles — retained for the IPO "You went public" screen (the "while you
    were away" sheet that also used them was removed with offline catch-up). */
 .app__offline-label {
@@ -387,7 +377,7 @@
   height: 52px;
   border-radius: var(--r-pill);
   background: var(--warning-soft, color-mix(in srgb, var(--warning) 12%, transparent));
-  color: var(--warning, #f59e0b);
+  color: var(--warning);
   display: grid;
   place-items: center;
   margin-bottom: var(--sp-4);
@@ -413,7 +403,7 @@
 .tabswap {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--z-system);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -435,7 +425,7 @@
   border: 1px solid var(--glass-modal-edge);
   box-shadow:
     inset 0 1.5px 0 0 var(--glass-modal-rim),
-    0 24px 70px -24px rgba(0, 0, 0, 0.5);
+    0 24px 70px -24px color-mix(in srgb, var(--shade) 50%, transparent);
 }
 .tabswap__glyph {
   width: 64px;
@@ -464,7 +454,7 @@
 .bankrupt {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: var(--z-takeover);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -560,7 +550,7 @@
 .eb {
   position: fixed;
   inset: 0;
-  z-index: 90;
+  z-index: var(--z-system);
   overflow-y: auto;
   background: var(--bg);
   display: flex;
@@ -609,7 +599,7 @@
 .eb__report {
   text-align: left;
   font-family: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
-  font-size: 0.6875rem;
+  font-size: var(--fs-micro);
   line-height: 1.5;
   color: var(--ink-2);
   background: var(--surface-2);
@@ -631,7 +621,7 @@
 .era-modal {
   position: fixed;
   inset: 0;
-  z-index: 75;
+  z-index: calc(var(--z-takeover) - 5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -695,7 +685,7 @@
   left: 50%;
   width: 3px;
   height: 18px;
-  margin: -9px 0 0 -1.5px;
+  margin: -8px 0 0 -1.5px;
   border-radius: var(--r-pill);
   background: var(--accent);
   transform-origin: center;
@@ -714,10 +704,10 @@
   justify-content: center;
   border-radius: var(--r-pill);
   background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 86%, white), var(--accent));
-  color: var(--accent-ink, #fff);
+  color: var(--accent-ink);
   box-shadow:
     0 10px 30px -6px color-mix(in srgb, var(--accent) 55%, transparent),
-    inset 0 2px 0 rgba(255, 255, 255, 0.4);
+    inset 0 2px 0 color-mix(in srgb, var(--sheen) 40%, transparent);
   animation: era-glyph 640ms var(--spring-snappy) both;
 }
 .era-modal__badge {
@@ -752,12 +742,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: var(--sp-2);
   padding: var(--sp-12) var(--sp-8);
   border-radius: var(--r-card);
-  background: var(--glass-well, var(--surface-2, rgba(255, 255, 255, 0.5)));
+  background: var(--glass-well, var(--surface-2, color-mix(in srgb, var(--sheen) 50%, transparent)));
   border: 1px solid var(--glass-well-edge, var(--hairline));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sheen) 25%, transparent);
 }
 .era-modal__stat strong {
   font-size: var(--fs-large-title);
@@ -796,7 +786,7 @@
   padding: var(--sp-8) var(--sp-12);
   border-radius: var(--r-pill);
   background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 90%, white), var(--accent));
-  color: var(--accent-ink, #fff);
+  color: var(--accent-ink);
   font-size: var(--fs-caption);
   font-weight: 800;
   box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--accent) 50%, transparent);
@@ -813,7 +803,7 @@
 
 /* Era Mandate draft (feature #6) — lives inside the era takeover's own gradient style (NOT liquid
    glass): the same well tiles + accent language as the rest of the modal. */
-.era-modal__section-label > svg { vertical-align: -1px; margin-right: 4px; }
+.era-modal__section-label > svg { vertical-align: -1px; margin-right: var(--sp-4); }
 .era-modal__draft-explain {
   font-size: var(--fs-caption);
   color: var(--ink-2);
@@ -832,9 +822,9 @@
   text-align: left;
   padding: var(--sp-12);
   border-radius: var(--r-card);
-  background: var(--glass-well, var(--surface-2, rgba(255, 255, 255, 0.5)));
+  background: var(--glass-well, var(--surface-2, color-mix(in srgb, var(--sheen) 50%, transparent)));
   border: 1px solid var(--glass-well-edge, var(--hairline));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--sheen) 25%, transparent);
   cursor: pointer;
   transition: border-color var(--spring-standard), box-shadow var(--spring-standard), transform var(--spring-standard);
 }
@@ -842,7 +832,7 @@
 .era-modal__mandate--on {
   border-color: var(--accent);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    inset 0 1px 0 color-mix(in srgb, var(--sheen) 25%, transparent),
     0 0 0 1px var(--accent),
     0 6px 18px -8px color-mix(in srgb, var(--accent) 55%, transparent);
 }
@@ -868,13 +858,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--sp-8);
-  margin-top: 2px;
+  margin-top: var(--sp-2);
 }
 .era-modal__mandate-up,
 .era-modal__mandate-down {
   font-size: var(--fs-micro);
   font-weight: 800;
-  padding: 3px var(--sp-8);
+  padding: var(--sp-4) var(--sp-8);
   border-radius: var(--r-pill);
 }
 .era-modal__mandate-up {
@@ -929,7 +919,7 @@
 .ipo {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: var(--z-takeover);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -988,9 +978,9 @@
 }
 .ipo__heat-step { display: inline-flex; align-items: center; gap: var(--sp-8); }
 .ipo__heat-btn {
-  width: 30px; height: 30px; border-radius: var(--r-pill); flex-shrink: 0;
-  border: 1px solid var(--hairline); background: var(--surface-2); color: var(--ink);
-  font-size: var(--fs-headline); font-weight: 700; line-height: 1; cursor: pointer;
+  width: 44px; height: 44px; border-radius: var(--r-pill); flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid var(--hairline); background: var(--surface-2); color: var(--ink); cursor: pointer;
 }
 .ipo__heat-btn:disabled { opacity: 0.4; cursor: default; }
 .ipo__heat-level { font-weight: 700; font-size: var(--fs-caption); min-width: 8ch; text-align: center; }

@@ -13,7 +13,7 @@ export function OfficeFloorMap({ layout, facilityTier, companyName, build, selec
   const [column, setColumn] = useState(0), [row, setRow] = useState(0);
   useEffect(() => { if (selected) { setColumn(selected.c); setRow(selected.r); } }, [selected]);
   return <div className={`office-map${build ? " office-map--build" : ""}`}>
-    <p className="office-map__title">{companyName} ? Office layout</p>
+    <p className="office-map__title">{companyName} · Office layout</p>
     <svg className="office-map__floor" viewBox={`0 0 ${n * 40} ${n * 40}`} role="img" aria-label={`Office floor with ${layout.length} owned pieces. Top view; row 1 is the back wall.`}>
       <rect width={n * 40} height={n * 40} className="office-map__ground" />
       {Array.from({ length: n + 1 }, (_, i) => <path key={i} d={`M${i * 40} 0V${n * 40}M0 ${i * 40}H${n * 40}`} className="office-map__line" />)}

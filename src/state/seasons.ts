@@ -112,7 +112,7 @@ export function seasonRewards(seasonId: string): SeasonReward[] {
   const wallId = pick(SEASON_WALL_IDS);
   const badge = pick(SEASON_BADGES);
   return [
-    { rung: SEASON_RUNGS[0], type: "colorway", cosmeticId: `col:${swatch}`, name: `${swatch} colourway` },
+    { rung: SEASON_RUNGS[0], type: "colorway", cosmeticId: `col:${swatch}`, name: `${swatch} colorway` },
     { rung: SEASON_RUNGS[1], type: "floor", cosmeticId: `flr:${floorId}`, name: `${floorName(floorId)} floor` },
     { rung: SEASON_RUNGS[2], type: "wall", cosmeticId: `wal:${wallId}`, name: `${wallName(wallId)} walls` },
     { rung: SEASON_RUNGS[3], type: "badge", cosmeticId: `bdg:${badge.id}`, name: badge.name },
@@ -165,11 +165,19 @@ function sanitize(raw: unknown): SeasonsStore {
   return store;
 }
 
+// Parse cache keyed on the raw stored string. The office scene reads unlocked floors/walls on every
+// render (i.e. every sim tick), which used to pay a localStorage read + JSON.parse + sanitize each
+// time. Any outside write (another tab, a backup import) changes the raw string and invalidates it.
+let parsed: { raw: string; store: SeasonsStore } | null = null;
+
 export function getSeasons(): SeasonsStore {
   try {
     const raw = localStorage.getItem(KEY);
     if (!raw) return { completions: {} };
-    return sanitize(JSON.parse(raw));
+    if (!parsed || parsed.raw !== raw) parsed = { raw, store: sanitize(JSON.parse(raw)) };
+    // A shallow copy: callers reassign `completions` / `earned` on what they get (never mutate the
+    // arrays inside), so the cached store itself stays pristine.
+    return { ...parsed.store };
   } catch {
     return { completions: {} };
   }

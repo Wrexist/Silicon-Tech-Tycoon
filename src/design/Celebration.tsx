@@ -8,7 +8,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check } from "lucide-react";
 import { Button, useDialogFocus } from "./primitives.tsx";
-import { registerAppOverlay } from "./overlayGuard.ts";
+import { useEscapeLayer } from "./overlayGuard.ts";
 import { emitCelebrate } from "./celebrateFx.ts";
 import { sfx } from "./sound.ts";
 import "./celebration.css";
@@ -57,10 +57,6 @@ export function Celebration({
   const dialogRef = useRef<HTMLDivElement>(null);
   // Modal a11y: move focus into the dialog, trap Tab within it, and restore focus on close.
   useDialogFocus(dialogRef, true);
-  // Register as a top-level app overlay, the contract every interrupt follows: lower full-screen
-  // layers (Factory mode, the shell's page-level Escape) check `appOverlayOpen()` and stand down so
-  // one Escape dismisses this card instead of also peeling the layer beneath it.
-  useEffect(() => registerAppOverlay(), []);
 
   // Fire the confetti + sound exactly once when the moment appears.
   useEffect(() => {
@@ -74,11 +70,9 @@ export function Celebration({
   const onScrim = () => (onSecondary ? onSecondary() : onConfirm());
 
   // Close on Escape, like every other modal surface.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") (onSecondary ? onSecondary() : onConfirm()); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onConfirm, onSecondary]);
+  // Register as a top-level app overlay layer, the contract every interrupt follows: lower layers
+  // stand down, and only the frontmost layer answers Escape (a soft dismiss, same as the scrim).
+  useEscapeLayer(true, onScrim);
 
   return createPortal(
     <div ref={dialogRef} className={`cele cele--${tone}`} role="dialog" aria-modal="true" aria-label={`${eyebrow}: ${title}`} tabIndex={-1} onClick={onScrim}>

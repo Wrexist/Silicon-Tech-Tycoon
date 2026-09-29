@@ -1,6 +1,9 @@
-import { useEffect, useState } from "react";
+import { readHomeSave } from "../state/persistence.ts";
+import { HelpSheet } from "./Help.tsx";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ALargeSmall,
+  BookOpen,
   Bell,
   Check,
   Contrast,
@@ -60,13 +63,22 @@ const PACES: { id: InterruptPace; label: string; sub: string }[] = [
 
 export function Settings({ onClose }: { onClose: () => void }) {
   const settings = useSettings();
-  const { state, restart, unlockPlatform, setInterruptPace } = useGame();
+  const { state, restart, unlockPlatform, setInterruptPace, homeSaved, returnHome } = useGame();
+  // Mid-scenario/challenge, restart() also clears the PARKED home company (the Scenarios/Challenges
+  // confirms promised it was "kept safe"). Name it in the confirm and offer the way back instead.
+  const inRun = !!(state.activeScenario || state.activeChallenge);
+  const parked = useMemo(() => (inRun && homeSaved ? readHomeSave() : null), [inRun, homeSaved]); // parse once, not every tick
   const [confirmReset, setConfirmReset] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  // Help & Guide lives in Progress, which only unlocks after the first ship — exactly when a new
+  // player most needs it. Settings is reachable from week 0, so it opens the same guide inline.
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const net = netWorth(state);
   const hits = state.launched.filter((lp) => lp.verdict === "hit" || lp.verdict === "solid").length;
   const hitRate = state.launched.length > 0 ? Math.round((hits / state.launched.length) * 100) : 0;
+
+  if (helpOpen) return <HelpSheet onClose={() => setHelpOpen(false)} />;
 
   return (
     <div className="set">
@@ -223,14 +235,26 @@ export function Settings({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="set__group">
+        <Button block variant="secondary" onClick={() => { haptic.light(); setHelpOpen(true); }}>
+          <BookOpen size={16} /> Help &amp; Guide
+        </Button>
+      </div>
+
+      <div className="set__group">
         {confirmReset ? (
           <div className="set__confirm" role="group" aria-label="Confirm starting a new company">
             <span className="set__confirm-text">
               Start over? {state.companyName} — week {state.week}, {format(netWorth(state))} net
               worth — is deleted for good.
+              {parked && <> Your parked company, {parked.companyName} (week {parked.week}), is deleted too.</>}
             </span>
             <div className="set__confirm-row">
               <Button variant="tertiary" onClick={() => setConfirmReset(false)}>Cancel</Button>
+              {parked && (
+                <Button variant="secondary" onClick={() => { setConfirmReset(false); if (returnHome()) onClose(); }}>
+                  Return to {parked.companyName}
+                </Button>
+              )}
               <Button variant="destructive" onClick={() => { restart(); onClose(); }}>Restart</Button>
             </div>
           </div>
@@ -276,7 +300,11 @@ function SaveRecovery() {
         <Button variant="tertiary" onClick={() => setReloadConfirm(false)}>Cancel</Button>
         <Button onClick={() => window.location.reload()}>Reload now</Button></div>
         : <Button variant="tertiary" onClick={() => setReloadConfirm(true)}>Reload saved company</Button>}</>}
-    <Button variant="secondary" onClick={() => { save(state); refresh(n => n + 1); }}>Retry saving</Button>
+    {issue && <Button variant="secondary" onClick={() => {
+      const ok = save(state);
+      refresh(n => n + 1);
+      showToast(ok ? "Saved" : "Still can't save, export a backup to be safe", { tone: ok ? "positive" : "negative" });
+    }}>Retry saving</Button>}
     {copies.map(copy => <div key={copy.id}>
       <p className="set__group-note">{copy.id === "backup" ? "Preserved recovery copy" : "Protected unreadable company"}. Export this copy before removing it. A newer app version may be needed to open it.</p>
       <div className="set__pair">
@@ -323,6 +351,8 @@ function RecoveryRemoval({ onRemoved }: { onRemoved: () => void }) {
 function ExportButton() {
   const { exportSave } = useGameActions();
   const [copied, setCopied] = useState(false);
+  const copiedTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(copiedTimer.current), []); // the sheet can close within 2s
 
   const run = async () => {
     const data = exportSave();
@@ -333,7 +363,8 @@ function ExportButton() {
     haptic.success();
     sfx("confirm");
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    clearTimeout(copiedTimer.current);
+    copiedTimer.current = setTimeout(() => setCopied(false), 2000);
     showToast(ok ? "Backup copied & downloaded" : "Backup downloaded", {
       glyph: <Download size={15} />,
       tone: "positive",
@@ -486,7 +517,7 @@ function ProGroup() {
         sfx("confirm");
         showToast("Purchases restored — Silicon Pro is active", { tone: "positive" });
       } else if (creativeRestored) {
-        showToast("Creative Mode restored", { tone: "positive" });
+        showToast("Creative Mode restored. Silicon Pro is a separate purchase.", { tone: "positive" });
       } else {
         showToast("No previous purchases found for this Apple ID.", { tone: "neutral" });
       }
@@ -571,7 +602,7 @@ function TimeMachineGroup({ onClose }: { onClose: () => void }) {
           <div className="set__row-text">
             <span className="set__row-label">Rewind your company</span>
             <span className="set__row-sub">
-              Pro snapshots your company every quarter and keeps the last {MAX_SNAPSHOTS}. One bad
+              Pro snapshots your company every {SNAPSHOT_EVERY_WEEKS} weeks and keeps the last {MAX_SNAPSHOTS}. One bad
               launch no longer ends the run. Campaign only — scenarios and challenges stay scored on
               their own terms.
             </span>
@@ -600,7 +631,7 @@ function TimeMachineGroup({ onClose }: { onClose: () => void }) {
 
       {snapshots.length === 0 ? (
         <p className="set__group-note">
-          Nothing saved yet — the first snapshot lands at week {SNAPSHOT_EVERY_WEEKS}.
+          Nothing saved yet — the next snapshot lands at week {Math.floor(state.week / SNAPSHOT_EVERY_WEEKS) * SNAPSHOT_EVERY_WEEKS + SNAPSHOT_EVERY_WEEKS}.
         </p>
       ) : confirming ? (
         <div className="set__confirm" role="group" aria-label="Confirm rewind">
@@ -686,7 +717,7 @@ function CreativeModeGroup() {
             <span className="set__row-icon"><Lock size={18} /></span>
             <div className="set__row-text">
               <span className="set__row-label">Creative Mode</span>
-              <span className="set__row-sub">Design freely with no financial limits: an unlimited cash floor so you can never go bankrupt. Included with Silicon Pro.</span>
+              <span className="set__row-sub">Design freely with no limits: unlimited money & research, so you can never go bankrupt. Included with Silicon Pro.</span>
             </div>
           </div>
           <Button block onClick={() => { haptic.light(); openPaywall({ reason: "creativeMode", onUnlocked: () => setSandboxActive(true) }); }}>

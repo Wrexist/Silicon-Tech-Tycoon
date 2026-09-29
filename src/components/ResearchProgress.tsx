@@ -2,7 +2,6 @@
 import type { ActiveResearch } from "../state/gameState.ts";
 import { GameArt, ProgressMeter } from "../design/management.tsx";
 import { Button } from "../design/primitives.tsx";
-import "./researchProgress.css";
 
 /** Only committed simulation weeks are progress, without speculative sub-week smoothing. */
 export function ResearchProgress({ research }: { research: ActiveResearch }) {

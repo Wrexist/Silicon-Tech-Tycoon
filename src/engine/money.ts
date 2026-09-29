@@ -69,15 +69,17 @@ export function format(a: Money, opts: { sign?: boolean } = {}): string {
   return opts.sign ? `+${body}` : body;
 }
 
-/** Compact money for goal cards and tight stats (e.g. "$3.2M", "$45k", "$320"). Input is whole
+/** Compact money for goal cards and tight stats (e.g. "$2.8B", "$3.2M", "$45K", "$320"). Input is whole
  *  DOLLARS, not cents. One shared formatter so the same figure can't render "$3M" on the Research
  *  roadmap and "$3.2M" on the HQ era card — every screen now agrees on rounding. */
 export function formatShortDollars(dollars: number): string {
   if (!Number.isFinite(dollars)) return "$0";
   const abs = Math.abs(dollars);
   const sign = dollars < 0 ? "-" : "";
+  if (abs >= 1_000_000_000_000) return `${sign}$${(abs / 1_000_000_000_000).toFixed(1)}T`;
+  if (abs >= 1_000_000_000) return `${sign}$${(abs / 1_000_000_000).toFixed(1)}B`;
   if (abs >= 1_000_000) return `${sign}$${(abs / 1_000_000).toFixed(1)}M`;
-  if (abs >= 1_000) return `${sign}$${Math.round(abs / 1_000)}k`;
+  if (abs >= 1_000) return `${sign}$${Math.round(abs / 1_000)}K`; // capital K: money agrees with format()
   return `${sign}$${Math.round(abs)}`;
 }
 
@@ -85,8 +87,7 @@ export function formatShortDollars(dollars: number): string {
  * Compact display for a raw COUNT (fans, units): 250 / 12.5k / 2.3M / 1.2B / 3.4T. Below 1,000
  * shows the exact integer with thousands separators. One shared formatter so fans/units agree on
  * every screen and, crucially, ROLL OVER past a million — the hand-rolled `(n/1000).toFixed(1)k`
- * formatters this replaces rendered a 2M fanbase as "2000.0k". Lowercase 'k' matches
- * `formatShortDollars`; ICU-independent (no Intl compact dependency) and boundary-safe (999,950
+ * formatters this replaces rendered a 2M fanbase as "2000.0k". Lowercase 'k' marks a COUNT (money uses capital K); ICU-independent (no Intl compact dependency) and boundary-safe (999,950
  * promotes to "1M", never "1000.0k"). Pure string, no DOM.
  */
 export function formatCount(n: number): string {

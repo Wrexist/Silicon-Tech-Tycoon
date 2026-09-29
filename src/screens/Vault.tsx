@@ -169,7 +169,7 @@ export function VaultSheet({ onClose }: { onClose: () => void }) {
                   onClick={() => investigateSecret(card.id)}
                 >
                   <FileSearch size={13} aria-hidden />
-                  {card.stage === STAGE_SEALED ? "Run down the lead" : "Get the file open"}
+                  {card.stage === STAGE_SEALED ? "Run down the lead" : "Decrypt the file"}
                   <span className="vlt__buy-cost tnum">{format(card.intelCost)}</span>
                 </button>
               )}

@@ -159,6 +159,16 @@ describe("OS licensing (Phase C)", () => {
     expect(off.osLicenseeHealth[rid]).toBeUndefined();
   });
 
+  it("revoking an EXCLUSIVE licensee clears the exclusivity, so a later plain deal isn't billed at the exclusive rate", () => {
+    const base = unlockPlatform(newGame(3), true);
+    const rid = base.competitors[0].id;
+    const g = { ...licenseOsToRival(base, rid), osExclusive: { [rid]: "exclusive" } } as GameState;
+    const off = revokeOsLicense(g, rid);
+    expect(rid in (off.osExclusive ?? {})).toBe(false);
+    // A company with no exclusivity map keeps none.
+    expect("osExclusive" in revokeOsLicense(licenseOsToRival(base, rid), rid)).toBe("osExclusive" in base);
+  });
+
   it("a tick erodes a dominated licensee's satisfaction (live play)", () => {
     let g = unlockPlatform({ ...newGame(3), reputation: 70 } as GameState, true);
     // Weaken the first rival so the player has a commanding reputation lead.

@@ -10,7 +10,7 @@
 // can apply with zero sim changes; deeper sim-level mutators (no-marketing, fixed-price, recession)
 // are a documented future extension that lands with the BALANCE-override plumbing.
 import { makeRng } from "./rng.ts";
-import { dollars, format } from "./money.ts";
+import { dollars, format, formatCount } from "./money.ts";
 import type { ScenarioMetric } from "./scenarios.ts";
 import type { CategoryId } from "./types.ts";
 
@@ -212,9 +212,6 @@ export function challengeTeaser(challenge: Challenge): { title: string; body: st
 export function formatScore(metric: ScenarioMetric, value: number): string {
   const v = Math.round(value);
   if (metric === "netWorth" || metric === "cumulativeRevenue") return format(dollars(v));
-  if (metric === "fans") {
-    if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-    if (v >= 1_000) return `${(v / 1_000).toFixed(v >= 10_000 ? 0 : 1)}k`;
-  }
+  if (metric === "fans") return formatCount(v);
   return String(v);
 }

@@ -1,9 +1,9 @@
 import { continueWithPreservedRecovery } from "./state/persistence.ts";
 import { useSaveHealth } from "./state/saveHealth.ts";
 import { hasFactoryAccess } from "./state/factorySummary.ts";
-import { Suspense, lazy, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, Check, CircuitBoard, CircleX, Compass, Copy, Cpu, Crown, Factory, Flame, FlaskConical, Home, Layers, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
-import { GameProvider, useGame, useGameActions } from "./state/useGame.tsx";
+import { Suspense, lazy, memo, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, Check, CircuitBoard, CircleX, Compass, Copy, Cpu, Crown, Factory, Flame, FlaskConical, Home, Layers, Minus, Plus, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
+import { GameProvider, useGame, useGameActions, useHoldSim } from "./state/useGame.tsx";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
 import { Hud, SpeedDial } from "./components/Hud.tsx";
 import { Bank } from "./components/Bank.tsx";
@@ -31,7 +31,8 @@ import { useIsPro } from "./state/usePro.ts";
 import { Celebration } from "./design/Celebration.tsx";
 import { SoundFX } from "./design/SoundFX.tsx";
 import { Sheet, useDialogFocus } from "./design/primitives.tsx";
-import { appOverlayOpen, registerAppOverlay } from "./design/overlayGuard.ts";
+import { appOverlayOpen, useEscapeLayer } from "./design/overlayGuard.ts";
+import { usePageBack } from "./design/pageBack.ts";
 import { railShown, useLayoutMode } from "./design/layout.ts";
 import { PAGE_TITLES } from "./state/pageStack.ts";
 import { usePageNav } from "./state/usePageNav.ts";
@@ -77,7 +78,9 @@ import { HQ } from "./screens/HQ.tsx";
 // them was landing in the initial bundle. They already render conditionally on `tab`, so splitting
 // them costs nothing but a Suspense boundary — and the chunk only downloads when the tab is opened.
 // HQ itself stays eager: it IS the first paint, so deferring it would just add a round trip.
-const DesignLab = lazy(() => import("./screens/DesignLab.tsx").then((m) => ({ default: m.DesignLab })));
+// memo: the Lab stays mounted (hidden) across tabs; with stable props the shell's own re-render
+// doesn't cascade into it, and its state snapshot is frozen while hidden (useGameWhile).
+const DesignLab = lazy(() => import("./screens/DesignLab.tsx").then((m) => ({ default: memo(m.DesignLab) })));
 const Research = lazy(() => import("./screens/Research.tsx").then((m) => ({ default: m.Research })));
 const Market = lazy(() => import("./screens/Market.tsx").then((m) => ({ default: m.Market })));
 const Company = lazy(() => import("./screens/Company.tsx").then((m) => ({ default: m.Company })));
@@ -113,10 +116,10 @@ function AppShell() {
   const [progressOpen, setProgressOpen] = useState(false);
   // Which view the Progress sheet opens on — "challenges" when HQ's daily-challenge card deep-links.
   const [progressView, setProgressView] = useState<"hub" | "challenges">("hub");
-  const openProgress = (view: "hub" | "challenges" = "hub") => {
+  const openProgress = useCallback((view: "hub" | "challenges" = "hub") => {
     setProgressView(view);
     setProgressOpen(true);
-  };
+  }, []);
   const [bankOpen, setBankOpen] = useState(false);
   // Stable identity: this handler reaches the memoized Garage3D office scene (HQ → OfficeScene →
   // onTapBank). A fresh inline arrow each render defeats its shallow prop compare and re-renders the
@@ -146,6 +149,7 @@ function AppShell() {
   const designVisited = useRef(false);
   if (tab === "design") designVisited.current = true;
   const [successorSeed, setSuccessorSeed] = useState<Product | null>(null);
+  const clearSuccessorSeed = useCallback(() => setSuccessorSeed(null), []);
   const designSuccessor = (p: Product) => {
     setSuccessorSeed(p);
     setTab("design");
@@ -179,6 +183,22 @@ function AppShell() {
   const layoutMode = useLayoutMode();
   const showRail = uiVersion === "next" && railShown(layoutMode);
   const { page, params, push, pop, clear, root: routeRoot } = usePageNav(tab);
+  // A routed page's sub-view (Progress → Vault …) steps back to its hub first (design/pageBack.ts).
+  const pageBack = usePageBack();
+  const pageBackRef = useRef(pageBack);
+  pageBackRef.current = pageBack;
+  // Stable identities for HQ's props: HQ is memoized and stays mounted (hidden) across tabs, so fresh
+  // inline arrows here would re-render the whole Office stream on every shell render.
+  const openChallenges = useCallback(
+    () => (uiVersion === "next" ? push("progress", { section: "challenges" }) : openProgress("challenges")),
+    [uiVersion, push, openProgress],
+  );
+  const viewFactory = useCallback(() => { setHqWorld("factory"); haptic.light(); }, []);
+  // The first-ship unlock card describes the Progress HUB — open the hub, not its Challenges view.
+  const openProgressHub = useCallback(
+    () => (uiVersion === "next" ? push("progress") : openProgress()),
+    [uiVersion, push, openProgress],
+  );
   // A deep link names the tab it was opened from; adopt it on FIRST mount so the nav highlight and
   // the URL agree. Runs once — after that the player's own tab taps own the state.
   const adoptedRoot = useRef(false);
@@ -206,7 +226,7 @@ function AppShell() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
       if (appOverlayOpen()) return; // the modal owns this Escape
-      pop();
+      (pageBackRef.current ?? pop)();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -274,7 +294,7 @@ function AppShell() {
           <PageHeader
             title={page ? PAGE_TITLES[page] : tab === "hq" ? state.companyName || TAB_TITLE.hq : TAB_TITLE[tab]}
             tint={page ? undefined : TAB_TINT[tab]}
-            onBack={page ? pop : undefined}
+            onBack={page ? (pageBack ?? pop) : undefined}
           />
         )}
         {/* HQ stays MOUNTED across tabs (hidden, not unmounted) so its WebGL office keeps its
@@ -287,7 +307,7 @@ function AppShell() {
           <div className="app__titlerow">
             <h1 className="app__title">{state.companyName || TAB_TITLE.hq}</h1>
             {showWorldTabs && (
-              <div className="worldtabs" role="group" aria-label="Headquarters world">
+              <div className="worldtabs" role="group" aria-label="Office view">
                 <button
                   className={`worldtabs__tab${hqWorld === "office" ? " worldtabs__tab--on" : ""}`}
                   aria-pressed={hqWorld === "office"}
@@ -305,15 +325,15 @@ function AppShell() {
               </div>
             )}
           </div>
-          <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
-            <HQ onNavigate={setTab} onOpenBank={openBank} onOpenChallenges={() => (uiVersion === "next" ? push("progress", { section: "challenges" }) : openProgress("challenges"))} onViewFactory={() => { setHqWorld("factory"); haptic.light(); }} active={tab === "hq" && page == null} world={hqWorld} />
+          <ErrorBoundary resetKey={`${tab}:${page ?? ""}`} fallback={(reset) => <ScreenError onHome={() => { reset(); setTab("hq"); }} />}>
+            <HQ onNavigate={setTab} onOpenBank={openBank} onOpenChallenges={openChallenges} onOpenProgress={openProgressHub} onViewFactory={viewFactory} active={tab === "hq" && page == null} world={hqWorld} />
           </ErrorBoundary>
         </div>
         {designVisited.current && <div className="app__screen" hidden={page != null || tab !== "design"}>
           {uiVersion !== "next" && <h1 className="app__title">Design Lab</h1>}
-          <ErrorBoundary fallback={<ScreenError onHome={() => setTab("hq")} />}>
+          <ErrorBoundary resetKey={tab} fallback={(reset) => <ScreenError onHome={() => { reset(); setTab("hq"); }} />}>
             <Suspense fallback={<ScreenLoading />}>
-              <DesignLab key={gameId} active={tab === "design" && page == null} seed={successorSeed} onSeedConsumed={() => setSuccessorSeed(null)} />
+              <DesignLab key={gameId} active={tab === "design" && page == null} seed={successorSeed} onSeedConsumed={clearSuccessorSeed} />
             </Suspense>
           </ErrorBoundary>
         </div>}
@@ -413,7 +433,7 @@ function AppShell() {
       <Paywall />
       {/* Housekeeping strips for people who already pay: trial ending, or a failing card. */}
       <ProNudge />
-      <LaunchReveal onSeeBreakdown={seeBreakdown} />
+      <LaunchReveal onSeeBreakdown={seeBreakdown} onDesignSuccessor={designSuccessor} />
       <SoundFX />
       <Bank open={bankOpen} onClose={() => setBankOpen(false)} />
       <Sheet open={settingsOpen} onClose={() => setSettingsOpen(false)} label="Settings">
@@ -543,20 +563,18 @@ function EraModal({ era, onDismiss }: { era: number; onDismiss: () => void }) {
   const { state, chooseMandate } = useGame();
   const ref = useRef<HTMLDivElement>(null);
   useDialogFocus(ref, true);
-  useEffect(() => registerAppOverlay(), []); // lower layers (Factory mode) defer Escape to this modal
   // A pending mandate draft for THIS era must be resolved before leaving — the player picks or declines.
   const offer = state.pendingMandateOffer && state.pendingMandateOffer.eraTo === era ? state.pendingMandateOffer : null;
   const [picked, setPicked] = useState<string | null>(null);
-  useEffect(() => {
-    // Escape declines the draft (always safe) if one is open, else just dismisses.
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== "Escape") return;
-      if (offer) { chooseMandate(null); }
-      onDismiss();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onDismiss, offer, chooseMandate]);
+  // Time stops while the era card is up: the mandate draft is a decision, and weeks of rent (plus
+  // interrupts stacking over it) shouldn't run behind the player while they read it.
+  useHoldSim(true);
+  // Escape declines the draft (always safe) if one is open, else just dismisses — but only while this
+  // modal is the frontmost layer, so an Escape meant for a card above it can't decline the mandate.
+  useEscapeLayer(true, () => {
+    if (offer) { chooseMandate(null); }
+    onDismiss();
+  });
 
   const adopt = () => { if (picked) { chooseMandate(picked); onDismiss(); } };
   const decline = () => { chooseMandate(null); onDismiss(); };
@@ -718,12 +736,10 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
     }),
   ).title;
   useDialogFocus(ref, true);
-  useEffect(() => registerAppOverlay(), []); // lower layers (Factory mode) defer Escape to this overlay
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onDismiss();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onDismiss]);
+  useHoldSim(true); // the New Game+ decision is read with the clock stopped, like every other card
+  // Frontmost-only Escape: with the Heat paywall or the "forging" celebration open above, one press
+  // must not also dismiss this overlay (that marks the IPO seen and strands New Game+ for the run).
+  useEscapeLayer(true, onDismiss);
   return (
     <div className="ipo">
       <div
@@ -788,7 +804,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
           <div className="ipo__heat-head">
             <span className="ipo__heat-eyebrow"><Flame size={13} aria-hidden /> Ascension</span>
             <div className="ipo__heat-step">
-              <button className="ipo__heat-btn" aria-label="Lower Heat" disabled={ascend <= 0} onClick={() => setAscend((h) => Math.max(0, h - 1))}>−</button>
+              <button className="ipo__heat-btn" aria-label="Lower Heat" disabled={ascend <= 0} onClick={() => setAscend((h) => Math.max(0, h - 1))}><Minus size={18} aria-hidden /></button>
               <span className="ipo__heat-level tnum">{ascensionName(ascend)}</span>
               {/* Heat is a Pro mode — the button stays pressable and explains itself rather than
                   sitting dead behind a padlock. */}
@@ -805,7 +821,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
                   }
                   setAscend((h) => Math.min(maxHeat, h + 1));
                 }}
-              >+</button>
+              ><Plus size={18} aria-hidden /></button>
             </div>
           </div>
           <span className="ipo__heat-sub">
@@ -857,7 +873,7 @@ function IpoOverlay({ onDismiss }: { onDismiss: () => void }) {
             { icon: <BadgeDollarSign size={14} />, value: `+${format(nextBonus.cash)}`, label: "starting cash" },
             { icon: <Sparkles size={14} />, value: `+${nextBonus.reputation}`, label: "reputation" },
             { icon: <Users size={14} />, value: `+${nextBonus.fans.toLocaleString()}`, label: "fans" },
-            { icon: <FlaskConical size={14} />, value: `+${nextBonus.rp}`, label: "research" },
+            { icon: <FlaskConical size={14} />, value: `+${nextBonus.rp}`, label: "RP" },
           ]}
           confirmLabel={ascend > 0 ? `Found at ${ascensionName(ascend)}` : "Found the next empire"}
           onConfirm={() => prestige(ascend)}

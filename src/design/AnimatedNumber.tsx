@@ -85,26 +85,30 @@ export function AnimatedMoney({
 /** Plain integer count-up (no currency). */
 export function AnimatedInt({ value, className = "" }: { value: number; className?: string }) {
   const [display, setDisplay] = useState(value);
-  const fromRef = useRef(value);
+  // Tween from what is ON SCREEN, not from the last settled value: a new value landing mid-tween
+  // (fast mode ticks every second; a spend right after a tick) used to jump back to the stale origin,
+  // and a value returning to that origin froze the display at an intermediate number.
+  const displayRef = useRef(value);
   const rafRef = useRef(0);
   const reduced = useReducedMotion();
   useEffect(() => {
-    const from = fromRef.current;
+    const from = displayRef.current;
     const to = value;
     if (from === to) return;
     // Reduced motion: snap straight to the value, no count-up tween.
     if (reduced) {
       setDisplay(to);
-      fromRef.current = to;
+      displayRef.current = to;
       return;
     }
     const start = performance.now();
     const tick = (now: number) => {
       const t = Math.min(1, (now - start) / 500);
       const eased = 1 - Math.pow(1 - t, 3);
-      setDisplay(Math.round(from + (to - from) * eased));
+      const next = Math.round(from + (to - from) * eased);
+      displayRef.current = next;
+      setDisplay(next);
       if (t < 1) rafRef.current = requestAnimationFrame(tick);
-      else fromRef.current = to;
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);

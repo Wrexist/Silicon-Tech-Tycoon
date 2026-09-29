@@ -14,7 +14,7 @@ new one, or touch an existing one, make it match:
    backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
    -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
    border: 1px solid var(--glass-modal-edge);  /* tint with the popup's accent where it has one */
-   box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px rgba(0,0,0,0.5) /*, + accent glow */;
+   box-shadow: inset 0 1.5px 0 0 var(--glass-modal-rim), 0 24px 70px -24px color-mix(in srgb, var(--shade) 50%, transparent) /*, + accent glow */;
    ```
    Inner tiles/wells use `var(--glass-well)` + `var(--glass-well-edge)`; CTAs use the scoped glass
    button rules in `primitives.css` (translucent accent + specular sheen, soft focus halo, no hard
@@ -33,6 +33,9 @@ new one, or touch an existing one, make it match:
    `.x__card::after` to that selector list (and give the card `position: relative`). Bottom sheets
    (`.ds-sheet`) show only their top edge, so their `inset 0 1.5px 0 0 var(--glass-modal-rim)` top rim
    is their reflection — that's enough.
+   A centred card must not be its own scroll container (the rim would scroll away with the content):
+   add its overlay/card/scrim to the "the OVERLAY scrolls, not the card" rule at the end of
+   `primitives.css` instead of giving the card `max-height` + `overflow-y: auto`.
 
 Popups already on this style: celebration, awards, rival strike, rivalry, eureka, community ask,
 earnings call, ready-to-launch, launch reveal, decorate tutorial, the Silicon Pro paywall,

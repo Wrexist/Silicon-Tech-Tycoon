@@ -8,7 +8,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
+  gap: var(--sp-2);
   pointer-events: none;
 }
 .gainfx__tok {
@@ -16,7 +16,7 @@
   font-weight: 800;
   letter-spacing: -0.01em;
   animation: gainfx-rise 1.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 1px 6px color-mix(in srgb, var(--shade) 25%, transparent);
 }
 .gainfx__tok--cash {
   color: var(--positive);

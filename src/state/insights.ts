@@ -9,7 +9,6 @@
 //
 // It lives in state/ rather than engine/ because the predicates read derived helpers that live on the
 // state layer (runway, desk capacity, upgrade pricing) — engine/ must never import state/ for values.
-import { BALANCE } from "../engine/balance.ts";
 import { CATEGORIES, CATEGORY_LIST, COMPONENT_LINES } from "../engine/catalogs.ts";
 import { runwayWeeks } from "../engine/economy.ts";
 import { STAT_INFO } from "../engine/glossary.ts";
@@ -19,6 +18,7 @@ import { REGIONS } from "../engine/regions.ts";
 import { RESEARCH_PROJECTS, forkLockedBy, type ProjectId } from "../engine/research.ts";
 import { STAT_KEYS, type CategoryId, type ComponentKind } from "../engine/types.ts";
 import { UPGRADE_LINES } from "../engine/upgrades.ts";
+import { productMomentum } from "../engine/liveOps.ts";
 import { deskCapacity, nextWeekRevenue, researchedTier, upgradeCost, weeklyOutflow, type GameState } from "./gameState.ts";
 
 /** A Lucide icon NAME, resolved to a component by the UI (same contract as ObjectiveIconName). */
@@ -303,8 +303,8 @@ export function strategicInsights(state: GameState): Insight[] {
 
   // 9. All launched products are in decline — prompt a new launch
   if (insights.length < INSIGHT_POOL && active.length > 0 && !inPipeline) {
-    const peakWk = BALANCE.sales.peakWeek;
-    const allDecline = active.every((lp) => lp.weeksElapsed > peakWk);
+    // Each product's OWN curve peak (a boost or restock moves it) — the same read as the Live Ops board.
+    const allDecline = active.every((lp) => productMomentum(lp).phase === "declining");
     if (allDecline) {
       insights.push({
         id: "decline",

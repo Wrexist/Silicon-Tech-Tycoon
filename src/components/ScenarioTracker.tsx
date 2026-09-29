@@ -29,7 +29,7 @@ function fmtMetric(metric: ScenarioMetric, value: number): string {
 
 function Stars({ n }: { n: number }) {
   return (
-    <span className="scn__stars" aria-label={`${n} of 3 stars earned`}>
+    <span className="scn__stars" role="img" aria-label={`${n} of 3 stars earned`}>
       {[1, 2, 3].map((i) => (
         <Star key={i} size={14} className={i <= n ? "scn__star scn__star--on" : "scn__star"}
           fill={i <= n ? "currentColor" : "none"} strokeWidth={1.8} />
@@ -73,14 +73,14 @@ export function ScenarioTracker() {
 
       {lost && (
         <div className="scn-track__banner scn-track__banner--fail">
-          Deadline passed (week {scn.deadlineWeek}). The 1★ goal wasn't met, restart from Scenarios to try again.
+          Deadline passed (week {scn.deadlineWeek}). The 1-star goal wasn't met, restart from Scenarios to try again.
         </div>
       )}
 
       {/* Show the live goal whenever the run is ongoing and not mastered. */}
       {!lost && nextTier && (
         <>
-          <span className="scn-track__label">Next: {nextTier.stars}★ goal</span>
+          <span className="scn-track__label">Next: {nextTier.stars}-star goal</span>
           <ul className="scn-track__objs">
             {tierObjectives.map((o, i) => {
               const frac = o.objective.target > 0 ? Math.max(0, Math.min(1, o.current / o.objective.target)) : (o.met ? 1 : 0);

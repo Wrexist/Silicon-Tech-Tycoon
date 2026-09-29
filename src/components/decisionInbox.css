@@ -4,7 +4,7 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(66px + env(safe-area-inset-bottom));
+  bottom: calc(var(--dock-height) + var(--sp-8)); /* the measured dock already includes the safe area */
   z-index: 29; /* under the bottom nav (30), over the screen content */
   padding: 0 var(--sp-12);
   pointer-events: none; /* only the card catches taps, not the full-width strip */
@@ -35,7 +35,7 @@
   -webkit-backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
   backdrop-filter: blur(20px) saturate(190%) brightness(1.04);
   border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--hairline));
-  box-shadow: 0 12px 34px -14px rgba(0, 0, 0, 0.5), inset 0 1px 0 0 var(--glass-modal-rim, transparent);
+  box-shadow: 0 12px 34px -14px color-mix(in srgb, var(--shade) 50%, transparent), inset 0 1px 0 0 var(--glass-modal-rim, transparent);
   text-align: left;
   cursor: pointer;
   transition: transform var(--spring-snappy, 220ms);
@@ -57,7 +57,7 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--sp-2);
 }
 .dinbox__eyebrow {
   font-size: var(--fs-micro);
@@ -78,7 +78,7 @@
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--sp-2);
   font-size: var(--fs-caption);
   font-weight: 700;
   color: var(--accent);

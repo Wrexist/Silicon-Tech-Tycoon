@@ -42,8 +42,11 @@ describe("formatShortDollars (shared compact formatter)", () => {
   it("agrees on rounding across the magnitude bands", () => {
     expect(formatShortDollars(3_200_000)).toBe("$3.2M");
     expect(formatShortDollars(3_000_000)).toBe("$3.0M"); // never "$3M" on one screen, "$3.2M" on another
-    expect(formatShortDollars(45_000)).toBe("$45k");
+    expect(formatShortDollars(45_000)).toBe("$45K");
     expect(formatShortDollars(320)).toBe("$320");
+    // Rolls over past a million — a $2.79B valuation chart read "$2790.0M" before.
+    expect(formatShortDollars(2_790_000_000)).toBe("$2.8B");
+    expect(formatShortDollars(1_500_000_000_000)).toBe("$1.5T");
     expect(formatShortDollars(0)).toBe("$0");
   });
   it("is finite-safe and signed", () => {

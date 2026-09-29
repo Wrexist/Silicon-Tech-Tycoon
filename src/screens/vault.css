@@ -11,7 +11,7 @@
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--sp-4);
   font-size: var(--fs-caption);
   font-weight: 600;
   color: var(--ink-2);
@@ -33,7 +33,7 @@
 .vlt__sub {
   font-size: var(--fs-caption);
   color: var(--ink-2);
-  margin-top: 2px;
+  margin-top: var(--sp-2);
 }
 .vlt__count {
   flex-shrink: 0;

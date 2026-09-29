@@ -65,15 +65,29 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
           const revGoalD = eraDef.revToAdvance === Infinity ? null : toDollars(eraDef.revToAdvance as Money);
           const repGoal = Number.isFinite(eraDef.repToAdvance) ? eraDef.repToAdvance : null;
 
+          // What it takes to REACH this era = the previous era's gate. Era 1→2 is either/or; from era 2
+          // both bars are required (eras.ts canAdvanceEra); the AI Era has no bars at all — the way on
+          // is an IPO, then a Frontier breakthrough.
+          const prevDef = idx > 0 ? eras[idx - 1] : null;
+          const reachReq = !prevDef ? "" : prevDef.era === BALANCE.ipo.minEra
+            ? `IPO + Frontier tier ${BALANCE.autonomyEra.tierToAdvance}`
+            : [
+                Number.isFinite(prevDef.repToAdvance) ? `${prevDef.repToAdvance} rep` : "",
+                Number.isFinite(prevDef.revToAdvance) ? `${formatShortDollars(toDollars(prevDef.revToAdvance as Money))} rev` : "",
+              ].filter(Boolean).join(prevDef.era === 1 ? " or " : " + ");
+
           let progressLabel = "";
-          if (active && eraDef.era < eraMax) {
-            const repPct = repGoal ? Math.min(100, Math.round((reputation / repGoal) * 100)) : 0;
-            const revPct = revGoalD ? Math.min(100, Math.round((cumulativeRevenueDollars / revGoalD) * 100)) : 0;
-            const bestPct = Math.max(repPct, revPct);
-            const label = repPct >= revPct
+          if (active && eraDef.era < eraMax && repGoal && revGoalD) {
+            const repPct = Math.min(100, Math.round((reputation / repGoal) * 100));
+            const revPct = Math.min(100, Math.round((cumulativeRevenueDollars / revGoalD) * 100));
+            // Either/or in era 1 → the better bar is the progress; both-required → the WORSE bar is.
+            const useRep = eraDef.era === 1 ? repPct >= revPct : repPct <= revPct;
+            const label = useRep
               ? `${Math.round(reputation)} / ${repGoal} rep`
-              : `${formatShortDollars(cumulativeRevenueDollars)} / ${formatShortDollars(revGoalD!)} rev`;
-            progressLabel = `${bestPct}%, ${label}`;
+              : `${formatShortDollars(cumulativeRevenueDollars)} / ${formatShortDollars(revGoalD)} rev`;
+            progressLabel = `${useRep ? repPct : revPct}%, ${label}`;
+          } else if (active && eraDef.era === BALANCE.ipo.minEra) {
+            progressLabel = `Next: go public, then a Frontier breakthrough`;
           }
 
           return (
@@ -88,13 +102,7 @@ function EraRoadmap({ currentEra, reputation, cumulativeRevenueDollars }: {
               <div className="rd__roadmap-body">
                 <div className="rd__roadmap-head">
                   <span className="rd__roadmap-name">{eraDef.name}</span>
-                  {future && eraDef.era < eraMax && (
-                    <span className="rd__roadmap-req">
-                      {repGoal ? `${repGoal} rep` : ""}
-                      {repGoal && revGoalD ? " or " : ""}
-                      {revGoalD ? `${formatShortDollars(revGoalD)} rev` : ""}
-                    </span>
-                  )}
+                  {future && reachReq && <span className="rd__roadmap-req">{reachReq}</span>}
                 </div>
                 <p className="rd__roadmap-flavor">{eraContext(eraDef.era).tagline}</p>
                 {active && <p className="rd__roadmap-story">{eraContext(eraDef.era).story}</p>}
@@ -147,7 +155,7 @@ function ResearchAction({ status, cost, affordable, queueFull, weeksAway, onStar
       <Button size="sm" variant={affordable && !queueFull ? "primary" : "tertiary"} disabled={!affordable || queueFull} haptics="none" onClick={onStart}>
         {cost !== null ? `${cost} RP` : "—"}
       </Button>
-      {cost !== null && <span className="rd__weeks-away">{researchWeeksFor(cost)} weeks{queueFull ? " - queue full" : ""}</span>}
+      {cost !== null && <span className="rd__weeks-away">{researchWeeksFor(cost)} {researchWeeksFor(cost) === 1 ? "week" : "weeks"}{queueFull ? " - queue full" : ""}</span>}
       {!queueFull && !affordable && weeksAway != null && <span className="rd__weeks-away">~{weeksAway}wk to save</span>}
     </>
   );
@@ -281,7 +289,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
     <div className="rd">
       {/* Header strip — subtitle + era badge, mirroring the Design Lab's header treatment. */}
       <div className="rd__head">
-        <p className="rd__subtitle">Spend Research Points to unlock new tech and abilities.</p>
+        <p className="rd__subtitle">Spend research points to unlock new tech and abilities.</p>
         <span className="rd__era-badge"><FlaskConical size={13} aria-hidden /> {eraName(state.era)}</span>
       </div>
       <Card className="rd__balance">
@@ -290,7 +298,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         <span className="rd__generation">+{perWeek.toFixed(1)}/wk</span>
       </Card>
       {state.activeResearch ? <Card className="rd__active"><ResearchProgress research={state.activeResearch} /></Card> : <p className="mg-empty-inline">Your lab is ready. Choose a project or component below.</p>}
-      {perWeek === 0 && <div className="mg-advice">Assign staff to R&amp;D to earn Research Points. {onNavigate && <Button size="sm" variant="secondary" onClick={() => onNavigate("company")}>Manage team</Button>}</div>}
+      {perWeek === 0 && <div className="mg-advice">Assign staff to R&amp;D to earn research points. {onNavigate && <Button size="sm" variant="secondary" onClick={() => onNavigate("company")}>Manage team</Button>}</div>}
       <details className="mg-disclosure"><summary>{availableProjects.length} projects available{queueFull ? " - queue full" : ""}</summary>
         <p>{availableProjects.length ? "Choose an available project below, or explore component technology." : state.activeResearch ? "Research is in progress. Explore component technology or future era unlocks below." : "No new projects are available in this era. Check prerequisites and component technology below."}</p>
         {nextGoal && <p>Saving for {nextGoal.name}: {rp} / {nextGoal.rpCost} RP.</p>}
@@ -321,7 +329,7 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
       {/* Research projects — grouped by era. Progressive disclosure: only the eras you've reached
           render (the EraRoadmap above already previews what's ahead), so a first-time researcher
           isn't staring at a wall of locked future-era project cards. */}
-      <SectionHeader title="Available & locked projects" accessory="evolve the company" />
+      <SectionHeader title="Projects by era" accessory="evolve the company" />
       {Array.from({ length: maxEra() }, (_, i) => i + 1).filter((era) => era <= state.era).map((era) => {
         const eraView = researchEraView(era, state.completedProjects, pendingRefs);
         const eraProjects = eraView.visible;
