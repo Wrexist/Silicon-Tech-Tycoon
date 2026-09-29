@@ -41,7 +41,7 @@ const read=()=>p.evaluate(()=>JSON.parse(localStorage.getItem('silicon.save.v1')
 await p.goto(URL);await p.waitForTimeout(2000);
 for(let i=0;i<8;i++){const b=p.locator('.coach__skip');if(!await b.count())break;await b.click();}
 for(let i=0;i<6;i++){if(!await p.locator('[role=dialog]').count())break;await p.keyboard.press('Escape');await p.waitForTimeout(100);}
-const control=p.locator('.speeddial__btn--primary');if(await control.getAttribute('aria-label')==='Pause'){await control.click();await control.click();}
+const control=p.locator('.time-controls__play');if(await control.getAttribute('aria-label')==='Pause'){await control.click();}
 await p.getByRole('button',{name:'Factory',exact:true}).click();await p.getByRole('button',{name:'Open factory mode',exact:true}).click();await p.waitForTimeout(1000);
 const before=await read();
 await p.getByRole('button',{name:'Build',exact:true}).click();
@@ -56,6 +56,8 @@ await p.waitForFunction(n=>JSON.parse(localStorage.getItem('silicon.save.v1')).f
 await p.getByRole('button',{name:'Cancel placement',exact:true}).click();
 await p.getByRole('button',{name:'Style',exact:true}).click();
 await p.locator('.fmode__buy').filter({hasText:'$50K'}).click();
+// Expansion is an irreversible \$50K+ purchase: the first tap arms "Confirm", the second buys.
+await p.locator('.fmode__buy').filter({hasText:'Confirm'}).click();
 await p.keyboard.press('Escape');
 await p.getByRole('button',{name:'Build',exact:true}).click();
 await p.getByRole('button',{name:'Undo the last build action',exact:true}).click();

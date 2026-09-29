@@ -378,17 +378,19 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   }, [buildTool]);
   const pendingValid = pendingKind != null && pendingCell != null && placeableAt(pendingKind, pendingCell.c, pendingCell.r);
 
-  const onTapCell = (c: number, r: number) => {
+  // `centered`: a finger tap in the 3D scene centres the machine ghost on the touch point. The 2D grid
+  // (keyboard / no-WebGL) names an exact cell ("Column 15, row 9"), so there the cell IS the anchor.
+  const onTapCell = (c: number, r: number, centered = false) => {
     if (!buildTool) return;
     if (pendingKind) {
-      // Centre the footprint on the finger (as hold-to-move does), clamped to the floor: anchoring the
-      // top-left corner on the tap made edge taps read red "doesn't fit".
+      // 3D: centre the footprint on the finger (as hold-to-move does), clamped to the floor — anchoring
+      // the top-left corner on the tap made edge taps read red "doesn't fit".
       const def = MACHINE_DEFS[pendingKind];
       const w = floorWidth(state.factoryExpansion);
-      setPendingCell({
+      setPendingCell(centered ? {
         c: Math.max(0, Math.min(w - def.w, c - Math.floor((def.w - 1) / 2))),
         r: Math.max(0, Math.min(FLOOR.h - def.d, r - Math.floor((def.d - 1) / 2))),
-      });
+      } : { c, r });
       haptic.light();
       return;
     } // machine: tap moves the ghost, Place commits
@@ -520,7 +522,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                 return { cols: EXPAND_STEP, label: `Expand · ${format(cost)}` };
               })()}
               onTapLockedBay={() => { haptic.light(); setSheet("decor"); }}
-              onTapCell={onTapCell}
+              onTapCell={(c, r) => onTapCell(c, r, true)}
               paintBelts={buildTool === "belt"}
               tapPieces={buildTool === "erase" || buildTool === "upgrade"}
               onPaintBelts={(cells) => {

@@ -1813,9 +1813,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   // Long-press detection: begins on a piece's pointer-down WITHOUT stopping propagation (quick taps
   // must still reach the pad for the upgrade/erase tools). Movement or an early release cancels it.
   const beginHold = (e: { nativeEvent: PointerEvent }, piece: { type: "machine" | "prop"; id: string }) => {
-    // Build mode only: in plain view a slightly-long press before an orbit drag picked a machine up and
-    // relocated it (breaking the line), and the Undo for it lives in the build strip, out of sight.
-    if (!p.buildMode || p.preview || p.paintBelts || gesture.current.blocked || e.nativeEvent.button !== 0) return; // painting must never pick up a machine
+    if (p.preview || p.paintBelts || gesture.current.blocked || e.nativeEvent.button !== 0) return; // painting must never pick up a machine
     holdCancel.current?.();
     const x = e.nativeEvent.clientX, y = e.nativeEvent.clientY;
     const timer = window.setTimeout(() => { cleanup(); beginCarry(piece); }, 420);

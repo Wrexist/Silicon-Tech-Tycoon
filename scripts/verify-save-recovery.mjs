@@ -50,11 +50,11 @@ await p.evaluate(() => {
 await p.getByRole('button',{name:'Save recovery',exact:true}).waitFor({timeout:15000});
 // Freeze simulation through the real control while writes are failing.
 for(let i=0;i<3;i++){
- const dial=p.locator('.speeddial__btn--primary');
+ const dial=p.locator('.time-controls__play');
  if(await dial.getAttribute('aria-label')==='Resume')break;
  await dial.click();
 }
-if(await p.locator('.speeddial__btn--primary').getAttribute('aria-label')!=='Resume')throw Error('Could not pause simulation');
+if(await p.locator('.time-controls__play').getAttribute('aria-label')!=='Resume')throw Error('Could not pause simulation');
 await p.getByRole('button',{name:'Save recovery',exact:true}).click();
 await p.getByRole('button',{name:'Export recovery copy',exact:true}).waitFor();
 const downloadPromise=p.waitForEvent('download');

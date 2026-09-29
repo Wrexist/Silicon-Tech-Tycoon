@@ -103,7 +103,7 @@ light-theme, 130% text and iPad screenshot passes. ~75 verified findings.
 |---|---|
 | **Large text** | Section tab strips keep whole words and scroll sideways at XL (the earlier fix broke "Component/s"). |
 | **Factory perf** | No light-count shader recompiles (hot-machine lights stay mounted; work lights paint a pool instead of adding real lights); `useMotionFrame` reuses one object per subscriber instead of allocating per frame; floor revision / shadow key memoised; camera reset string built per render, not per frame; Boost reuses the parent's data. |
-| **Factory bugs & UX** | Tap flash no longer freezes under the on-demand frameloop; hold-to-move only in Build mode; belt paint truncates when a drag doubles back (no looping tail); Erase/Upgrade taps hit the piece, not the floor behind it; ghost centred on the finger; full floor explains itself; Upgrade shows its price; partial belt runs say "out of cash"; floor expansion needs a Confirm tap; per-tool rule text; `aria-pressed` on the palette; "an Assembly Arm". |
+| **Factory bugs & UX** | Tap flash no longer freezes under the on-demand frameloop; belt paint truncates when a drag doubles back (no looping tail); Erase/Upgrade taps hit the piece, not the floor behind it; ghost centred on the finger for 3D taps (the 2D grid keeps exact cells); full floor explains itself; Upgrade shows its price; partial belt runs say "out of cash"; floor expansion needs a Confirm tap; per-tool rule text; `aria-pressed` on the palette; "an Assembly Arm". |
 | **Decorate** | Escape exits; no "Furniture moved" echo toast. |
 | **First run** | "New company" mid-scenario names the parked company it deletes and offers "Return to X"; the founding-screen scenario confirm no longer promises to keep a company that doesn't exist; Help & Guide reachable from Settings at week 0; the post-launch Coach card retires itself after 4 weeks (the next-move card and contracts were hidden behind "Got it"); "Replay coach" only offered when it can teach; Coach points at the real controls; the unlock card opens the Progress hub. |
 | **Secondary screens** | Played challenges say "Played · new one tomorrow" (the game refuses replays); Roadmap separates "List on the exchange" from "Reach the pinnacle"; Platform revoke needs a confirm, licensee rows include the exclusive multiplier, revoke clears the exclusivity flag; Progress sub-views step back to the hub (back arrow and Escape); Time Machine copy says "every 4 weeks" and shows the real next snapshot; Retry saving only when there's a problem; Vault "Decrypt"; rival-strike first-time explainer. |
@@ -122,3 +122,13 @@ path; first-time scenario players still skip the Coach (`newScenarioGame` sets `
   `design/launchReveal.test.ts` (history comparison), draft-storage eviction, forecast-aware design advice,
   and a rewritten `bottomChrome.test.ts` that pins the real dock relationships.
 - Before/after screenshots of every primary screen via `npm run shots:diff` (`.shots/compare.html`).
+
+### CI follow-up (PR #86)
+
+- The release audit deliberately tests **hold-to-move outside Build mode**; restricting it to Build mode
+  (round 3) broke that gate, so it's reverted — pressing and holding a machine moves it in plain view again.
+- `verify-save-recovery`, `verify-factory-integrity` and `verify-office-integrity` looked for the retired
+  SpeedDial (`.speeddial__btn--primary`) and have been failing on `main` too — silently, because their
+  steps pipe into `tee` without `pipefail`. They now drive `.time-controls__play` and pass; the factory
+  integrity script taps the new expansion Confirm.
+
