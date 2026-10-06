@@ -1,0 +1,123 @@
+<!doctype html>
+<!--
+  App Store creative assets (iOS 27 "Header and Search Results") for Silicon: Tech Tycoon.
+  Rendered by render.mjs at Apple's exact canvases:
+    ?asset=header  -> 3840 x 1646 (21:9 product page header)
+    ?asset=search  -> 3840 x 2560 (3:2 search results asset)
+  Artwork is the real game UI (appstore/screenshots/raw). Focal content sits in the centre so
+  Apple's device/orientation crops only trim the outer phones. Brand: dark #0f1115 -> #161a22,
+  accent #3b82f6, positive #10b981. No prices, URLs, awards, platform logos or real brands.
+-->
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800;900&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#0f1115; --bg2:#161a22; --accent:#3b82f6; --pos:#10b981; --ink:#f5f7fa; --muted:#9aa3b2; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { background:var(--bg); }
+  .canvas { position:relative; overflow:hidden; font-family:Inter, system-ui, sans-serif;
+    background:
+      radial-gradient(ellipse 34% 52% at 50% 46%, color-mix(in srgb, var(--accent) 38%, transparent), transparent 70%),
+      radial-gradient(ellipse 30% 40% at 18% 70%, color-mix(in srgb, var(--pos) 14%, transparent), transparent 70%),
+      radial-gradient(ellipse 30% 40% at 82% 70%, color-mix(in srgb, #8b5cf6 16%, transparent), transparent 70%),
+      linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%); }
+  /* faint circuit grid, fading out toward the edges */
+  .grid { position:absolute; inset:0;
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--ink) 5%, transparent) 2px, transparent 2px),
+      linear-gradient(90deg, color-mix(in srgb, var(--ink) 5%, transparent) 2px, transparent 2px);
+    background-size:120px 120px; background-position:center;
+    -webkit-mask-image: radial-gradient(ellipse 55% 60% at 50% 50%, #000 20%, transparent 75%); }
+  .traces { position:absolute; inset:0; }
+  .floor { position:absolute; left:0; right:0; bottom:0; height:30%;
+    background:linear-gradient(180deg, transparent, color-mix(in srgb, var(--bg) 85%, transparent)); }
+
+  .phone { position:absolute; left:50%; transform-origin:50% 100%;
+    border-radius:calc(var(--h) * .072); padding:calc(var(--h) * .0105);
+    width:calc(var(--h) * .4614 + var(--h) * .021); height:calc(var(--h) + var(--h) * .021);
+    background:linear-gradient(145deg, #3a404c 0%, #11141a 30%, #0a0c10 70%, #2c313b 100%);
+    box-shadow:
+      inset 0 0 0 3px color-mix(in srgb, var(--ink) 14%, transparent),
+      0 0 0 2px #050608,
+      0 60px 120px -30px rgba(0,0,0,.75),
+      0 0 160px -40px color-mix(in srgb, var(--accent) 45%, transparent); }
+  /* screen = a status-bar strip (game header colour) above the capture, so the island never covers UI */
+  .screen { width:100%; height:100%; overflow:hidden; border-radius:calc(var(--h) * .062);
+    background:#191c23; padding-top:calc(var(--h) * .058); }
+  .phone img { display:block; width:100%; height:100%; object-fit:cover; object-position:top; }
+  .phone::before { content:""; position:absolute; top:calc(var(--h) * .024); left:50%; transform:translateX(-50%);
+    width:calc(var(--h) * .118); height:calc(var(--h) * .034); border-radius:999px; background:#000; z-index:2; }
+  .phone::after { content:""; position:absolute; inset:calc(var(--h) * .0105); border-radius:calc(var(--h) * .062);
+    background:linear-gradient(115deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 32%); pointer-events:none; }
+  .dim .screen { filter:brightness(.72) saturate(.9); }
+
+  .headline { position:absolute; left:0; right:0; text-align:center; color:var(--ink);
+    font-weight:900; letter-spacing:-.035em; line-height:1; }
+  .headline em { font-style:normal;
+    background:linear-gradient(90deg, #60a5fa, var(--accent) 55%, #22d3ee); -webkit-background-clip:text; color:transparent; }
+  .sub { position:absolute; left:0; right:0; text-align:center; color:var(--muted); font-weight:600; letter-spacing:-.01em; }
+  .sub b { color:var(--ink); font-weight:700; }
+  .dot { display:inline-block; width:.32em; height:.32em; border-radius:50%; background:var(--accent);
+    margin:0 .6em; vertical-align:middle; opacity:.8; }
+</style></head>
+<body>
+<div class="canvas" id="c">
+  <div class="grid"></div>
+  <svg class="traces" id="traces" xmlns="http://www.w3.org/2000/svg"></svg>
+</div>
+<script>
+const asset = new URLSearchParams(location.search).get('asset') || 'header';
+const SIZES = { header:[3840,1646], search:[3840,2560] };
+const [W,H] = SIZES[asset];
+const c = document.getElementById('c');
+c.style.width = W+'px'; c.style.height = H+'px';
+const RAW = '../screenshots/raw/';
+
+// Decorative circuit traces radiating from the centre glow (deterministic, no RNG).
+const svg = document.getElementById('traces');
+svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
+const cy = asset === 'header' ? H*0.5 : H*0.62;
+let paths = '';
+for (let i = 0; i < 8; i++) {
+  const side = i % 2 ? 1 : -1, row = Math.floor(i/2);
+  const y0 = cy - H*0.27 + row * H*0.18, x0 = W/2 + side*W*0.17, x1 = W/2 + side*W*0.29, y1 = y0 + (row%2? 1:-1)*90, x2 = W/2 + side*W*0.47;
+  paths += `<path d="M${x0} ${y0} H${x1 - side*60} L${x1} ${y1} H${x2}" fill="none" stroke="#3b82f6" stroke-opacity=".22" stroke-width="4"/>`;
+  paths += `<circle cx="${x2}" cy="${y1}" r="11" fill="#3b82f6" fill-opacity=".45"/>`;
+  paths += `<circle cx="${x0}" cy="${y0}" r="7" fill="#60a5fa" fill-opacity=".5"/>`;
+}
+svg.innerHTML = paths;
+
+function phone(img, h, dx, top, rot, extra='') {
+  const p = document.createElement('div');
+  p.className = 'phone ' + extra;
+  p.style.setProperty('--h', h+'px');
+  const w = h*.4614 + h*.021;
+  p.style.top = top+'px';
+  p.style.marginLeft = (dx - w/2)+'px';
+  p.style.transform = `rotate(${rot}deg)`;
+  p.innerHTML = `<div class="screen"><img src="${RAW+img}"></div>`;
+  c.appendChild(p);
+}
+function text(cls, html, top, size) {
+  const t = document.createElement('div'); t.className = cls; t.innerHTML = html;
+  t.style.top = top+'px'; t.style.fontSize = size+'px'; c.appendChild(t);
+}
+
+if (asset === 'header') {
+  // One idea: the whole company in your hand. HQ hero centre, the pillars fanned out.
+  phone('04-research.png', 1080, -1500, 330, -14, 'dim');
+  phone('05-company.png',  1080,  1500, 330,  14, 'dim');
+  phone('02-design.png',   1260,  -800, 210,  -7);
+  phone('03-market.png',   1260,   800, 210,   7);
+  phone('01-hq.png',       1420,     0, 100,   0);
+} else {
+  text('headline', 'Build a <em>tech empire</em>', 190, 240);
+  text('sub', '<b>Design</b> devices<span class="dot"></span><b>Build</b> the factory<span class="dot"></span><b>Beat</b> every rival', 500, 92);
+  phone('04-research.png', 1500, -1480, 1040, -12, 'dim');
+  phone('05-company.png',  1500,  1480, 1040,  12, 'dim');
+  phone('02-design.png',   1680,  -780,  880,  -6);
+  phone('03-market.png',   1680,   780,  880,   6);
+  phone('01-hq.png',       1860,     0,  760,   0);
+}
+const f = document.createElement('div'); f.className = 'floor'; c.appendChild(f);
+</script>
+</body></html>
