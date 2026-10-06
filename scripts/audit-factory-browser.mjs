@@ -53,7 +53,10 @@ async function open() {
   await p.getByRole('button', { name: 'Open factory mode', exact: true }).click();
   await p.locator('.fmode canvas').waitFor();
   await p.waitForTimeout(900);
-  await p.evaluate(async () => { const { _roots } = await import('/node_modules/.vite/deps/@react-three_fiber.js'); window.__auditStore = _roots.get(document.querySelector('.fmode canvas')).store; });
+  // <Canvas> mounts its <canvas> before it registers the r3f root (it waits for a measured
+  // container), so on a slow runner the root can lag the element — wait for it, don't assume it.
+  await p.evaluate(async () => { window.__auditRoots = (await import('/node_modules/.vite/deps/@react-three_fiber.js'))._roots; });
+  await p.waitForFunction(() => { const root = window.__auditRoots.get(document.querySelector('.fmode canvas')); if (root) window.__auditStore = root.store; return !!root; }, null, { polling: 100 });
 }
 async function project(c, r, height = .12) {
   return p.evaluate(async ({ c, r, height }) => {
