@@ -1,0 +1,2206 @@
+{
+  "_doc": "Spec for every 3D model in the office and factory (docs/WORLDS_3D_MODEL_LIST.md). glTF axes: +Y up, metres; `facing` is the axis the front points along. Furniture is fitted by the app (height_m, then footprint), so sizes are checked loosely; materials and orientation are checked strictly. `palette` is only used to sort a generated model's faces into material slots. `materials` = names the app accepts; `classify` = the slots clean_model.py sorts faces into. Files whose sha256 is in `legacy_sha256` are the shipped Kenney kit (runtime-fitted, 28-200 triangles): reported, not failed.",
+  "tolerance": 0.2,
+  "palette": {
+    "wood": "#cbb38e",
+    "woodDark": "#9b8568",
+    "metal": "#c0c5cc",
+    "metalMedium": "#3a3f47",
+    "carpet": "#617c98",
+    "carpetBlue": "#7189a1",
+    "carpetDarker": "#22262c",
+    "plant": "#41674e",
+    "lamp": "#fff2cc",
+    "_defaultMat": "#e8e2d6",
+    "Main": "#4a9af5",
+    "visor": "#15181d",
+    "eyes": "#f5f7fa",
+    "joints": "#d9dde4",
+    "body": "#3f4754",
+    "bodyHi": "#4a5362",
+    "dark": "#23272e",
+    "rubber": "#20242b",
+    "accent": "#3b82f6",
+    "hazard": "#e0a83c",
+    "glass": "#7fb2ff",
+    "screen": "#66a9ff",
+    "crate": "#b98a3a",
+    "white": "#d7dade",
+    "led": "#34c759"
+  },
+  "models": {
+    "furniture_desk": {
+      "file": "public/furniture/desk.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        1.58,
+        0.79
+      ],
+      "height_m": 0.74,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "wood"
+      ],
+      "facing": "+Z",
+      "priority": 2,
+      "notes": "Work surface 0.74 m; user side +Z, the monitor rests on the back edge (\u2212Z). Must leave the top clear: the app adds monitor/keyboard/mug.",
+      "classify": [
+        "wood",
+        "metal",
+        "_defaultMat"
+      ]
+    },
+    "furniture_deskL": {
+      "file": "public/furniture/deskL.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        1.58,
+        1.58
+      ],
+      "height_m": 0.74,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "wood"
+      ],
+      "facing": "+Z",
+      "priority": 4,
+      "notes": "Corner desk, user side +Z.",
+      "classify": [
+        "wood",
+        "metal",
+        "_defaultMat"
+      ]
+    },
+    "furniture_chair": {
+      "file": "public/furniture/chair.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        0.79,
+        0.79
+      ],
+      "height_m": 0.95,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "metalMedium"
+      ],
+      "facing": "+Z",
+      "priority": 2,
+      "notes": "Office chair, seat top 0.58 m (robots sit on it), faces +Z.",
+      "classify": [
+        "metalMedium",
+        "carpetDarker",
+        "metal"
+      ]
+    },
+    "furniture_armchair": {
+      "file": "public/furniture/armchair.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        0.79,
+        0.79
+      ],
+      "height_m": 0.78,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "carpet"
+      ],
+      "facing": "+Z",
+      "priority": 4,
+      "notes": "Faces +Z.",
+      "classify": [
+        "carpet",
+        "wood",
+        "metal"
+      ]
+    },
+    "furniture_loungeChair": {
+      "file": "public/furniture/loungeChair.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        0.79,
+        0.79
+      ],
+      "height_m": 0.8,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "carpet"
+      ],
+      "facing": "+Z",
+      "priority": 4,
+      "notes": "Faces +Z.",
+      "classify": [
+        "carpet",
+        "wood",
+        "metal"
+      ]
+    },
+    "furniture_sofa": {
+      "file": "public/furniture/sofa.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        1.58,
+        0.79
+      ],
+      "height_m": 0.82,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "carpet"
+      ],
+      "facing": "+Z",
+      "priority": 2,
+      "notes": "Two-seat sofa facing +Z; cushion top = 0.5 of height (seatSurfaceFraction).",
+      "classify": [
+        "carpet",
+        "carpetBlue",
+        "wood",
+        "metal"
+      ]
+    },
+    "furniture_sofaL": {
+      "file": "public/furniture/sofaL.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        1.58,
+        1.58
+      ],
+      "height_m": 0.82,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "carpet"
+      ],
+      "facing": "+Z",
+      "priority": 4,
+      "notes": "Sectional, faces +Z.",
+      "classify": [
+        "carpet",
+        "carpetBlue",
+        "wood",
+        "metal"
+      ]
+    },
+    "furniture_stool": {
+      "file": "public/furniture/stool.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        0.79,
+        0.79
+      ],
+      "height_m": 0.55,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "wood"
+      ],
+      "facing": "+Z",
+      "priority": 4,
+      "classify": [
+        "wood",
+        "metal"
+      ]
+    },
+    "furniture_coffeeTable": {
+      "file": "public/furniture/coffeeTable.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        1.58,
+        0.79
+      ],
+      "height_m": 0.42,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "wood"
+      ],
+      "facing": "+Z",
+      "priority": 4,
+      "classify": [
+        "wood",
+        "metal"
+      ]
+    },
+    "furniture_meetingTable": {
+      "file": "public/furniture/meetingTable.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        2.37,
+        1.58
+      ],
+      "height_m": 0.74,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "wood"
+      ],
+      "facing": "+Z",
+      "priority": 2,
+      "classify": [
+        "wood",
+        "metal"
+      ]
+    },
+    "furniture_sideTable": {
+      "file": "public/furniture/sideTable.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        0.79,
+        0.79
+      ],
+      "height_m": 0.55,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "wood"
+      ],
+      "facing": "+Z",
+      "priority": 4,
+      "classify": [
+        "wood",
+        "metal"
+      ]
+    },
+    "furniture_bookshelf": {
+      "file": "public/furniture/bookshelf.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        0.79,
+        0.79
+      ],
+      "height_m": 1.8,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "wood"
+      ],
+      "facing": "+Z",
+      "priority": 2,
+      "notes": "Open shelf; shelf tops at 0.15/0.425/0.7 of height (app stocks them with books). Back against \u2212Z.",
+      "classify": [
+        "wood",
+        "woodDark"
+      ]
+    },
+    "furniture_cabinet": {
+      "file": "public/furniture/cabinet.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        1.58,
+        0.79
+      ],
+      "height_m": 0.9,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "wood"
+      ],
+      "facing": "+Z",
+      "priority": 4,
+      "notes": "Closed storage, doors face +Z.",
+      "classify": [
+        "wood",
+        "woodDark",
+        "metal"
+      ]
+    },
+    "furniture_shelfUnit": {
+      "file": "public/furniture/shelfUnit.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        0.79,
+        0.79
+      ],
+      "height_m": 1.8,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "wood"
+      ],
+      "facing": "+Z",
+      "priority": 4,
+      "notes": "Open shelf; one shelf top at 0.325 of height.",
+      "classify": [
+        "wood",
+        "woodDark"
+      ]
+    },
+    "furniture_crates": {
+      "file": "public/furniture/crates.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        0.79,
+        0.79
+      ],
+      "height_m": 0.6,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "woodDark"
+      ],
+      "facing": "+Z",
+      "priority": 4,
+      "classify": [
+        "woodDark",
+        "_defaultMat"
+      ]
+    },
+    "furniture_plantTall": {
+      "file": "public/furniture/plantTall.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        0.79,
+        0.79
+      ],
+      "height_m": 1.45,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "plant"
+      ],
+      "facing": "+Z",
+      "priority": 2,
+      "notes": "Pot in a warm grey (wood on plant pots is re-finished warmGrey).",
+      "classify": [
+        "plant",
+        "woodDark",
+        "_defaultMat"
+      ]
+    },
+    "furniture_plantPot": {
+      "file": "public/furniture/plantPot.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        0.79,
+        0.79
+      ],
+      "height_m": 0.5,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "plant"
+      ],
+      "facing": "+Z",
+      "priority": 4,
+      "classify": [
+        "plant",
+        "woodDark",
+        "_defaultMat"
+      ]
+    },
+    "furniture_rug": {
+      "file": "public/furniture/rug.glb",
+      "class": "furniture",
+      "triangles": [
+        24,
+        800
+      ],
+      "footprint_m": [
+        2.37,
+        1.58
+      ],
+      "height_m": null,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "carpet"
+      ],
+      "facing": "+Z",
+      "priority": 4,
+      "notes": "Flat, \u2264 2 cm tall.",
+      "classify": [
+        "carpet",
+        "carpetBlue"
+      ]
+    },
+    "furniture_rugRound": {
+      "file": "public/furniture/rugRound.glb",
+      "class": "furniture",
+      "triangles": [
+        24,
+        800
+      ],
+      "footprint_m": [
+        1.58,
+        1.58
+      ],
+      "height_m": null,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "carpet"
+      ],
+      "facing": "+Z",
+      "priority": 4,
+      "notes": "Flat, \u2264 2 cm tall.",
+      "classify": [
+        "carpet",
+        "carpetBlue"
+      ]
+    },
+    "furniture_tvStand": {
+      "file": "public/furniture/tvStand.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        1.58,
+        0.79
+      ],
+      "height_m": 0.5,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "wood"
+      ],
+      "facing": "+Z",
+      "priority": 4,
+      "notes": "Low stand; screen faces +Z.",
+      "classify": [
+        "wood",
+        "metalMedium",
+        "lamp"
+      ]
+    },
+    "furniture_floorLamp": {
+      "file": "public/furniture/floorLamp.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        0.79,
+        0.79
+      ],
+      "height_m": 1.6,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "metal"
+      ],
+      "facing": "+Z",
+      "priority": 4,
+      "notes": "Shade material `lamp` glows.",
+      "classify": [
+        "metal",
+        "metalMedium",
+        "lamp"
+      ]
+    },
+    "furniture_arcLamp": {
+      "file": "public/furniture/arcLamp.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        0.79,
+        0.79
+      ],
+      "height_m": 1.9,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "metal"
+      ],
+      "facing": "+Z",
+      "priority": 4,
+      "classify": [
+        "metal",
+        "metalMedium",
+        "lamp"
+      ]
+    },
+    "furniture_lantern": {
+      "file": "public/furniture/lantern.glb",
+      "class": "furniture",
+      "triangles": [
+        300,
+        2500
+      ],
+      "footprint_m": [
+        0.79,
+        0.79
+      ],
+      "height_m": 0.4,
+      "materials": [
+        "wood",
+        "woodDark",
+        "metal",
+        "metalMedium",
+        "carpet",
+        "carpetBlue",
+        "carpetDarker",
+        "plant",
+        "lamp",
+        "_defaultMat"
+      ],
+      "required_materials": [
+        "metal"
+      ],
+      "facing": "+Z",
+      "priority": 4,
+      "classify": [
+        "metal",
+        "lamp"
+      ]
+    },
+    "robot_shared": {
+      "file": "src/garage3d/models/robot_shared.glb",
+      "class": "robot",
+      "triangles": [
+        3000,
+        8000
+      ],
+      "footprint_m": null,
+      "height_m": 1.7,
+      "materials": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ],
+      "required_materials": [
+        "Main",
+        "visor",
+        "eyes"
+      ],
+      "facing": "+Z",
+      "priority": 1,
+      "animations": [
+        "Idle",
+        "Sitting",
+        "Walking"
+      ],
+      "notes": "THE hero model: the robot in public/art/redesign/robot-*.webp. Material `Main` is the shell and is tinted per employee; everything else keeps its authored colour. Rig + clips Idle/Sitting/Walking (Mixamo-style). Sits on a 0.58 m seat.",
+      "classify": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ]
+    },
+    "robot_blue": {
+      "file": "src/garage3d/models/robot_blue.glb",
+      "class": "robot",
+      "triangles": [
+        3000,
+        8000
+      ],
+      "footprint_m": null,
+      "height_m": 1.7,
+      "materials": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ],
+      "required_materials": [
+        "Main",
+        "visor",
+        "eyes"
+      ],
+      "facing": "+Z",
+      "priority": 6,
+      "animations": [
+        "Idle",
+        "Sitting",
+        "Walking"
+      ],
+      "notes": "Optional per-colour variant (keeps its own colours, no tint); overrides robot_shared for colour slot blue. Only if one shared model cannot carry the look.",
+      "classify": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ]
+    },
+    "robot_orange": {
+      "file": "src/garage3d/models/robot_orange.glb",
+      "class": "robot",
+      "triangles": [
+        3000,
+        8000
+      ],
+      "footprint_m": null,
+      "height_m": 1.7,
+      "materials": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ],
+      "required_materials": [
+        "Main",
+        "visor",
+        "eyes"
+      ],
+      "facing": "+Z",
+      "priority": 6,
+      "animations": [
+        "Idle",
+        "Sitting",
+        "Walking"
+      ],
+      "notes": "Optional per-colour variant (keeps its own colours, no tint); overrides robot_shared for colour slot orange. Only if one shared model cannot carry the look.",
+      "classify": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ]
+    },
+    "robot_green": {
+      "file": "src/garage3d/models/robot_green.glb",
+      "class": "robot",
+      "triangles": [
+        3000,
+        8000
+      ],
+      "footprint_m": null,
+      "height_m": 1.7,
+      "materials": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ],
+      "required_materials": [
+        "Main",
+        "visor",
+        "eyes"
+      ],
+      "facing": "+Z",
+      "priority": 6,
+      "animations": [
+        "Idle",
+        "Sitting",
+        "Walking"
+      ],
+      "notes": "Optional per-colour variant (keeps its own colours, no tint); overrides robot_shared for colour slot green. Only if one shared model cannot carry the look.",
+      "classify": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ]
+    },
+    "robot_purple": {
+      "file": "src/garage3d/models/robot_purple.glb",
+      "class": "robot",
+      "triangles": [
+        3000,
+        8000
+      ],
+      "footprint_m": null,
+      "height_m": 1.7,
+      "materials": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ],
+      "required_materials": [
+        "Main",
+        "visor",
+        "eyes"
+      ],
+      "facing": "+Z",
+      "priority": 6,
+      "animations": [
+        "Idle",
+        "Sitting",
+        "Walking"
+      ],
+      "notes": "Optional per-colour variant (keeps its own colours, no tint); overrides robot_shared for colour slot purple. Only if one shared model cannot carry the look.",
+      "classify": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ]
+    },
+    "robot_yellow": {
+      "file": "src/garage3d/models/robot_yellow.glb",
+      "class": "robot",
+      "triangles": [
+        3000,
+        8000
+      ],
+      "footprint_m": null,
+      "height_m": 1.7,
+      "materials": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ],
+      "required_materials": [
+        "Main",
+        "visor",
+        "eyes"
+      ],
+      "facing": "+Z",
+      "priority": 6,
+      "animations": [
+        "Idle",
+        "Sitting",
+        "Walking"
+      ],
+      "notes": "Optional per-colour variant (keeps its own colours, no tint); overrides robot_shared for colour slot yellow. Only if one shared model cannot carry the look.",
+      "classify": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ]
+    },
+    "machine_intake": {
+      "file": "public/factory/machine_intake.glb",
+      "class": "machine",
+      "triangles": [
+        1500,
+        6000
+      ],
+      "footprint_m": [
+        1.92,
+        1.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "bodyHi",
+        "dark",
+        "metal",
+        "accent",
+        "glass",
+        "screen",
+        "hazard",
+        "led",
+        "rubber"
+      ],
+      "required_materials": [
+        "body",
+        "accent"
+      ],
+      "facing": "+Z",
+      "priority": 3,
+      "notes": "Hopper; the feed chute ends over the adjacent belt cell. Belt side is +Z. Moving parts are separate named nodes (the app animates them); `accent` takes the era colour, `led` is the andon strip.",
+      "classify": [
+        "body",
+        "bodyHi",
+        "dark",
+        "metal",
+        "accent",
+        "glass",
+        "screen",
+        "hazard",
+        "led",
+        "rubber"
+      ]
+    },
+    "machine_mill": {
+      "file": "public/factory/machine_mill.glb",
+      "class": "machine",
+      "triangles": [
+        1500,
+        6000
+      ],
+      "footprint_m": [
+        1.92,
+        1.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "bodyHi",
+        "dark",
+        "metal",
+        "accent",
+        "glass",
+        "screen",
+        "hazard",
+        "led",
+        "rubber"
+      ],
+      "required_materials": [
+        "body",
+        "accent"
+      ],
+      "facing": "+Z",
+      "priority": 3,
+      "notes": "Service cabinet + mast + boom stay on the footprint; the spindle head (node `mill-spindle`) travels over the belt. Belt side is +Z. Moving parts are separate named nodes (the app animates them); `accent` takes the era colour, `led` is the andon strip.",
+      "classify": [
+        "body",
+        "bodyHi",
+        "dark",
+        "metal",
+        "accent",
+        "glass",
+        "screen",
+        "hazard",
+        "led",
+        "rubber"
+      ]
+    },
+    "machine_press": {
+      "file": "public/factory/machine_press.glb",
+      "class": "machine",
+      "triangles": [
+        1500,
+        6000
+      ],
+      "footprint_m": [
+        2.88,
+        1.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "bodyHi",
+        "dark",
+        "metal",
+        "accent",
+        "glass",
+        "screen",
+        "hazard",
+        "led",
+        "rubber"
+      ],
+      "required_materials": [
+        "body",
+        "accent"
+      ],
+      "facing": "+Z",
+      "priority": 3,
+      "notes": "Gantry press, 3\u00d72; the ram (node `press-ram`) moves down onto the belt. Belt side is +Z. Moving parts are separate named nodes (the app animates them); `accent` takes the era colour, `led` is the andon strip.",
+      "classify": [
+        "body",
+        "bodyHi",
+        "dark",
+        "metal",
+        "accent",
+        "glass",
+        "screen",
+        "hazard",
+        "led",
+        "rubber"
+      ]
+    },
+    "machine_screen": {
+      "file": "public/factory/machine_screen.glb",
+      "class": "machine",
+      "triangles": [
+        1500,
+        6000
+      ],
+      "footprint_m": [
+        1.92,
+        1.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "bodyHi",
+        "dark",
+        "metal",
+        "accent",
+        "glass",
+        "screen",
+        "hazard",
+        "led",
+        "rubber"
+      ],
+      "required_materials": [
+        "body",
+        "accent"
+      ],
+      "facing": "+Z",
+      "priority": 3,
+      "notes": "Screen bonder; head node `screen-head` over the belt. Belt side is +Z. Moving parts are separate named nodes (the app animates them); `accent` takes the era colour, `led` is the andon strip.",
+      "classify": [
+        "body",
+        "bodyHi",
+        "dark",
+        "metal",
+        "accent",
+        "glass",
+        "screen",
+        "hazard",
+        "led",
+        "rubber"
+      ]
+    },
+    "machine_arm": {
+      "file": "public/factory/machine_arm.glb",
+      "class": "machine",
+      "triangles": [
+        1500,
+        6000
+      ],
+      "footprint_m": [
+        1.92,
+        1.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "bodyHi",
+        "dark",
+        "metal",
+        "accent",
+        "glass",
+        "screen",
+        "hazard",
+        "led",
+        "rubber"
+      ],
+      "required_materials": [
+        "body",
+        "accent"
+      ],
+      "facing": "+Z",
+      "priority": 3,
+      "notes": "Robot cell; base yaw node `arm-yaw`; shoulder/elbow/wrist as child nodes `arm-shoulder`, `arm-elbow`, `arm-wrist` (new names the seam will animate). Offset 0.55 towards its belt mount. Belt side is +Z. Moving parts are separate named nodes (the app animates them); `accent` takes the era colour, `led` is the andon strip.",
+      "classify": [
+        "body",
+        "bodyHi",
+        "dark",
+        "metal",
+        "accent",
+        "glass",
+        "screen",
+        "hazard",
+        "led",
+        "rubber"
+      ]
+    },
+    "machine_qa": {
+      "file": "public/factory/machine_qa.glb",
+      "class": "machine",
+      "triangles": [
+        1500,
+        6000
+      ],
+      "footprint_m": [
+        1.92,
+        1.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "bodyHi",
+        "dark",
+        "metal",
+        "accent",
+        "glass",
+        "screen",
+        "hazard",
+        "led",
+        "rubber"
+      ],
+      "required_materials": [
+        "body",
+        "accent"
+      ],
+      "facing": "+Z",
+      "priority": 3,
+      "notes": "Test tunnel arch over the belt; scanning beam node `qa-beam`. Belt side is +Z. Moving parts are separate named nodes (the app animates them); `accent` takes the era colour, `led` is the andon strip.",
+      "classify": [
+        "body",
+        "bodyHi",
+        "dark",
+        "metal",
+        "accent",
+        "glass",
+        "screen",
+        "hazard",
+        "led",
+        "rubber"
+      ]
+    },
+    "machine_packer": {
+      "file": "public/factory/machine_packer.glb",
+      "class": "machine",
+      "triangles": [
+        1500,
+        6000
+      ],
+      "footprint_m": [
+        1.92,
+        1.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "bodyHi",
+        "dark",
+        "metal",
+        "accent",
+        "glass",
+        "screen",
+        "hazard",
+        "led",
+        "rubber"
+      ],
+      "required_materials": [
+        "body",
+        "accent"
+      ],
+      "facing": "+Z",
+      "priority": 3,
+      "notes": "Packing station; flap node `packer-left` (and a mirrored `packer-right` if the model has two flaps). Belt side is +Z. Moving parts are separate named nodes (the app animates them); `accent` takes the era colour, `led` is the andon strip.",
+      "classify": [
+        "body",
+        "bodyHi",
+        "dark",
+        "metal",
+        "accent",
+        "glass",
+        "screen",
+        "hazard",
+        "led",
+        "rubber"
+      ]
+    },
+    "prop_crates": {
+      "file": "public/factory/prop_crates.glb",
+      "class": "factoryProp",
+      "triangles": [
+        100,
+        1200
+      ],
+      "footprint_m": [
+        0.92,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "prop_barrel": {
+      "file": "public/factory/prop_barrel.glb",
+      "class": "factoryProp",
+      "triangles": [
+        100,
+        1200
+      ],
+      "footprint_m": [
+        0.92,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "prop_pallet": {
+      "file": "public/factory/prop_pallet.glb",
+      "class": "factoryProp",
+      "triangles": [
+        100,
+        1200
+      ],
+      "footprint_m": [
+        0.92,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "prop_plant": {
+      "file": "public/factory/prop_plant.glb",
+      "class": "factoryProp",
+      "triangles": [
+        100,
+        1200
+      ],
+      "footprint_m": [
+        0.92,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "prop_bench": {
+      "file": "public/factory/prop_bench.glb",
+      "class": "factoryProp",
+      "triangles": [
+        100,
+        1200
+      ],
+      "footprint_m": [
+        1.84,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "prop_rack": {
+      "file": "public/factory/prop_rack.glb",
+      "class": "factoryProp",
+      "triangles": [
+        100,
+        1200
+      ],
+      "footprint_m": [
+        1.84,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "prop_cone": {
+      "file": "public/factory/prop_cone.glb",
+      "class": "factoryProp",
+      "triangles": [
+        100,
+        1200
+      ],
+      "footprint_m": [
+        0.92,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "prop_sign": {
+      "file": "public/factory/prop_sign.glb",
+      "class": "factoryProp",
+      "triangles": [
+        100,
+        1200
+      ],
+      "footprint_m": [
+        0.92,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "prop_hazardStripe": {
+      "file": "public/factory/prop_hazardStripe.glb",
+      "class": "factoryProp",
+      "triangles": [
+        12,
+        400
+      ],
+      "footprint_m": [
+        0.92,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "prop_extinguisher": {
+      "file": "public/factory/prop_extinguisher.glb",
+      "class": "factoryProp",
+      "triangles": [
+        100,
+        1200
+      ],
+      "footprint_m": [
+        0.92,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "prop_bollards": {
+      "file": "public/factory/prop_bollards.glb",
+      "class": "factoryProp",
+      "triangles": [
+        100,
+        1200
+      ],
+      "footprint_m": [
+        0.92,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "prop_fan": {
+      "file": "public/factory/prop_fan.glb",
+      "class": "factoryProp",
+      "triangles": [
+        100,
+        1200
+      ],
+      "footprint_m": [
+        0.92,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "prop_workLight": {
+      "file": "public/factory/prop_workLight.glb",
+      "class": "factoryProp",
+      "triangles": [
+        100,
+        1200
+      ],
+      "footprint_m": [
+        0.92,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "prop_tote": {
+      "file": "public/factory/prop_tote.glb",
+      "class": "factoryProp",
+      "triangles": [
+        100,
+        1200
+      ],
+      "footprint_m": [
+        0.92,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "prop_compressor": {
+      "file": "public/factory/prop_compressor.glb",
+      "class": "factoryProp",
+      "triangles": [
+        100,
+        1200
+      ],
+      "footprint_m": [
+        0.92,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "prop_toolWall": {
+      "file": "public/factory/prop_toolWall.glb",
+      "class": "factoryProp",
+      "triangles": [
+        100,
+        1200
+      ],
+      "footprint_m": [
+        1.84,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "prop_qcStation": {
+      "file": "public/factory/prop_qcStation.glb",
+      "class": "factoryProp",
+      "triangles": [
+        100,
+        1200
+      ],
+      "footprint_m": [
+        1.84,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "prop_gantry": {
+      "file": "public/factory/prop_gantry.glb",
+      "class": "factoryProp",
+      "triangles": [
+        100,
+        1200
+      ],
+      "footprint_m": [
+        2.7600000000000002,
+        0.92
+      ],
+      "height_m": null,
+      "materials": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ],
+      "required_materials": [],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "body",
+        "dark",
+        "metal",
+        "hazard",
+        "crate",
+        "rubber",
+        "glass",
+        "led",
+        "white",
+        "accent"
+      ]
+    },
+    "vehicle_truck": {
+      "file": "public/factory/vehicle_truck.glb",
+      "class": "vehicle",
+      "triangles": [
+        1200,
+        4000
+      ],
+      "footprint_m": [
+        5.6,
+        2.2
+      ],
+      "height_m": 2.6,
+      "materials": [
+        "white",
+        "accent",
+        "dark",
+        "glass",
+        "rubber",
+        "metal"
+      ],
+      "required_materials": [
+        "white",
+        "rubber"
+      ],
+      "facing": "+X",
+      "priority": 4,
+      "notes": "Box truck at the dock (app places it yaw \u2212\u03c0/2). Cab front +X like a vehicle; cab in `accent`.",
+      "classify": [
+        "white",
+        "accent",
+        "dark",
+        "glass",
+        "rubber",
+        "metal"
+      ]
+    },
+    "vehicle_agv": {
+      "file": "public/factory/vehicle_agv.glb",
+      "class": "small",
+      "triangles": [
+        1200,
+        4000
+      ],
+      "footprint_m": [
+        0.9,
+        0.6
+      ],
+      "height_m": 0.35,
+      "materials": [
+        "accent",
+        "dark",
+        "rubber",
+        "led"
+      ],
+      "required_materials": [
+        "accent"
+      ],
+      "facing": "+X",
+      "priority": 5,
+      "classify": [
+        "accent",
+        "dark",
+        "rubber",
+        "led"
+      ]
+    },
+    "prop_dockPallet": {
+      "file": "public/factory/prop_dockPallet.glb",
+      "class": "small",
+      "triangles": [
+        80,
+        600
+      ],
+      "footprint_m": [
+        1.1,
+        1.1
+      ],
+      "height_m": 0.15,
+      "materials": [
+        "crate"
+      ],
+      "required_materials": [
+        "crate"
+      ],
+      "facing": "+Z",
+      "priority": 5,
+      "classify": [
+        "crate"
+      ]
+    }
+  },
+  "legacy_sha256": {
+    "public/furniture/desk.glb": "0164fe828f028b321730fb8c74502e353583f751be74da1682d42fff7d3c5a42",
+    "public/furniture/deskL.glb": "a6a77ba0083d5ecd34ad50f738867b03ed7b7f469429bb1acc78f423bcc3f034",
+    "public/furniture/chair.glb": "46406619186034cbe92b19b79a5f1a8e3f442a17a70a7524ef2c0ad0f35095c6",
+    "public/furniture/armchair.glb": "f0766a7d5698974b711adac18a2108f0e74e3a036fa4e4e0ccf91195b0ee5abf",
+    "public/furniture/loungeChair.glb": "ddfe6bc4b3451bca61666d7b614552d6ed2a03d82fc76244b72ae3155874dc6c",
+    "public/furniture/sofa.glb": "1886b811c0d3ad0d8525a4fd43adf4112c497c8e0ed906f06877ca3517f4c7dd",
+    "public/furniture/sofaL.glb": "bbdd91791e621ac71321eaf38a2432c53279792ef946707f23b216123bd52655",
+    "public/furniture/stool.glb": "a86167a9f92401a61fec7e509ad089ecc552d0f299743add3aeb919acb24e341",
+    "public/furniture/coffeeTable.glb": "e38bea760fbd514efbb75528d09b4752c91af44677bbb97e6d4386c263525179",
+    "public/furniture/meetingTable.glb": "ff1a94498d023957f4bc3ff6f55a7a82977d336dbf01a573b3364f03afe5ff61",
+    "public/furniture/sideTable.glb": "8227810584f7d37582e4e9ec821c56f1dc54b99c88a8dc74242ea3b7402bc472",
+    "public/furniture/bookshelf.glb": "750702218d68c062b15dfef6ab06a4014d1cfa8bd05f02e57c53b7e13bec157c",
+    "public/furniture/cabinet.glb": "55b9903e9646dc407ed5237a1c41c1f0a14f9edc22e3392bdb9a4804d846af6a",
+    "public/furniture/shelfUnit.glb": "6d4d625faf977a2dbf155f1313cd32c6310e463114a1cd4c08cb9f80a5fb1d75",
+    "public/furniture/crates.glb": "4af079dca52960912764574950f0549ff2ae1224b3db1528718629473a2d5d81",
+    "public/furniture/plantTall.glb": "5b760eda2766f75fda36b2c5df652a1662f82981ef64cd8fa7fe7bcd386b3a15",
+    "public/furniture/plantPot.glb": "2b9c022feb47be857b2c4fdc29f36522766ba9b70c578c31d7c05d71b4377d15",
+    "public/furniture/rug.glb": "a989d2d59c04e3071e0c90388b113a9a8f339ce1814ef984c51cb6dcd7c8e0eb",
+    "public/furniture/rugRound.glb": "2ef5cc634bb1060a1a5774cfcaf6e11c235791c99d6b59da5fdbc09edfb95a68",
+    "public/furniture/tvStand.glb": "811719593d676ff76f7b5904d52c845ce0396af2bc9a6a2636c4818ead320b99",
+    "public/furniture/floorLamp.glb": "6466993748d8e184de9ec5b6b0af613867c50c0ce320d1898b1db9e4c27c2561",
+    "public/furniture/arcLamp.glb": "50fe1b5b588edf15bfa9cc880f71a02a4fda6036350b24733d0ef4de5cc5e908",
+    "public/furniture/lantern.glb": "75bb644caaa3da003b4fcad7a931722dd61cd2858aab70cf660021d5061fa1b2"
+  },
+  "ignored_files": {
+    "src/garage3d/models/base.glb": "Inactive CC0 RobotExpressive kept as a reference rig; robotModels.ts only loads robot_*.glb."
+  },
+  "watched_dirs": [
+    "public/furniture",
+    "public/factory",
+    "src/garage3d/models"
+  ]
+}

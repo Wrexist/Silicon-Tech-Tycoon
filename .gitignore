@@ -35,3 +35,8 @@ scripts/.ipo.cjs
 .tab-shots/
 .newfeat-shots/
 .asc-shots/
+
+# World shots (scripts/world-shots.mjs) and reference images - review artifacts, never commit
+.world-shots/
+# Raw 3D generator output (Meshy GLBs, working .blend files)
+art/models-raw/

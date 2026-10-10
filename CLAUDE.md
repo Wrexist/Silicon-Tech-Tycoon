@@ -130,3 +130,13 @@ celebration style — leave them as-is.
   Subscription and non-consumable revocation remain handled by StoreKit/RevenueCat. Keep
   `PrivacyInfo.xcprivacy`, `docs/privacy/` and `public/privacy.html` aligned with actual data flows.
 - Run `npm test` (Vitest) before committing; keep the determinism pin green.
+
+## Office + Factory 3D (the two worlds)
+
+Read `docs/WORLDS_3D_HANDOFF.md` first: current state, the target (the robot portraits in
+`public/art/redesign/` + the owner's office mockup), the gap list with file + fix, and the
+one-PR-per-step plan. Capture both worlds in both themes with `npm run shots:worlds -- <label>`
+before and after every visual change. New 3D models follow `docs/WORLDS_3D_MODEL_LIST.md` and
+`docs/WORLDS_3D_PIPELINE.md` (Meshy + Blender MCP, `scripts/models/`), and must pass
+`scripts/models/check_glb.py`. Never commit captures or the owner's reference frames
+(`.world-shots/` is git-ignored).
