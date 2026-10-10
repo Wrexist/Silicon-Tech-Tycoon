@@ -145,6 +145,9 @@ Each gap: what is wrong, where, and the fix. Verified against the captures above
   order; tutorial focus; the camera hint after the tutorial; the 2D fallback ghost size; a no-op
   move adding an Undo entry. Camera: re-fits on layout changes only until the player moves it.
   Owner decisions + low-priority leftovers are in `TASK.md` → Backlog (2026-10-11).
+- **Factory rules (owner-approved, 2026-10-11).** Every complete Intake→Packer route counts
+  (`completeRoutes`), not only the longest; a stray belt into a line's head can't switch it off; the
+  speed-bonus coverage counts processing machines only (a bare wired line keeps 25%, as documented).
 
 ## 5. How to check yourself
 

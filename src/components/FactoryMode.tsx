@@ -44,7 +44,7 @@ import { emitCelebrate } from "../design/celebrateFx.ts";
 import { isDarkTheme, webglSupported } from "../garage3d/support.ts";
 import { ErrorBoundary } from "./ErrorBoundary.tsx";
 import { withArticle } from "../engine/text.ts";
-import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, connectedChain, connectedMachines, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineLayoutBreakdown, lineSpeedMult, lineUnitMult, machineCells, machineUpgradeCostAt, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
+import { EXPAND_STEP, FLOOR, MACHINE_DEFS, MAX_EXPANSION, BELT_COST, connectedMachines, routeTiles, canPlaceMachine, floorWidth, lineCapacityMult, lineComplete, lineLayoutBreakdown, lineSpeedMult, lineUnitMult, machineCells, machineUpgradeCostAt, missingMachineKinds, type BeltDir, type FactoryFloor as GameFloor, type MachineKind } from "../engine/factoryFloor.ts";
 import { requiredKindsFor } from "../engine/assemblyLine.ts";
 import { PROP_DEFS, propCellSet, factoryDecorSpeedMult, utilityDecorKinds, type PropKind } from "../engine/factoryProps.ts";
 import { sideOrderPayout, SIDE_ORDER_CANCEL_PCT } from "../engine/sideOrders.ts";
@@ -198,7 +198,7 @@ export function FloorMinimap({ floor, lineOk, running, floorW = FLOOR.w, lockedB
   // The NEXT (unbought) bay shows as a dimmed, padlocked strip — see the bigger factory, want it.
   const LW = lockedBayW * K;
   const lockX = W + LW / 2, lockY = H / 2 - 8;
-  const chain = new Set(connectedChain(floor).map((b) => `${b.c},${b.r}`));
+  const chain = new Set(routeTiles(floor).map((b) => `${b.c},${b.r}`));
   return (
     <svg className={`fmini${running ? " fmini--run" : ""}`} viewBox={`0 0 ${W + LW} ${H}`} preserveAspectRatio="xMidYMid meet" role={onCell ? "group" : "img"}
       aria-label={lineOk ? "Factory layout, line connected" : "Factory layout, line incomplete"}>
@@ -646,7 +646,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
 
         <details className="fmode__panel"><summary>Inspect machines and route</summary>
           <label className="fmode__layout-save">Machine<select className="fmode__layout-input" aria-label="Inspect machine" value={selectedMachine} onChange={e => setSelectedMachine(e.target.value)}><option value="">Select a machine</option>{d.floor.machines.map(m => <option value={m.id} key={m.id}>{MACHINE_DEFS[m.kind].name} ({m.c + 1}, {m.r + 1})</option>)}</select></label>
-          {selectedMachine && (() => { const m = d.floor.machines.find(m => m.id === selectedMachine); if (!m) return null; const connected = connectedMachines(d.floor).some(x => x.id === m.id); const route = connectedChain(d.floor); const mounted = machineMounts(d.floor, route.length ? route : d.floor.belts).has(m.id); const through = ["mill","press","screen","qa"].includes(m.kind); return <><p className="fmode__sheet-note">{!mounted && through ? "No free adjacent working station. Move this machine beside a separate belt tile; its head remains parked at its owned footprint." : !connected ? "Not connected to the production route. Connect the Intake to the Packer beside this machine." : !d.active ? "Connected. Waiting for a production order." : !d.workingKinds.includes(m.kind) ? "Connected. Not required by active orders." : d.motionPaused ? "Connected. Simulation paused." : "Connected and working."}</p><button className="fmode__layout-apply" disabled={!use3d} onClick={() => { setFocusMachine(m.id); setResetView(v => v + 1); }}>Focus machine</button><button className="fmode__layout-savebtn" onClick={() => { setSelectedMachine(""); setFocusMachine(""); setResetView(v => v + 1); }}>Clear selection</button></>; })()}
+          {selectedMachine && (() => { const m = d.floor.machines.find(m => m.id === selectedMachine); if (!m) return null; const connected = connectedMachines(d.floor).some(x => x.id === m.id); const route = routeTiles(d.floor); const mounted = machineMounts(d.floor, route.length ? route : d.floor.belts).has(m.id); const through = ["mill","press","screen","qa"].includes(m.kind); return <><p className="fmode__sheet-note">{!mounted && through ? "No free adjacent working station. Move this machine beside a separate belt tile; its head remains parked at its owned footprint." : !connected ? "Not connected to the production route. Connect the Intake to the Packer beside this machine." : !d.active ? "Connected. Waiting for a production order." : !d.workingKinds.includes(m.kind) ? "Connected. Not required by active orders." : d.motionPaused ? "Connected. Simulation paused." : "Connected and working."}</p><button className="fmode__layout-apply" disabled={!use3d} onClick={() => { setFocusMachine(m.id); setResetView(v => v + 1); }}>Focus machine</button><button className="fmode__layout-savebtn" onClick={() => { setSelectedMachine(""); setFocusMachine(""); setResetView(v => v + 1); }}>Clear selection</button></>; })()}
           <label className="fmode__route-toggle"><input type="checkbox" checked={showRoute} onChange={e => setShowRoute(e.target.checked)} /> <span>Highlight route: green connected, amber unused</span></label>
         </details>
 

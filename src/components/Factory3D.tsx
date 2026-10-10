@@ -18,7 +18,7 @@ import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 import { groundFadeTexture } from "../garage3d/glow.ts";
 import {
-  FLOOR, MACHINE_DEFS, beltPath, connectedChain, connectedMachines, canPlaceMachine, formMarks, machineCells, machineCenter, machineLevel, worldOf,
+  FLOOR, MACHINE_DEFS, beltPath, connectedChain, connectedMachines, routeTiles, canPlaceMachine, formMarks, machineCells, machineCenter, machineLevel, worldOf,
   type BeltDir, type FactoryFloor, type MachineKind,
 } from "../engine/factoryFloor.ts";
 import { PROP_DEFS, canPlaceProp, propCells, propCenter, type PlacedProp, type PropKind } from "../engine/factoryProps.ts";
@@ -313,7 +313,7 @@ function BeltBeds({ belts }: { belts: FactoryFloor["belts"] }) {
 
 function BeltTiles({ floor, lineOk, active, overtime, detail = "full" }: { floor: FactoryFloor; lineOk: boolean; active: boolean; overtime: boolean; detail?: "full" | "low" }) {
   const fine = detail === "full";
-  const connected = useMemo(() => new Set(connectedChain(floor).map(b => `${b.c},${b.r}`)), [floor]);
+  const connected = useMemo(() => new Set(routeTiles(floor).map(b => `${b.c},${b.r}`)), [floor]); // every complete route runs
   const at = useMemo(() => new Map(floor.belts.map((b) => [`${b.c},${b.r}`, b])), [floor.belts]);
   /** The direction of the neighbour that flows INTO this tile (null if it's a head). */
   const inflowDir = (b: FactoryFloor["belts"][number]): BeltDir | null => {
@@ -1631,8 +1631,9 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   const gesture = useRef(new FactoryGestureGuard());
   const portrait = p.preview ? size.height > size.width : window.innerHeight > window.innerWidth;
   const world = useRef<THREE.Group>(null);
-  const mounts = useMemo(() => { const route = connectedChain(p.floor); return machineMounts(p.floor, route.length ? route : p.floor.belts); }, [p.floor]);
-  const routeCells = useMemo(() => new Set(connectedChain(p.floor).map(b => `${b.c},${b.r}`)), [p.floor]);
+  // Every complete route counts (parallel lines too): heads mount on, and the route view lights, all of them.
+  const mounts = useMemo(() => { const route = routeTiles(p.floor); return machineMounts(p.floor, route.length ? route : p.floor.belts); }, [p.floor]);
+  const routeCells = useMemo(() => new Set(routeTiles(p.floor).map(b => `${b.c},${b.r}`)), [p.floor]);
   const connectedIds = useMemo(() => new Set(connectedMachines(p.floor).map(m => m.id)), [p.floor]);
   const floorW = p.floorW ?? FLOOR.w;      // buildable width in cells (grows east with expansions)
   const shadowTarget = useMemo(() => {
@@ -2142,7 +2143,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
               <planeGeometry args={[def.w * 0.96, def.d * 0.96]} />
               <meshBasicMaterial color={p.pending.valid ? C.dropOk : C.dropBad} transparent opacity={0.45} depthWrite={false} />
             </mesh>
-            <MachineAt m={{ id: "pending", kind: p.pending.kind, c: p.pending.c, r: p.pending.r }} mount={(() => { const f = { ...p.floor, machines: [...p.floor.machines, { id: "pending", kind: p.pending.kind, c: p.pending.c, r: p.pending.r }] }; const route = connectedChain(f); return machineMounts(f, route.length ? route : f.belts).get("pending"); })()} active={false} activeKind={null} pl={pl} itemsT={itemsT} />
+            <MachineAt m={{ id: "pending", kind: p.pending.kind, c: p.pending.c, r: p.pending.r }} mount={(() => { const f = { ...p.floor, machines: [...p.floor.machines, { id: "pending", kind: p.pending.kind, c: p.pending.c, r: p.pending.r }] }; const route = routeTiles(f); return machineMounts(f, route.length ? route : f.belts).get("pending"); })()} active={false} activeKind={null} pl={pl} itemsT={itemsT} />
           </group>
         );
       })()}
