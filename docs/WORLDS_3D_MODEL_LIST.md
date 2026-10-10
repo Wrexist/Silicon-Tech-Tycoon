@@ -51,6 +51,9 @@ Office furniture — the names the app maps to finish families (`src/garage3d/ma
 | `lamp` | glow (emissive) | shades, bulbs, screens on the TV stand |
 | `_defaultMat` | neutral → paper | white/off-white parts |
 
+Every `.glb` in `public/furniture`, `public/factory` and `src/garage3d/models` must be listed in
+the manifest (the checker fails unlisted files; `base.glb` is ignored with a reason).
+
 Any other name falls back to the neutral family and fails `palette.test.ts` — add it to
 `MATERIAL_FAMILY_BY_NAME` and the test's list together if a new one is truly needed.
 
@@ -67,6 +70,7 @@ handoff, step 5): `body`, `bodyHi`, `dark`, `metal`, `rubber`, `accent` (takes t
 | Key | File | Footprint m (x × z) | Height m | Triangles | Front | Materials | Notes |
 |---|---|---|---|---|---|---|---|
 | `robot_shared` | `src/garage3d/models/robot_shared.glb` | — | 1.7 | 3,000–8,000 | +Z | `Main`, `visor`, `eyes`, `joints` | THE hero model: the robot in public/art/redesign/robot-*.webp. Material `Main` is the shell and is tinted per employee; everything else keeps its authored colour. Rig + clips Idle/Sitting/Walking (Mixamo-style). Sits on a 0.58 m seat. |
+| `robot_<colour>` | `src/garage3d/models/robot_{blue,orange,green,purple,yellow}.glb` | — | 1.7 | 3,000–8,000 | +Z | `Main`, `visor`, `eyes`, `joints` | Optional per-colour variants that keep their own colours (no tint) and override `robot_shared` for that slot. Only if one shared model cannot carry the look. |
 
 ## 2. Office furniture
 
@@ -89,8 +93,8 @@ handoff, step 5): `body`, `bodyHi`, `dark`, `metal`, `rubber`, `accent` (takes t
 | `furniture_crates` | `public/furniture/crates.glb` | 0.79 × 0.79 | 0.6 | 300–2,500 | +Z | `woodDark`, `_defaultMat` |  |
 | `furniture_plantTall` | `public/furniture/plantTall.glb` | 0.79 × 0.79 | 1.45 | 300–2,500 | +Z | `plant`, `woodDark`, `_defaultMat` | Pot in a warm grey (wood on plant pots is re-finished warmGrey). |
 | `furniture_plantPot` | `public/furniture/plantPot.glb` | 0.79 × 0.79 | 0.5 | 300–2,500 | +Z | `plant`, `woodDark`, `_defaultMat` |  |
-| `furniture_rug` | `public/furniture/rug.glb` | 2.37 × 1.58 | — | 300–2,500 | +Z | `carpet`, `carpetBlue` | Flat, ≤ 2 cm tall. |
-| `furniture_rugRound` | `public/furniture/rugRound.glb` | 1.58 × 1.58 | — | 300–2,500 | +Z | `carpet`, `carpetBlue` | Flat, ≤ 2 cm tall. |
+| `furniture_rug` | `public/furniture/rug.glb` | 2.37 × 1.58 | — | 24–800 | +Z | `carpet`, `carpetBlue` | Flat, ≤ 2 cm tall. |
+| `furniture_rugRound` | `public/furniture/rugRound.glb` | 1.58 × 1.58 | — | 24–800 | +Z | `carpet`, `carpetBlue` | Flat, ≤ 2 cm tall. |
 | `furniture_tvStand` | `public/furniture/tvStand.glb` | 1.58 × 0.79 | 0.5 | 300–2,500 | +Z | `wood`, `metalMedium`, `lamp` | Low stand; screen faces +Z. |
 | `furniture_floorLamp` | `public/furniture/floorLamp.glb` | 0.79 × 0.79 | 1.6 | 300–2,500 | +Z | `metal`, `metalMedium`, `lamp` | Shade material `lamp` glows. |
 | `furniture_arcLamp` | `public/furniture/arcLamp.glb` | 0.79 × 0.79 | 1.9 | 300–2,500 | +Z | `metal`, `metalMedium`, `lamp` |  |
@@ -128,7 +132,7 @@ handoff, step 5): `body`, `bodyHi`, `dark`, `metal`, `rubber`, `accent` (takes t
 | `prop_rack` | `public/factory/prop_rack.glb` | 1.84 × 0.92 | — | 100–1,200 | +Z | `body`, `dark`, `metal`, `hazard`, `crate`, `rubber`, `glass`, `led`, `white`, `accent` |  |
 | `prop_cone` | `public/factory/prop_cone.glb` | 0.92 × 0.92 | — | 100–1,200 | +Z | `body`, `dark`, `metal`, `hazard`, `crate`, `rubber`, `glass`, `led`, `white`, `accent` |  |
 | `prop_sign` | `public/factory/prop_sign.glb` | 0.92 × 0.92 | — | 100–1,200 | +Z | `body`, `dark`, `metal`, `hazard`, `crate`, `rubber`, `glass`, `led`, `white`, `accent` |  |
-| `prop_hazardStripe` | `public/factory/prop_hazardStripe.glb` | 0.92 × 0.92 | — | 100–1,200 | +Z | `body`, `dark`, `metal`, `hazard`, `crate`, `rubber`, `glass`, `led`, `white`, `accent` |  |
+| `prop_hazardStripe` | `public/factory/prop_hazardStripe.glb` | 0.92 × 0.92 | — | 12–400 | +Z | `body`, `dark`, `metal`, `hazard`, `crate`, `rubber`, `glass`, `led`, `white`, `accent` |  |
 | `prop_extinguisher` | `public/factory/prop_extinguisher.glb` | 0.92 × 0.92 | — | 100–1,200 | +Z | `body`, `dark`, `metal`, `hazard`, `crate`, `rubber`, `glass`, `led`, `white`, `accent` |  |
 | `prop_bollards` | `public/factory/prop_bollards.glb` | 0.92 × 0.92 | — | 100–1,200 | +Z | `body`, `dark`, `metal`, `hazard`, `crate`, `rubber`, `glass`, `led`, `white`, `accent` |  |
 | `prop_fan` | `public/factory/prop_fan.glb` | 0.92 × 0.92 | — | 100–1,200 | +Z | `body`, `dark`, `metal`, `hazard`, `crate`, `rubber`, `glass`, `led`, `white`, `accent` |  |

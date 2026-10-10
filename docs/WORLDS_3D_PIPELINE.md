@@ -122,7 +122,8 @@ py -3.11 scripts/models/check_glb.py              # every manifest model present
 py -3.11 scripts/models/check_glb.py furniture_desk=art/models-raw/desk.glb   # before placing
 ```
 
-Fails on wrong material names, missing required materials, triangle or file-size budget, pivot
+Fails on any `.glb` in the model folders that the manifest doesn't list, wrong material names,
+missing required materials, triangles outside the budget (either way), file size, pivot
 off the floor centre, a long piece rotated the wrong way, a vehicle not facing +X; warns on size,
 missing clips and textures. The **3D models** workflow runs it on PRs touching models.
 

@@ -634,8 +634,8 @@
       "file": "public/furniture/rug.glb",
       "class": "furniture",
       "triangles": [
-        300,
-        2500
+        24,
+        800
       ],
       "footprint_m": [
         2.37,
@@ -669,8 +669,8 @@
       "file": "public/furniture/rugRound.glb",
       "class": "furniture",
       "triangles": [
-        300,
-        2500
+        24,
+        800
       ],
       "footprint_m": [
         1.58,
@@ -869,6 +869,181 @@
         "Walking"
       ],
       "notes": "THE hero model: the robot in public/art/redesign/robot-*.webp. Material `Main` is the shell and is tinted per employee; everything else keeps its authored colour. Rig + clips Idle/Sitting/Walking (Mixamo-style). Sits on a 0.58 m seat.",
+      "classify": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ]
+    },
+    "robot_blue": {
+      "file": "src/garage3d/models/robot_blue.glb",
+      "class": "robot",
+      "triangles": [
+        3000,
+        8000
+      ],
+      "footprint_m": null,
+      "height_m": 1.7,
+      "materials": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ],
+      "required_materials": [
+        "Main",
+        "visor",
+        "eyes"
+      ],
+      "facing": "+Z",
+      "priority": 6,
+      "animations": [
+        "Idle",
+        "Sitting",
+        "Walking"
+      ],
+      "notes": "Optional per-colour variant (keeps its own colours, no tint); overrides robot_shared for colour slot blue. Only if one shared model cannot carry the look.",
+      "classify": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ]
+    },
+    "robot_orange": {
+      "file": "src/garage3d/models/robot_orange.glb",
+      "class": "robot",
+      "triangles": [
+        3000,
+        8000
+      ],
+      "footprint_m": null,
+      "height_m": 1.7,
+      "materials": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ],
+      "required_materials": [
+        "Main",
+        "visor",
+        "eyes"
+      ],
+      "facing": "+Z",
+      "priority": 6,
+      "animations": [
+        "Idle",
+        "Sitting",
+        "Walking"
+      ],
+      "notes": "Optional per-colour variant (keeps its own colours, no tint); overrides robot_shared for colour slot orange. Only if one shared model cannot carry the look.",
+      "classify": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ]
+    },
+    "robot_green": {
+      "file": "src/garage3d/models/robot_green.glb",
+      "class": "robot",
+      "triangles": [
+        3000,
+        8000
+      ],
+      "footprint_m": null,
+      "height_m": 1.7,
+      "materials": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ],
+      "required_materials": [
+        "Main",
+        "visor",
+        "eyes"
+      ],
+      "facing": "+Z",
+      "priority": 6,
+      "animations": [
+        "Idle",
+        "Sitting",
+        "Walking"
+      ],
+      "notes": "Optional per-colour variant (keeps its own colours, no tint); overrides robot_shared for colour slot green. Only if one shared model cannot carry the look.",
+      "classify": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ]
+    },
+    "robot_purple": {
+      "file": "src/garage3d/models/robot_purple.glb",
+      "class": "robot",
+      "triangles": [
+        3000,
+        8000
+      ],
+      "footprint_m": null,
+      "height_m": 1.7,
+      "materials": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ],
+      "required_materials": [
+        "Main",
+        "visor",
+        "eyes"
+      ],
+      "facing": "+Z",
+      "priority": 6,
+      "animations": [
+        "Idle",
+        "Sitting",
+        "Walking"
+      ],
+      "notes": "Optional per-colour variant (keeps its own colours, no tint); overrides robot_shared for colour slot purple. Only if one shared model cannot carry the look.",
+      "classify": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ]
+    },
+    "robot_yellow": {
+      "file": "src/garage3d/models/robot_yellow.glb",
+      "class": "robot",
+      "triangles": [
+        3000,
+        8000
+      ],
+      "footprint_m": null,
+      "height_m": 1.7,
+      "materials": [
+        "Main",
+        "visor",
+        "eyes",
+        "joints"
+      ],
+      "required_materials": [
+        "Main",
+        "visor",
+        "eyes"
+      ],
+      "facing": "+Z",
+      "priority": 6,
+      "animations": [
+        "Idle",
+        "Sitting",
+        "Walking"
+      ],
+      "notes": "Optional per-colour variant (keeps its own colours, no tint); overrides robot_shared for colour slot yellow. Only if one shared model cannot carry the look.",
       "classify": [
         "Main",
         "visor",
@@ -1508,8 +1683,8 @@
       "file": "public/factory/prop_hazardStripe.glb",
       "class": "factoryProp",
       "triangles": [
-        100,
-        1200
+        12,
+        400
       ],
       "footprint_m": [
         0.92,
@@ -2019,5 +2194,13 @@
     "public/furniture/floorLamp.glb": "6466993748d8e184de9ec5b6b0af613867c50c0ce320d1898b1db9e4c27c2561",
     "public/furniture/arcLamp.glb": "50fe1b5b588edf15bfa9cc880f71a02a4fda6036350b24733d0ef4de5cc5e908",
     "public/furniture/lantern.glb": "75bb644caaa3da003b4fcad7a931722dd61cd2858aab70cf660021d5061fa1b2"
-  }
+  },
+  "ignored_files": {
+    "src/garage3d/models/base.glb": "Inactive CC0 RobotExpressive kept as a reference rig; robotModels.ts only loads robot_*.glb."
+  },
+  "watched_dirs": [
+    "public/furniture",
+    "public/factory",
+    "src/garage3d/models"
+  ]
 }

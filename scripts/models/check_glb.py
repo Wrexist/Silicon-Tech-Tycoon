@@ -4,6 +4,7 @@ usage: python scripts/models/check_glb.py [model keys | .glb paths | key=path ..
        every manifest entry whose file exists; key=path checks a file before it is put in place)
 needs: pip install trimesh numpy
 
+Every .glb in the manifest's watched_dirs must be in the manifest (or ignored_files).
 Per model: material names are exactly the allowed slots (and include the required ones); the
 triangle count is inside the budget; it sits on the floor (min y ~ 0) and is centred on its
 footprint; height / footprint are within tolerance of the spec; long pieces are oriented the way
@@ -63,10 +64,8 @@ def check(key, spec, manifest, path=None):
 
     tris = sum(len(g.faces) for g in scene.geometry.values())
     lo_t, hi_t = spec["triangles"]
-    if tris > hi_t:
+    if tris > hi_t or tris < lo_t:
         errors.append(f"{tris} triangles, budget {lo_t}-{hi_t}")
-    elif tris < lo_t * 0.5:
-        warnings.append(f"only {tris} triangles (budget {lo_t}-{hi_t}); check detail")
 
     (x0, y0, z0), (x1, y1, z1) = scene.bounds
     size = np.array([x1 - x0, y1 - y0, z1 - z0])
@@ -134,9 +133,24 @@ def main():
             return 1
     else:
         keys = [k for k, s in models.items() if os.path.exists(os.path.join(ROOT, s["file"]))]
+    unlisted = 0
+    if not picks:
+        # Every GLB the app can load from the watched folders must be specified: robotModels.ts
+        # auto-discovers robot_*.glb, so an unlisted file would ship unchecked.
+        known = {os.path.normpath(s["file"]) for s in models.values()}
+        ignored = {os.path.normpath(f) for f in manifest.get("ignored_files", {})}
+        for d in manifest.get("watched_dirs", []):
+            full = os.path.join(ROOT, d)
+            if not os.path.isdir(full):
+                continue
+            for name in sorted(os.listdir(full)):
+                rel = os.path.normpath(os.path.join(d, name))
+                if name.lower().endswith((".glb", ".gltf")) and rel not in known and rel not in ignored:
+                    print(f"FAIL {rel}\n     error: not in manifest.json; add its spec (or ignored_files with a reason)")
+                    unlisted += 1
     if not keys:
         print("no manifest models present")
-        return 0
+        return 1 if unlisted else 0
     failed = 0
     for k in keys:
         errors, warnings, facts = check(k, models[k], manifest, overrides.get(k))
@@ -146,8 +160,8 @@ def main():
         for w in warnings:
             print(f"     warn:  {w}")
         failed += bool(errors)
-    print(f"{len(keys) - failed}/{len(keys)} models pass")
-    return 1 if failed else 0
+    print(f"{len(keys) - failed}/{len(keys)} models pass" + (f"; {unlisted} unlisted model files" if unlisted else ""))
+    return 1 if failed or unlisted else 0
 
 
 if __name__ == "__main__":
