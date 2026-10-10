@@ -9,6 +9,7 @@ import type { FloorFinish, WallStyle } from "../engine/roomStyle.ts";
 import { reactionIntensity } from "../design/hqReaction.ts";
 import { BrandWall } from "./brandWall.tsx";
 import { sharedStandard } from "./sharedGpu.ts";
+import { glowTexture } from "./glow.ts";
 import { CATALOG, type RoomPalette } from "./palette.ts";
 import { GRID } from "../engine/furniture.ts";
 import { seamOpacity, zonePaintOpacity } from "./officeConfig.ts";
@@ -327,6 +328,12 @@ function DioramaRoom({ p, cull, showWhiteboard, name }: { p: RoomPalette; cull: 
   const inlay = sharedStandard({ color: p.floorField, roughness: 0.95, metalness: 0 });
   return (
     <group>
+      {/* soft ground shadow under the plate, nudged towards the open front: the diorama rests on the
+          card like a studio object instead of hanging in a white void */}
+      <mesh rotation-x={-Math.PI / 2} position={[0.6, -0.56, 0.6]}>
+        <circleGeometry args={[8, 48]} />
+        <meshBasicMaterial map={glowTexture()} color={p.shadow} transparent opacity={0.9} depthWrite={false} toneMapped={false} />
+      </mesh>
       {/* floating rounded floor slab (the diorama plate) */}
       <RoundedBox args={[9.4, 0.5, 9.4]} radius={0.22} smoothness={4} position={[0, -0.25, 0]} material={slab} />
       {/* top inlay: a defined floor field, so the slab reads as a laid surface with an edge line */}

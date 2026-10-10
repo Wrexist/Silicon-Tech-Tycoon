@@ -10,18 +10,18 @@ import { factoryProductionSummary } from "../state/factorySummary.ts";
 // Packer); the player wires it by hand (tap / drag-paint / hold-to-move) or pays the Auto
 // router, then deepens the earned build-speed bonus with recipe machines, arms and upgrades.
 // Parametric SVG only (zero image assets); every animation sim-gated + reduced-motion safe.
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   Play, Pause, ArrowUp, BarChart3, BatteryCharging, Bookmark, Bot, Boxes, Camera, Check, ChevronDown, CodeXml, Cpu, Drill, Eraser,
-  FlaskConical, Hammer, HelpCircle, Layers3, Locate, Lock, Maximize2, Monitor, MonitorSmartphone, Move3d,
+  FlaskConical, Hammer, HelpCircle, Layers3, Locate, Lock, Maximize2, Monitor, MonitorSmartphone, Move3d, Plus,
   Container, Library, PackageCheck, Palette, RotateCw, ScanLine, ShoppingCart, Sprout, Stamp,
   TrafficCone, Trash2, TriangleAlert, Truck, Undo2, Waypoints, Wrench, X, Zap, type LucideIcon,
   // FACTORY-WORLD decor additions
   Construction, FireExtinguisher, Fence, Fan, Lamp, Box, Gauge, PocketKnife, SearchCheck, Forklift,
 } from "lucide-react";
 import { useGame } from "../state/useGame.tsx";
-import { industryRank, nextExpansionCost, factoryLayoutCost, autoConnectQuote } from "../state/gameState.ts";
+import { industryRank, nextExpansionCost, factoryLayoutCost, autoConnectQuote, rushCost, type GameState } from "../state/gameState.ts";
 import { weeklyFinancials } from "../state/managementMetrics.ts";
 import { MAX_LAYOUTS, layoutDiff, layoutEditSummary } from "../engine/factoryLayout.ts";
 import { appOverlayOpen } from "../design/overlayGuard.ts";
@@ -30,7 +30,7 @@ import { unlockedFactories } from "../engine/factories.ts";
 import { nextUpgradeCost, upgradeLockedBy, upgradeLine } from "../engine/upgrades.ts";
 import { projectById } from "../engine/research.ts";
 import { CATEGORIES } from "../engine/catalogs.ts";
-import { format, formatCount, sub, toDollars } from "../engine/money.ts";
+import { format, formatCount, sub, toDollars, type Money } from "../engine/money.ts";
 import type { ComponentKind } from "../engine/types.ts";
 import type { Tab } from "./BottomNav.tsx";
 import { StageTrail } from "./BuildProgress.tsx";
@@ -71,6 +71,15 @@ const MACHINE_SHORT: Record<MachineKind, string> = {
   intake: "Intake", mill: "Mill", press: "Press", screen: "Screen", arm: "Arm", qa: "Test", packer: "Packer",
 };
 const DIR_ROT: Record<BeltDir, number> = { n: 0, e: 90, s: 180, w: 270 };
+// A confirm tap closer than this to its arming tap is one double-tap, not a decision.
+const CONFIRM_SETTLE_MS = 400;
+/** Productive weeks left on the running client commission (0 when none). */
+function sideOrderWeeksLeft(state: Pick<GameState, "week" | "activeSideOrder">): number {
+  const so = state.activeSideOrder;
+  if (!so) return 0;
+  const completed = so.completedWeeks ?? Math.max(0, state.week - so.startedWeek);
+  return Math.max(0, so.weeksNeeded - completed);
+}
 
 const PROP_ICONS: Record<PropKind, LucideIcon> = {
   crates: Boxes, barrel: Container, pallet: Layers3, plant: Sprout,
@@ -181,7 +190,7 @@ const MACHINE_TINT: Record<MachineKind, string> = {
   packer: "var(--fmini-packer)",
 };
 
-export function FloorMinimap({ floor, lineOk, running, floorW = FLOOR.w, lockedBayW = 0, props = [], onCell, pending }: { props?: import("../engine/factoryProps.ts").PlacedProp[]; onCell?: (c: number, r: number) => void; pending?: { c: number; r: number; valid: boolean } | null; floor: GameFloor; lineOk: boolean; running: boolean; floorW?: number; lockedBayW?: number }) {
+export function FloorMinimap({ floor, lineOk, running, floorW = FLOOR.w, lockedBayW = 0, props = [], onCell, pending }: { props?: import("../engine/factoryProps.ts").PlacedProp[]; onCell?: (c: number, r: number) => void; pending?: { c: number; r: number; valid: boolean; kind?: MachineKind } | null; floor: GameFloor; lineOk: boolean; running: boolean; floorW?: number; lockedBayW?: number }) {
   const K = 20; // px per cell
   // The viewBox tracks the buildable width so expansion bays (columns ≥16) aren't clipped off-canvas.
   const W = Math.max(FLOOR.w, floorW) * K;
@@ -226,7 +235,7 @@ export function FloorMinimap({ floor, lineOk, running, floorW = FLOOR.w, lockedB
         );
       })}
       {props.map(p => <rect key={p.id} x={p.c*K+2} y={p.r*K+2} width={PROP_DEFS[p.kind].w*K-4} height={PROP_DEFS[p.kind].d*K-4} fill="var(--positive)" stroke="var(--ink)"><title>{PROP_DEFS[p.kind].name}</title></rect>)}
-      {pending && <rect x={pending.c*K} y={pending.r*K} width={K} height={K} fill="none" stroke={pending.valid ? "var(--positive)" : "var(--negative)"} strokeWidth={3} />}
+      {pending && <rect x={pending.c*K} y={pending.r*K} width={(pending.kind ? MACHINE_DEFS[pending.kind].w : 1) * K} height={(pending.kind ? MACHINE_DEFS[pending.kind].d : 1) * K} fill="none" stroke={pending.valid ? "var(--positive)" : "var(--negative)"} strokeWidth={3} />}
       {onCell && Array.from({ length: floorW * FLOOR.h }, (_, i) => {
         const c = i % floorW, r = Math.floor(i / floorW);
         const machine = floor.machines.find(m => machineCells(m).includes(`${c},${r}`));
@@ -273,6 +282,11 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   // Cancelling a commission forfeits a chunk of the payout — arm the button first so one stray tap
   // can't burn the fee. The arm decays so a stray tap can't leave a live trigger behind.
   const [cancelArm, setCancelArm] = useState(false);
+  // When an arm (or a Place) last happened: a confirm landing inside CONFIRM_SETTLE_MS of it is the
+  // second half of the SAME double-tap, not a decision, so it is ignored.
+  const armedAt = useRef(0);
+  const settled = () => performance.now() - armedAt.current >= CONFIRM_SETTLE_MS;
+  const arm = () => { armedAt.current = performance.now(); };
   useEffect(() => {
     if (!cancelArm) return;
     const t = setTimeout(() => setCancelArm(false), 4000);
@@ -299,7 +313,11 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   // teaches the camera gestures, so the tiny cam-hint is suppressed on that same first open.
   const [tutorial, setTutorial] = useState(() => !getSettings().factoryTutorialSeen);
   useEffect(() => {
-    if (!use3d || tutorial) return; // the tutorial covers the gesture on the very first open
+    if (tutorial) {
+      // The tutorial covers the gesture on the very first open — closing it must not pop the hint.
+      try { localStorage.setItem("silicon.factory.camhint", "1"); } catch { /* ignore */ }
+    }
+    if (!use3d || tutorial) { setCamHint(false); return; }
     try { if (localStorage.getItem("silicon.factory.camhint") === "1") return; } catch { /* ignore */ }
     setCamHint(true);
     try { localStorage.setItem("silicon.factory.camhint", "1"); } catch { /* ignore */ }
@@ -332,6 +350,12 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
     history.current.pop();
     setHistLen(history.current.length);
   };
+  // Undo is for build mistakes, not a rental: the moment a week passes, the pieces have worked and
+  // earned, so the history goes (Erase still refunds the usual half).
+  useEffect(() => {
+    history.current = [];
+    setHistLen(0);
+  }, [state.week]);
   const undoBuild = () => {
     const prev = history.current.at(-1);
     if (!prev) return;
@@ -426,7 +450,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
   };
 
   const ref = useRef<HTMLDivElement>(null);
-  useDialogFocus(ref, true);
+  useDialogFocus(ref, !tutorial); // the first-run tutorial owns focus while it is up
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -492,8 +516,8 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
              from inside the WebGL scene — a driver-level failure, or the lazy chunk not arriving —
              falls back to the 2D floor map instead of propagating to the root boundary and replacing
              the whole app with the crash card. Suspense alone catches neither case. */
-          <ErrorBoundary fallback={<FloorMinimap props={state.factoryProps} onCell={buildTool ? onTapCell : undefined} pending={pendingCell ? { ...pendingCell, valid: pendingValid } : null} floor={d.floor} lineOk={lineOk} running={d.active && !d.motionPaused} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />}>
-          <Suspense fallback={<FloorMinimap props={state.factoryProps} onCell={buildTool ? onTapCell : undefined} pending={pendingCell ? { ...pendingCell, valid: pendingValid } : null} floor={d.floor} lineOk={lineOk} running={d.active && !d.motionPaused} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />}>
+          <ErrorBoundary fallback={<FloorMinimap props={state.factoryProps} onCell={buildTool ? onTapCell : undefined} pending={pendingCell ? { ...pendingCell, valid: pendingValid, kind: pendingKind ?? undefined } : null} floor={d.floor} lineOk={lineOk} running={d.active && !d.motionPaused} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />}>
+          <Suspense fallback={<FloorMinimap props={state.factoryProps} onCell={buildTool ? onTapCell : undefined} pending={pendingCell ? { ...pendingCell, valid: pendingValid, kind: pendingKind ?? undefined } : null} floor={d.floor} lineOk={lineOk} running={d.active && !d.motionPaused} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />}>
             <Factory3D
               dark={isDarkTheme()}
               active={d.active}
@@ -516,11 +540,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               props={state.factoryProps}
               floorW={floorWidth(state.factoryExpansion)}
               era={state.era}
-              lockedBay={(() => {
-                const cost = nextExpansionCost(state.factoryExpansion);
-                if (cost == null) return null;
-                return { cols: EXPAND_STEP, label: `Expand · ${format(cost)}` };
-              })()}
+              lockedBay={nextExpansionCost(state.factoryExpansion) == null ? null : { cols: EXPAND_STEP }}
               onTapLockedBay={() => { haptic.light(); setSheet("decor"); }}
               onTapCell={(c, r) => onTapCell(c, r, true)}
               paintBelts={buildTool === "belt"}
@@ -533,6 +553,8 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               }}
               onCarryChange={(carrying) => { if (carrying) haptic.light(); }}
               onMovePiece={(piece, c, r) => {
+                const at = piece.type === "machine" ? state.factoryFloor.machines.find((m) => m.id === piece.id) : state.factoryProps.find((pr) => pr.id === piece.id);
+                if (at && at.c === c && at.r === r) return { ok: true }; // picked up and put back: nothing to buy, nothing to undo
                 snapshot();
                 const res = piece.type === "machine" ? d.game.moveFloorMachine(piece.id, c, r) : d.game.moveFactoryProp(piece.id, c, r);
                 if (res.ok) { haptic.success(); sfx("build"); }
@@ -545,7 +567,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           </Suspense>
           </ErrorBoundary>
         ) : (
-          <FloorMinimap props={state.factoryProps} onCell={buildTool ? onTapCell : undefined} pending={pendingCell ? { ...pendingCell, valid: pendingValid } : null} floor={d.floor} lineOk={lineOk} running={d.active && !d.motionPaused} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />
+          <FloorMinimap props={state.factoryProps} onCell={buildTool ? onTapCell : undefined} pending={pendingCell ? { ...pendingCell, valid: pendingValid, kind: pendingKind ?? undefined } : null} floor={d.floor} lineOk={lineOk} running={d.active && !d.motionPaused} floorW={floorWidth(state.factoryExpansion)} lockedBayW={state.factoryExpansion < MAX_EXPANSION ? EXPAND_STEP : 0} />
         )}
       </div>
 
@@ -579,12 +601,12 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
             <button className="fmode__stopped-fix" onClick={() => { haptic.light(); setBuildCat("machine"); setBuildTool("belt"); }}>Build your line</button>
           </div>
         )}
-        <div className="fmode__panel">
-          <button className="fmode__panel-head" aria-expanded={orderOpen} onClick={() => { haptic.light(); setOrderOpen(!orderOpen); }}>
-            <span className="fmode__panel-title">Current order</span>
-            <ChevronDown size={14} className={`fmode__panel-caret${orderOpen ? " fmode__panel-caret--open" : ""}`} aria-hidden />
-          </button>
-          {d.lead ? (
+        {d.lead ? (
+          <div className="fmode__panel">
+            <button className="fmode__panel-head" aria-expanded={orderOpen} onClick={() => { haptic.light(); setOrderOpen(!orderOpen); }}>
+              <span className="fmode__panel-title">Current order</span>
+              <ChevronDown size={14} className={`fmode__panel-caret${orderOpen ? " fmode__panel-caret--open" : ""}`} aria-hidden />
+            </button>
             <div className="fmode__order">
               <span className="fmode__order-thumb"><DeviceRenderer product={d.lead.product} size={42} /></span>
               <div className="fmode__order-info">
@@ -611,10 +633,14 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                 )}
               </div>
             </div>
-          ) : (
-            <p className="fmode__empty">No active order. {onNavigate && <button className="fmode__layout-apply" onClick={() => { onClose(); onNavigate("design"); }}>Design a product</button>}</p>
-          )}
-        </div>
+          </div>
+        ) : (
+          /* Idle: one line, so the floor gets the height an empty order card used to take. */
+          <div className="fmode__panel fmode__idle">
+            <span className="fmode__panel-title">No active order</span>
+            {onNavigate && <button className="fmode__layout-apply" onClick={() => { onClose(); onNavigate("design"); }}>Design a product</button>}
+          </div>
+        )}
 
         {state.building.length > 1 && <label className="fmode__empty">Active jobs ({state.building.length})<select aria-label="Active production job" className="fmode__layout-input" value={d.lead?.product.id} onChange={e => setSelectedJob(e.target.value)}>{state.building.map(b => <option key={b.product.id} value={b.product.id}>{b.product.name}</option>)}</select></label>}
 
@@ -655,7 +681,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
         {state.activeSideOrder && (() => {
           const so = state.activeSideOrder;
           const completed = so.completedWeeks ?? Math.max(0, state.week - so.startedWeek);
-          const weeksLeft = Math.max(0, so.weeksNeeded - completed);
+          const weeksLeft = sideOrderWeeksLeft(state);
           const frac = Math.max(0, Math.min(1, completed / Math.max(1, so.weeksNeeded)));
           const payout = sideOrderPayout(so);
           const feePct = Math.round(SIDE_ORDER_CANCEL_PCT * 100);
@@ -667,7 +693,8 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               <button
                 className="fmode__sideorder-x"
                 onClick={() => {
-                  if (!cancelArm) { haptic.light(); setCancelArm(true); return; }
+                  if (!cancelArm) { haptic.light(); arm(); setCancelArm(true); return; }
+                  if (!settled()) return;
                   setCancelArm(false);
                   haptic.warning();
                   d.game.cancelSideOrder();
@@ -730,13 +757,16 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
                       className="fmode__buy fmode__autoquote-go"
                       disabled={!pendingValid || broke}
                       onClick={() => {
+                        // The ghost re-arms on a fresh cell right after a Place; a double-tap must not
+                        // buy a second machine there.
+                        if (!settled()) return;
                         snapshot();
                         const res = d.game.buyFloorMachine(pendingKind, pendingCell.c, pendingCell.r);
                         if (res.ok) {
                           // No toast: the machine appears on the floor under the player's finger. A line
                           // of text naming what they just watched drop in is pure echo, and placing is
                           // the single most repeated action in Factory mode — one toast per tap.
-                          haptic.success(); sfx("build");
+                          haptic.success(); sfx("build"); arm();
                           // state.factoryFloor won't reflect the machine we just placed until the next
                           // render — seed the next ghost against a merged copy so back-to-back placements
                           // don't land the ghost back on the cell we just filled.
@@ -903,7 +933,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           {d.game.paused ? <Play size={16} aria-hidden /> : <Pause size={16} aria-hidden />}
           {canReviewDecision ? "Review decision" : d.game.tabBlocked ? "Running in another tab" : d.game.suspended ? "Waiting for decision" : d.game.paused ? "Resume game" : "Pause game"}
         </button>
-        <BoostButton lead={d.lead} weeksLeft={d.weeksLeft} rushBuild={d.game.rushBuild} />
+        <BoostButton lead={d.lead} cost={d.lead ? rushCost(state, d.lead.product.id) : null} cash={state.cash} rushBuild={d.game.rushBuild} />
         <button
           className="fmode__side"
           title={`${d.readyCount} ready to launch`}
@@ -1087,7 +1117,8 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
               if (cost == null) return <span className="fmode__upline-max">Max size</span>;
               return (
                 <button className="fmode__buy" disabled={state.cash < cost} onClick={() => {
-                  if (!expandArm) { haptic.light(); setExpandArm(true); return; }
+                  if (!expandArm) { haptic.light(); arm(); setExpandArm(true); return; }
+                  if (!settled()) return;
                   setExpandArm(false);
                   const res = d.game.buyFloorExpansion();
                   if (res.ok) { haptic.success(); sfx("build"); emitCelebrate(); setResetView((v) => v + 1); showToast("New bay unlocked — the floor grows east", { tone: "positive" }); }
@@ -1188,30 +1219,37 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
 }
 
 /** BOOST — the reference's paid time boost, translated honestly: rushBuild completes one week
- *  of the lead run for an overtime premium. Disabled when idle or unaffordable. */
+ *  of the lead run for an overtime premium. The price is on the button before the tap; disabled
+ *  when idle, unaffordable, or on a run's last week (it finishes next tick either way). */
 // Takes the parent's already-computed factory data as props: calling useFactoryData here ran the
 // whole chain walk / financials a second (and, with the card underneath, third) time per tick.
-function BoostButton({ lead, weeksLeft, rushBuild }: {
+function BoostButton({ lead, cost, cash, rushBuild }: {
   lead: ReturnType<typeof useFactoryData>["lead"];
-  weeksLeft: number;
+  cost: Money | null;
+  cash: Money;
   rushBuild: ReturnType<typeof useFactoryData>["game"]["rushBuild"];
 }) {
-  const d = { lead, weeksLeft };
-  if (!d.lead || d.weeksLeft <= 0) {
-    const why = d.lead ? "Finishing this week — nothing left to rush" : "No build running — plan a production run to rush it";
-    return <button className="fmode__boost" disabled title={why} aria-label={`BOOST — ${why}`}><Zap size={16} aria-hidden /> BOOST</button>;
+  const busy = useRef(0); // one rush per double-tap
+  if (!lead || cost == null || cash < cost) {
+    const why = !lead ? "No build running — plan a production run to rush it"
+      : cost == null ? "Finishing next week — nothing left to rush"
+      : `Rushing costs ${format(cost)}`;
+    return <button className="fmode__boost" disabled title={why} aria-label={`BOOST — ${why}`}><Zap size={16} aria-hidden /> BOOST{cost != null ? ` · ${format(cost)}` : ""}</button>;
   }
-  const id = d.lead.product.id;
+  const id = lead.product.id;
   return (
     <button
       className="fmode__boost"
+      aria-label={`BOOST — finish a week sooner for ${format(cost)}`}
       onClick={() => {
+        if (performance.now() - busy.current < CONFIRM_SETTLE_MS) return;
+        busy.current = performance.now();
         const res = rushBuild(id);
         if (res.ok) { haptic.success(); sfx("build"); showToast("Line rushed — one week saved", { tone: "positive" }); }
         else { haptic.warning(); showToast(res.reason ?? "Can't rush right now", { tone: "negative" }); }
       }}
     >
-      <Zap size={16} aria-hidden /> BOOST · 1 wk
+      <Zap size={16} aria-hidden /> BOOST · {format(cost)}
     </button>
   );
 }
@@ -1226,6 +1264,8 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
   const [glLost, setGlLost] = useState(false);
   const use3d = webglSupported() && !glLost;
   const cardLineOk = lineComplete(d.floor);
+  const bayCost = nextExpansionCost(state.factoryExpansion);
+  const bayChipId = useId(); // the chip's price is announced as the card button's description
   // The card shows the REAL factory — the live 3D line, your paint job, the locked bay — not an
   // abstract map. Look-don't-touch (preview mode): taps open fullscreen, drags scroll the page.
   const mini = (
@@ -1233,7 +1273,7 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
   );
   return (
     <div className="fcard">
-      <button className="fcard__tap" onClick={() => { haptic.light(); setOpen(true); }} aria-label="Open factory mode">
+      <button className="fcard__tap" onClick={() => { haptic.light(); setOpen(true); }} aria-label="Open factory mode" aria-describedby={use3d && bayCost != null ? bayChipId : undefined}>
         {use3d ? (
           <span className="fcard__scene" aria-hidden>
             <ErrorBoundary fallback={mini}>
@@ -1262,10 +1302,7 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
                 props={state.factoryProps}
                 floorW={floorWidth(state.factoryExpansion)}
                 era={state.era}
-                lockedBay={(() => {
-                  const cost = nextExpansionCost(state.factoryExpansion);
-                  return cost == null ? null : { cols: EXPAND_STEP, label: `Expand · ${format(cost)}` };
-                })()}
+                lockedBay={bayCost == null ? null : { cols: EXPAND_STEP }}
                 onContextLost={() => setGlLost(true)}
               />
             </Suspense>
@@ -1275,13 +1312,17 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
           mini
         )}
         <span className="fcard__expand" aria-hidden><Maximize2 size={16} /></span>
+        {/* The next bay's price, pinned to the corner nearest the ghost bay — never over the line. */}
+        {use3d && bayCost != null && <span className="fcard__bay" id={bayChipId}><Plus size={12} aria-hidden /> Expand · {format(bayCost)}</span>}
       </button>
       <div className="fcard__chips">
         <span className="fcard__chip">{d.fac.name} · {d.fac.kind === "owned" ? "owned" : "contract"}</span>
         <span className="fcard__chip">
-          {d.active
+          {d.state.building.length > 0
             ? `${d.state.building.length} run${d.state.building.length > 1 ? "s" : ""} · ${d.stage?.label ?? ""} · ${d.weeksLeft} wk left`
-            : "Lines idle"}
+            : d.state.activeSideOrder
+              ? `Client order · ${sideOrderWeeksLeft(d.state)} wk left`
+              : "Lines idle"}
         </span>
         {d.readyCount > 0 && <span className="fcard__chip fcard__chip--ready">{d.readyCount} ready</span>}
       </div>

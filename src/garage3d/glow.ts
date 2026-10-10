@@ -24,3 +24,29 @@ export function glowTexture(): THREE.CanvasTexture {
   cached = new THREE.CanvasTexture(c);
   return cached;
 }
+
+let fadeCached: THREE.CanvasTexture | null = null;
+
+/** Opaque plateau that eases out to nothing at the rim, as an alphaMap (greyscale: white = solid).
+ *  Lets a world's ground melt into the card/stage backdrop instead of ending at a hard edge. */
+export function groundFadeTexture(): THREE.CanvasTexture {
+  if (fadeCached) return fadeCached;
+  const c = document.createElement("canvas");
+  c.width = 128;
+  c.height = 128;
+  const ctx = c.getContext("2d");
+  if (ctx) {
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, 128, 128);
+    const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    g.addColorStop(0, "#fff");
+    g.addColorStop(0.4, "#fff");
+    g.addColorStop(0.7, "#8a8a8a");
+    g.addColorStop(0.88, "#262626");
+    g.addColorStop(1, "#000");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 128, 128);
+  }
+  fadeCached = new THREE.CanvasTexture(c);
+  return fadeCached;
+}

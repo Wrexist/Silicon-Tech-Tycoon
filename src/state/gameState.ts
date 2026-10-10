@@ -4280,13 +4280,23 @@ export function applyFactoryLayout(state: GameState, id: string): ActionResult {
   };
 }
 
+/** BOOST's price for a run (integer cents): an overtime premium on the run's production cost.
+ *  Null when there is no such run or nothing worth rushing — a run with one week or less left
+ *  finishes on the next tick whether it is rushed or not, so charging for it would buy nothing. */
+export function rushCost(state: GameState, productId: string): Money | null {
+  const job = state.building.find((b) => b.product.id === productId);
+  if (!job || job.totalWeeks - job.weeksElapsed <= 1) return null;
+  const units = job.plannedUnits ?? BALANCE.build.minRun;
+  return Math.round(effectiveUnitCost(state, job.product) * units * BALANCE.build.rushCostPct) as Money;
+}
+
 export function rushBuild(state: GameState, productId: string): ActionResult {
   const job = state.building.find((b) => b.product.id === productId);
   if (!job) return { state, ok: false, reason: "No such build in production." };
   const weeksLeft = job.totalWeeks - job.weeksElapsed;
   if (weeksLeft <= 0) return { state, ok: false, reason: "This run is already finishing." };
-  const units = job.plannedUnits ?? BALANCE.build.minRun;
-  const cost = Math.round(effectiveUnitCost(state, job.product) * units * BALANCE.build.rushCostPct) as Money;
+  if (weeksLeft <= 1) return { state, ok: false, reason: "This run finishes next week anyway." };
+  const cost = rushCost(state, productId)!;
   if (state.cash < cost) return { state, ok: false, reason: `Need ${format(sub(cost, state.cash))} more to rush the line.` };
   const feed = trimFeed([...state.feed, feedItem(state.week, `Rushed the ${job.product.name} line, one week saved.`, "neutral")]);
   return {

@@ -14,7 +14,8 @@
 // they are someone else's work; .world-shots/ is gitignored).
 //
 // Env: SHOTS_SAVE=<json> shoot a specific save (default: stage the rich demo save via the engine);
-//      SHOTS_CHROME=<exe> browser; SHOTS_THEMES=light,dark; SHOTS_PORT (default 5261).
+//      SHOTS_CHROME=<exe> browser; SHOTS_THEMES=light,dark; SHOTS_PORT (default 5261);
+//      SHOTS_VIEWPORT=<w>x<h> CSS size (default 390x844; e.g. 820x1180 for an iPad check).
 import { mkdir, readFile, writeFile, readdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -31,6 +32,7 @@ const outRoot = resolve(root, ".world-shots");
 const label = (process.argv[2] || "after").replace(/[^a-z0-9_-]/gi, "-");
 const outDir = resolve(outRoot, label);
 const THEMES = (process.env.SHOTS_THEMES || "light,dark").split(",").map((t) => t.trim()).filter(Boolean);
+const [VW, VH] = (process.env.SHOTS_VIEWPORT || "390x844").split("x").map(Number);
 await mkdir(outDir, { recursive: true });
 
 if (!existsSync(resolve(root, "dist", "index.html"))) {
@@ -91,7 +93,7 @@ const domClick = (p, sel) => p.evaluate((s) => document.querySelector(s)?.click(
 
 try {
   for (const theme of THEMES) {
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2 });
+    const ctx = await browser.newContext({ viewport: { width: VW || 390, height: VH || 844 }, deviceScaleFactor: 2 });
     await ctx.addInitScript(([v, th]) => {
       localStorage.setItem("silicon.save.v1", v);
       localStorage.setItem("silicon.settings", JSON.stringify({ theme: th, sound: false, haptics: false,
