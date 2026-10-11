@@ -248,7 +248,7 @@ export function FloorMinimap({ floor, lineOk, running, floorW = FLOOR.w, lockedB
 
 /* ----------------------------- fullscreen mode ----------------------------- */
 
-export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNavigate?: (t: Tab) => void }) {
+export function FactoryMode({ onClose, onNavigate, holdCanvas = false }: { onClose: () => void; onNavigate?: (t: Tab) => void; /** Keep the 3D stage empty until the HQ card has released its WebGL context (F8). */ holdCanvas?: boolean }) {
   const [selectedJob, setSelectedJob] = useState<string>();
   const d = useFactoryData(selectedJob);
   const { state } = d;
@@ -511,7 +511,7 @@ export function FactoryMode({ onClose, onNavigate }: { onClose: () => void; onNa
           <Move3d size={15} aria-hidden /> Drag to look around · pinch to zoom
         </div>
       )}
-        {use3d ? (
+        {use3d && holdCanvas ? null : use3d ? (
           /* Same degrade-don't-crash contract HQ's 3D office already had (screens/HQ.tsx): a throw
              from inside the WebGL scene — a driver-level failure, or the lazy chunk not arriving —
              falls back to the 2D floor map instead of propagating to the root boundary and replacing
@@ -1261,6 +1261,15 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
   const d = useFactoryData();
   const { state } = d;
   const [open, setOpen] = useState(false);
+  // F8: the fullscreen renderer waits until the card's own context is really gone (R3F releases it
+  // ~500 ms after unmount), so the app never holds three live contexts even for a moment. The
+  // overlay itself opens at once; a timer is the fallback if the release event never arrives.
+  const [cardFreed, setCardFreed] = useState(true);
+  useEffect(() => {
+    if (!open || cardFreed) return;
+    const t = window.setTimeout(() => setCardFreed(true), 2500);
+    return () => window.clearTimeout(t);
+  }, [open, cardFreed]);
   const [glLost, setGlLost] = useState(false);
   const use3d = webglSupported() && !glLost;
   const cardLineOk = lineComplete(d.floor);
@@ -1273,19 +1282,21 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
   );
   return (
     <div className="fcard">
-      <button className="fcard__tap" onClick={() => { haptic.light(); setOpen(true); }} aria-label="Open factory mode" aria-describedby={use3d && bayCost != null ? bayChipId : undefined}>
-        {use3d ? (
+      <button className="fcard__tap" onClick={() => { haptic.light(); setCardFreed(!use3d); setOpen(true); }} aria-label="Open factory mode" aria-describedby={use3d && bayCost != null ? bayChipId : undefined}>
+        {/* F8: while the fullscreen view is open the card is covered, so it gives its WebGL context
+            back (the 2D minimap stands in) — the app never holds three live contexts (hidden office
+            + card + fullscreen). Closing re-mounts it; the Factory3D chunk is already loaded. */}
+        {use3d && !open ? (
           <span className="fcard__scene" aria-hidden>
             <ErrorBoundary fallback={mini}>
             <Suspense fallback={mini}>
               <Factory3D
               dark={isDarkTheme()}
                 preview
-                // The card keeps its WebGL context (returning to HQ is instant) but stops DRAWING
-                // whenever it can't be seen: another bottom tab, or the fullscreen build view open
-                // over it. Without this the card kept issuing ~874 draw calls a frame from behind
-                // the overlay and on every other tab — for a picture nobody was looking at.
-                paused={!active || open}
+                // The card keeps its WebGL context across bottom tabs (returning to HQ is instant)
+                // but stops DRAWING whenever it can't be seen. Without this the card kept issuing
+                // ~874 draw calls a frame on every other tab — for a picture nobody was looking at.
+                paused={!active}
                 active={d.active}
                 activeKind={d.activeKind}
               workingKinds={d.workingKinds}
@@ -1304,6 +1315,7 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
                 era={state.era}
                 lockedBay={bayCost == null ? null : { cols: EXPAND_STEP }}
                 onContextLost={() => setGlLost(true)}
+                onReleased={() => setCardFreed(true)}
               />
             </Suspense>
             </ErrorBoundary>
@@ -1326,7 +1338,7 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
         </span>
         {d.readyCount > 0 && <span className="fcard__chip fcard__chip--ready">{d.readyCount} ready</span>}
       </div>
-      {open && <FactoryMode onClose={() => setOpen(false)} onNavigate={onNavigate} />}
+      {open && <FactoryMode onClose={() => setOpen(false)} onNavigate={onNavigate} holdCanvas={!cardFreed} />}
     </div>
   );
 }

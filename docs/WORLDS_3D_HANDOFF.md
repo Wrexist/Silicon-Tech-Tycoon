@@ -203,6 +203,17 @@ Each gap: what is wrong, where, and the fix. Verified against the captures above
   - F7: `garage3d/factoryYard.ts` — fenced loading yard (gate on the truck road), parking lines,
     three lamps, a tree row behind the back wall; instanced (7 draws), all inside the camera fit.
   - O8: header comments + robot fit height (1.7 m) corrected.
+- **Step 7 (device + store): code part in review** (branch `claude/worlds-3d-step7-contexts`,
+  stacked on step 6). F8: while the fullscreen factory is open the HQ card unmounts its canvas (the
+  2D minimap stands in), so the app holds two live WebGL contexts (hidden office + fullscreen), never
+  three. Unmounting a Canvas forces its own context loss, which used to be read as a GPU failure and
+  would have dropped the card to 2D for good — `Factory3D` now ignores the loss it causes itself.
+  R3F 9.6 releases a context ~500 ms AFTER unmount, so the fullscreen canvas waits for the card's
+  own context-lost event (`onReleased`, 2.5 s fallback) — the overlay opens at once, the 3D a beat
+  later. The browser gate checks ≤ 2 canvases while open, the release-before-mount order, and the
+  3D card back after close.
+  **Still the owner's:** the 15–20 min dense-factory session on a real iPhone (old and new), then
+  sign off the compare page, then `npm run shots:store` to refresh the App Store frames.
 
 ## 5. How to check yourself
 

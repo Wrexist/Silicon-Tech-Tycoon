@@ -136,6 +136,9 @@ export interface Factory3DProps {
   /** Last tap's cell + validity — flashed green/red on the pad for placement feedback. */
   flash?: { c: number; r: number; ok: boolean; n: number } | null;
   onContextLost?: () => void;
+  /** Fired once this canvas has actually given its GPU context back after unmounting. R3F 9.6
+   *  tears a root down ~500 ms after the Canvas leaves the tree, so "unmounted" is not "released". */
+  onReleased?: () => void;
 }
 
 /* Working-machine glow evolves with the company's era, so the line visibly advances as you
@@ -2263,6 +2266,12 @@ export default function Factory3D(p: Factory3DProps) {
   const revision = useMemo(() => JSON.stringify([p.floor, p.props, p.floorW]), [p.floor, p.props, p.floorW]);
   const motion = useMemo(() => ({ reduced, stopped: !!p.motionPaused, revision }), [reduced, p.motionPaused, revision]);
   const quality = useQuality();
+  // Unmounting a Canvas forces its own context loss (R3F disposes the renderer). That is not a GPU
+  // failure, so it must not trip onContextLost: the HQ card unmounts while fullscreen is open (F8)
+  // and would otherwise drop to the 2D minimap for good. Set in a layout cleanup, which runs before
+  // the Canvas's own teardown in the same commit.
+  const disposing = useRef(false);
+  useLayoutEffect(() => { disposing.current = false; return () => { disposing.current = true; }; }, []);
   return (
     <MotionContext.Provider value={motion}><Canvas
       role="img"
@@ -2283,7 +2292,7 @@ export default function Factory3D(p: Factory3DProps) {
         frameCamera(camera as THREE.PerspectiveCamera, p.preview ? size.height > size.width : window.innerHeight > window.innerWidth, cx, bay);
         gl.domElement.addEventListener(
           "webglcontextlost",
-          (e) => { e.preventDefault(); p.onContextLost?.(); },
+          (e) => { e.preventDefault(); if (disposing.current) p.onReleased?.(); else p.onContextLost?.(); },
           { once: true },
         );
       }}
