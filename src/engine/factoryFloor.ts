@@ -240,7 +240,7 @@ export function demoFloor(): FactoryFloor {
   };
 }
 
-/** Is a tile within one cell (incl. diagonals) of any cell of a machine of `kind`? */
+/** Is a tile orthogonally beside (not diagonal to) any cell of a machine of `kind`? */
 function nearMachine(floor: FactoryFloor, kind: MachineKind, c: number, r: number): boolean {
   for (const m of floor.machines) {
     if (m.kind !== kind) continue;
@@ -252,15 +252,17 @@ function nearMachine(floor: FactoryFloor, kind: MachineKind, c: number, r: numbe
   return false;
 }
 
-/** A line RUNS only when the longest belt chain starts beside an Intake and ends beside a
- *  Packer — the factory-tycoon rule that makes layouts meaningful (F3). */
-/** Prefer a valid directed source-to-sink route, never an unrelated longer belt. */
-export function connectedChain(floor: FactoryFloor): BeltTile[] {
+/** Every COMPLETE route on the floor — the factory-tycoon rule that makes layouts meaningful (F3):
+ *  a directed belt chain that starts beside an Intake and runs, tile by tile, to a dead end beside a
+ *  Packer. Parallel lines (extra intakes / packers) each count; a loop or a chain that ends anywhere
+ *  else does not. A chain may start at ANY tile beside an Intake — even one a stray belt points into —
+ *  so one loose tile can't switch a working line off. Longest first; ties keep (row, column) start
+ *  order. Pure + deterministic. */
+export function completeRoutes(floor: FactoryFloor): BeltTile[][] {
   const at = new Map(floor.belts.map(b => [`${b.c},${b.r}`, b]));
-  const fed = new Set(floor.belts.map(b => `${b.c + STEP[b.dir][0]},${b.r + STEP[b.dir][1]}`));
-  const starts = floor.belts.filter(b => !fed.has(`${b.c},${b.r}`) && nearMachine(floor, "intake", b.c, b.r))
+  const starts = floor.belts.filter(b => nearMachine(floor, "intake", b.c, b.r))
     .sort((a,b) => a.r-b.r || a.c-b.c);
-  let best: BeltTile[] = [];
+  const routes: BeltTile[][] = [];
   for (const start of starts) {
     const chain: BeltTile[] = [], seen = new Set<string>();
     let cur: BeltTile | undefined = start;
@@ -269,21 +271,44 @@ export function connectedChain(floor: FactoryFloor): BeltTile[] {
       cur = at.get(`${cur.c + STEP[cur.dir][0]},${cur.r + STEP[cur.dir][1]}`);
     }
     const tail = chain.at(-1)!;
-    if (!cur && chain.length > 1 && nearMachine(floor, "packer", tail.c, tail.r) && chain.length > best.length) best = chain;
+    if (!cur && chain.length > 1 && nearMachine(floor, "packer", tail.c, tail.r)) routes.push(chain);
   }
-  return best;
+  return routes.sort((a, b) => b.length - a.length); // stable: equal lengths keep start order
 }
-/** Equipment participating in the selected route; remote equipment remains owned and visible. */
-export function connectedMachines(floor: FactoryFloor): PlacedMachine[] {
-  const chain = connectedChain(floor);
-  return floor.machines.filter(m => chain.some(b => machineCells(m).some(cell => {
+
+/** The main line: the longest complete route (empty when there is none). It drives the travelling
+ *  items and the layout-quality score; which machines COUNT is `connectedMachines` (every route). */
+export function connectedChain(floor: FactoryFloor): BeltTile[] {
+  return completeRoutes(floor)[0] ?? [];
+}
+
+/** Every tile on any complete route, each once, in route order — what machines connect through. */
+export function routeTiles(floor: FactoryFloor): BeltTile[] {
+  const out: BeltTile[] = [], seen = new Set<string>();
+  for (const route of completeRoutes(floor)) for (const b of route) {
+    const k = `${b.c},${b.r}`;
+    if (!seen.has(k)) { seen.add(k); out.push(b); }
+  }
+  return out;
+}
+
+/** Machines with a footprint cell orthogonally beside any of `tiles`. */
+function machinesAlong(floor: FactoryFloor, tiles: readonly BeltTile[]): PlacedMachine[] {
+  const on = new Set(tiles.map(b => `${b.c},${b.r}`));
+  return floor.machines.filter(m => machineCells(m).some(cell => {
     const [c,r] = cell.split(",").map(Number);
-    return Math.abs(c-b.c) + Math.abs(r-b.r) === 1;
-  })));
+    return on.has(`${c+1},${r}`) || on.has(`${c-1},${r}`) || on.has(`${c},${r+1}`) || on.has(`${c},${r-1}`);
+  }));
+}
+
+/** Equipment on ANY complete route (parallel lines each count); remote equipment stays owned and
+ *  visible but earns nothing until a complete route runs past it. */
+export function connectedMachines(floor: FactoryFloor): PlacedMachine[] {
+  return machinesAlong(floor, routeTiles(floor));
 }
 
 export function lineComplete(floor: FactoryFloor): boolean {
-  return connectedChain(floor).length > 1;
+  return completeRoutes(floor).length > 0;
 }
 
 // Auto-route tuning: a turn costs as much as ROUTE_TURN_COST extra tiles, so legs prefer long
@@ -605,16 +630,18 @@ export function lineEfficiency(floor: FactoryFloor): number {
   const straightness = straight / (chain.length - 1);
   // Recipe order — each present processing machine's nearest point along the belt path should
   // advance in recipe sequence; score = fraction of adjacent present-stage pairs that don't regress.
-  const path = beltPath(connectedChain(floor));
+  const path = beltPath(chain);
+  // The main line's own machines: layout quality scores the main line, never a parallel one.
+  const along = machinesAlong(floor, chain);
   const nearestFrac = (kind: MachineKind): number => {
-    const m = connectedMachines(floor).find((mm) => mm.kind === kind);
+    const m = along.find((mm) => mm.kind === kind);
     if (!m || path.length < 2) return -1;
     const [mx, mz] = machineCenter(m);
     let bestI = 0, bestD = Infinity;
     path.forEach(([x, z], i) => { const d = (x - mx) ** 2 + (z - mz) ** 2; if (d < bestD) { bestD = d; bestI = i; } });
     return bestI / (path.length - 1);
   };
-  const present = ROUTE_STAGE_ORDER.filter((k) => connectedMachines(floor).some((m) => m.kind === k));
+  const present = ROUTE_STAGE_ORDER.filter((k) => along.some((m) => m.kind === k));
   let orderScore = 1;
   if (present.length >= 2) {
     const fracs = present.map(nearestFrac);
@@ -661,16 +688,18 @@ export function lineLayoutBreakdown(floor: FactoryFloor): LineLayoutBreakdown {
   const steps = chain.length - 1;
   const straightness = (steps - corners) / steps;
 
-  const path = beltPath(connectedChain(floor));
+  const path = beltPath(chain);
+  // The main line's own machines: layout quality scores the main line, never a parallel one.
+  const along = machinesAlong(floor, chain);
   const nearestFrac = (kind: MachineKind): number => {
-    const m = connectedMachines(floor).find((mm) => mm.kind === kind);
+    const m = along.find((mm) => mm.kind === kind);
     if (!m || path.length < 2) return -1;
     const [mx, mz] = machineCenter(m);
     let bestI = 0, bestD = Infinity;
     path.forEach(([x, z], i) => { const d = (x - mx) ** 2 + (z - mz) ** 2; if (d < bestD) { bestD = d; bestI = i; } });
     return bestI / (path.length - 1);
   };
-  const stages = ROUTE_STAGE_ORDER.filter((k) => connectedMachines(floor).some((m) => m.kind === k));
+  const stages = ROUTE_STAGE_ORDER.filter((k) => along.some((m) => m.kind === k));
   let order = 1;
   let swapped: [MachineKind, MachineKind] | null = null;
   if (stages.length >= 2) {
@@ -701,9 +730,11 @@ function layoutBonusScale(floor: FactoryFloor): number {
  *      toolkit, each extra assembly arm shaving ~5% more and each machine upgrade level ~2%,
  *      down to a ×0.55 floor.
  *    • TOPOLOGY: if `requiredKinds` (the product's recipe machines) are given, the bonus scales
- *      with COVERAGE — a freshly wired Intake→Packer keeps 25% of it, and every recipe machine
- *      the player adds grows it toward the full 100%. Every purchase on the $40K+ climb moves
- *      the number; there is no dead zone where wiring the line pays nothing.
+ *      with COVERAGE of its PROCESSING machines — a freshly wired Intake→Packer keeps 25% of it,
+ *      and every recipe machine the player adds grows it toward the full 100%. (Intake and Packer
+ *      are what make it a line at all, so they never count toward coverage — counting them let a
+ *      bare line keep 55%.) Every purchase on the $40K+ climb moves the number; there is no dead
+ *      zone where wiring the line pays nothing.
  *    • LAYOUT (item 3.2): the earned bonus is scaled by how tidily the line is laid (lineEfficiency),
  *      keeping ≥60% even when messy → so hand-laying in recipe order along straight lanes pays off.
  *  Pure + bounded ≤1 (never a penalty); no RNG, so the determinism pin is untouched. */
@@ -716,7 +747,10 @@ export function lineSpeedMult(floor: FactoryFloor, requiredKinds?: Iterable<Mach
   if (requiredKinds) {
     const present = new Set(connectedMachines(floor).map((m) => m.kind));
     let total = 0, covered = 0;
-    for (const k of requiredKinds) { total++; if (present.has(k)) covered++; }
+    for (const k of requiredKinds) {
+      if (k === "intake" || k === "packer") continue; // guaranteed by a complete line
+      total++; if (present.has(k)) covered++;
+    }
     if (total > 0) bonus *= 0.25 + 0.75 * (covered / total);
   }
   bonus *= layoutBonusScale(floor); // item 3.2 — tidy layouts earn more of the bonus

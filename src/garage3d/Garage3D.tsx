@@ -988,7 +988,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
     <>
       <VisibilityPause paused={paused} />
       {!dark && <EnableShadows />}
-      <CameraRig build={!!builder?.build} facilityTier={facilityTier} still={still} />
+      <CameraRig build={!!builder?.build} facilityTier={facilityTier} still={still} dark={dark} />
       <PinchZoom />
       <Lighting p={p} dark={dark} roomScale={cfg.roomScale} />
 

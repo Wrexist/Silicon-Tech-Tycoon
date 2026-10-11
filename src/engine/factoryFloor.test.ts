@@ -156,12 +156,13 @@ describe("factory floor grid (F2)", () => {
     const laptopReq = requiredKindsFor("laptop");
     expect(missingMachineKinds(noScreen, laptopReq)).toEqual([]);
     expect(lineSpeedMult(noScreen, laptopReq)).toBeCloseTo(0.9211, 4);
-    // Day-one payoff: just WIRING the bare starter (intake + packer, 2 of 5 recipe kinds) already
-    // earns 25% + coverage of the base bonus — the "wired line builds faster" promise is true
-    // from the first belt, not only after the full $40K toolkit.
+    // Day-one payoff: just WIRING the bare starter (intake + packer, none of the phone's 3
+    // processing kinds) already earns 25% of the base bonus — the "wired line builds faster" promise
+    // is true from the first belt. Intake and Packer don't count toward coverage (a complete line
+    // always has them), so each processing machine bought adds a full third of the other 75%.
     const { autoRouteBelts } = await import("./factoryFloor.ts");
     const wired = autoRouteBelts(starterFloor())!;
-    expect(lineSpeedMult(wired, phoneReq)).toBeCloseTo(1 - 0.08 * (0.25 + 0.75 * (2 / 5)), 5);
+    expect(lineSpeedMult(wired, phoneReq)).toBeCloseTo(1 - 0.08 * 0.25, 5);
     expect(lineSpeedMult(wired, phoneReq)).toBeLessThan(1);
   });
 
@@ -472,5 +473,58 @@ describe("layout breakdown — the two drivers behind Layout quality", () => {
     const b = lineLayoutBreakdown(f);
     expect(b.corners).toBeGreaterThan(3);
     expect(b.straightness).toBeLessThan(0.5);
+  });
+});
+
+describe("complete routes: every Intake→Packer route counts (parallel lines)", () => {
+  // Intake (0..1, 0..1) · Test Station (5..6, 0..1) · Packer (12..13, 0..1).
+  const machines = [
+    { id: "i", kind: "intake" as const, c: 0, r: 0 },
+    { id: "q", kind: "qa" as const, c: 5, r: 0 },
+    { id: "p", kind: "packer" as const, c: 12, r: 0 },
+  ];
+  type Dir = "n" | "e" | "s" | "w";
+  const row = (r: number, c0: number, c1: number, dir: Dir) => Array.from({ length: c1 - c0 + 1 }, (_, i) => ({ c: c0 + i, r, dir }));
+  // Route A: row 2 under the Test Station, short, its tail aimed up into the Packer.
+  const routeA = [...row(2, 1, 11, "e"), { c: 12, r: 2, dir: "n" as Dir }];
+  // Route B: a longer, empty detour from the same Intake to the same Packer along row 4.
+  const routeB = [
+    { c: 0, r: 2, dir: "s" as Dir }, { c: 0, r: 3, dir: "s" as Dir },
+    ...row(4, 0, 12, "e"),
+    { c: 13, r: 4, dir: "n" as Dir }, { c: 13, r: 3, dir: "n" as Dir }, { c: 13, r: 2, dir: "n" as Dir },
+  ];
+
+  it("a second, longer route no longer disconnects the machines on the first", async () => {
+    const { completeRoutes, connectedChain, connectedMachines, lineComplete, missingMachineKinds } = await import("./factoryFloor.ts");
+    const f = { machines, belts: [...routeA, ...routeB] };
+    expect(lineComplete(f)).toBe(true);
+    expect(completeRoutes(f)).toHaveLength(2);
+    expect(connectedChain(f)).toHaveLength(routeB.length); // the main line is still the longest
+    expect(connectedMachines(f).map((m) => m.id)).toContain("q");
+    expect(missingMachineKinds(f, ["intake", "qa", "packer"])).toEqual([]);
+  });
+
+  it("a route that never reaches a Packer still earns nothing", async () => {
+    const { connectedMachines, lineComplete } = await import("./factoryFloor.ts");
+    // A stub from the Intake that dead-ends into a Test Station at (2..3, 4..5), no Packer.
+    const stub = { machines: [machines[0], { id: "q2", kind: "qa" as const, c: 2, r: 4 }, machines[2]], belts: [
+      { c: 0, r: 2, dir: "s" as Dir }, { c: 0, r: 3, dir: "s" as Dir }, { c: 0, r: 4, dir: "e" as Dir }, { c: 1, r: 4, dir: "e" as Dir },
+    ] };
+    expect(lineComplete(stub)).toBe(false);
+    expect(connectedMachines(stub)).toEqual([]);
+  });
+
+  it("a stray belt pointing into the first tile can't switch a working line off", async () => {
+    const { lineComplete } = await import("./factoryFloor.ts");
+    const line = { machines: [{ id: "i", kind: "intake" as const, c: 0, r: 0 }, { id: "p", kind: "packer" as const, c: 6, r: 0 }],
+      belts: row(1, 2, 5, "e") };
+    expect(lineComplete(line)).toBe(true);
+    expect(lineComplete({ ...line, belts: [...line.belts, { c: 2, r: 2, dir: "n" as Dir }] })).toBe(true);
+  });
+
+  it("is deterministic: the same floor gives the same routes in the same order", async () => {
+    const { completeRoutes } = await import("./factoryFloor.ts");
+    const f = { machines, belts: [...routeB, ...routeA] };
+    expect(JSON.stringify(completeRoutes(f))).toBe(JSON.stringify(completeRoutes({ machines, belts: [...routeB, ...routeA] })));
   });
 });

@@ -14,11 +14,11 @@ import { factoryFrame } from "../garage3d/factoryFraming.ts";
 // context-loss downgrade. Zero image assets.
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ContactShadows, Html, OrbitControls, RoundedBox } from "@react-three/drei";
-import { Maximize2 } from "lucide-react";
+import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
+import { groundFadeTexture } from "../garage3d/glow.ts";
 import {
-  FLOOR, MACHINE_DEFS, beltPath, connectedChain, connectedMachines, canPlaceMachine, formMarks, machineCells, machineCenter, machineLevel, worldOf,
+  FLOOR, MACHINE_DEFS, beltPath, connectedChain, connectedMachines, routeTiles, canPlaceMachine, formMarks, machineCells, machineCenter, machineLevel, worldOf,
   type BeltDir, type FactoryFloor, type MachineKind,
 } from "../engine/factoryFloor.ts";
 import { PROP_DEFS, canPlaceProp, propCells, propCenter, type PlacedProp, type PropKind } from "../engine/factoryProps.ts";
@@ -139,7 +139,7 @@ export interface Factory3DProps {
   onCarryChange?: (carrying: boolean) => void;
   /** The NEXT (locked) expansion bay, previewed as a ghost floor east of the walls so players see
    *  the bigger factory before they buy it. Null/undefined when the floor is maxed out. */
-  lockedBay?: { cols: number; label: string; sub?: string; armed?: boolean } | null;
+  lockedBay?: { cols: number } | null;
   /** Tap on the locked bay — the caller opens wherever the expansion is bought. */
   onTapLockedBay?: () => void;
   /** Non-interactive PREVIEW mode (the HQ card): live scene, but no camera controls and no
@@ -313,7 +313,7 @@ function BeltBeds({ belts }: { belts: FactoryFloor["belts"] }) {
 
 function BeltTiles({ floor, lineOk, active, overtime, detail = "full" }: { floor: FactoryFloor; lineOk: boolean; active: boolean; overtime: boolean; detail?: "full" | "low" }) {
   const fine = detail === "full";
-  const connected = useMemo(() => new Set(connectedChain(floor).map(b => `${b.c},${b.r}`)), [floor]);
+  const connected = useMemo(() => new Set(routeTiles(floor).map(b => `${b.c},${b.r}`)), [floor]); // every complete route runs
   const at = useMemo(() => new Map(floor.belts.map((b) => [`${b.c},${b.r}`, b])), [floor.belts]);
   /** The direction of the neighbour that flows INTO this tile (null if it's a head). */
   const inflowDir = (b: FactoryFloor["belts"][number]): BeltDir | null => {
@@ -665,7 +665,7 @@ function RobotArm({ active, hot, position, phase = 0, pl, itemsT }: {
     if (yaw.current) yaw.current.rotation.y = face * reach;
     if (shoulder.current) shoulder.current.rotation.x = -0.3 - reach * 0.7 + Math.sin(clock.elapsedTime * 4) * 0.06 * reach; // dip to the belt + work jitter (only while reaching)
     if (elbow.current) elbow.current.rotation.x = 0.85 + reach * 0.55;
-    if (wrist.current) wrist.current.rotation.x = -0.45 - reach * (1 - Math.exp(-21.0 * dt));
+    if (wrist.current) wrist.current.rotation.x = -0.45 - reach * 0.3; // a pose, not dt-dependent
   });
   return (
     <group position={position}>
@@ -1426,8 +1426,8 @@ function FloorDecals({ floorW, cx }: { floorW: number; cx: number }) {
  *  camera so the player can orbit/zoom with touch. */
 /** Frame the floor. `cx` is the building's east-shift from expansions, so the view follows the
  *  wider building (shifts + widens as bays are added). */
-function frameCamera(cam: THREE.PerspectiveCamera, _portrait: boolean, cx = 0, zoomOut = 1) {
-  const frame = factoryFrame(cam.aspect, cx, 1.08 * zoomOut, _portrait);
+function frameCamera(cam: THREE.PerspectiveCamera, _portrait: boolean, cx = 0, bay = 0) {
+  const frame = factoryFrame(cam.aspect, cx, 1.08, _portrait, bay);
   cam.fov = frame.fov;
   cam.position.copy(frame.position);
   cam.lookAt(frame.target);
@@ -1450,22 +1450,52 @@ function VisibilityPause({ paused = false, idle = false }: { paused?: boolean; i
 }
 
 /** Re-frames the camera to its default when the HUD's recenter button bumps `signal`. */
-function CameraReset({ signal, cx, preview, focus }: { signal: number; cx: number; preview?: boolean; focus?: [number, number] }) {
+function CameraReset({ signal, cx, bay = 0, preview, focus }: { signal: number; cx: number; bay?: number; preview?: boolean; focus?: [number, number] }) {
   const camera = useThree((s) => s.camera);
-  const controls = useThree((s) => s.controls) as { target: THREE.Vector3; enableDamping: boolean; update: () => void } | null;
+  const controls = useThree((s) => s.controls) as (THREE.EventDispatcher<{ start: object; change: object; end: object }> & { target: THREE.Vector3; enableDamping: boolean; update: () => void }) | null;
   const size = useThree((s) => s.size);
+  const invalidate = useThree((s) => s.invalidate);
   const seen = useRef("");
+  const seenHeight = useRef(0);
+  // Has the player moved the camera since the last reset? A layout-only resize must not undo that.
+  // Only a gesture that actually changes the view counts — a plain tap (place, erase) also fires the
+  // controls' start/end, and must not freeze the framing.
+  const moved = useRef(false);
+  useEffect(() => {
+    if (!controls) return;
+    let active = false;
+    const onStart = () => { active = true; };
+    const onChange = () => { if (active) moved.current = true; };
+    const onEnd = () => { active = false; };
+    controls.addEventListener("start", onStart);
+    controls.addEventListener("change", onChange);
+    controls.addEventListener("end", onEnd);
+    return () => {
+      controls.removeEventListener("start", onStart);
+      controls.removeEventListener("change", onChange);
+      controls.removeEventListener("end", onEnd);
+    };
+  }, [controls]);
   // Built once per render, not per frame (the per-frame template string + join was steady garbage).
   // Orientation still comes from the live size, which re-renders this on rotate.
   const portrait = preview ? size.height > size.width : window.innerHeight > window.innerWidth;
-  const revision = `${signal}:${size.width}:${portrait}:${cx}:${focus?.join(",") ?? ""}`;
+  const revision = `${signal}:${size.width}:${portrait}:${cx}:${bay}:${focus?.join(",") ?? ""}`;
   useFrame(() => {
-    if (seen.current === revision) return;
+    if (seen.current === revision && seenHeight.current === size.height) return;
+    // Height alone changes when the fullscreen stage's grid row settles or a panel opens: re-fit to
+    // the new space, unless the player has already taken the camera — then keep their view.
+    if (seen.current === revision && moved.current) { seenHeight.current = size.height; return; }
+    // Fullscreen: wait for OrbitControls to register (makeDefault sets it in an effect, after the
+    // first frame). Marking the reset done without it left the orbit pivot on the controls' initial
+    // target, so the camera stood where the fit put it but aimed off-centre.
+    if (!preview && !controls) { invalidate(); return; } // retry next frame, even under "demand"
     seen.current = revision;
+    seenHeight.current = size.height;
+    moved.current = false;
     // Flush accumulated orbit deltas before writing the final reset pose.
     if (controls) { const damping = controls.enableDamping; controls.enableDamping = false; controls.update(); controls.enableDamping = damping; }
-    frameCamera(camera as THREE.PerspectiveCamera, portrait, cx);
-    const target = factoryFrame(size.width / size.height, cx, 1.08, portrait).target;
+    frameCamera(camera as THREE.PerspectiveCamera, portrait, cx, bay);
+    const target = factoryFrame(size.width / size.height, cx, 1.08, portrait, bay).target;
     if (focus) {
       target.set(focus[0], 0.8, focus[1]).applyAxisAngle(new THREE.Vector3(0, 1, 0), portrait ? Math.PI / 2 : 0);
       camera.position.copy(target).add(new THREE.Vector3(6, 9, 7));
@@ -1601,8 +1631,9 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   const gesture = useRef(new FactoryGestureGuard());
   const portrait = p.preview ? size.height > size.width : window.innerHeight > window.innerWidth;
   const world = useRef<THREE.Group>(null);
-  const mounts = useMemo(() => { const route = connectedChain(p.floor); return machineMounts(p.floor, route.length ? route : p.floor.belts); }, [p.floor]);
-  const routeCells = useMemo(() => new Set(connectedChain(p.floor).map(b => `${b.c},${b.r}`)), [p.floor]);
+  // Every complete route counts (parallel lines too): heads mount on, and the route view lights, all of them.
+  const mounts = useMemo(() => { const route = routeTiles(p.floor); return machineMounts(p.floor, route.length ? route : p.floor.belts); }, [p.floor]);
+  const routeCells = useMemo(() => new Set(routeTiles(p.floor).map(b => `${b.c},${b.r}`)), [p.floor]);
   const connectedIds = useMemo(() => new Set(connectedMachines(p.floor).map(m => m.id)), [p.floor]);
   const floorW = p.floorW ?? FLOOR.w;      // buildable width in cells (grows east with expansions)
   const shadowTarget = useMemo(() => {
@@ -1622,6 +1653,12 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
 
   const look = useMemo(() => productLook(p.product), [p.product]);
   const itemsT = useRef<number[]>([0, 0.25, 0.5, 0.75].map((f) => f * Math.max(1, pl.total)));
+  const spacedFor = useRef(pl.total);
+  useLayoutEffect(() => {
+    if (Math.abs(pl.total - spacedFor.current) < 0.5) return;
+    spacedFor.current = pl.total;
+    itemsT.current = [0, 0.25, 0.5, 0.75].map((f) => f * Math.max(1, pl.total));
+  }, [pl.total]);
   useMotionFrame((_, dt) => {
     advanceFactoryItems(itemsT.current, pl.total, dt, p.active, p.lineOk, p.overtime);
   });
@@ -1638,7 +1675,9 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
 
   // NON-belt tools: a TAP places (a drag orbits the camera instead). Record the pointer-down screen
   // position; on release place only if the pointer barely moved, so drag-to-rotate never drops a piece.
+  // Pieces record it too: a ray through a machine's tall parts near the grid edge can miss the pad.
   const padDown = useRef<{ x: number; y: number } | null>(null);
+  const padRef = useRef<THREE.Mesh>(null);
   const onPadDown = (e: { nativeEvent: PointerEvent }) => {
     if (gesture.current.blocked || e.nativeEvent.button !== 0) return;
     padDown.current = { x: e.nativeEvent.clientX, y: e.nativeEvent.clientY };
@@ -1693,9 +1732,22 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
     setGhost([cell]);
     try { e.target?.setPointerCapture?.(e.nativeEvent.pointerId); } catch { /* capture optional */ }
   };
-  const onPaintMove = (e: { point: THREE.Vector3 }) => {
+  // While captured, a move whose ray misses the pad carries the pointer-DOWN intersection, so reading
+  // e.point there snapped an overshooting drag back to its first tile and collapsed the run. Cast the
+  // live ray onto the pad's plane instead, and clamp to the grid edge the finger ran past.
+  const padPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 1, 0), -0.12), []);
+  const padHit = useMemo(() => new THREE.Vector3(), []);
+  const clampedCell = (ray: THREE.Ray): { c: number; r: number } | null => {
+    if (!world.current || !ray.intersectPlane(padPlane, padHit)) return null;
+    const local = world.current.worldToLocal(padHit);
+    return {
+      c: Math.max(0, Math.min(floorW - 1, Math.round(local.x + (FLOOR.w - 1) / 2))),
+      r: Math.max(0, Math.min(FLOOR.h - 1, Math.round(local.z + (FLOOR.h - 1) / 2))),
+    };
+  };
+  const onPaintMove = (e: { ray: THREE.Ray }) => {
     if (!dragRef.current) return;
-    const cell = cellAt(e.point);
+    const cell = clampedCell(e.ray);
     if (!cell) return;
     const last = dragRef.current[dragRef.current.length - 1];
     if (cell.c === last.c && cell.r === last.r) return;
@@ -1778,8 +1830,12 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
         if (!canPlaceMachine(others, m.kind, c, r, floorW)) continue;
         if (propAt.size > 0 && machineCells({ kind: m.kind, c, r }).some((cell) => propAt.has(cell))) continue;
         valid.add(`${c},${r}`);
-        // Belt-adjacent = the footprint's one-cell ring touches the line — where a machine WORKS.
-        if (p.floor.belts.some((b) => b.c >= c - 1 && b.c <= c + def.w && b.r >= r - 1 && b.r <= r + def.d)) rec.add(`${c},${r}`);
+        // Belt-adjacent = a belt touches the footprint's EDGE (not just a corner) — where a machine
+        // WORKS. The engine connects machines through orthogonal neighbours only.
+        if (p.floor.belts.some((b) => {
+          const inCols = b.c >= c && b.c < c + def.w, inRows = b.r >= r && b.r < r + def.d;
+          return (inCols && (b.r === r - 1 || b.r === r + def.d)) || (inRows && (b.c === c - 1 || b.c === c + def.w));
+        })) rec.add(`${c},${r}`);
       }
     } else {
       const pr = (p.props ?? []).find((x) => x.id === piece.id);
@@ -1806,6 +1862,15 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
     padDown.current = null;
     dragRef.current = null;
     setGhost(null);
+    // The drop listeners attach in an effect after this commit; a finger lifted in that gap must
+    // still end the carry (it used to leave the piece in hand with the camera frozen).
+    earlyRelease.current?.off();
+    const early = { ended: null as null | "up" | "cancel", off: () => {} };
+    const onUp = () => { early.ended ??= "up"; }, onCancel = () => { early.ended ??= "cancel"; };
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+    early.off = () => { window.removeEventListener("pointerup", onUp); window.removeEventListener("pointercancel", onCancel); };
+    earlyRelease.current = early;
     setCarry({ type: piece.type, id: piece.id, kind, w, d, cell: at, valid, green: toCells(greenSet), faint: toCells(faintSet) });
     p.onCarryActive?.(true);
   };
@@ -1847,6 +1912,8 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   // Drop on ANY pointer-up (window-level, so lifting the finger off the canvas can't strand the
   // piece mid-air): commit if the hovered anchor is legal, otherwise it snaps home by re-render.
   const carrying = carry != null;
+  const earlyRelease = useRef<{ ended: null | "up" | "cancel"; off: () => void } | null>(null);
+  useEffect(() => () => earlyRelease.current?.off(), []);
   useEffect(() => {
     if (!carrying) return;
     const up = () => {
@@ -1861,6 +1928,10 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
     const cancel = () => { setCarry(null); p.onCarryActive?.(false); };
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", cancel);
+    const early = earlyRelease.current;
+    earlyRelease.current = null;
+    early?.off();
+    if (early?.ended === "up") up(); else if (early?.ended === "cancel") cancel();
     return () => {
       window.removeEventListener("pointerup", up);
       window.removeEventListener("pointercancel", cancel);
@@ -1887,10 +1958,12 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {/* one warm point light at the dock / office corner */}
       <pointLight position={dock ? [dock.road[0], 3.2, dock.road[2]] : [cx + 6, 3.2, 4]} intensity={p.overtime ? 11 : 7} distance={9} decay={2} color="#ffcf9a" />
 
-      {/* grounds */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[cx, -0.02, 0]} receiveShadow>
-        <planeGeometry args={[floorW + 12, FLOOR.h + 7]} />
-        <meshStandardMaterial color={p.dark ? C.grass : "#e2e7df"} roughness={1} />
+      {/* grounds — a wide pad that fades out into the card/stage backdrop, so the building sits on
+          a studio floor instead of a hard-edged slab floating in the void (centred on the building
+          + dock, solid well past the frame, gone before any orbit reaches its edge) */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[cx - 1.8, -0.02, 0]} receiveShadow>
+        <planeGeometry args={[floorW + 48, floorW + 48]} />
+        <meshStandardMaterial color={p.dark ? C.grass : "#e2e7df"} roughness={1} alphaMap={groundFadeTexture()} transparent depthWrite={false} />
       </mesh>
       {/* the building: concrete floor + painted walls (player-customisable), grows east with expansions */}
       <FactoryShell wallColor={p.wallColor ?? "#8a9099"} floorColor={p.floorColor ?? C.concrete} floorW={floorW} />
@@ -1899,8 +1972,11 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {/* expansion joints double as the build grid, subtle on the concrete */}
       <FloorGrid width={floorW} cx={cx} editing={!!p.buildMode || !!p.showRoute || !!carry} />
       {/* tap-catcher for build mode (invisible, above the pad) — belt tool paints on drag, others tap */}
-      {/* raycast skips visible={false}, so the tap-catcher is transparent instead of hidden */}
+      {/* hidden, not transparent: three and R3F still raycast invisible meshes, and a VISIBLE opacity-0
+          plane was baked by ContactShadows into a uniform dark film over the whole grid */}
       <mesh
+        ref={padRef}
+        visible={false}
         rotation={[-Math.PI / 2, 0, 0]}
         position={[cx, 0.12, 0]}
         onPointerDown={carry ? undefined : p.paintBelts ? onPaintDown : onPadDown}
@@ -1970,6 +2046,9 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
             onClick={p.onTapLockedBay ? (e) => {
               e.stopPropagation();
               if (e.delta > 8) return; // an orbit drag that ends on the bay is not a tap
+              // The bay's tall tap volume stands in front of the grid's last column at low angles: a
+              // ray that also reaches the build pad was a tap on the grid, not on the bay.
+              if (e.intersections.some((hit) => hit.object === padRef.current)) return;
               p.onTapLockedBay?.();
             } : undefined}
           >
@@ -2008,24 +2087,12 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
             ))}
             {/* an invisible tap volume over the whole bay — the ghost slab alone is a sliver at
                 phone camera angles, so without this the "tap to expand" target is a pixel hunt */}
-            <mesh position={[0, 0.7, 0]}>
+            <mesh position={[0, 0.7, 0]} visible={false}>
               <boxGeometry args={[bw + 0.3, 1.4, SHELL.d]} />
-              <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+              <meshBasicMaterial />
             </mesh>
-            {/* the expand pill — one compact line hugging the bay's west edge, far enough west
-                that neither the fullscreen tool rail nor the HQ card's crop clips the price */}
-            {p.preview && <Html position={[-(bw / 2) - 0.6, 0.45, -2.2]} center zIndexRange={[20, 0]} style={{ pointerEvents: "none", userSelect: "none" }}>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, whiteSpace: "nowrap", fontFamily: "system-ui,-apple-system,sans-serif" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 5, padding: "5px 10px", borderRadius: 999, background: p.lockedBay.armed ? "var(--accent, #3b82f6)" : "rgba(15,18,24,0.88)", border: p.lockedBay.armed ? "1px solid transparent" : "1px solid rgba(255,255,255,0.14)", color: "#fff", fontSize: 12, fontWeight: 800 }}>
-                  <Maximize2 size={12} aria-hidden /> {p.lockedBay.label}
-                </div>
-                {p.lockedBay.sub && (
-                  <div style={{ padding: "3px 9px", borderRadius: 10, background: "rgba(15,18,24,0.7)", color: "rgba(255,255,255,0.75)", fontSize: 10, fontWeight: 700, whiteSpace: "normal", maxWidth: 96, textAlign: "center", lineHeight: 1.35 }}>
-                    {p.lockedBay.sub}
-                  </div>
-                )}
-              </div>
-            </Html>}
+            {/* The bay's price lives in the card's DOM corner chip (FactoryCard), never over the
+                line: an in-scene pill landed on the working floor at every card size. */}
           </group>
         );
       })()}
@@ -2039,14 +2106,14 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {p.floor.machines
         .filter((m) => !(carry?.type === "machine" && carry.id === m.id))
         .map((m) => (
-          <group key={m.id} onPointerDown={(e) => beginHold(e, { type: "machine", id: m.id })} onPointerUp={(e) => tapPiece(e, m.c, m.r)}>
+          <group key={m.id} onPointerDown={(e) => { onPadDown(e); beginHold(e, { type: "machine", id: m.id }); }} onPointerUp={(e) => tapPiece(e, m.c, m.r)}>
             <MachineAt m={m} mount={mounts.get(m.id)} active={p.active && connectedIds.has(m.id) && (p.workingKinds?.includes(m.kind) ?? p.activeKind === m.kind)} activeKind={p.activeKind} pl={pl} itemsT={itemsT} />
           </group>
         ))}
       {p.props
         ?.filter((pr) => !(carry?.type === "prop" && carry.id === pr.id))
         .map((pr) => (
-          <group key={pr.id} onPointerDown={(e) => beginHold(e, { type: "prop", id: pr.id })} onPointerUp={(e) => tapPiece(e, pr.c, pr.r)}>
+          <group key={pr.id} onPointerDown={(e) => { onPadDown(e); beginHold(e, { type: "prop", id: pr.id }); }} onPointerUp={(e) => tapPiece(e, pr.c, pr.r)}>
             <PropAt prop={pr} />
           </group>
         ))}
@@ -2076,7 +2143,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
               <planeGeometry args={[def.w * 0.96, def.d * 0.96]} />
               <meshBasicMaterial color={p.pending.valid ? C.dropOk : C.dropBad} transparent opacity={0.45} depthWrite={false} />
             </mesh>
-            <MachineAt m={{ id: "pending", kind: p.pending.kind, c: p.pending.c, r: p.pending.r }} mount={machineMounts({ ...p.floor, machines: [...p.floor.machines, { id: "pending", kind: p.pending.kind, c: p.pending.c, r: p.pending.r }] }).get("pending")} active={false} activeKind={null} pl={pl} itemsT={itemsT} />
+            <MachineAt m={{ id: "pending", kind: p.pending.kind, c: p.pending.c, r: p.pending.r }} mount={(() => { const f = { ...p.floor, machines: [...p.floor.machines, { id: "pending", kind: p.pending.kind, c: p.pending.c, r: p.pending.r }] }; const route = routeTiles(f); return machineMounts(f, route.length ? route : f.belts).get("pending"); })()} active={false} activeKind={null} pl={pl} itemsT={itemsT} />
           </group>
         );
       })()}
@@ -2098,7 +2165,8 @@ export default function Factory3D(p: Factory3DProps) {
   const reduced = useReducedMotionLive();
   // Building east-shift from expansions; when a LOCKED bay is previewed, frame slightly east of the
   // built floor so the ghost bay (and its lock pill) sit on screen instead of behind the tool rail.
-  const cx = ((p.floorW ?? FLOOR.w) - FLOOR.w) / 2 + (p.lockedBay ? p.lockedBay.cols / 2 : 0);
+  const bay = p.lockedBay?.cols ?? 0;
+  const cx = ((p.floorW ?? FLOOR.w) - FLOOR.w) / 2 + bay / 2;
   // Hold-to-move: while a piece is in hand the CAMERA freezes entirely, so the drag steers the
   // piece — not the view. Mirrored out to the caller for haptics/hints via onCarryChange.
   const [carrying, setCarrying] = useState(false);
@@ -2120,7 +2188,9 @@ export default function Factory3D(p: Factory3DProps) {
       gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
       camera={{ position: [10, 12.5, 11], fov: 28 }}
       onCreated={({ gl, camera, size }) => {
-        frameCamera(camera as THREE.PerspectiveCamera, p.preview ? size.height > size.width : window.innerHeight > window.innerWidth, cx, p.preview ? 1.22 : 1);
+        // The same pose CameraReset writes on the first frame (it used to be a looser 1.22 for the card,
+        // overwritten one frame later anyway).
+        frameCamera(camera as THREE.PerspectiveCamera, p.preview ? size.height > size.width : window.innerHeight > window.innerWidth, cx, bay);
         gl.domElement.addEventListener(
           "webglcontextlost",
           (e) => { e.preventDefault(); p.onContextLost?.(); },
@@ -2130,14 +2200,13 @@ export default function Factory3D(p: Factory3DProps) {
     >
       <VisibilityPause paused={p.paused} idle={p.motionPaused || reduced} />
       <Scene {...p} onCarryActive={(b) => { setCarrying(b); p.onCarryChange?.(b); }} />
-      <CameraReset signal={p.resetView ?? 0} cx={cx} preview={p.preview} focus={p.floor.machines.some(m => m.id === p.focusMachine) ? machineCenter(p.floor.machines.find(m => m.id === p.focusMachine)!) : undefined} />
+      <CameraReset signal={p.resetView ?? 0} cx={cx} bay={bay} preview={p.preview} focus={p.floor.machines.some(m => m.id === p.focusMachine) ? machineCenter(p.floor.machines.find(m => m.id === p.focusMachine)!) : undefined} />
       {/* touch/drag to orbit, pinch to zoom — pan disabled, kept above the floor. While the belt tool
           is active, one-finger ROTATE is suspended so a drag paints belt; pinch-zoom still works.
           While a piece is held, the whole control freezes so the drag moves the piece. */}
       {!p.preview && <OrbitControls
         makeDefault
         enabled={!carrying}
-        target={[cx, 0.8, 0]}
         enablePan={false}
         enableRotate={!p.paintBelts}
         enableDamping

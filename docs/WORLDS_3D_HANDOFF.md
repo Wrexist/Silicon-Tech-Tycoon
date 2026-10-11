@@ -111,6 +111,44 @@ Each gap: what is wrong, where, and the fix. Verified against the captures above
 | **6. Polish** | O5 era visuals, O6 quality setting, F7 exterior, O7, O8. | Each era visibly different; Low preset measurably cheaper. |
 | **7. Device + store** | F8, a 15–20 min dense-factory session on a real iPhone, then refresh the App Store frames (`npm run shots:store`). | Owner signs off the compare page; store frames updated. |
 
+### Progress
+
+- **Step 1 (framing + theme): in review** (branch `claude/worlds-3d-step1-framing`, stacked on this
+  handoff). One framing rule for both worlds, `src/garage3d/cameraFit.ts`: slide the pivot across
+  the floor until the box of what must be seen is centred, then fit the distance.
+  - F1: `factoryFrame` centres the box (it filled ~65% of a phone stage, off-centre; now ~93% on
+    the tight axis); the ghost bay's end of the box stops at its low walls; the idle order card is
+    one line. **Bug found on the way:** fullscreen `CameraReset` ran its one-shot reset before
+    OrbitControls registered (`makeDefault` sets it in an effect), so the pivot stayed on the
+    controls' `target={[cx, 0.8, 0]}` prop — un-rotated for portrait — and the view aimed
+    off-centre. It now waits for the controls; the prop is gone.
+  - F9: with the pivot fixed, wheel zoom in the headless capture moves the camera (close-up frame).
+  - F2: the Expand price is a DOM chip in the card's bottom-right corner, beside the ghost bay; the
+    in-scene `<Html>` pill is gone.
+  - F3: `--world-backdrop` (tokens) is the one backdrop for the office card, factory card and
+    fullscreen stage in both themes; the factory grounds fade out into it (`groundFadeTexture`).
+  - O1: `officeFrame` fits the cozy view per card aspect, tier and theme (same 3/4 look). Phones
+    keep roughly the old scale (the room is a wide diamond, so its side tips may crop ≤ 15%) but it
+    is centred; iPad-width cards get a ~16% larger room. The light diorama gets a soft ground shadow.
+  - Not done here: decorate-mode framing (unchanged), the `shots:worlds` iPad pass is
+    `SHOTS_VIEWPORT=820x1180 npm run shots:worlds -- <label>`.
+- **Factory audit (same branch, 2026-10-11).** Three code reviews (3D scene, Factory UI, factory
+  engine) plus a scripted playthrough on the real build (paint, undo, tap, place, erase,
+  hold-to-move, ghost-bay tap, Escape, week tick) in both themes. Fixed: Undo refunding 100% weeks
+  later (history now ends when a week passes); BOOST charging an unshown premium and saving nothing
+  on a run's last week (`rushCost`, price on the button, refused at ≤ 1 week); double-taps on Place,
+  Expand-confirm and side-order cancel; a belt drag past the grid edge collapsing to one tile; the
+  invisible tap pad baking a dark film over the whole floor (ContactShadows); erase/upgrade taps on
+  a machine's tall parts; the bay's tap box stealing taps on the last column; traveling items
+  bunched on a line wired after mount; a pickup stuck in hand; the ghost/placed mount mismatch;
+  diagonal "works here" hints; the arm wrist twitching with frame time; the card chip on a client
+  order; tutorial focus; the camera hint after the tutorial; the 2D fallback ghost size; a no-op
+  move adding an Undo entry. Camera: re-fits on layout changes only until the player moves it.
+  Owner decisions + low-priority leftovers are in `TASK.md` → Backlog (2026-10-11).
+- **Factory rules (owner-approved, 2026-10-11).** Every complete Intake→Packer route counts
+  (`completeRoutes`), not only the longest; a stray belt into a line's head can't switch it off; the
+  speed-bonus coverage counts processing machines only (a bare wired line keeps 25%, as documented).
+
 ## 5. How to check yourself
 
 ```bash

@@ -11,6 +11,7 @@ import {
   startBuild,
   skipInterrupt,
   rushBuild,
+  rushCost,
   launchReady,
   newGame,
   planProduction,
@@ -822,9 +823,10 @@ describe("skipInterrupt — skip-to-next-decision stop conditions", () => {
 });
 
 describe("rushBuild — the Factory Mode BOOST (pay a premium, finish a week sooner)", () => {
+  // A run long enough that a rush can actually save a week (a 1-week run finishes next tick anyway).
   function withBuild() {
-    const s = { ...newGame(31), cash: dollars(1_000_000) };
-    return startBuild(s, goodPhone(), 400, "none").state;
+    const s = startBuild({ ...newGame(31), cash: dollars(1_000_000) }, goodPhone(), 400, "none").state;
+    return { ...s, building: s.building.map((b) => ({ ...b, totalWeeks: Math.max(3, b.totalWeeks) })) };
   }
 
   it("completes one week of work for a cash premium", () => {
@@ -850,5 +852,29 @@ describe("rushBuild — the Factory Mode BOOST (pay a premium, finish a week soo
   it("refuses when cash can't cover the premium", () => {
     const s = { ...withBuild(), cash: dollars(1) };
     expect(rushBuild(s, s.building[0].product.id).ok).toBe(false);
+  });
+
+  it("refuses (and quotes no price) when the run finishes next week anyway", () => {
+    const s0 = withBuild();
+    const job = s0.building[0];
+    for (const left of [1, 0.5]) {
+      const s = { ...s0, building: [{ ...job, weeksElapsed: job.totalWeeks - left }] };
+      const res = rushBuild(s, job.product.id);
+      expect(res.ok).toBe(false);
+      expect(res.state.cash).toBe(s.cash);
+      expect(rushCost(s, job.product.id)).toBeNull();
+    }
+  });
+
+  it("charges exactly the quoted price", () => {
+    const s0 = withBuild();
+    const job = s0.building[0];
+    const s = { ...s0, building: [{ ...job, totalWeeks: Math.max(3, job.totalWeeks), weeksElapsed: 0 }] };
+    const quote = rushCost(s, job.product.id);
+    expect(quote).not.toBeNull();
+    expect(Number.isInteger(quote)).toBe(true);
+    const res = rushBuild(s, job.product.id);
+    expect(res.ok).toBe(true);
+    expect(s.cash - res.state.cash).toBe(quote);
   });
 });

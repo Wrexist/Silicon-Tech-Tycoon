@@ -38,7 +38,10 @@
      color-mix(in srgb, var(--sheen) N%, transparent) so every highlight in the app reads from here
      (they were ~120 scattered #fff / rgba(255,255,255,…) / rgba(0,0,0,…) literals). */
   --sheen: #ffffff;
-  --factory-chrome: #0b0e12; /* Factory mode's dark world chrome — the same in both themes by design */
+  /* The 3D worlds' backdrop (office card, factory card + fullscreen stage): one studio, so both
+     worlds sit on the same soft accent wash in each theme. Built only from theme tokens, so it
+     follows light/dark on its own (the factory card used to be near-black in both themes). */
+  --world-backdrop: radial-gradient(120% 90% at 50% 30%, var(--accent-soft), var(--surface) 70%);
   --shade: #000000;
   /* --accent darkened to #2563eb in light theme so white text on accent (incl. 13px .ds-btn--sm)
      meets 4.5:1. --accent-ink stays #fff. Dark theme overrides --accent back to #3b82f6. */

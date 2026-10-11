@@ -92,8 +92,9 @@ try {
         const { factoryFrame } = await import('/src/garage3d/factoryFraming.ts');
         const s = window.__auditStore.getState();
         const { floorWidth, FLOOR, EXPAND_STEP, MAX_EXPANSION } = await import('/src/engine/factoryFloor.ts');
-        const cx = (floorWidth(expansion) - FLOOR.w) / 2 + (expansion < MAX_EXPANSION ? EXPAND_STEP / 2 : 0);
-        const frame = factoryFrame(s.size.width / s.size.height, cx, 1.08, innerHeight > innerWidth);
+        const bay = expansion < MAX_EXPANSION ? EXPAND_STEP : 0;
+        const cx = (floorWidth(expansion) - FLOOR.w) / 2 + bay / 2;
+        const frame = factoryFrame(s.size.width / s.size.height, cx, 1.08, innerHeight > innerWidth, bay);
         return { position: frame.position.toArray(), target: frame.target.toArray() };
       }, before.factoryExpansion);
       await p.waitForFunction(pose => {
