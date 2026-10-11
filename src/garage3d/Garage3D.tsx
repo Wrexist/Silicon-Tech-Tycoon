@@ -4,7 +4,8 @@
 // Scoped to the garage only; devices stay SVG.
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
-import { ContactShadows, RoundedBox, Html } from "@react-three/drei";
+import { RoundedBox, Html } from "@react-three/drei";
+import { BakedContactShadows } from "./bakedShadows.tsx";
 import { PartyPopper, Sparkles, Star, ThumbsUp, Rocket, Frown, CloudRain, BatteryLow, Meh, ThumbsDown } from "lucide-react";
 import * as THREE from "three";
 import { moodBand, type MoodBand } from "../engine/staff.ts";
@@ -1146,9 +1147,12 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           plus desks (staff) and upgrade fixtures. The plane is sized to the room + a small margin
           (it used to be 16× the room scale, which spread 1024 px of shadow over a 23 m plane and
           smeared the whole floor into one soft grey blot). */}
-      <ContactShadows
-        key={`${(builder?.layout ?? []).map((it) => `${it.iid}${it.c},${it.r},${it.rot}`).join("|")}·${staff.length}·${facilityTier}·${Object.values(upgrades).join("")}`}
-        position={[0, 0.02, 0]} scale={9.8 * roomK} blur={2.5} far={6} opacity={dark ? 0.62 : 0.42} color={p.shadow} resolution={1024 * quality.contactShadowScale} frames={1} />
+      <BakedContactShadows
+        // Everything that changes what stands on the floor: the layout, who's seated, the tier, the
+        // upgrade fixtures, the desktop pods, Decorate (which swaps live workstations for the editable
+        // layer) and the dressing's run seed/era. A change re-bakes once (bakedShadows.tsx).
+        bake={`${(builder?.layout ?? []).map((it) => `${it.iid}${it.c},${it.r},${it.rot}`).join("|")}·${staff.map((s) => s.id).join(",")}·${facilityTier}·${Object.values(upgrades).join("")}·${desktops}·${inBuild ? "build" : "live"}·${seed}·${era}·${dark ? "d" : "l"}`}
+        position={[0, 0.02, 0]} scale={9.8 * roomK} blur={2.5} far={6} opacity={dark ? 0.62 : 0.42} color={p.shadow} resolution={1024 * quality.contactShadowScale} />
     </>
   );
 }

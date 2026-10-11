@@ -234,9 +234,12 @@ try {
     const sample = () => p.evaluate(() => { const out = []; window.__auditStore.getState().scene.traverse(o => { if (!o.isCamera) out.push([o.name || o.type, ...o.position.toArray(), ...o.rotation.toArray()]); }); return JSON.stringify(out); });
     // On failure, say WHAT moved (and whether the scene even sees Reduce Motion) instead of just "moved".
     const moved = (x, y) => { const a = JSON.parse(x), b = JSON.parse(y); return a.map((r, i) => JSON.stringify(r) === JSON.stringify(b[i]) ? null : [r, b[i]]).filter(Boolean).slice(0, 6); };
-    // The still pose lands on the first frame after the switch; a software renderer can take longer
-    // than 400ms to present it. Wait (≤ 8s) for one quiet 500ms window, then require a second one —
-    // a scene that keeps animating never settles and still fails.
+    // The still pose lands on the first frame after the switch. On a software renderer, the setting can
+    // take well over a second to reach the R3F root (every frame there costs 100ms+), so two quiet
+    // samples taken BEFORE it arrives used to "settle" and then see the still pose snap in. Give it 3 s
+    // to arrive, then wait (≤ 8s) for one quiet 500ms window and require a second one — a scene that
+    // keeps animating never settles and still fails.
+    await p.waitForTimeout(3000);
     let settled = false;
     for (const deadline = Date.now() + 8000; !settled && Date.now() < deadline;) {
       const s0 = await sample(); await p.waitForTimeout(500); settled = (await sample()) === s0;

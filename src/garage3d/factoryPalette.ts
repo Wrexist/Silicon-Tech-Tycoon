@@ -45,6 +45,8 @@ export const FACTORY_PALETTE = {
   trunk: CATALOG.wood,
   yardPaint: CATALOG.chalk,        // parking lines in the loading yard
   lampHead: CATALOG.glow,          // yard lamp heads (warm glass)
+  alert: CATALOG.ledAlert,         // safety red: extinguishers, the compressor tank, a tool handle
+  fluid: CATALOG.screenDim,        // the liquid in the IBC tote
   palletWood: CATALOG.wood,
   palletSlat: CATALOG.woodDark,
   road: CATALOG.charcoal,

@@ -15,7 +15,8 @@ import { factoryFrame } from "../garage3d/factoryFraming.ts";
 // in docs/WORLDS_3D_HANDOFF.md).
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
+import { OrbitControls, RoundedBox } from "@react-three/drei";
+import { BakedContactShadows } from "../garage3d/bakedShadows.tsx";
 import * as THREE from "three";
 import { RoundedBoxGeometry, mergeBufferGeometries } from "three-stdlib";
 import { groundFadeTexture } from "../garage3d/glow.ts";
@@ -875,8 +876,8 @@ function ScreenBonder({ active, hot, position, yaw = 0, phase = 0, pl, itemsT, m
 
 /* --------------------------------- props ---------------------------------- */
 
-const PROP_WOOD = "#7d6743";
-const PROP_GREEN = "#3f8f5a";
+const PROP_WOOD = C.palletSlat;
+const PROP_GREEN = C.foliage;
 
 /** Pedestal fan — the only moving decor: three caged blades turn SLOWLY, clock-driven, with a
  *  per-prop phase hashed off the id so a row of fans never spins in lockstep (deterministic). */
@@ -894,7 +895,7 @@ function FanProp({ pos, id }: { pos: [number, number, number]; id: string }) {
         <mesh position={[0, 0, -0.03]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.05, 0.05, 0.12, 10]} /><meshStandardMaterial color={C.machine} roughness={0.5} metalness={0.4} /></mesh>
         <group ref={blades} position={[0, 0, 0.02]}>
           {[0, 1, 2].map((i) => (
-            <mesh key={i} rotation={[0, 0, (i * Math.PI * 2) / 3]}><boxGeometry args={[0.07, 0.34, 0.01]} /><meshStandardMaterial color="#9aa3ad" roughness={0.4} metalness={0.3} /></mesh>
+            <mesh key={i} rotation={[0, 0, (i * Math.PI * 2) / 3]}><boxGeometry args={[0.07, 0.34, 0.01]} /><meshStandardMaterial color={C.metal} roughness={0.4} metalness={0.3} /></mesh>
           ))}
         </group>
         <mesh position={[0, 0, 0.05]}><torusGeometry args={[0.34, 0.02, 8, 24]} /><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.5} /></mesh>
@@ -956,7 +957,7 @@ function PropAt({ prop }: { prop: PlacedProp }) {
           {[[-0.2, 0], [0.2, 0.05], [0.0, -0.22]].map(([dx, dz], i) => (
             <mesh key={i} position={[dx, 0.34, dz]} castShadow receiveShadow>
               <cylinderGeometry args={[0.19, 0.19, 0.62, 18]} />
-              <meshStandardMaterial color={i === 1 ? C.accent : "#c9722f"} roughness={0.5} metalness={0.3} />
+              <meshStandardMaterial color={i === 1 ? C.accent : C.amber} roughness={0.5} metalness={0.3} />
             </mesh>
           ))}
         </group>
@@ -965,13 +966,13 @@ function PropAt({ prop }: { prop: PlacedProp }) {
       return (
         <group position={pos}>
           <mesh position={[0, 0.07, 0]} castShadow receiveShadow><boxGeometry args={[0.9, 0.1, 0.9]} /><meshStandardMaterial color={PROP_WOOD} roughness={0.9} /></mesh>
-          {[-0.32, 0, 0.32].map((z2) => (<mesh key={z2} position={[0, 0.15, z2]}><boxGeometry args={[0.9, 0.05, 0.2]} /><meshStandardMaterial color="#8f7850" roughness={0.9} /></mesh>))}
+          {[-0.32, 0, 0.32].map((z2) => (<mesh key={z2} position={[0, 0.15, z2]}><boxGeometry args={[0.9, 0.05, 0.2]} /><meshStandardMaterial color={C.palletSlat} roughness={0.9} /></mesh>))}
         </group>
       );
     case "plant":
       return (
         <group position={pos}>
-          <mesh position={[0, 0.22, 0]} castShadow><cylinderGeometry args={[0.24, 0.19, 0.44, 16]} /><meshStandardMaterial color="#4a4f57" roughness={0.7} /></mesh>
+          <mesh position={[0, 0.22, 0]} castShadow><cylinderGeometry args={[0.24, 0.19, 0.44, 16]} /><meshStandardMaterial color={C.machine} roughness={0.7} /></mesh>
           {[[0, 0.62, 0, 0.3], [-0.14, 0.72, 0.06, 0.2], [0.14, 0.7, -0.05, 0.22]].map(([dx, y, dz, r], i) => (
             <mesh key={i} position={[dx as number, y as number, dz as number]} castShadow><sphereGeometry args={[r as number, 12, 12]} /><meshStandardMaterial color={PROP_GREEN} roughness={0.8} /></mesh>
           ))}
@@ -980,7 +981,7 @@ function PropAt({ prop }: { prop: PlacedProp }) {
     case "bench":
       return (
         <group position={pos}>
-          <RoundedBox args={[1.7, 0.12, 0.7]} radius={0.03} position={[0, 0.62, 0]} castShadow receiveShadow><meshStandardMaterial color={C.machineHi} roughness={0.5} metalness={0.3} /></RoundedBox>
+          <RoundedBox args={[1.7, 0.12, 0.7]} radius={0.03} position={[0, 0.62, 0]} castShadow receiveShadow>{housingMat()}</RoundedBox>
           {[[-0.75, -0.28], [0.75, -0.28], [-0.75, 0.28], [0.75, 0.28]].map(([lx, lz], i) => (<mesh key={i} position={[lx, 0.3, lz]}><boxGeometry args={[0.09, 0.6, 0.09]} /><meshStandardMaterial color={C.machine} roughness={0.6} metalness={0.3} /></mesh>))}
           <mesh position={[0.35, 0.74, 0]}><boxGeometry args={[0.3, 0.06, 0.2]} /><meshStandardMaterial color={C.accent} roughness={0.5} /></mesh>
           <mesh position={[-0.4, 0.75, 0.1]}><boxGeometry args={[0.24, 0.08, 0.16]} /><meshStandardMaterial color={C.amber} roughness={0.6} /></mesh>
@@ -993,7 +994,7 @@ function PropAt({ prop }: { prop: PlacedProp }) {
           {[0.5, 1.05, 1.55].map((y) => (
             <group key={y}>
               <mesh position={[0, y, 0]}><boxGeometry args={[1.72, 0.06, 0.66]} /><meshStandardMaterial color={C.machine} roughness={0.6} metalness={0.3} /></mesh>
-              {y < 1.5 && [-0.45, 0.1, 0.5].map((bx, i) => (<RoundedBox key={i} args={[0.34, 0.34, 0.4]} radius={0.03} position={[bx, y + 0.23, 0]} castShadow><meshStandardMaterial color={i % 2 ? C.crate : "#8f7850"} roughness={0.85} /></RoundedBox>))}
+              {y < 1.5 && [-0.45, 0.1, 0.5].map((bx, i) => (<RoundedBox key={i} args={[0.34, 0.34, 0.4]} radius={0.03} position={[bx, y + 0.23, 0]} castShadow><meshStandardMaterial color={i % 2 ? C.crate : C.palletSlat} roughness={0.85} /></RoundedBox>))}
             </group>
           ))}
         </group>
@@ -1001,9 +1002,9 @@ function PropAt({ prop }: { prop: PlacedProp }) {
     case "cone":
       return (
         <group position={pos}>
-          <mesh position={[0, 0.06, 0]}><boxGeometry args={[0.34, 0.06, 0.34]} /><meshStandardMaterial color="#e0842f" roughness={0.7} /></mesh>
-          <mesh position={[0, 0.32, 0]} castShadow><coneGeometry args={[0.14, 0.5, 20]} /><meshStandardMaterial color="#f28a2e" roughness={0.55} emissive="#f28a2e" emissiveIntensity={0.15} /></mesh>
-          <mesh position={[0, 0.34, 0]}><cylinderGeometry args={[0.11, 0.13, 0.1, 20]} /><meshStandardMaterial color="#f5f5f5" roughness={0.5} /></mesh>
+          <mesh position={[0, 0.06, 0]}><boxGeometry args={[0.34, 0.06, 0.34]} /><meshStandardMaterial color={C.amber} roughness={0.7} /></mesh>
+          <mesh position={[0, 0.32, 0]} castShadow><coneGeometry args={[0.14, 0.5, 20]} /><meshStandardMaterial color={C.amber} roughness={0.55} emissive={C.amber} emissiveIntensity={0.15} /></mesh>
+          <mesh position={[0, 0.34, 0]}><cylinderGeometry args={[0.11, 0.13, 0.1, 20]} /><meshStandardMaterial color={C.housing} roughness={0.5} /></mesh>
         </group>
       );
     case "sign":
@@ -1011,14 +1012,14 @@ function PropAt({ prop }: { prop: PlacedProp }) {
         <group position={pos}>
           <mesh position={[0, 0.5, 0]}><cylinderGeometry args={[0.04, 0.04, 1.0, 10]} /><meshStandardMaterial color={C.machine} roughness={0.5} metalness={0.4} /></mesh>
           <mesh position={[0, 1.05, 0]} rotation={[0, 0, Math.PI / 4]} castShadow><boxGeometry args={[0.34, 0.34, 0.03]} /><meshStandardMaterial color={C.hazard} emissive={C.hazard} emissiveIntensity={0.5} roughness={0.5} /></mesh>
-          <mesh position={[0, 1.05, 0.02]}><boxGeometry args={[0.04, 0.2, 0.01]} /><meshStandardMaterial color="#1a1a1a" /></mesh>
+          <mesh position={[0, 1.05, 0.02]}><boxGeometry args={[0.04, 0.2, 0.01]} /><meshStandardMaterial color={C.device} /></mesh>
         </group>
       );
     case "hazardStripe":
       return (
         <group position={pos}>
           {/* dark painted patch + diagonal amber bars */}
-          <mesh position={[0, 0.011, 0]}><boxGeometry args={[0.92, 0.02, 0.92]} /><meshStandardMaterial color="#141414" roughness={0.85} /></mesh>
+          <mesh position={[0, 0.011, 0]}><boxGeometry args={[0.92, 0.02, 0.92]} /><meshStandardMaterial color={C.dark} roughness={0.85} /></mesh>
           {[-0.34, -0.11, 0.11, 0.34].map((d, i) => (
             <mesh key={i} position={[d, 0.024, 0]} rotation={[0, Math.PI / 4, 0]}>
               <boxGeometry args={[0.13, 0.02, 0.86]} />
@@ -1031,10 +1032,10 @@ function PropAt({ prop }: { prop: PlacedProp }) {
       return (
         <group position={pos}>
           {/* wall board + bracket */}
-          <mesh position={[0, 0.6, -0.3]} castShadow><boxGeometry args={[0.4, 0.7, 0.06]} /><meshStandardMaterial color="#b23b3b" roughness={0.6} /></mesh>
+          <mesh position={[0, 0.6, -0.3]} castShadow><boxGeometry args={[0.4, 0.7, 0.06]} /><meshStandardMaterial color={C.alert} roughness={0.6} /></mesh>
           <mesh position={[0, 0.55, -0.22]}><boxGeometry args={[0.24, 0.06, 0.14]} /><meshStandardMaterial color={C.dark} roughness={0.5} metalness={0.4} /></mesh>
           {/* red bottle + neck */}
-          <mesh position={[0, 0.5, -0.16]} castShadow><cylinderGeometry args={[0.13, 0.13, 0.5, 16]} /><meshStandardMaterial color="#d23b30" roughness={0.4} metalness={0.2} emissive="#d23b30" emissiveIntensity={0.28} /></mesh>
+          <mesh position={[0, 0.5, -0.16]} castShadow><cylinderGeometry args={[0.13, 0.13, 0.5, 16]} /><meshStandardMaterial color={C.alert} roughness={0.4} metalness={0.2} emissive={C.alert} emissiveIntensity={0.28} /></mesh>
           <mesh position={[0, 0.82, -0.16]}><cylinderGeometry args={[0.05, 0.05, 0.14, 10]} /><meshStandardMaterial color={C.dark} roughness={0.5} metalness={0.5} /></mesh>
         </group>
       );
@@ -1063,14 +1064,14 @@ function PropAt({ prop }: { prop: PlacedProp }) {
           <mesh position={[0, 0.75, 0]}><cylinderGeometry args={[0.03, 0.03, 0.5, 10]} /><meshStandardMaterial color={C.machine} roughness={0.5} metalness={0.4} /></mesh>
           {/* twin lamp heads + a warm work-light pool */}
           {[-0.16, 0.16].map((dx) => (
-            <mesh key={dx} position={[dx, 1.0, 0.05]}><boxGeometry args={[0.24, 0.16, 0.1]} /><meshStandardMaterial color="#fff4d6" emissive="#ffe8b0" emissiveIntensity={1.4} toneMapped={false} /></mesh>
+            <mesh key={dx} position={[dx, 1.0, 0.05]}><boxGeometry args={[0.24, 0.16, 0.1]} /><meshStandardMaterial color={C.lampHead} emissive={C.lampHead} emissiveIntensity={1.4} toneMapped={false} /></mesh>
           ))}
           {/* A painted light POOL, not a real pointLight: the prop is cheap and uncapped, and every
               real light adds per-fragment cost to the whole floor and recompiles all materials on
               place/erase. The emissive heads above carry the "lamp is on" read. */}
           <mesh position={[0, 0.02, 0.45]} rotation={[-Math.PI / 2, 0, 0]}>
             <circleGeometry args={[1.1, 24]} />
-            <meshBasicMaterial color="#ffd9a0" transparent opacity={0.16} depthWrite={false} toneMapped={false} />
+            <meshBasicMaterial color={C.lampHead} transparent opacity={0.16} depthWrite={false} toneMapped={false} />
           </mesh>
         </group>
       );
@@ -1080,7 +1081,7 @@ function PropAt({ prop }: { prop: PlacedProp }) {
           {/* pallet base */}
           <mesh position={[0, 0.07, 0]} castShadow><boxGeometry args={[0.7, 0.12, 0.7]} /><meshStandardMaterial color={PROP_WOOD} roughness={0.9} /></mesh>
           {/* translucent liquid cube */}
-          <mesh position={[0, 0.5, 0]}><boxGeometry args={[0.6, 0.6, 0.6]} /><meshStandardMaterial color="#3fa7c9" transparent opacity={0.55} roughness={0.2} metalness={0.1} /></mesh>
+          <mesh position={[0, 0.5, 0]}><boxGeometry args={[0.6, 0.6, 0.6]} /><meshStandardMaterial color={C.fluid} transparent opacity={0.55} roughness={0.2} metalness={0.1} /></mesh>
           {/* metal cage: four corner posts + a top frame */}
           {[[-0.3, -0.3], [0.3, -0.3], [-0.3, 0.3], [0.3, 0.3]].map(([px, pz], i) => (
             <mesh key={i} position={[px, 0.5, pz]}><boxGeometry args={[0.03, 0.64, 0.03]} /><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.6} /></mesh>
@@ -1094,22 +1095,22 @@ function PropAt({ prop }: { prop: PlacedProp }) {
       return (
         <group position={pos}>
           {/* horizontal tank + domed caps */}
-          <mesh position={[0, 0.32, 0]} rotation={[0, 0, Math.PI / 2]} castShadow><cylinderGeometry args={[0.22, 0.22, 0.8, 20]} /><meshStandardMaterial color="#c0392b" roughness={0.5} metalness={0.3} /></mesh>
-          {[-0.4, 0.4].map((dx) => (<mesh key={dx} position={[dx, 0.32, 0]}><sphereGeometry args={[0.22, 12, 10]} /><meshStandardMaterial color="#a93226" roughness={0.5} metalness={0.3} /></mesh>))}
+          <mesh position={[0, 0.32, 0]} rotation={[0, 0, Math.PI / 2]} castShadow><cylinderGeometry args={[0.22, 0.22, 0.8, 20]} /><meshStandardMaterial color={C.alert} roughness={0.5} metalness={0.3} /></mesh>
+          {[-0.4, 0.4].map((dx) => (<mesh key={dx} position={[dx, 0.32, 0]}><sphereGeometry args={[0.22, 12, 10]} /><meshStandardMaterial color={C.alert} roughness={0.5} metalness={0.3} /></mesh>))}
           {[-0.3, 0.3].map((dx) => (<mesh key={`ft${dx}`} position={[dx, 0.08, 0]}><boxGeometry args={[0.1, 0.16, 0.34]} /><meshStandardMaterial color={C.dark} roughness={0.6} /></mesh>))}
           {/* motor box + gauge disc */}
-          <mesh position={[0, 0.62, 0]} castShadow><boxGeometry args={[0.34, 0.26, 0.3]} /><meshStandardMaterial color={C.machine} roughness={0.5} metalness={0.4} /></mesh>
-          <mesh position={[0.18, 0.62, 0.16]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.07, 0.07, 0.03, 16]} /><meshStandardMaterial color="#e8ecf2" emissive="#cdd6e0" emissiveIntensity={0.2} roughness={0.3} /></mesh>
+          <RoundedBox args={[0.34, 0.26, 0.3]} radius={0.04} position={[0, 0.62, 0]} castShadow>{housingMat()}</RoundedBox>
+          <mesh position={[0.18, 0.62, 0.16]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.07, 0.07, 0.03, 16]} /><meshStandardMaterial color={C.housing} emissive={C.housing} emissiveIntensity={0.2} roughness={0.3} /></mesh>
         </group>
       );
     case "toolWall":
       return (
         <group position={pos}>
           {/* pegboard panel at the back of the 2-cell footprint */}
-          <mesh position={[0, 0.78, -0.35]} castShadow><boxGeometry args={[1.7, 1.1, 0.06]} /><meshStandardMaterial color="#caa46a" roughness={0.85} /></mesh>
+          <mesh position={[0, 0.78, -0.35]} castShadow><boxGeometry args={[1.7, 1.1, 0.06]} /><meshStandardMaterial color={C.crate} roughness={0.85} /></mesh>
           {/* peg-hole grid */}
           {Array.from({ length: 3 }, (_, r) => Array.from({ length: 7 }, (_, c) => (
-            <mesh key={`${r},${c}`} position={[-0.66 + c * 0.22, 0.5 + r * 0.26, -0.31]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.018, 0.018, 0.02, 6]} /><meshStandardMaterial color="#3a3226" /></mesh>
+            <mesh key={`${r},${c}`} position={[-0.66 + c * 0.22, 0.5 + r * 0.26, -0.31]} rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[0.018, 0.018, 0.02, 6]} /><meshStandardMaterial color={C.palletWood} /></mesh>
           )))}
           {/* hung tool silhouettes: wrench, hammer, screwdriver */}
           <group position={[-0.5, 0.85, -0.3]}>
@@ -1120,14 +1121,14 @@ function PropAt({ prop }: { prop: PlacedProp }) {
             <mesh><boxGeometry args={[0.05, 0.42, 0.02]} /><meshStandardMaterial color={PROP_WOOD} roughness={0.7} /></mesh>
             <mesh position={[0, 0.22, 0]}><boxGeometry args={[0.24, 0.09, 0.05]} /><meshStandardMaterial color={C.dark} metalness={0.4} roughness={0.5} /></mesh>
           </group>
-          <mesh position={[0.55, 0.85, -0.3]}><cylinderGeometry args={[0.02, 0.02, 0.42, 8]} /><meshStandardMaterial color="#b23b3b" roughness={0.5} /></mesh>
+          <mesh position={[0.55, 0.85, -0.3]}><cylinderGeometry args={[0.02, 0.02, 0.42, 8]} /><meshStandardMaterial color={C.alert} roughness={0.5} /></mesh>
         </group>
       );
     case "qcStation":
       return (
         <group position={pos}>
           {/* bench (2 cells wide) */}
-          <RoundedBox args={[1.6, 0.12, 0.7]} radius={0.03} position={[0, 0.62, 0]} castShadow receiveShadow><meshStandardMaterial color={C.machineHi} roughness={0.5} metalness={0.3} /></RoundedBox>
+          <RoundedBox args={[1.6, 0.12, 0.7]} radius={0.03} position={[0, 0.62, 0]} castShadow receiveShadow>{housingMat()}</RoundedBox>
           {[[-0.7, -0.28], [0.7, -0.28], [-0.7, 0.28], [0.7, 0.28]].map(([lx, lz], i) => (<mesh key={i} position={[lx, 0.3, lz]}><boxGeometry args={[0.08, 0.6, 0.08]} /><meshStandardMaterial color={C.machine} roughness={0.6} metalness={0.3} /></mesh>))}
           {/* emissive monitor */}
           <group position={[-0.45, 0.68, -0.05]}>
@@ -1140,7 +1141,7 @@ function PropAt({ prop }: { prop: PlacedProp }) {
             <mesh position={[0, 0.05, 0]}><cylinderGeometry args={[0.06, 0.07, 0.1, 12]} /><meshStandardMaterial color={C.machine} roughness={0.5} metalness={0.4} /></mesh>
             <mesh position={[0, 0.32, 0.02]} rotation={[0.4, 0, 0]}><boxGeometry args={[0.03, 0.5, 0.03]} /><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.5} /></mesh>
             <mesh position={[0, 0.56, 0.28]} rotation={[-0.9, 0, 0]}><boxGeometry args={[0.03, 0.4, 0.03]} /><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.5} /></mesh>
-            <mesh position={[0, 0.6, 0.5]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.1, 0.03, 8, 20]} /><meshStandardMaterial color="#e8ecf2" emissive="#fff4d6" emissiveIntensity={1.2} toneMapped={false} /></mesh>
+            <mesh position={[0, 0.6, 0.5]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.1, 0.03, 8, 20]} /><meshStandardMaterial color={C.housing} emissive={C.lampHead} emissiveIntensity={1.2} toneMapped={false} /></mesh>
           </group>
         </group>
       );
@@ -2245,7 +2246,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {dock && <CompletionPop count={p.readyCount} pallet={dock.pallet} truck={dock.truck} yaw={dock.yaw} />}
       <Agvs tier={p.robotTier} overtime={p.overtime} active={p.active && p.lineOk} />
 
-      {!p.preview && <ContactShadows key={shadowKey} position={[(floorW - FLOOR.w) / 2, 0.11, 0]} opacity={0.5} scale={Math.max(26, floorW + 2)} blur={2.2} far={4} frames={1} resolution={512 * quality.contactShadowScale} />}
+      {!p.preview && <BakedContactShadows bake={shadowKey} position={[(floorW - FLOOR.w) / 2, 0.11, 0]} opacity={0.5} scale={Math.max(26, floorW + 2)} blur={2.2} far={4} resolution={512 * quality.contactShadowScale} />}
     </group>
     </AccentContext.Provider>
   );
