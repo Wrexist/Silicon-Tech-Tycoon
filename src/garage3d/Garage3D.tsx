@@ -1148,7 +1148,10 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           (it used to be 16× the room scale, which spread 1024 px of shadow over a 23 m plane and
           smeared the whole floor into one soft grey blot). */}
       <BakedContactShadows
-        bake={`${(builder?.layout ?? []).map((it) => `${it.iid}${it.c},${it.r},${it.rot}`).join("|")}·${staff.length}·${facilityTier}·${Object.values(upgrades).join("")}`}
+        // Everything that changes what stands on the floor: the layout, who's seated, the tier, the
+        // upgrade fixtures, the desktop pods, Decorate (which swaps live workstations for the editable
+        // layer) and the dressing's run seed/era. A change re-bakes once (bakedShadows.tsx).
+        bake={`${(builder?.layout ?? []).map((it) => `${it.iid}${it.c},${it.r},${it.rot}`).join("|")}·${staff.map((s) => s.id).join(",")}·${facilityTier}·${Object.values(upgrades).join("")}·${desktops}·${inBuild ? "build" : "live"}·${seed}·${era}·${dark ? "d" : "l"}`}
         position={[0, 0.02, 0]} scale={9.8 * roomK} blur={2.5} far={6} opacity={dark ? 0.62 : 0.42} color={p.shadow} resolution={1024 * quality.contactShadowScale} />
     </>
   );
