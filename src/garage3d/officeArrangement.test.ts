@@ -2,6 +2,7 @@
 // node environment, no DOM, no three. These pin the invariants a captured frame cannot: the room
 // never overlaps, never leaves the grid, re-flows by tier, and renders as its owner placed it
 // except where an unambiguous relationship says otherwise.
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { footprint, furnitureDef, gridN, type FurnitureId, type PlacedItem, type Rot } from "../engine/furniture.ts";
 import {
@@ -277,6 +278,33 @@ describe("officeArrangement — placement invariants", () => {
       if (arcade) spots.add(`${arcade.c},${arcade.r}`);
     }
     expect(spots.size).toBeGreaterThan(1);
+  });
+
+  it("a run's era advance can re-dress the room; the same (seed, era) never does", () => {
+    const spots = new Set<string>();
+    for (let era = 1; era <= 5; era++) {
+      for (const seed of [3, 7, 11, 19]) {
+        const a = arrangeOffice({ facilityTier: 3, headcount: 6, seed, era, ...BARE });
+        expect(a).toEqual(arrangeOffice({ facilityTier: 3, headcount: 6, seed, era, ...BARE }));
+        const arcade = a.dressing.find((p) => p.type === "arcade");
+        if (arcade) spots.add(`${arcade.c},${arcade.r}`);
+      }
+    }
+    expect(spots.size).toBeGreaterThan(1);
+  });
+
+  // The scene used to read officeSeed()/officeWeek() inside a useMemo that listed neither, so the room
+  // was dressed with seed 0 on first open (the host publishes the seed in an effect, after the first
+  // render) and then jumped the next time headcount or layout changed. The run's seed and era are
+  // props now; the per-frame officeLive getters belong in useFrame code only.
+  it("the office scene takes the run's seed and era as props, never from the per-frame getters", () => {
+    for (const file of ["Garage3D.tsx", "officeDressing.tsx"]) {
+      const src = readFileSync(new URL(`./${file}`, import.meta.url), "utf8");
+      expect(src, `${file} must not call officeSeed()/officeWeek() at render time`).not.toMatch(/officeSeed\(\)|officeWeek\(\)/);
+    }
+    const hq = readFileSync(new URL("../screens/HQ.tsx", import.meta.url), "utf8");
+    expect(hq).toMatch(/seed=\{state\.seed\}/);
+    expect(hq).toMatch(/era=\{state\.era\}/);
   });
 });
 

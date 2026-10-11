@@ -109,7 +109,7 @@ export function StudioEnvironment() {
   ), []);
 }
 
-export function Lighting({ p, dark, roomScale = 1 }: { p: RoomPalette; dark: boolean; roomScale?: number }) {
+export function Lighting({ p, dark, roomScale = 1, shadows = true }: { p: RoomPalette; dark: boolean; roomScale?: number; shadows?: boolean }) {
 
   return (
     <>
@@ -125,7 +125,7 @@ export function Lighting({ p, dark, roomScale = 1 }: { p: RoomPalette; dark: boo
         position={[8, 13, 7]}
         intensity={dark ? 1.25 : 1.15}
         color={dark ? "#ffdfae" : "#fff4e4"}
-        castShadow={!dark}
+        castShadow={!dark && shadows}
         shadow-mapSize-width={1024}
         shadow-mapSize-height={1024}
         shadow-camera-left={-7}

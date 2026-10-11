@@ -21,6 +21,7 @@ import {
   Sparkles,
   Crown,
   ExternalLink,
+  Gauge,
   History,
   TrendingUp,
 } from "lucide-react";
@@ -34,7 +35,7 @@ import { agoLabel, listSnapshots, MAX_SNAPSHOTS, SNAPSHOT_EVERY_WEEKS, type Snap
 import { founderIntentLabel } from "../state/founderIntent.ts";
 import { getProRecord } from "../state/pro.ts";
 import { netWorth, type InterruptPace } from "../state/gameState.ts";
-import { setSettings, useSettings, TEXT_SCALES, type ThemePref } from "../state/settings.ts";
+import { setSettings, useSettings, GRAPHICS_PREFS, TEXT_SCALES, type ThemePref } from "../state/settings.ts";
 import { disableDailyReminders, enableDailyReminders, notificationsAvailable } from "../state/notifications.ts";
 import { hasSandboxEntitlement } from "../state/entitlements.ts";
 import { IAP_ENTITLEMENT_EVENT } from "../state/iap.ts";
@@ -144,6 +145,23 @@ export function Settings({ onClose }: { onClose: () => void }) {
             survives a new company; Reduce Motion always suppresses the bubbles regardless. */}
         <Row icon={<MessageCircle size={18} />} label="Office chatter" sub="Short lines above your team's desks in the office.">
           <Switch label="Office chatter" on={settings.officeChatter} onChange={(v) => { setSettings({ officeChatter: v }); sfx("toggle"); }} />
+        </Row>
+        {/* 3D quality — one profile for the office and the factory (garage3d/quality.ts). Auto keeps
+            today's look on every capable phone and drops to Low only on a clearly weak device. */}
+        <Row icon={<Gauge size={18} />} label="3D quality" sub="Low saves battery: fewer pixels, no live shadows.">
+          <div className="set__seg">
+            {GRAPHICS_PREFS.map((g) => (
+              <button
+                key={g}
+                className={`set__seg-opt${settings.graphics === g ? " set__seg-opt--on" : ""}`}
+                aria-pressed={settings.graphics === g}
+                aria-label={`3D quality ${g}`}
+                onClick={() => { haptic.light(); sfx("toggle"); setSettings({ graphics: g }); }}
+              >
+                {g === "auto" ? "Auto" : g === "low" ? "Low" : "High"}
+              </button>
+            ))}
+          </div>
         </Row>
       </div>
 

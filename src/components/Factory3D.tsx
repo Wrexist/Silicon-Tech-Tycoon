@@ -11,7 +11,8 @@ import { factoryFrame } from "../garage3d/factoryFraming.ts";
 // machine matching the build's real stage glows and works hardest. A floor with no wired line
 // renders calm and idle — the invitation to build.
 // Same stack + discipline as the 3D office: r3f/drei primitives, lazy chunk, DPR cap,
-// context-loss downgrade. Zero image assets.
+// context-loss downgrade. Every machine is code-built (no model or image files yet; see the F5 note
+// in docs/WORLDS_3D_HANDOFF.md).
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
@@ -20,6 +21,7 @@ import { RoundedBoxGeometry, mergeBufferGeometries } from "three-stdlib";
 import { groundFadeTexture } from "../garage3d/glow.ts";
 import { FACTORY_PALETTE } from "../garage3d/factoryPalette.ts";
 import { StudioEnvironment } from "../garage3d/lighting.tsx";
+import { useQuality } from "../garage3d/quality.ts";
 import { RobotCharacter } from "../garage3d/robotCharacter.tsx";
 import { factoryCrewSpots } from "../garage3d/factoryCrew.ts";
 import {
@@ -1641,6 +1643,7 @@ function CarriedRig({ kind, position }: { kind: MachineKind; position: [number, 
 }
 
 function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
+  const quality = useQuality();
   // Baked contact shadows re-render when the layout changes; key memoised (the scene renders every tick).
   const shadowKey = useMemo(() => JSON.stringify([p.floor, p.props, p.floorW]), [p.floor, p.props, p.floorW]);
   const { size, gl } = useThree();
@@ -1970,7 +1973,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       <ambientLight intensity={p.dark ? 0.3 : 0.44} />
       <hemisphereLight args={["#dce9ff", "#434a52", 0.5]} position={[0, 8, 0]} />
       <primitive object={shadowTarget} />
-      <directionalLight position={[7 + (floorW - FLOOR.w) / 2, 12, 5]} target={shadowTarget} intensity={1.0} castShadow shadow-mapSize={[1024, 1024]}
+      <directionalLight position={[7 + (floorW - FLOOR.w) / 2, 12, 5]} target={shadowTarget} intensity={1.0} castShadow={quality.shadows} shadow-mapSize={[1024, 1024]}
         shadow-camera-left={-floorW / 2 - 3} shadow-camera-right={floorW / 2 + 3}
         shadow-camera-top={floorW / 2 + 3} shadow-camera-bottom={-floorW / 2 - 3} shadow-camera-far={60} />
       {/* overhead high-bay pools spaced down the floor (follow the building's east shift) */}
@@ -2182,7 +2185,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {dock && <CompletionPop count={p.readyCount} pallet={dock.pallet} truck={dock.truck} yaw={dock.yaw} />}
       <Agvs tier={p.robotTier} overtime={p.overtime} active={p.active && p.lineOk} />
 
-      {!p.preview && <ContactShadows key={shadowKey} position={[(floorW - FLOOR.w) / 2, 0.11, 0]} opacity={0.5} scale={Math.max(26, floorW + 2)} blur={2.2} far={4} frames={1} />}
+      {!p.preview && <ContactShadows key={shadowKey} position={[(floorW - FLOOR.w) / 2, 0.11, 0]} opacity={0.5} scale={Math.max(26, floorW + 2)} blur={2.2} far={4} frames={1} resolution={512 * quality.contactShadowScale} />}
     </group>
     </AccentContext.Provider>
   );
@@ -2202,16 +2205,17 @@ export default function Factory3D(p: Factory3DProps) {
   // floor/props are replaced (never mutated) on edit, so their identity IS the revision key.
   const revision = useMemo(() => JSON.stringify([p.floor, p.props, p.floorW]), [p.floor, p.props, p.floorW]);
   const motion = useMemo(() => ({ reduced, stopped: !!p.motionPaused, revision }), [reduced, p.motionPaused, revision]);
+  const quality = useQuality();
   return (
     <MotionContext.Provider value={motion}><Canvas
       role="img"
       aria-label="Factory floor, 3D view"
       frameloop={p.paused ? "never" : p.motionPaused || reduced ? "demand" : "always"}
-      dpr={p.preview ? [1, 1.4] : [1, 1.75]}
+      dpr={p.preview ? [1, Math.min(1.4, quality.dpr[1])] : quality.dpr}
       // The HQ card is ~490×300 — a quarter of the fullscreen pixels — but the shadow pass costs the
       // same either way, and at that size a contact shadow under a roller is invisible. Dropping the
       // whole pass is the single biggest saving on the view the player leaves open the longest.
-      shadows={!p.preview}
+      shadows={!p.preview && quality.shadows}
       // The office's exposure (ACES is R3F's default in both), and below the office's studio IBL, so
       // the two worlds' materials respond to light the same way.
       gl={{ alpha: true, antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}
