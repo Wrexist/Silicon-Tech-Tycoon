@@ -48,6 +48,18 @@ export interface ModelAsset {
 
 const u = (id: string): string => `furniture/${id}.glb`;
 
+/** The shipped model SET's version. Bump it whenever the GLBs change under the same file names: an
+ *  installed PWA serves `furniture/*.glb` CacheFirst from a long-lived runtime cache (vite.config.ts,
+ *  `furniture-models`), so without a new URL it would keep the old models after an update.
+ *  2 = the in-house Blender set (build_furniture.py) that replaced the Kenney kit. */
+export const FURNITURE_MODELS_VERSION = 2;
+
+/** The path actually fetched for a registered model: its registry path plus the set version. The
+ *  registry `url` stays the model's identity (finish rules and seat anchors key on it). */
+export function modelFetchPath(url: string): string {
+  return `${url}${url.includes("?") ? "&" : "?"}v=${FURNITURE_MODELS_VERSION}`;
+}
+
 // Registered to match what `scripts/models/build_furniture.py` builds — one generator, one look.
 export const MODEL_ASSETS: Partial<Record<FurnitureId, ModelAsset>> = {
   desk: { url: u("desk"), scale: 1, realHeight: 0.74, surfaceHeight: 0.74 },

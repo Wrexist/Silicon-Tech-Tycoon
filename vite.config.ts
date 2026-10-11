@@ -34,7 +34,9 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         runtimeCaching: [
           {
-            // Cache 3D furniture models on first 3D-office open, then serve offline.
+            // Cache 3D furniture models on first 3D-office open, then serve offline. Models are fetched
+            // as `furniture/<id>.glb?v=<FURNITURE_MODELS_VERSION>` (furnitureModels.ts), so replacing
+            // the set means bumping that version, never waiting out this cache's expiry.
             urlPattern: ({ url }) => url.pathname.includes("/furniture/") && url.pathname.endsWith(".glb"),
             handler: "CacheFirst",
             options: {
