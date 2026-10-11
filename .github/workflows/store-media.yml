@@ -3,13 +3,13 @@ on:
   workflow_dispatch:
     inputs:
       screenshot_run_id:
-        description: Reuse reviewed screenshots from this media artifact run; recapture preview only
+        description: Reuse reviewed screenshots from this media artifact run; render the trailer only
         required: false
         type: string
   pull_request:
     paths:
       - scripts/store-media-1.4.mjs
-      - scripts/encode-store-preview.mjs
+      - scripts/trailer/**
       - scripts/stage-showcase.mjs
       - .github/workflows/store-media.yml
 permissions:
@@ -21,7 +21,7 @@ concurrency:
 jobs:
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,21 +54,24 @@ jobs:
             appstore/release-1.4.0/iphone/
             appstore/release-1.4.0/ipad/
             appstore/release-1.4.0/capture-report.json
-      - name: Capture real gameplay video
+      # The preview is the cinematic edit in scripts/trailer: directed camera moves through the real
+      # Office and Factory plus live UI clips, every frame stepped on a fake clock (no drops).
+      - name: Start the dev server for the directed capture
+        run: |
+          nohup npx vite --port 5191 --strictPort --host 127.0.0.1 > /tmp/vite.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:5191 >/dev/null && exit 0; sleep 2; done
+          cat /tmp/vite.log; exit 1
+      - name: Capture trailer clips
         env:
-          MEDIA_VIDEO: '1'
-          MEDIA_VIDEO_ONLY: '1'
-          MEDIA_DEVICES: iphone
-          MEDIA_ONLY: office,factory,design,research,company
-        run: node scripts/store-media-1.4.mjs
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: silicon-preview-source-frames
-          path: appstore/release-1.4.0/preview-frames/
-          retention-days: 7
-      - name: Encode App Store preview
-        run: node scripts/encode-store-preview.mjs
+          TRAILER_OUT: /tmp/cine
+        run: node scripts/trailer/capture.mjs
+      - name: Edit and encode the App Store preview
+        env:
+          TRAILER_OUT: /tmp/cine
+        run: |
+          node scripts/trailer/compose.mjs
+          mkdir -p appstore/release-1.4.0/preview
+          cp /tmp/cine/Silicon-1.4.0-iPhone.mp4 /tmp/cine/poster.png appstore/release-1.4.0/preview/
       - name: Verify preview encoding
         run: ffprobe -v error -show_streams -show_format -of json appstore/release-1.4.0/preview/Silicon-1.4.0-iPhone.mp4 > appstore/release-1.4.0/preview/ffprobe.json
       - uses: actions/upload-artifact@v4

@@ -6,16 +6,17 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { chromium } from 'playwright-core';
+import { OUT, CHROME } from './lib.mjs';
 
-const OUT = process.env.TRAILER_OUT || 'C:/tmp/cine';
 const ffmpeg = process.env.SHOTS_FFMPEG || 'ffmpeg';
 const film = join(OUT, 'film');
 await rm(film, { recursive: true, force: true }); await mkdir(film, { recursive: true });
 await copyFile('ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png', join(OUT, 'icon.png'));
 
-const browser = await chromium.launch({ executablePath: process.env.SHOTS_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', args: ['--allow-file-access-from-files'] });
+const browser = await chromium.launch({ executablePath: CHROME, args: ['--allow-file-access-from-files'] });
 const page = await browser.newPage({ viewport: { width: 886, height: 1920 }, deviceScaleFactor: 1 });
 await page.goto(`${pathToFileURL(resolve('scripts/trailer/compose.html')).href}?root=${encodeURIComponent(pathToFileURL(resolve(OUT)).href)}`);
+await page.evaluate(() => document.fonts.ready);
 const total = await page.evaluate(() => window.TOTAL);
 const cdp = await page.context().newCDPSession(page);
 for (let n = 0; n < total; n++) {

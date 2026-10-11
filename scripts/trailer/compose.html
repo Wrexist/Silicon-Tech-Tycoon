@@ -1,12 +1,15 @@
 <!doctype html>
 <html><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;650;700;800&display=block" rel="stylesheet">
+
 <!-- The App Store preview's edit: renders one film frame per call to window.renderFrame(n), from the
      raw clips capture.mjs recorded. Pure layout + easing; every pixel of footage is the real game. -->
 <style>
   :root { --bg: #070b12; }
   * { box-sizing: border-box; margin: 0; }
   html, body { width: 886px; height: 1920px; background: var(--bg); overflow: hidden; }
-  body { font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; color: #f5f8fc; }
+  body { font-family: Inter, "Segoe UI", system-ui, sans-serif; color: #f5f8fc; }
   .seg { position: absolute; inset: 0; overflow: hidden; will-change: opacity, transform; }
   .full { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .scrim-top { position: absolute; inset: 0 0 auto 0; height: 760px;

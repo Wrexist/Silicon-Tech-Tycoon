@@ -4,17 +4,20 @@
 // so moves are exact and frame-locked (the game's own rigs still run, they just don't get the last
 // word). Nothing here ships: it is tooling, and the game code is untouched.
 import { readFile } from 'node:fs/promises';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { chromium } from 'playwright-core';
 
 export const APP = process.env.TRAILER_URL || 'http://127.0.0.1:5191';
 export const SAVE = process.env.TRAILER_SAVE || '/tmp/silicon-showcase.json';
+export const OUT = process.env.TRAILER_OUT || (process.platform === 'win32' ? 'C:/tmp/cine' : '/tmp/cine');
+/** Local Chrome when present (real GPU), else Playwright's Chromium (CI). */
+export const CHROME = process.env.SHOTS_CHROME || ['C:/Program Files/Google/Chrome/Application/chrome.exe'].find(existsSync) || chromium.executablePath();
 
 export async function launch() {
   // A real GPU gives proper antialiasing and speed; SwiftShader is the CI fallback.
-  const gpu = process.env.TRAILER_SWIFTSHADER !== '1';
+  const gpu = process.env.TRAILER_SWIFTSHADER !== '1' && process.platform === 'win32';
   return chromium.launch({
-    executablePath: process.env.SHOTS_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe',
+    executablePath: CHROME,
     args: gpu ? ['--enable-gpu', '--ignore-gpu-blocklist', '--enable-webgl'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--enable-webgl'],
   });
 }

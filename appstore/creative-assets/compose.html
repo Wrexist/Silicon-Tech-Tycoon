@@ -11,10 +11,13 @@
   bottom stays calm for the App Store's own overlay. No prices, URLs, awards or real brands.
 -->
 <html><head><meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;650;700;800&display=block" rel="stylesheet">
+
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { background: #070b12; }
-  #c { position: relative; overflow: hidden; background: #0b1018; font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; color: #f5f8fc; }
+  #c { position: relative; overflow: hidden; background: #0b1018; font-family: Inter, "Segoe UI", system-ui, sans-serif; color: #f5f8fc; }
   .plate { position: absolute; top: 0; height: 100%; width: 100%; object-fit: cover; }
   .office { left: 0; transform: translate(var(--office-x), var(--plate-y, 0)) scale(1.04); transform-origin: 30% 50%; filter: saturate(1.1) contrast(1.05); }
   .factory { left: 0; transform: translate(var(--factory-x), var(--plate-y, 0)) scale(1.04); transform-origin: 70% 50%; filter: saturate(1.08) contrast(1.06) brightness(.98);

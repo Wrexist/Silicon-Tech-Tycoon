@@ -3,9 +3,8 @@
 //   node scripts/trailer/stills.mjs            → $TRAILER_OUT/plates/<asset>-<world>.png
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { launch, boot, installCamera, fullBleed, orbit } from './lib.mjs';
+import { launch, boot, installCamera, fullBleed, orbit, OUT } from './lib.mjs';
 
-const OUT = process.env.TRAILER_OUT || 'C:/tmp/cine';
 const PROBE = process.env.PROBE === '1';
 export const ASSETS = { header: [1920, 823], search: [1920, 1280], universal: [2622, 1475] };
 const WORLDS = {

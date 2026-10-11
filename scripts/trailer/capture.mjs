@@ -5,9 +5,8 @@
 // Output: $TRAILER_OUT/clips/<id>/0000.png… (default C:/tmp/cine). compose.mjs turns them into the film.
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
-import { launch, boot, installCamera, fullBleed, ease, mix3, orbit } from './lib.mjs';
+import { launch, boot, installCamera, fullBleed, ease, mix3, orbit, OUT, APP } from './lib.mjs';
 
-export const OUT = process.env.TRAILER_OUT || 'C:/tmp/cine';
 export const FPS = 30;
 const VIEW = { width: 443, height: 960, dpr: 2 }; // 886 × 1920, Apple's 6.9" preview size
 
@@ -89,6 +88,8 @@ async function capture(browser, id) {
 
 const browser = await launch();
 try {
+  // Warm Vite's dependency optimizer first: its first load can re-optimize and reload the page.
+  { const warm = await browser.newPage(); await warm.goto(APP); await warm.waitForTimeout(8000); await warm.close(); }
   const ids = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(CLIPS);
   for (const id of ids) await capture(browser, id);
 } finally { await browser.close(); }
