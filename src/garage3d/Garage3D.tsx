@@ -38,6 +38,7 @@ import SpeechBubbles, { type Speaker } from "./speechBubbles.tsx";
 import { CameraRig, PinchZoom, CAM_REST_POSITION } from "./cameraRig.tsx";
 import { Lighting, EnableShadows } from "./lighting.tsx";
 import { useQuality } from "./quality.ts";
+import { eraVisual, withEraFinish } from "./eraVisual.ts";
 import { Room, useWallCull, CHEER_GREEN, Props, Plant, BallBin } from "./room.tsx";
 import { useHqInteractions } from "./interactions.ts";
 import { TargetPrompt } from "./interactionPrompt.tsx";
@@ -890,7 +891,9 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
 
 function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, desktops = 0, paused = false, still = false, officeChatter = true, simPaused = false, seed = 0, era = 0, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; seed?: number; era?: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; desktops?: number; paused?: boolean; still?: boolean; officeChatter?: boolean; simPaused?: boolean; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
   const quality = useQuality();
-  const p = useMemo(() => roomPalette(dark), [dark]);
+  // The era restyles the brand wall and the key light (eraVisual.ts); the player's room is untouched.
+  const p = useMemo(() => withEraFinish(roomPalette(dark), era), [dark, era]);
+  const eraLook = eraVisual(era);
   const cfg = officeConfigFor({ facilityTier, upgrades, roomStyle, desktops });
   const { staffTap, bankTap, hoverProps, activeId, selectedId } = useHqInteractions({ onTapStaff, onTapBank });
   const monitors = cfg.monitors;
@@ -997,7 +1000,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {!dark && quality.shadows && <EnableShadows />}
       <CameraRig build={!!builder?.build} facilityTier={facilityTier} still={still} />
       <PinchZoom />
-      <Lighting p={p} dark={dark} roomScale={cfg.roomScale} shadows={quality.shadows} />
+      <Lighting p={p} dark={dark} roomScale={cfg.roomScale} shadows={quality.shadows} keyColor={dark ? eraLook.key.night : eraLook.key.day} />
 
       {/* Whiteboard is earned: it appears once the team has real Workstations (computers ≥ 1),
           so a fresh garage starts bare and upgrading visibly adds the planning board. The room shell
@@ -1090,7 +1093,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {tierOf(upgrades, "marketing") >= 1 && (
         <Pulse feature="marketing">
           <group visible={!cull.b}>
-            <WallTV name={companyName} tier={tierOf(upgrades, "marketing")} accent="#3b82f6" />
+            <WallTV name={companyName} tier={tierOf(upgrades, "marketing")} accent={eraLook.accent} />
           </group>
         </Pulse>
       )}

@@ -110,7 +110,13 @@ export const SATURATED_ALLOWED: Record<string, string> = {
   "#d6eaff": "daylight — studio window sky glass (light theme)",
   "#b5d8ff": "daylight — studio window sky glow (light theme)",
   "#2f9e6e": "product — the circuit board travelling the factory line",
-  "#3b82f6": "livery — the company blue on the factory truck cab",
+  "#3b82f6": "livery — the company blue on the factory truck cab; the Garage/Growth era accent",
+  "#ffdfae": "warm light — the garage's interior key light (dark theme, Garage Era)",
+  "#ffe4bd": "warm light — key light (dark theme, Growth Era)",
+  "#ffeccc": "warm light — dawn key light (dark theme, Autonomy Era)",
+  "#22d3ee": "era accent — Platform Era (factory working glow, office brand screen)",
+  "#a78bfa": "era accent — AI Era (factory working glow, office brand wall + screen)",
+  "#f5b53d": "era accent — Autonomy Era (factory working glow, office brand wall + screen)",
 };
 
 /** Item 2's rule applied to a live colour: keep the hue and lightness, pull the saturation most of

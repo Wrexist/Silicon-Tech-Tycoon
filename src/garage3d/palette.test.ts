@@ -91,6 +91,12 @@ describe("office palette discipline", () => {
     ).toEqual([]);
   });
 
+  it("every saturated literal in eraVisual.ts is allowlisted with its purpose", () => {
+    const allow = new Set(Object.keys(SATURATED_ALLOWED).map((h) => h.toLowerCase()));
+    const offenders = offendersIn("eraVisual.ts", allow);
+    expect(offenders, "allowlist each era colour in SATURATED_ALLOWED with its job:\n" + offenders.join("\n")).toEqual([]);
+  });
+
   it("every saturated literal in palette.ts is allowlisted with its purpose", () => {
     const allow = new Set(Object.keys(SATURATED_ALLOWED).map((h) => h.toLowerCase()));
     const offenders = offendersIn("palette.ts", allow);
