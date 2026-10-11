@@ -167,6 +167,13 @@ Each gap: what is wrong, where, and the fix. Verified against the captures above
   robot costs ~20 draw calls — below the old robot. The `robot_shared.glb` seam is untouched for a
   future rigged model. F6: `factoryCrew.ts` stands one operator at each connected processing station
   in fullscreen (`CREW_SCALE` 0.65), inside the machine's own footprint, facing the line.
+- **Step 4 (office furniture): in review** (branch `claude/worlds-3d-step4-furniture`, stacked on
+  step 3). No Meshy: Blender 5.2 is on the owner's PC, so `scripts/models/build_furniture.py` BUILDS
+  all 23 pieces procedurally (bevelled + hardened normals, the material names the app re-finishes,
+  real sizes; desk tops 0.74 m, chair seat 0.575 m, sofa cushion at half height, shelf tops at the
+  stocked fractions) and `check_glb.py` passes 23/23. `npm run furniture:build` rebuilds them (Blender
+  on PATH); the Kenney fetch script and its legacy hashes are gone. The sofa's fitted seat moved from
+  0.371 to 0.41 m (`furnitureFinish.test.ts` pins it).
 
 ## 5. How to check yourself
 

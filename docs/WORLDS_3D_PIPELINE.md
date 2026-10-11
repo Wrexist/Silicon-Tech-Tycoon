@@ -3,6 +3,11 @@
 > How the models in [`WORLDS_3D_MODEL_LIST.md`](WORLDS_3D_MODEL_LIST.md) get made: Meshy generates
 > them, Claude cleans them up in Blender, a checker and the world shots prove each one before it
 > ships. Steps 3–5 of [`WORLDS_3D_HANDOFF.md`](WORLDS_3D_HANDOFF.md). Written 2026-10-10.
+>
+> **Update 2026-10-11:** the office furniture is built without Meshy, procedurally in Blender by
+> `scripts/models/build_furniture.py` (`blender --background --python scripts/models/build_furniture.py
+> -- --preview .world-shots/furniture` also renders a review image per piece). Simple rounded forms
+> are faster and more consistent this way; Meshy stays the route for organic or detailed models.
 
 The popular "Claude + Blender MCP + Meshy + Unreal" recipe, changed where it doesn't fit Silicon:
 

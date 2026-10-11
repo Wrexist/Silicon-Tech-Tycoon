@@ -1,10 +1,10 @@
 // glTF model overrides for furniture — the drop-in seam for a real model library.
 //
-// PREMIUM MODEL LIBRARY: Kenney "Furniture Kit" (CC0 — free to ship, no attribution required).
-//   Run once:  npm run furniture:fetch
-//   That script downloads the current Kenney Furniture Kit, extracts it, and copies the matched
-//   .glb files into `public/furniture/<id>.glb`. After it runs, the items below render as 3D
-//   models instead of the parametric versions — SAME category, footprint, and search.
+// MODEL LIBRARY: built in-house by `scripts/models/build_furniture.py` (procedural Blender, rounded
+//   bevelled forms in the house style, the material names materialFamilies.ts re-finishes, real
+//   sizes with exact seat / desk / shelf heights). Rebuild: `npm run furniture:build` (Blender on
+//   PATH), then `python scripts/models/check_glb.py`. It replaced the Kenney kit (Step 4 of
+//   docs/WORLDS_3D_HANDOFF.md).
 //
 // Safety: anything NOT listed here keeps its hand-built parametric look (cohesive + theme-aware),
 // and if a registered .glb is missing or fails to load, that item falls back to the parametric
@@ -23,7 +23,7 @@ export interface ModelAsset {
   scale?: number; // uniform scale to fit the grid cell (default 1)
   yaw?: number; // extra Y rotation in radians to orient it (default 0)
   /** Runtime finish override, applied AFTER the material-family pass: the listed families blend
-   *  `amount` of the way toward `color`. The Kenney kit ships one bright tan timber for every
+   *  `amount` of the way toward `color`. A model may use one timber for every
    *  wooden object, so a piece that should sit back (the open shelving) can be finished in a darker
    *  neutral without touching the GLB or dulling every desk and table alongside it. */
   tint?: { color: string; amount: number; families?: readonly MaterialFamily[] };
@@ -48,7 +48,7 @@ export interface ModelAsset {
 
 const u = (id: string): string => `furniture/${id}.glb`;
 
-// Registered to match what `scripts/fetch-furniture.mjs` places. Kenney-only for a cohesive look.
+// Registered to match what `scripts/models/build_furniture.py` builds — one generator, one look.
 export const MODEL_ASSETS: Partial<Record<FurnitureId, ModelAsset>> = {
   desk: { url: u("desk"), scale: 1, realHeight: 0.74, surfaceHeight: 0.74 },
   deskL: { url: u("deskL"), scale: 1, realHeight: 0.74, surfaceHeight: 0.74 },

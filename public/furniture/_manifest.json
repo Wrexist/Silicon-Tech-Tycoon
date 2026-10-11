@@ -1,5 +1,5 @@
 {
-  "source": "https://kenney.nl/media/pages/assets/furniture-kit/440e0608a4-1677580847/kenney_furniture-kit.zip",
+  "source": "scripts/models/build_furniture.py \u2014 built procedurally in Blender in-house (no third-party assets); rebuild with: blender --background --python scripts/models/build_furniture.py",
   "placed": [
     {
       "id": "desk",
@@ -7,15 +7,15 @@
     },
     {
       "id": "deskL",
-      "source": "deskCorner.glb"
+      "source": "deskL.glb"
     },
     {
       "id": "chair",
-      "source": "chairDesk.glb"
+      "source": "chair.glb"
     },
     {
       "id": "armchair",
-      "source": "loungeDesignChair.glb"
+      "source": "armchair.glb"
     },
     {
       "id": "loungeChair",
@@ -23,23 +23,23 @@
     },
     {
       "id": "sofa",
-      "source": "loungeSofa.glb"
+      "source": "sofa.glb"
     },
     {
       "id": "sofaL",
-      "source": "loungeSofaCorner.glb"
+      "source": "sofaL.glb"
     },
     {
       "id": "stool",
-      "source": "stoolBar.glb"
+      "source": "stool.glb"
     },
     {
       "id": "coffeeTable",
-      "source": "tableCoffee.glb"
+      "source": "coffeeTable.glb"
     },
     {
       "id": "meetingTable",
-      "source": "table.glb"
+      "source": "meetingTable.glb"
     },
     {
       "id": "sideTable",
@@ -47,51 +47,51 @@
     },
     {
       "id": "bookshelf",
-      "source": "bookcaseOpen.glb"
+      "source": "bookshelf.glb"
     },
     {
       "id": "cabinet",
-      "source": "bookcaseClosedWide.glb"
+      "source": "cabinet.glb"
     },
     {
       "id": "shelfUnit",
-      "source": "bookcaseOpenLow.glb"
+      "source": "shelfUnit.glb"
     },
     {
       "id": "crates",
-      "source": "cardboardBoxClosed.glb"
+      "source": "crates.glb"
     },
     {
       "id": "plantTall",
-      "source": "pottedPlant.glb"
+      "source": "plantTall.glb"
     },
     {
       "id": "plantPot",
-      "source": "plantSmall1.glb"
+      "source": "plantPot.glb"
     },
     {
       "id": "rug",
-      "source": "rugRectangle.glb"
+      "source": "rug.glb"
     },
     {
       "id": "rugRound",
-      "source": "rugRounded.glb"
+      "source": "rugRound.glb"
     },
     {
       "id": "tvStand",
-      "source": "cabinetTelevision.glb"
+      "source": "tvStand.glb"
     },
     {
       "id": "floorLamp",
-      "source": "lampSquareFloor.glb"
+      "source": "floorLamp.glb"
     },
     {
       "id": "arcLamp",
-      "source": "lampRoundFloor.glb"
+      "source": "arcLamp.glb"
     },
     {
       "id": "lantern",
-      "source": "lampRoundTable.glb"
+      "source": "lantern.glb"
     }
   ],
   "missing": []

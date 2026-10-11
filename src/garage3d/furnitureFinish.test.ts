@@ -29,7 +29,9 @@ describe('catalog finish integration',()=>{
   const scale=Math.min(1.72*0.92/width,MODEL_ASSETS.sofa!.realHeight!/height);
   const surface=height*scale*MODEL_ASSETS.sofa!.seatSurfaceFraction!;
   publishSeatSurface('furniture/sofa.glb',surface);
-  expect(surface).toBeCloseTo(0.37138,3);
+  // build_furniture.py models the sofa at its real 0.82 m with the cushion at exactly half of it, so
+  // the fit is a scale of 1 and the robot sits at 0.41 m (the old Kenney sofa fitted to 0.371).
+  expect(surface).toBeCloseTo(0.41,3);
   expect(robotSeatLift(sofaSeatSurface())+ROBOT_SEATED_UNDERSIDE).toBeCloseTo(surface,8);
  });
 });
