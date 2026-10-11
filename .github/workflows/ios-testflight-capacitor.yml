@@ -313,6 +313,43 @@ jobs:
           echo "Decoded a valid App Store Connect API key."
           echo "API_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
 
+      - name: Import the reusable signing certificate (optional)
+        # Automatic signing creates a NEW Apple Development certificate on every ephemeral runner, and
+        # the account's certificate cap then stops the archive ("choose a certificate to revoke").
+        # When these two secrets are set, one long-lived certificate is imported into a temporary
+        # keychain first; Xcode's automatic signing finds it and reuses it instead of minting another.
+        # Without them this step does nothing and the archive behaves exactly as before.
+        #   IOS_DEV_CERT_P12_BASE64  base64 of an Apple Development certificate + private key (.p12)
+        #   IOS_DEV_CERT_P12_PASSWORD  the .p12 export password
+        env:
+          P12_B64: ${{ secrets.IOS_DEV_CERT_P12_BASE64 }}
+          P12_PASSWORD: ${{ secrets.IOS_DEV_CERT_P12_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${P12_B64}" ]; then
+            echo "No IOS_DEV_CERT_P12_BASE64 secret: automatic signing will create its own certificate (old behaviour)."
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          CERT="$RUNNER_TEMP/dev-cert.p12"
+          printf '%s' "$P12_B64" | tr -d '[:space:]' | openssl base64 -d -A > "$CERT"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$CERT" -P "$P12_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN"
+          security set-key-partition-list -S apple-tool:,apple: -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" >/dev/null
+          # Put it first in the search list (keeping the login keychain) so codesign finds it.
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+          rm -f "$CERT"
+          if ! security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "Apple Development"; then
+            echo "::error::IOS_DEV_CERT_P12_BASE64 did not contain an Apple Development identity (certificate + private key)."
+            exit 1
+          fi
+          echo "Imported the reusable Apple Development identity:"
+          security find-identity -v -p codesigning "$KEYCHAIN" | grep "Apple Development" | sed -E 's/[0-9A-F]{40}/<sha1>/'
+          echo "SIGNING_KEYCHAIN=$KEYCHAIN" >> "$GITHUB_ENV"
+
       - name: Archive
         # Automatic signing archives with a DEVELOPMENT identity here; the App Store
         # (distribution) re-sign happens in "Export IPA" via ExportOptions.plist
@@ -387,3 +424,8 @@ jobs:
       - name: Clean up API key
         if: always()
         run: rm -f "$HOME"/.appstoreconnect/private_keys/AuthKey_*.p8
+
+      - name: Clean up signing keychain
+        if: always()
+        run: |
+          if [ -n "${SIGNING_KEYCHAIN:-}" ] && [ -f "$SIGNING_KEYCHAIN" ]; then security delete-keychain "$SIGNING_KEYCHAIN" || true; fi
