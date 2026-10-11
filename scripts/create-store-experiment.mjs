@@ -79,10 +79,16 @@ async function fill(sets, assets, attribute, value, files) {
   const relationship = sets === 'appScreenshotSets' ? 'appScreenshotSet' : 'appPreviewSet';
   const current = (await asc(`/v1/appStoreVersionExperimentTreatmentLocalizations/${localization.id}/${sets}?limit=50`)).data;
   const set = current.find(s => s.attributes[attribute] === value) ?? (await asc(`/v1/${sets}`, 'POST', { type: sets, attributes: { [attribute]: value }, relationships: owner })).data;
+  const sums = files.map(file => createHash('md5').update(readFileSync(file)).digest('hex'));
+  // Apple seeds a new treatment with COPIES of the original page's media (a full set of ten blocks
+  // any upload). Clear those copies first; they live only in this treatment, never on the live page.
+  for (const asset of (await asc(`/v1/${sets}/${set.id}/${assets}?limit=50`)).data) {
+    if (!sums.includes(asset.attributes.sourceFileChecksum) || asset.attributes.assetDeliveryState?.state !== 'COMPLETE') await asc(`/v1/${assets}/${asset.id}`, 'DELETE');
+  }
   const old = (await asc(`/v1/${sets}/${set.id}/${assets}?limit=50`)).data;
   const order = [];
-  for (const file of files) {
-    const bytes = readFileSync(file), checksum = createHash('md5').update(bytes).digest('hex');
+  for (const [i, file] of files.entries()) {
+    const bytes = readFileSync(file), checksum = sums[i];
     const done = old.find(a => a.attributes.sourceFileChecksum === checksum && a.attributes.assetDeliveryState?.state === 'COMPLETE');
     if (done) { order.push(done.id); continue; }
     const attributes = { fileName: basename(file), fileSize: bytes.length, ...(assets === 'appPreviews' ? { mimeType: 'video/mp4', previewFrameTimeCode: '00:00:05:00' } : {}) };
@@ -96,13 +102,19 @@ async function fill(sets, assets, attribute, value, files) {
     order.push((await waitForDelivery(assets, reservation.id)).id);
     console.log('Processed', value, basename(file));
   }
-  // Anything else in a TREATMENT set is a leftover from an earlier attempt of this same test.
   for (const asset of old) if (!order.includes(asset.id)) await asc(`/v1/${assets}/${asset.id}`, 'DELETE');
   await asc(`/v1/${sets}/${set.id}/relationships/${assets}`, 'PATCH', order.map(id => ({ type: assets, id })));
 }
 await fill('appScreenshotSets', 'appScreenshots', 'screenshotDisplayType', 'APP_IPHONE_67', shots('iphone'));
 await fill('appScreenshotSets', 'appScreenshots', 'screenshotDisplayType', 'APP_IPAD_PRO_3GEN_129', shots('ipad'));
 await fill('appPreviewSets', 'appPreviews', 'previewType', 'IPHONE_67', [join(root, 'preview', 'Silicon-1.4.0-iPhone.mp4')]);
+// Drop the seeded copies of every OTHER size from the treatment (e.g. a 6.5-inch set), so smaller
+// devices see the new set scaled down rather than the original page's old images.
+for (const [sets, attribute, keep] of [['appScreenshotSets', 'screenshotDisplayType', ['APP_IPHONE_67', 'APP_IPAD_PRO_3GEN_129']], ['appPreviewSets', 'previewType', ['IPHONE_67']]]) {
+  for (const set of (await asc(`/v1/appStoreVersionExperimentTreatmentLocalizations/${localization.id}/${sets}?limit=50`)).data) {
+    if (!keep.includes(set.attributes[attribute])) { await asc(`/v1/${sets}/${set.id}`, 'DELETE'); console.log('Removed seeded', set.attributes[attribute]); }
+  }
+}
 
 const after = (await asc(`/v2/appStoreVersionExperiments/${experiment.id}`)).data;
 save('experiment-after', after);
