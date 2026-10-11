@@ -89,7 +89,16 @@ try {
     // …and closing brings the 3D card back (an intentional unmount must not read as a lost GPU).
     await p.getByRole('button', { name: 'Close factory', exact: true }).click();
     await p.locator('.fcard__scene canvas').waitFor();
+    // Reopen and check the ORDER: R3F releases a context ~500 ms after unmount, so the fullscreen
+    // canvas must only appear once the card's context-lost event has fired (never three at once).
+    await p.evaluate(() => {
+      const t = window.__f8 = { lost: 0, full: 0 };
+      document.querySelector('.fcard__scene canvas').addEventListener('webglcontextlost', () => { t.lost = performance.now(); }, { once: true });
+      new MutationObserver((_, obs) => { if (document.querySelector('.fmode canvas')) { t.full = performance.now(); obs.disconnect(); } }).observe(document.body, { childList: true, subtree: true });
+    });
     await open();
+    const order = await p.evaluate(() => window.__f8);
+    assert(order.lost > 0 && order.full >= order.lost, `Fullscreen canvas mounted before the card released its context: ${JSON.stringify(order)}`);
   });
   await check('Repeated pinch, orbit and camera reset do not edit or spend', async () => {
     const before = await read(), cdp = await ctx.newCDPSession(p);
@@ -216,7 +225,14 @@ try {
   await check('Reduced motion stays still and WebGL loss offers working fallback', async () => {
     await p.setViewportSize({ width: 390, height: 844 }); await p.emulateMedia({ reducedMotion: 'reduce' });
     const sample = () => p.evaluate(() => { const out = []; window.__auditStore.getState().scene.traverse(o => { if (!o.isCamera) out.push([o.name, ...o.position.toArray(), ...o.rotation.toArray()]); }); return JSON.stringify(out); });
-    await p.waitForTimeout(400); const a = await sample(); await p.waitForTimeout(500); assert(a === await sample(), 'Reduced motion moved scene');
+    // The still pose lands on the first frame after the switch; a software renderer can take longer
+    // than 400ms to present it. Wait (≤ 8s) for one quiet 500ms window, then require a second one —
+    // a scene that keeps animating never settles and still fails.
+    let settled = false;
+    for (const deadline = Date.now() + 8000; !settled && Date.now() < deadline;) {
+      const s0 = await sample(); await p.waitForTimeout(500); settled = (await sample()) === s0;
+    }
+    const a = await sample(); await p.waitForTimeout(500); assert(settled && a === await sample(), 'Reduced motion moved scene');
     await p.locator('.fmode canvas').evaluate(c => c.getContext('webgl2').getExtension('WEBGL_lose_context').loseContext());
     await p.locator('.fmode .fmini').waitFor(); await p.getByRole('button', { name: 'Build', exact: true }).click();
     assert(await p.getByRole('button', { name: /^Column 1, row 1/ }).count() > 0, 'Fallback has no accessible grid'); await shot('context-loss-fallback');

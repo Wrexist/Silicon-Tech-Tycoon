@@ -208,7 +208,10 @@ Each gap: what is wrong, where, and the fix. Verified against the captures above
   2D minimap stands in), so the app holds two live WebGL contexts (hidden office + fullscreen), never
   three. Unmounting a Canvas forces its own context loss, which used to be read as a GPU failure and
   would have dropped the card to 2D for good — `Factory3D` now ignores the loss it causes itself.
-  The browser gate checks both halves (≤ 2 canvases while open; the 3D card is back after close).
+  R3F 9.6 releases a context ~500 ms AFTER unmount, so the fullscreen canvas waits for the card's
+  own context-lost event (`onReleased`, 2.5 s fallback) — the overlay opens at once, the 3D a beat
+  later. The browser gate checks ≤ 2 canvases while open, the release-before-mount order, and the
+  3D card back after close.
   **Still the owner's:** the 15–20 min dense-factory session on a real iPhone (old and new), then
   sign off the compare page, then `npm run shots:store` to refresh the App Store frames.
 
