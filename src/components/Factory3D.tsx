@@ -2263,6 +2263,12 @@ export default function Factory3D(p: Factory3DProps) {
   const revision = useMemo(() => JSON.stringify([p.floor, p.props, p.floorW]), [p.floor, p.props, p.floorW]);
   const motion = useMemo(() => ({ reduced, stopped: !!p.motionPaused, revision }), [reduced, p.motionPaused, revision]);
   const quality = useQuality();
+  // Unmounting a Canvas forces its own context loss (R3F disposes the renderer). That is not a GPU
+  // failure, so it must not trip onContextLost: the HQ card unmounts while fullscreen is open (F8)
+  // and would otherwise drop to the 2D minimap for good. Set in a layout cleanup, which runs before
+  // the Canvas's own teardown in the same commit.
+  const disposing = useRef(false);
+  useLayoutEffect(() => { disposing.current = false; return () => { disposing.current = true; }; }, []);
   return (
     <MotionContext.Provider value={motion}><Canvas
       role="img"
@@ -2283,7 +2289,7 @@ export default function Factory3D(p: Factory3DProps) {
         frameCamera(camera as THREE.PerspectiveCamera, p.preview ? size.height > size.width : window.innerHeight > window.innerWidth, cx, bay);
         gl.domElement.addEventListener(
           "webglcontextlost",
-          (e) => { e.preventDefault(); p.onContextLost?.(); },
+          (e) => { e.preventDefault(); if (!disposing.current) p.onContextLost?.(); },
           { once: true },
         );
       }}

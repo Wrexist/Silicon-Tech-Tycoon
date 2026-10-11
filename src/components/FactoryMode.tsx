@@ -1274,18 +1274,20 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
   return (
     <div className="fcard">
       <button className="fcard__tap" onClick={() => { haptic.light(); setOpen(true); }} aria-label="Open factory mode" aria-describedby={use3d && bayCost != null ? bayChipId : undefined}>
-        {use3d ? (
+        {/* F8: while the fullscreen view is open the card is covered, so it gives its WebGL context
+            back (the 2D minimap stands in) — the app never holds three live contexts (hidden office
+            + card + fullscreen). Closing re-mounts it; the Factory3D chunk is already loaded. */}
+        {use3d && !open ? (
           <span className="fcard__scene" aria-hidden>
             <ErrorBoundary fallback={mini}>
             <Suspense fallback={mini}>
               <Factory3D
               dark={isDarkTheme()}
                 preview
-                // The card keeps its WebGL context (returning to HQ is instant) but stops DRAWING
-                // whenever it can't be seen: another bottom tab, or the fullscreen build view open
-                // over it. Without this the card kept issuing ~874 draw calls a frame from behind
-                // the overlay and on every other tab — for a picture nobody was looking at.
-                paused={!active || open}
+                // The card keeps its WebGL context across bottom tabs (returning to HQ is instant)
+                // but stops DRAWING whenever it can't be seen. Without this the card kept issuing
+                // ~874 draw calls a frame on every other tab — for a picture nobody was looking at.
+                paused={!active}
                 active={d.active}
                 activeKind={d.activeKind}
               workingKinds={d.workingKinds}

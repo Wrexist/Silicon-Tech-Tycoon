@@ -82,6 +82,15 @@ try {
     const missing = await p.evaluate(list => { const s = window.__auditStore.getState(); return list.filter(n => !s.scene.getObjectByName(n)); }, names);
     assert(!missing.length, `Missing animated parts: ${missing.join(', ')}`);
   });
+  await check('Fullscreen holds at most two live WebGL canvases (the card gives its context back)', async () => {
+    // F8: hidden office + fullscreen only; the covered card shows its 2D minimap until close.
+    const live = await p.evaluate(() => ({ canvases: document.querySelectorAll('canvas').length, card: !!document.querySelector('.fcard__scene canvas') }));
+    assert(live.canvases <= 2 && !live.card, `Live canvases while fullscreen: ${JSON.stringify(live)}`);
+    // …and closing brings the 3D card back (an intentional unmount must not read as a lost GPU).
+    await p.getByRole('button', { name: 'Close factory', exact: true }).click();
+    await p.locator('.fcard__scene canvas').waitFor();
+    await open();
+  });
   await check('Repeated pinch, orbit and camera reset do not edit or spend', async () => {
     const before = await read(), cdp = await ctx.newCDPSession(p);
     for (let i = 0; i < 3; i++) {
