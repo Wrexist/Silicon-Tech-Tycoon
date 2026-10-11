@@ -16,6 +16,7 @@ import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef,
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
+import { RoundedBoxGeometry, mergeBufferGeometries } from "three-stdlib";
 import { groundFadeTexture } from "../garage3d/glow.ts";
 import { FACTORY_PALETTE } from "../garage3d/factoryPalette.ts";
 import { StudioEnvironment } from "../garage3d/lighting.tsx";
@@ -143,6 +144,32 @@ function eraAccent(era: number): string {
 const AccentContext = createContext<string>(C.accent);
 const useAccent = () => useContext(AccentContext);
 
+/* The machines' finishes (Step 5) — the office robots' product language on the line: satin white
+ * housings with rounded edges, graphite structure, a smoked dark-glass band, bright aluminium on every
+ * moving part, and the andon strip as the one status colour. Each call is its own material, so a
+ * working machine's accent wash never leaks onto its neighbours. */
+const housingMat = (hot = false, accent: string = C.accent) => (
+  <meshStandardMaterial color={C.housing} roughness={0.36} metalness={0.04} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.1 : 0} />
+);
+const structureMat = () => <meshStandardMaterial color={C.machine} roughness={0.5} metalness={0.35} />;
+const smokeMat = () => <meshStandardMaterial color={C.smoke} roughness={0.12} metalness={0.4} />;
+const metalMat = () => <meshStandardMaterial color={C.metal} roughness={0.22} metalness={0.85} />;
+
+/** Same-material parts that never move apart are merged into ONE geometry — one draw call instead
+ *  of several (the hazard edges, the press's twin pistons). Cached by shape for the page's lifetime;
+ *  passed by prop, so R3F never disposes them (see sharedGpu.ts). */
+const mergedCache = new Map<string, THREE.BufferGeometry>();
+function mergedOnce(key: string, make: () => THREE.BufferGeometry[]): THREE.BufferGeometry {
+  let g = mergedCache.get(key);
+  if (!g) {
+    const parts = make();
+    g = mergeBufferGeometries(parts) ?? parts[0];
+    if (g !== parts[0]) parts.forEach((part) => part.dispose());
+    mergedCache.set(key, g);
+  }
+  return g;
+}
+
 /* Stable string hash → for deterministic, per-object jitter/phase (mirrors hashNum in
  * IsoScene.tsx). Never Math.random() in a frame path — all "alive" phases derive from this + the
  * shared clock, so a fixed floor animates identically every run. */
@@ -210,15 +237,14 @@ type ItemsRef = React.MutableRefObject<number[]>;
 
 /* ------------------------------- conveyor ------------------------------- */
 
+/** A machine's plinth: a low graphite slab with its two amber hazard edges painted on top. */
 function HazardBase({ w, d }: { w: number; d: number }) {
   return (
     <group>
-      {[-w / 2 + 0.15, w / 2 - 0.15].map((x, i) => (
-        <mesh key={i} position={[x, 0.09, 0]}>
-          <boxGeometry args={[0.12, 0.04, d]} />
-          <meshStandardMaterial color={C.hazard} roughness={0.8} />
-        </mesh>
-      ))}
+      <RoundedBox args={[w, 0.06, d]} radius={0.025} position={[0, 0.13, 0]} receiveShadow>{structureMat()}</RoundedBox>
+      <mesh position={[0, 0.163, 0]} geometry={mergedOnce(`hazard:${w},${d}`, () => [-1, 1].map((side) => new THREE.BoxGeometry(0.1, 0.008, d - 0.2).translate(side * (w / 2 - 0.15), 0, 0)))}>
+        <meshStandardMaterial color={C.hazard} roughness={0.8} />
+      </mesh>
     </group>
   );
 }
@@ -547,24 +573,29 @@ function Intake({ active, hot, position, yaw = 0, phase = 0 }: { active: boolean
   });
   return (
     <group position={position} rotation={[0, yaw, 0]}>
-      {/* frame */}
-      {[-0.55, 0.55].map((dx) => (
-        <mesh key={dx} position={[dx, 1.1, 0]} castShadow>
-          <boxGeometry args={[0.12, 2.2, 0.12]} />
-          <meshStandardMaterial color={C.machine} roughness={0.6} metalness={0.3} />
-        </mesh>
+      {/* graphite legs */}
+      {[-0.62, 0.62].map((dx) => (
+        <RoundedBox key={dx} args={[0.12, 2.05, 0.12]} radius={0.03} position={[dx, 1.025, 0]} castShadow>{structureMat()}</RoundedBox>
       ))}
-      {/* inverted funnel */}
+      {/* round satin hopper, open at the top (raw stock inside), with a graphite rim */}
       <mesh position={[0, 1.9, 0]} castShadow>
-        <cylinderGeometry args={[0.75, 0.3, 0.8, 4, 1, false, Math.PI / 4]} />
-        <meshStandardMaterial color={C.machineHi} roughness={0.55} metalness={0.35} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.2 : 0} />
+        <cylinderGeometry args={[0.75, 0.3, 0.8, 28, 1, true]} />
+        <meshStandardMaterial color={C.housing} roughness={0.36} metalness={0.04} side={THREE.DoubleSide} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.1 : 0} />
+      </mesh>
+      <mesh position={[0, 2.12, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[0.64, 28]} />
+        <meshStandardMaterial color={C.slab} roughness={0.5} metalness={0.5} />
+      </mesh>
+      <mesh position={[0, 2.3, 0]} rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.76, 0.045, 8, 32]} />
+        {structureMat()}
       </mesh>
       <mesh ref={puff} position={[0, 1.4, 0]}>
         <boxGeometry args={[0.34, 0.1, 0.3]} />
         <meshStandardMaterial color={C.slab} transparent opacity={0.6} roughness={0.4} />
       </mesh>
       {/* status andon on the front frame — hums even when idle so the hopper reads powered-on */}
-      <AndonStrip hot={hot} phase={phase} args={[0.14, 0.14, 0.04]} position={[0.55, 1.7, 0.09]} />
+      <AndonStrip hot={hot} phase={phase} args={[0.14, 0.14, 0.04]} position={[0.62, 1.5, 0.08]} />
       <HazardBase w={1.6} d={1.6} />
       <HotLight on={hot} />
     </group>
@@ -587,26 +618,23 @@ function GantryPress({ active, hot, position, yaw = 0, phase = 0, pl, itemsT, mo
   return (
     <group position={position} rotation={[0, yaw, 0]} scale={[0.72, 1, 0.72]}>
       {!mounted && [-0.9, 0.9].map((dx) => (
-        <mesh key={dx} position={[dx, 1.0, 0]} castShadow>
-          <boxGeometry args={[0.28, 2.0, 0.5]} />
-          <meshStandardMaterial color={C.machine} roughness={0.6} metalness={0.3} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.22 : 0} />
-        </mesh>
+        <RoundedBox key={dx} args={[0.28, 2.0, 0.5]} radius={0.06} position={[dx, 1.0, 0]} castShadow>{structureMat()}</RoundedBox>
       ))}
-      <RoundedBox args={[2.15, 0.5, 0.8]} radius={0.08} position={[0, 2.15, 0]} castShadow>
-        <meshStandardMaterial color={C.machineHi} roughness={0.5} metalness={0.4} />
-      </RoundedBox>
+      {/* the head: a satin housing with a smoked glass band through it (reads on both faces) */}
+      <RoundedBox args={[2.15, 0.5, 0.8]} radius={0.14} position={[0, 2.15, 0]} castShadow>{housingMat(hot, accent)}</RoundedBox>
+      <mesh position={[0, 2.19, 0]}><boxGeometry args={[1.8, 0.2, 0.82]} />{smokeMat()}</mesh>
       {/* status strip — steady accent while pressing, gentle amber hum otherwise */}
-      <AndonStrip hot={hot} phase={phase} args={[1.6, 0.1, 0.02]} position={[0, 2.15, 0.42]} />
+      <AndonStrip hot={hot} phase={phase} args={[1.6, 0.045, 0.83]} position={[0, 1.99, 0]} />
       <group name="press-ram" ref={ram} position={[0, 1.55, 0]}>
-        {[-0.45, 0.45].map((dx) => (
-          <mesh key={dx} position={[dx, 0, 0]} castShadow>
-            <cylinderGeometry args={[0.1, 0.1, 0.9, 12]} />
-            <meshStandardMaterial color={C.rail} roughness={0.35} metalness={0.6} />
-          </mesh>
-        ))}
-        <RoundedBox args={[1.3, 0.32, 0.6]} radius={0.06} position={[0, -0.55, 0]} castShadow>
-          <meshStandardMaterial color={accent} roughness={0.45} />
-        </RoundedBox>
+        <mesh castShadow geometry={mergedOnce("press-pistons", () => [-0.45, 0.45].map((dx) => new THREE.CylinderGeometry(0.1, 0.1, 0.9, 16).translate(dx, 0, 0)))}>
+          {metalMat()}
+        </mesh>
+        {/* satin platen with the die face in the era accent — same underside as before */}
+        <RoundedBox args={[1.3, 0.3, 0.6]} radius={0.08} position={[0, -0.52, 0]} castShadow>{housingMat(hot, accent)}</RoundedBox>
+        <mesh position={[0, -0.69, 0]}>
+          <boxGeometry args={[1.12, 0.05, 0.48]} />
+          <meshStandardMaterial color={accent} roughness={0.4} emissive={accent} emissiveIntensity={hot ? 0.5 : 0.08} />
+        </mesh>
       </group>
       {!mounted && <HazardBase w={2.4} d={1.7} />}
       <HotLight on={hot} y={2.9} />
@@ -648,43 +676,37 @@ function RobotArm({ active, hot, position, phase = 0, pl, itemsT }: {
     <group position={position}>
       {/* plinth + turntable */}
       <mesh position={[0, 0.14, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.5, 0.6, 0.28, 24]} />
-        <meshStandardMaterial color={C.dark} roughness={0.7} />
+        <cylinderGeometry args={[0.5, 0.6, 0.28, 28]} />
+        {structureMat()}
       </mesh>
-      {/* base andon — powered-on hum even when the cell is resting */}
-      <AndonStrip hot={hot} phase={phase} args={[0.3, 0.06, 0.02]} position={[0, 0.2, 0.5]} />
+      {/* base andon — powered-on hum even when the cell is resting (on the plinth's face) */}
+      <AndonStrip hot={hot} phase={phase} args={[0.3, 0.06, 0.04]} position={[0, 0.2, 0.54]} />
       <group name="arm-yaw" ref={yaw} position={[0, 0.28, 0]}>
         <mesh position={[0, 0.12, 0]} castShadow>
-          <cylinderGeometry args={[0.34, 0.42, 0.26, 20]} />
-          <meshStandardMaterial color={C.amber} roughness={0.5} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.18 : 0} />
+          <cylinderGeometry args={[0.34, 0.42, 0.26, 24]} />
+          {housingMat(hot, accent)}
         </mesh>
-        {/* shoulder joint + upper arm */}
+        {/* shoulder joint + upper arm: satin white links on graphite joints, the office robots' look */}
         <group ref={shoulder} position={[0, 0.3, 0]}>
-          <mesh position={[0, 0.55, 0]} castShadow>
-            <boxGeometry args={[0.24, 1.1, 0.3]} />
-            <meshStandardMaterial color={C.amber} roughness={0.5} />
-          </mesh>
+          <RoundedBox args={[0.24, 1.1, 0.3]} radius={0.1} position={[0, 0.55, 0]} castShadow>{housingMat(hot, accent)}</RoundedBox>
           <mesh position={[0, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
-            <cylinderGeometry args={[0.17, 0.17, 0.4, 16]} />
-            <meshStandardMaterial color={C.machine} roughness={0.4} metalness={0.4} />
+            <cylinderGeometry args={[0.17, 0.17, 0.4, 20]} />
+            {structureMat()}
           </mesh>
           {/* elbow + forearm */}
           <group ref={elbow} position={[0, 1.1, 0]}>
             <mesh rotation={[0, 0, Math.PI / 2]}>
-              <cylinderGeometry args={[0.14, 0.14, 0.36, 16]} />
-              <meshStandardMaterial color={C.machine} roughness={0.4} metalness={0.4} />
+              <cylinderGeometry args={[0.14, 0.14, 0.36, 20]} />
+              {structureMat()}
             </mesh>
-            <mesh position={[0, 0.42, 0]} castShadow>
-              <boxGeometry args={[0.18, 0.84, 0.22]} />
-              <meshStandardMaterial color={C.amber} roughness={0.5} />
-            </mesh>
+            <RoundedBox args={[0.18, 0.84, 0.22]} radius={0.08} position={[0, 0.42, 0]} castShadow>{housingMat(hot, accent)}</RoundedBox>
             {/* wrist + gripper */}
             <group ref={wrist} position={[0, 0.86, 0]}>
-              <mesh><sphereGeometry args={[0.12, 14, 14]} /><meshStandardMaterial color={C.machineHi} roughness={0.35} metalness={0.5} /></mesh>
+              <mesh><sphereGeometry args={[0.12, 16, 14]} />{structureMat()}</mesh>
               {[-0.07, 0.07].map((dx) => (
                 <mesh key={dx} position={[dx, 0.16, 0]} castShadow>
                   <boxGeometry args={[0.045, 0.22, 0.1]} />
-                  <meshStandardMaterial color={C.dark} roughness={0.5} />
+                  {metalMat()}
                 </mesh>
               ))}
             </group>
@@ -714,22 +736,22 @@ function QaTunnel({ active, hot, position, yaw = 0, phase = 0, pl, itemsT, mount
   });
   return (
     <group position={position} rotation={[0, yaw, 0]} scale={[0.72, 1, 0.72]}>
-      <RoundedBox args={[2.0, 1.15, 1.25]} radius={0.1} position={[0, 0.85, 0]} castShadow>
-        <meshStandardMaterial color={C.glass} transparent opacity={0.22} roughness={0.15} metalness={0.1} />
+      {/* smoked glass tunnel under a satin hood — the device stays visible as it's scanned */}
+      <RoundedBox args={[2.0, 1.15, 1.25]} radius={0.1} position={[0, 0.85, 0]}>
+        <meshStandardMaterial color={C.smoke} transparent opacity={0.28} roughness={0.08} metalness={0.5} />
       </RoundedBox>
+      {/* the scanner bridge across the tunnel roof — carries the andon */}
+      <RoundedBox args={[2.12, 0.24, 0.42]} radius={0.08} position={[0, 1.54, 0]} castShadow>{housingMat(hot, accent)}</RoundedBox>
       {/* frame ribs */}
       {!mounted && [-0.85, 0.85].map((dx) => (
-        <mesh key={dx} position={[dx, 0.85, 0]} castShadow>
-          <boxGeometry args={[0.16, 1.2, 1.3]} />
-          <meshStandardMaterial color={C.machine} roughness={0.55} metalness={0.3} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.25 : 0} />
-        </mesh>
+        <RoundedBox key={dx} args={[0.16, 1.2, 1.3]} radius={0.05} position={[dx, 0.85, 0]} castShadow>{structureMat()}</RoundedBox>
       ))}
       {/* sweeping scan sheet */}
       <mesh name="qa-beam" ref={beam} position={[0, 0.85, 0]}>
         <boxGeometry args={[0.03, 1.0, 1.1]} />
         <meshStandardMaterial color={accent} emissive={accent} emissiveIntensity={1.6} transparent opacity={0.5} />
       </mesh>
-      <AndonStrip hot={hot} phase={phase} args={[1.7, 0.08, 0.02]} position={[0, 1.5, 0]} />
+      <AndonStrip hot={hot} phase={phase} args={[1.7, 0.05, 0.44]} position={[0, 1.49, 0]} />
       {!mounted && <HazardBase w={2.3} d={1.8} />}
       <HotLight on={hot} y={2.2} />
     </group>
@@ -752,19 +774,20 @@ function Packer({ active, hot, position, yaw = 0, phase = 0, pl, itemsT }: { act
   });
   return (
     <group position={position} rotation={[0, yaw, 0]}>
-      <RoundedBox args={[1.5, 0.5, 1.2]} radius={0.07} position={[0, 0.55, 0]} castShadow>
-        <meshStandardMaterial color={C.machine} roughness={0.6} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.22 : 0} />
-      </RoundedBox>
+      {/* satin body with a smoked glass top, sitting on its plinth */}
+      <RoundedBox args={[1.5, 0.62, 1.2]} radius={0.1} position={[0, 0.47, 0]} castShadow>{housingMat(hot, accent)}</RoundedBox>
+      <mesh position={[0, 0.785, 0]}><boxGeometry args={[1.16, 0.02, 0.88]} />{smokeMat()}</mesh>
+      {/* aluminium folding plates */}
       <mesh name="packer-left" ref={l} position={[-0.6, 0.95, 0]} castShadow>
         <boxGeometry args={[0.08, 0.7, 1.0]} />
-        <meshStandardMaterial color={C.hazard} roughness={0.6} />
+        {metalMat()}
       </mesh>
       <mesh ref={r} position={[0.6, 0.95, 0]} castShadow>
         <boxGeometry args={[0.08, 0.7, 1.0]} />
-        <meshStandardMaterial color={C.hazard} roughness={0.6} />
+        {metalMat()}
       </mesh>
-      {/* front-face andon — the packer hums powered-on between boxings */}
-      <AndonStrip hot={hot} phase={phase} args={[0.9, 0.08, 0.02]} position={[0, 0.72, 0.61]} />
+      {/* andon band (front and back faces) — the packer hums powered-on between boxings */}
+      <AndonStrip hot={hot} phase={phase} args={[1.1, 0.05, 1.22]} position={[0, 0.6, 0]} />
       <HazardBase w={1.9} d={1.6} />
       <HotLight on={hot} y={1.9} />
     </group>
@@ -793,20 +816,17 @@ function CncMill({ active, hot, position, yaw = 0, phase = 0, pl, itemsT, mounte
     <group position={position} rotation={[0, yaw, 0]} scale={[0.72, 1, 0.72]}>
       {/* side walls form a cell the belt runs through */}
       {!mounted && [-0.85, 0.85].map((x) => (
-        <mesh key={x} position={[x, 0.85, 0]} castShadow>
-          <boxGeometry args={[0.22, 1.7, 1.2]} />
-          <meshStandardMaterial color={C.machine} roughness={0.55} metalness={0.4} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.2 : 0} />
-        </mesh>
+        <RoundedBox key={x} args={[0.22, 1.7, 1.2]} radius={0.06} position={[x, 0.85, 0]} castShadow>{housingMat(hot, accent)}</RoundedBox>
       ))}
-      {/* top gantry beam + status strip */}
-      <RoundedBox args={[2.0, 0.28, 0.5]} radius={0.06} position={[0, 1.75, 0]} castShadow>
-        <meshStandardMaterial color={C.machineHi} roughness={0.5} metalness={0.45} />
-      </RoundedBox>
-      <AndonStrip hot={hot} phase={phase} args={[1.5, 0.08, 0.02]} position={[0, 1.75, 0.27]} />
+      {/* top gantry beam: satin, a smoked glass band, the status strip under it */}
+      <RoundedBox args={[2.0, 0.3, 0.5]} radius={0.1} position={[0, 1.75, 0]} castShadow>{housingMat(hot, accent)}</RoundedBox>
+      <mesh position={[0, 1.78, 0]}><boxGeometry args={[1.62, 0.13, 0.52]} />{smokeMat()}</mesh>
+      <AndonStrip hot={hot} phase={phase} args={[1.4, 0.04, 0.53]} position={[0, 1.64, 0]} />
       {/* spindle head — traverses + plunges; the bit spins */}
       <group name="mill-spindle" ref={spindle} position={[0, 1.15, 0]}>
-        <mesh castShadow><boxGeometry args={[0.3, 0.42, 0.32]} /><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.55} /></mesh>
-        <mesh ref={bit} position={[0, -0.34, 0]}><cylinderGeometry args={[0.05, 0.018, 0.3, 12]} /><meshStandardMaterial color="#c9ced6" roughness={0.25} metalness={0.85} /></mesh>
+        <RoundedBox args={[0.3, 0.42, 0.32]} radius={0.06} castShadow>{housingMat(hot, accent)}</RoundedBox>
+        <mesh position={[0, -0.24, 0]}><cylinderGeometry args={[0.1, 0.12, 0.08, 16]} />{structureMat()}</mesh>
+        <mesh ref={bit} position={[0, -0.34, 0]}><cylinderGeometry args={[0.05, 0.018, 0.3, 12]} />{metalMat()}</mesh>
       </group>
       {!mounted && <HazardBase w={2.2} d={1.5} />}
       <HotLight on={hot} y={2.2} />
@@ -833,18 +853,14 @@ function ScreenBonder({ active, hot, position, yaw = 0, phase = 0, pl, itemsT, m
     <group position={position} rotation={[0, yaw, 0]} scale={[0.72, 1, 0.72]}>
       {/* uprights + crossbeam */}
       {!mounted && [-0.8, 0.8].map((x) => (
-        <mesh key={x} position={[x, 0.9, 0]} castShadow>
-          <boxGeometry args={[0.18, 1.8, 0.3]} />
-          <meshStandardMaterial color={C.machine} roughness={0.55} metalness={0.4} emissive={hot ? accent : "#000"} emissiveIntensity={hot ? 0.2 : 0} />
-        </mesh>
+        <RoundedBox key={x} args={[0.18, 1.8, 0.3]} radius={0.05} position={[x, 0.9, 0]} castShadow>{structureMat()}</RoundedBox>
       ))}
-      <RoundedBox args={[1.9, 0.26, 0.55]} radius={0.06} position={[0, 1.85, 0]} castShadow>
-        <meshStandardMaterial color={C.machineHi} roughness={0.5} metalness={0.4} />
-      </RoundedBox>
-      <AndonStrip hot={hot} phase={phase} args={[1.4, 0.08, 0.02]} position={[0, 1.85, 0.29]} />
+      <RoundedBox args={[1.9, 0.28, 0.55]} radius={0.1} position={[0, 1.85, 0]} castShadow>{housingMat(hot, accent)}</RoundedBox>
+      <mesh position={[0, 1.88, 0]}><boxGeometry args={[1.52, 0.12, 0.57]} />{smokeMat()}</mesh>
+      <AndonStrip hot={hot} phase={phase} args={[1.3, 0.04, 0.58]} position={[0, 1.75, 0]} />
       {/* descending laminator head holding a glass panel */}
       <group name="screen-head" ref={head} position={[0, 1.5, 0]}>
-        <RoundedBox args={[1.1, 0.16, 0.7]} radius={0.04} castShadow><meshStandardMaterial color={C.rail} roughness={0.4} metalness={0.5} /></RoundedBox>
+        <RoundedBox args={[1.1, 0.16, 0.7]} radius={0.05} castShadow>{housingMat(hot, accent)}</RoundedBox>
         <mesh ref={glow} position={[0, -0.1, 0]}><boxGeometry args={[0.9, 0.04, 0.6]} /><meshStandardMaterial color={C.screen} emissive={C.screen} emissiveIntensity={0.25} transparent opacity={0.85} roughness={0.15} metalness={0.1} /></mesh>
       </group>
       {!mounted && <HazardBase w={2.0} d={1.3} />}
@@ -1198,12 +1214,12 @@ function Pallet({ position, yaw = 0, count }: { position: [number, number, numbe
       {/* wooden pallet base + top slats */}
       <mesh position={[0, 0.06, 0]} receiveShadow castShadow>
         <boxGeometry args={[1.3, 0.12, 1.3]} />
-        <meshStandardMaterial color="#5f4c2f" roughness={0.92} />
+        <meshStandardMaterial color={C.palletWood} roughness={0.92} />
       </mesh>
       {[-0.45, 0, 0.45].map((z) => (
         <mesh key={z} position={[0, 0.15, z]} receiveShadow>
           <boxGeometry args={[1.3, 0.05, 0.3]} />
-          <meshStandardMaterial color="#7d6743" roughness={0.9} />
+          <meshStandardMaterial color={C.palletSlat} roughness={0.9} />
         </mesh>
       ))}
       {/* finished-goods crates stack up with the ready count */}
@@ -1233,14 +1249,14 @@ function Truck({ selling, position, yaw = 0 }: { selling: boolean; position: [nu
         <RoundedBox args={[0.95, 0.85, 0.8]} radius={0.1} position={[0, 0.65, 1.25]} castShadow>
           <meshStandardMaterial color={C.cab} roughness={0.5} />
         </RoundedBox>
-        <mesh position={[0, 0.72, 1.66]}>
-          <boxGeometry args={[0.8, 0.3, 0.02]} />
-          <meshStandardMaterial color={C.screen} roughness={0.2} metalness={0.3} />
-        </mesh>
+        {/* smoked windscreen + side windows, and the company stripe down the box */}
+        <mesh position={[0, 0.78, 1.66]}><boxGeometry args={[0.8, 0.28, 0.02]} />{smokeMat()}</mesh>
+        <mesh position={[0, 0.8, 1.32]}><boxGeometry args={[0.97, 0.24, 0.38]} />{smokeMat()}</mesh>
+        <mesh position={[0, 0.52, -0.35]}><boxGeometry args={[1.02, 0.1, 2.12]} /><meshStandardMaterial color={C.cab} roughness={0.5} /></mesh>
         {[[-0.55, -1.0], [0.55, -1.0], [-0.55, 0.2], [0.55, 0.2], [-0.55, 1.15], [0.55, 1.15]].map(([wx, wz], i) => (
           <mesh key={i} position={[wx, 0.28, wz]} rotation={[0, 0, Math.PI / 2]}>
             <cylinderGeometry args={[0.28, 0.28, 0.18, 18]} />
-            <meshStandardMaterial color="#15181d" roughness={0.9} />
+            <meshStandardMaterial color={C.device} roughness={0.9} />
           </mesh>
         ))}
       </group>
@@ -1269,14 +1285,15 @@ function Agvs({ tier, overtime, active }: { tier: number; overtime: boolean; act
     }
   });
   const n = Math.max(0, Math.min(3, tier));
-  const beacon = overtime ? C.amber : "#34d399";
+  const beacon = overtime ? C.amber : C.beacon;
   return (
     <group>
       {Array.from({ length: n }, (_, i) => (
         <group key={i} ref={(g) => { if (g) refs.current[i] = g; }}>
           <RoundedBox args={[0.55, 0.22, 0.4]} radius={0.08} castShadow>
-            <meshStandardMaterial color={C.agv} roughness={0.5} />
+            <meshStandardMaterial color={C.agv} roughness={0.36} metalness={0.04} />
           </RoundedBox>
+          <mesh position={[0, -0.06, 0]}><boxGeometry args={[0.57, 0.06, 0.42]} />{structureMat()}</mesh>
           <mesh position={[0, 0.18, 0]}>
             <boxGeometry args={[0.3, 0.14, 0.3]} />
             <meshStandardMaterial color={C.crate} roughness={0.8} />
@@ -1291,8 +1308,9 @@ function Agvs({ tier, overtime, active }: { tier: number; overtime: boolean; act
       {(
         <group name="factory-delivery-shuttle" ref={shuttle}>
           <RoundedBox args={[0.55, 0.22, 0.4]} radius={0.08} castShadow>
-            <meshStandardMaterial color={C.agv} roughness={0.5} />
+            <meshStandardMaterial color={C.agv} roughness={0.36} metalness={0.04} />
           </RoundedBox>
+          <mesh position={[0, -0.06, 0]}><boxGeometry args={[0.57, 0.06, 0.42]} />{structureMat()}</mesh>
           {/* carried crate — toggled off on the empty return leg */}
           <group ref={shuttleCrate} position={[0, 0.24, 0]}>
             <RoundedBox args={[0.34, 0.3, 0.34]} radius={0.03} castShadow>
@@ -1567,16 +1585,37 @@ function MachineAt({ m, active: requestedActive, activeKind: _activeKind, pl, it
     }
   }
   return <group name={`factory-machine:${m.id}`}>
-    {through && mount && <>
-      <mesh position={[cx, .5, cz]} castShadow><boxGeometry args={[.65,1,.65]} /><meshStandardMaterial color={C.machineHi} roughness={.6} metalness={.3} /></mesh>
-      <mesh position={[cx,1.04,cz]}><boxGeometry args={[.4,.06,.4]} /><meshStandardMaterial color={C.screen} /></mesh>
-      <mesh position={[cx,1.2,cz]} castShadow><boxGeometry args={[.2,2.4,.2]} /><meshStandardMaterial color={C.rail} metalness={.5} roughness={.5} /></mesh>
-      <mesh position={[(cx+onBelt[0])/2,2.35,(cz+onBelt[2])/2]} rotation={[0,Math.atan2(onBelt[0]-cx,onBelt[2]-cz),0]}>
-        <boxGeometry args={[.2,.2,Math.hypot(onBelt[0]-cx,onBelt[2]-cz)+.2]} /><meshStandardMaterial color={C.rail} metalness={.5} roughness={.5} />
-      </mesh>
-    </>}
-    {through && mount && <mesh position={[onBelt[0],2.0,onBelt[2]]} castShadow><boxGeometry args={[.16,.7,.16]} /><meshStandardMaterial color={C.rail} roughness={.5} metalness={.5} /></mesh>}
+    {through && mount && <ServiceMount cx={cx} cz={cz} head={onBelt} />}
     {el}<TierPips level={machineLevel(m)} position={pipPos} /></group>;
+}
+
+/** A belt-mounted machine's service station, on its saved footprint: a satin console on a graphite
+ *  plinth with its display facing the operator (who stands on the far side from the belt — see
+ *  factoryCrew.ts), and a graphite column + boom carrying the working head out over the belt. */
+function ServiceMount({ cx, cz, head }: { cx: number; cz: number; head: [number, number, number] }) {
+  const reach = Math.hypot(head[0] - cx, head[2] - cz);
+  const toward = Math.atan2(head[0] - cx, head[2] - cz);   // local +Z points at the head
+  // Plinth, column and boom share one material and never move: one merged geometry, one draw call.
+  const frame = useMemo(() => {
+    const parts = [
+      new RoundedBoxGeometry(0.76, 0.12, 0.76, 2, 0.04).translate(0, 0.16, 0),
+      new RoundedBoxGeometry(0.2, 1.55, 0.2, 2, 0.05).translate(0, 1.675, 0.18),
+      new RoundedBoxGeometry(0.2, 0.2, reach + 0.02, 2, 0.05).translate(0, 2.35, 0.09 + reach / 2),
+    ];
+    const merged = mergeBufferGeometries(parts) ?? parts[0];
+    if (merged !== parts[0]) parts.forEach((part) => part.dispose());
+    return merged;
+  }, [reach]);
+  useEffect(() => () => frame.dispose(), [frame]);
+  return (
+    <group position={[cx, 0, cz]} rotation={[0, toward, 0]}>
+      <mesh geometry={frame} castShadow receiveShadow>{structureMat()}</mesh>
+      <RoundedBox args={[0.58, 0.7, 0.58]} radius={0.09} position={[0, 0.57, 0]} castShadow>{housingMat()}</RoundedBox>
+      <mesh position={[0, 0.935, -0.07]}><boxGeometry args={[0.46, 0.03, 0.34]} />{smokeMat()}</mesh>
+      <mesh position={[0, 0.952, -0.07]}><boxGeometry args={[0.36, 0.006, 0.24]} /><meshStandardMaterial color={C.screen} emissive={C.screen} emissiveIntensity={0.35} roughness={0.3} /></mesh>
+      <mesh position={[0, 2.0, reach]} castShadow><cylinderGeometry args={[0.07, 0.07, 0.7, 16]} />{metalMat()}</mesh>
+    </group>
+  );
 }
 
 /** The picked-up piece hovers with a soft bob — reads as "in hand", not placed. */

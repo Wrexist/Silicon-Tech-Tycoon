@@ -76,6 +76,12 @@ async function stateSample() {
 }
 try {
   await boot('artifacts/pre-testflight-audit/active-save.json');
+  await check('Animated machine parts keep their node names', async () => {
+    // The motion code drives these by ref; the names are the contract for a future model seam (F5).
+    const names = ['press-ram', 'arm-yaw', 'mill-spindle', 'screen-head', 'qa-beam', 'packer-left', 'factory-delivery-truck', 'factory-delivery-shuttle'];
+    const missing = await p.evaluate(list => { const s = window.__auditStore.getState(); return list.filter(n => !s.scene.getObjectByName(n)); }, names);
+    assert(!missing.length, `Missing animated parts: ${missing.join(', ')}`);
+  });
   await check('Repeated pinch, orbit and camera reset do not edit or spend', async () => {
     const before = await read(), cdp = await ctx.newCDPSession(p);
     for (let i = 0; i < 3; i++) {
