@@ -224,7 +224,9 @@ try {
   });
   await check('Reduced motion stays still and WebGL loss offers working fallback', async () => {
     await p.setViewportSize({ width: 390, height: 844 }); await p.emulateMedia({ reducedMotion: 'reduce' });
-    const sample = () => p.evaluate(() => { const out = []; window.__auditStore.getState().scene.traverse(o => { if (!o.isCamera) out.push([o.name, ...o.position.toArray(), ...o.rotation.toArray()]); }); return JSON.stringify(out); });
+    const sample = () => p.evaluate(() => { const out = []; window.__auditStore.getState().scene.traverse(o => { if (!o.isCamera) out.push([o.name || o.type, ...o.position.toArray(), ...o.rotation.toArray()]); }); return JSON.stringify(out); });
+    // On failure, say WHAT moved (and whether the scene even sees Reduce Motion) instead of just "moved".
+    const moved = (x, y) => { const a = JSON.parse(x), b = JSON.parse(y); return a.map((r, i) => JSON.stringify(r) === JSON.stringify(b[i]) ? null : [r, b[i]]).filter(Boolean).slice(0, 6); };
     // The still pose lands on the first frame after the switch; a software renderer can take longer
     // than 400ms to present it. Wait (≤ 8s) for one quiet 500ms window, then require a second one —
     // a scene that keeps animating never settles and still fails.
@@ -232,7 +234,11 @@ try {
     for (const deadline = Date.now() + 8000; !settled && Date.now() < deadline;) {
       const s0 = await sample(); await p.waitForTimeout(500); settled = (await sample()) === s0;
     }
-    const a = await sample(); await p.waitForTimeout(500); assert(settled && a === await sample(), 'Reduced motion moved scene');
+    const a = await sample(); await p.waitForTimeout(500); const b = await sample();
+    if (!settled || a !== b) {
+      const env = await p.evaluate(() => ({ frameloop: window.__auditStore.getState().frameloop, reduced: matchMedia('(prefers-reduced-motion: reduce)').matches, canvases: document.querySelectorAll('canvas').length }));
+      assert(false, `Reduced motion moved scene: ${JSON.stringify({ settled, env, moved: moved(a, b) })}`);
+    }
     await p.locator('.fmode canvas').evaluate(c => c.getContext('webgl2').getExtension('WEBGL_lose_context').loseContext());
     await p.locator('.fmode .fmini').waitFor(); await p.getByRole('button', { name: 'Build', exact: true }).click();
     assert(await p.getByRole('button', { name: /^Column 1, row 1/ }).count() > 0, 'Fallback has no accessible grid'); await shot('context-loss-fallback');
