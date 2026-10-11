@@ -41,6 +41,10 @@ export const FACTORY_PALETTE = {
   cab: "#3b82f6",                  // the company livery on the truck cab (allowlisted)
   agv: CATALOG.chalk,              // the AGVs are white housings too; the beacon carries their status
   beacon: CATALOG.ledOk,           // an AGV running normally (amber in overtime)
+  foliage: CATALOG.plantDeep,      // the yard's trees
+  trunk: CATALOG.wood,
+  yardPaint: CATALOG.chalk,        // parking lines in the loading yard
+  lampHead: CATALOG.glow,          // yard lamp heads (warm glass)
   palletWood: CATALOG.wood,
   palletSlat: CATALOG.woodDark,
   road: CATALOG.charcoal,

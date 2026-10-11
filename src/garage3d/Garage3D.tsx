@@ -1,5 +1,7 @@
-// Procedural real-time 3D HQ (react-three-fiber). Zero image assets — everything is built
-// from primitives + materials + real lights. Scoped to the garage only; devices stay SVG.
+// Real-time 3D HQ (react-three-fiber). The room, robots and fixtures are built from primitives +
+// materials + real lights; the office furniture loads the in-house GLB set (`furnitureModels.ts`,
+// with the parametric piece as fallback) and the wall sign is a canvas texture. No image files.
+// Scoped to the garage only; devices stay SVG.
 import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { ContactShadows, RoundedBox, Html } from "@react-three/drei";
@@ -35,12 +37,13 @@ import { OfficeRobot, RoamingRobot } from "./robotCharacter.tsx";
 import SpeechBubbles, { type Speaker } from "./speechBubbles.tsx";
 import { CameraRig, PinchZoom, CAM_REST_POSITION } from "./cameraRig.tsx";
 import { Lighting, EnableShadows } from "./lighting.tsx";
+import { useQuality } from "./quality.ts";
+import { eraVisual, withEraFinish } from "./eraVisual.ts";
 import { Room, useWallCull, CHEER_GREEN, Props, Plant, BallBin } from "./room.tsx";
 import { useHqInteractions } from "./interactions.ts";
 import { TargetPrompt } from "./interactionPrompt.tsx";
 import { officeConfigFor } from "./officeConfig.ts";
 import { workstationModuleFor, type WorkstationProp } from "./workstationModule.ts";
-import { officeWeek, officeSeed } from "./officeLive.ts";
 import { arrangeOffice, derivedYawFor } from "./officeArrangement.ts";
 import { OfficeDressing } from "./officeDressing.tsx";
 import { skylinePlacement, SKYLINE_COLOR, SKYLINE_DAY } from "./skyline.ts";
@@ -271,11 +274,11 @@ function LivingMonitor({ seed, hasProduction, p }: { seed: number; hasProduction
   );
 }
 
-function Workstation({ p, staff, seed, monitors, colorIdx, deskType = "desk", flip = false, hasProduction = false, still = false }: { p: RoomPalette; staff?: Staff; seed: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId; flip?: boolean; hasProduction?: boolean; still?: boolean }) {
+function Workstation({ p, staff, seed, runSeed = 0, monitors, colorIdx, deskType = "desk", flip = false, hasProduction = false, still = false }: { p: RoomPalette; staff?: Staff; seed: number; runSeed?: number; monitors: number; colorIdx: number; powered?: boolean; deskType?: FurnitureId; flip?: boolean; hasProduction?: boolean; still?: boolean }) {
   // Item 5: the workstation module. The desk's own transform is the anchor — the unit mounts on it
   // and nothing about the placement changes. One definition (`workstationModuleFor`) also drives the
   // arranger's work pieces, so a band of desks reads authored rather than assembled.
-  const module = workstationModuleFor(Math.round(seed * 1000), officeSeed(), monitors);
+  const module = workstationModuleFor(Math.round(seed * 1000), runSeed, monitors);
   // The seated robot is the EMPLOYEE: its shell colour comes from their Appearance (stable per
   // person, not per seat), so the office shows your actual, distinct team.
   const personColor = staff ? staff.appearance.shirt % ROBOT_COLORS.length : colorIdx;
@@ -349,7 +352,7 @@ function desktopWorlds(count: number): { x: number; z: number; rotY: number }[] 
   const n = Math.max(0, Math.min(4, count));
   return Array.from({ length: n }, (_, i) => ({ x: (i - (n - 1) / 2) * DESKTOP_SPACING, z: DESKTOP_ROW_Z, rotY: 0 }));
 }
-function DesktopPod({ p, worlds, staff, monitors, hasProduction = false, onTapStaff, startColorIdx, still = false }: { p: RoomPalette; worlds: { x: number; z: number; rotY: number }[]; staff: Staff[]; monitors: number; hasProduction?: boolean; onTapStaff?: (id: string) => void; startColorIdx: number; still?: boolean }) {
+function DesktopPod({ p, worlds, staff, runSeed = 0, monitors, hasProduction = false, onTapStaff, startColorIdx, still = false }: { p: RoomPalette; worlds: { x: number; z: number; rotY: number }[]; staff: Staff[]; runSeed?: number; monitors: number; hasProduction?: boolean; onTapStaff?: (id: string) => void; startColorIdx: number; still?: boolean }) {
   const { staffTap, hoverProps, activeId, selectedId } = useHqInteractions({ onTapStaff });
   return (
     <group>
@@ -357,7 +360,7 @@ function DesktopPod({ p, worlds, staff, monitors, hasProduction = false, onTapSt
         const s = staff[i];
         return (
           <group key={i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
-            <Workstation p={p} staff={s} seed={(startColorIdx + i) * 2.1} monitors={monitors} colorIdx={(startColorIdx + i) % ROBOT_COLORS.length} hasProduction={hasProduction} powered still={still} />
+            <Workstation p={p} staff={s} seed={(startColorIdx + i) * 2.1} runSeed={runSeed} monitors={monitors} colorIdx={(startColorIdx + i) % ROBOT_COLORS.length} hasProduction={hasProduction} powered still={still} />
             {/* invisible tap target → opens this employee's roster card (matches the placed desks) */}
             {onTapStaff && s?.id && (
               <mesh position={[0, 0.95, 0]} onClick={staffTap(s.id!)} {...hoverProps(s.id!)}>
@@ -886,8 +889,11 @@ function BuildLayer({ p, b, hideIids, facilityTier = 1 }: { p: RoomPalette; b: B
   );
 }
 
-function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, desktops = 0, paused = false, still = false, officeChatter = true, simPaused = false, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; desktops?: number; paused?: boolean; still?: boolean; officeChatter?: boolean; simPaused?: boolean; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
-  const p = useMemo(() => roomPalette(dark), [dark]);
+function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark, builder, roomStyle, desktops = 0, paused = false, still = false, officeChatter = true, simPaused = false, seed = 0, era = 0, onTapStaff, onTapBank }: { staff: Staff[]; facilityTier: number; seed?: number; era?: number; hasProduction: boolean; upgrades: Upgrades; companyName: string; dark: boolean; builder?: BuildProps; roomStyle: { floor: number; wall: number }; desktops?: number; paused?: boolean; still?: boolean; officeChatter?: boolean; simPaused?: boolean; onTapStaff?: (id: string) => void; onTapBank?: () => void }) {
+  const quality = useQuality();
+  // The era restyles the brand wall and the key light (eraVisual.ts); the player's room is untouched.
+  const p = useMemo(() => withEraFinish(roomPalette(dark), era), [dark, era]);
+  const eraLook = eraVisual(era);
   const cfg = officeConfigFor({ facilityTier, upgrades, roomStyle, desktops });
   const { staffTap, bankTap, hoverProps, activeId, selectedId } = useHqInteractions({ onTapStaff, onTapBank });
   const monitors = cfg.monitors;
@@ -922,8 +928,8 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   const roaming = overflow.slice(podCount, cfg.staffCap);
   const arrangement = useMemo(() => arrangeOffice({facilityTier, headcount: staff.length,
     occupied: builder?.layout ?? [], dark: GARAGE_SHELL, amenities: amenityTier, designSuite: cfg.showEasel,
-    testLab: cfg.showTestChamber, monitors: cfg.monitors, seed: officeSeed(), week: officeWeek()}),
-    [facilityTier, staff.length, builder?.layout, amenityTier, cfg.showEasel, cfg.showTestChamber, cfg.monitors]);
+    testLab: cfg.showTestChamber, monitors: cfg.monitors, seed, era}),
+    [facilityTier, staff.length, builder?.layout, amenityTier, cfg.showEasel, cfg.showTestChamber, cfg.monitors, seed, era]);
   const activityLayout = useMemo(() => [...(builder?.layout ?? []), ...arrangement.dressing], [builder?.layout, arrangement]);
   // Break destinations available this week: the coffee station, the planning board and any placed
   // arcade. Built from upgrades + the player's layout, so a break only targets a prop that exists.
@@ -991,10 +997,10 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   return (
     <>
       <VisibilityPause paused={paused} />
-      {!dark && <EnableShadows />}
+      {!dark && quality.shadows && <EnableShadows />}
       <CameraRig build={!!builder?.build} facilityTier={facilityTier} still={still} />
       <PinchZoom />
-      <Lighting p={p} dark={dark} roomScale={cfg.roomScale} />
+      <Lighting p={p} dark={dark} roomScale={cfg.roomScale} shadows={quality.shadows} keyColor={dark ? eraLook.key.night : eraLook.key.day} />
 
       {/* Whiteboard is earned: it appears once the team has real Workstations (computers ≥ 1),
           so a fresh garage starts bare and upgrading visibly adds the planning board. The room shell
@@ -1030,7 +1036,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
         const flip = occupiedSeatSides[seats[i].iid] ?? false;
         return (
           <group key={s.id ?? i} position={[w.x, 0, w.z]} rotation-y={w.rotY}>
-            <Workstation p={p} staff={s} seed={i * 2.1} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} flip={flip} hasProduction={hasProduction} still={still} />
+            <Workstation p={p} staff={s} seed={i * 2.1} runSeed={seed} monitors={monitors} colorIdx={i % ROBOT_COLORS.length} deskType={seats[i].type} flip={flip} hasProduction={hasProduction} still={still} />
             {/* invisible tap target over the desk+robot → opens this person's roster card. A
                 transparent (not visible:false) mesh so the raycaster still hits it. */}
             {onTapStaff && s.id && (
@@ -1066,11 +1072,11 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       ))}
       {/* Player-bought desktops — a tidy symmetric row that overflow employees sit at (so new
           hires get a desk like the founder). Hidden in Decorate mode like the live workstations. */}
-      {!inBuild && <DesktopPod p={p} worlds={podWorlds} staff={podStaff} monitors={monitors} hasProduction={hasProduction} onTapStaff={onTapStaff} startColorIdx={seats.length} still={still} />}
+      {!inBuild && <DesktopPod p={p} worlds={podWorlds} staff={podStaff} runSeed={seed} monitors={monitors} hasProduction={hasProduction} onTapStaff={onTapStaff} startColorIdx={seats.length} still={still} />}
       {/* wall-anchored fixtures scale with the room so they stay in the corners as the floor grows */}
       <group scale={sc}>
         <Props p={p} hasProduction={hasProduction} />
-        <Dust />
+        {quality.dust && <Dust />}
         <BallBin p={p} pos={[3.1, 1.31, -3.0]} />
       </group>
 
@@ -1087,7 +1093,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {tierOf(upgrades, "marketing") >= 1 && (
         <Pulse feature="marketing">
           <group visible={!cull.b}>
-            <WallTV name={companyName} tier={tierOf(upgrades, "marketing")} accent="#3b82f6" />
+            <WallTV name={companyName} tier={tierOf(upgrades, "marketing")} accent={eraLook.accent} />
           </group>
         </Pulse>
       )}
@@ -1142,7 +1148,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
           smeared the whole floor into one soft grey blot). */}
       <ContactShadows
         key={`${(builder?.layout ?? []).map((it) => `${it.iid}${it.c},${it.r},${it.rot}`).join("|")}·${staff.length}·${facilityTier}·${Object.values(upgrades).join("")}`}
-        position={[0, 0.02, 0]} scale={9.8 * roomK} blur={2.5} far={6} opacity={dark ? 0.62 : 0.42} color={p.shadow} resolution={1024} frames={1} />
+        position={[0, 0.02, 0]} scale={9.8 * roomK} blur={2.5} far={6} opacity={dark ? 0.62 : 0.42} color={p.shadow} resolution={1024 * quality.contactShadowScale} frames={1} />
     </>
   );
 }
@@ -1165,6 +1171,8 @@ export const Garage3D = memo(function Garage3D({
   still = false,
   officeChatter = true,
   simPaused = false,
+  seed = 0,
+  era = 0,
   onContextLost,
   onTapStaff,
   onTapBank,
@@ -1196,6 +1204,12 @@ export const Garage3D = memo(function Garage3D({
    *  sim is paused, so the chatter scheduler gates on this too: a paused game shows no new bubbles,
    *  and any bubble up at the moment of pausing is cleared rather than frozen mid-air. */
   simPaused?: boolean;
+  /** The run's seed and era. The room's free cosmetic choices (which spot the culture accent takes,
+   *  each desk's module) fold these, so a run keeps one room that changes at an era advance. Both
+   *  change rarely, so threading them never re-renders the scene week to week. NOT the week: a
+   *  weekly re-roll would move furniture every few seconds of play. */
+  seed?: number;
+  era?: number;
   /** Called when the WebGL context is lost so the host can downgrade to the 2D fallback. */
   onContextLost?: () => void;
   /** Tap an employee → open their roster card (host navigates to Company). */
@@ -1203,14 +1217,15 @@ export const Garage3D = memo(function Garage3D({
   /** Tap the office Bank/vault → open the finances popup. */
   onTapBank?: () => void;
 }) {
+  const quality = useQuality();
   return (
     <div style={{ height, width: "100%" }}>
       <Canvas
         role="img"
         aria-label="Company office, 3D view"
         frameloop={paused ? "never" : "always"}
-        dpr={[1, 1.75]}
-        shadows={dark ? false : { type: THREE.VSMShadowMap }}
+        dpr={quality.dpr}
+        shadows={dark || !quality.shadows ? false : { type: THREE.VSMShadowMap }}
         gl={{ alpha: true, antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}
         camera={{ position: CAM_REST_POSITION, fov: 25 }}
         style={{ touchAction: builder?.build ? "none" : "pan-y" }}
@@ -1226,7 +1241,7 @@ export const Garage3D = memo(function Garage3D({
           );
         }}
       >
-        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} desktops={desktops} paused={paused} still={still} officeChatter={officeChatter} simPaused={simPaused} onTapStaff={onTapStaff} onTapBank={onTapBank} />
+        <Scene staff={staff} facilityTier={facilityTier} hasProduction={hasProduction} upgrades={upgrades} companyName={companyName} dark={dark} builder={builder} roomStyle={roomStyle} desktops={desktops} paused={paused} still={still} officeChatter={officeChatter} simPaused={simPaused} seed={seed} era={era} onTapStaff={onTapStaff} onTapBank={onTapBank} />
       </Canvas>
     </div>
   );

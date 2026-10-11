@@ -189,6 +189,20 @@ Each gap: what is wrong, where, and the fix. Verified against the captures above
   the risky part (re-plumbing the motion onto loaded nodes) would have been built against nothing.
   When models arrive, the node names above are the contract; the code-built machines become the
   `ModelBoundary` fallbacks unchanged. Props keep their own code-built look for now (Step 6).
+- **Step 6 (polish): in review** (branch `claude/worlds-3d-step6-polish`, stacked on step 5).
+  - O7 was a real bug: the arrangement memo read `officeSeed()`/`officeWeek()` without listing them,
+    and HQ publishes them in an effect, so a fresh open dressed the room with seed 0 and it jumped
+    later. Garage3D now takes the run's `seed` + `era` as props; the room folds (seed, era), not
+    the week (weeks pass every few seconds; a weekly re-roll moved furniture while you watched).
+  - O6: Settings → 3D quality (Auto / Low / High), `garage3d/quality.ts`, one profile for both
+    worlds. Low = DPR 1.25, no shadow maps, half contact shadows, no dust. Auto = Low only on ≤ 2
+    cores / ≤ 2 GB. Measured: office 670 → 371 draws, factory 422 → 378, ~49 % fewer pixels.
+  - O5: `garage3d/eraVisual.ts` — the brand wall's finish per era (timber → oak → aluminium/cyan →
+    graphite/violet → satin white/gold), the key light warm → cool → gold dawn, the marketing screen
+    in the era accent, and the factory's era accents now read from the same table.
+  - F7: `garage3d/factoryYard.ts` — fenced loading yard (gate on the truck road), parking lines,
+    three lamps, a tree row behind the back wall; instanced (7 draws), all inside the camera fit.
+  - O8: header comments + robot fit height (1.7 m) corrected.
 
 ## 5. How to check yourself
 

@@ -5,6 +5,9 @@ import { syncStatusBar } from "../native.ts";
 import type { InterruptPace } from "./gameState.ts";
 
 export type ThemePref = "system" | "light" | "dark";
+/** 3D quality (Settings → 3D quality): "auto" resolves by device in `garage3d/quality.ts`. */
+export type GraphicsPref = "auto" | "low" | "high";
+export const GRAPHICS_PREFS: readonly GraphicsPref[] = ["auto", "low", "high"];
 export interface Settings {
   theme: ThemePref;
   sound: boolean;
@@ -34,10 +37,13 @@ export interface Settings {
   /** Office chatter — whether the 3D office shows small deterministic speech bubbles above the team.
    *  A UI preference (default on), so it survives a new company; Reduce Motion always suppresses them. */
   officeChatter: boolean;
+  /** 3D quality for the office and the factory: Low draws fewer pixels, no live shadows and no dust.
+   *  A device preference (default "auto"), so it survives a new company. Never read by the sim. */
+  graphics: GraphicsPref;
 }
 
 const KEY = "silicon.settings";
-const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, highContrast: false, decorateTutorialSeen: false, factoryTutorialSeen: false, dailyReminder: false, notifPrompted: false, interruptPace: "standard", textScale: 100, officeChatter: true };
+const DEFAULTS: Settings = { theme: "system", sound: true, haptics: true, highContrast: false, decorateTutorialSeen: false, factoryTutorialSeen: false, dailyReminder: false, notifPrompted: false, interruptPace: "standard", textScale: 100, officeChatter: true, graphics: "auto" };
 /** Legal text-scale steps (percent). Anything else read from storage snaps to the nearest step. */
 export const TEXT_SCALES = [85, 100, 115, 130] as const;
 
@@ -52,6 +58,7 @@ function read(): Settings {
           Math.abs(v - s.textScale) < Math.abs(best - s.textScale) ? v : best,
         );
       }
+      if (!GRAPHICS_PREFS.includes(s.graphics)) s.graphics = "auto";
       return s;
     }
   } catch {

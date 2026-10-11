@@ -41,6 +41,8 @@
 //
 // Determinism: no Math.random, no clock. The few free choices (which row the culture accent lands
 // on) come from a derived cosmetic hash of (seed, week, era) — salt 467, registered in CLAUDE.md.
+// The office passes the run's seed and era and leaves `week` at 0: weeks pass every few seconds of
+// play, and a room that re-rolled weekly would move its furniture while you watch.
 // The engine never reads any of this, so the pinned sim cannot see it.
 
 import {

@@ -33,6 +33,6 @@ Name each file `robot_<colour>.glb`, lowercase. The colour maps to the scene's `
 
 - **Single solid colour per robot, no texture maps.** Matches the reference aesthetic and
   sidesteps ~80% of conversion gotchas.
-- Models are auto-scaled to ~1.5 m tall and grounded on the floor, so exact source scale
+- Models are auto-scaled to 1.7 m tall (`TARGET_HEIGHT` in `../gltfRobot.tsx`) and grounded on the floor, so exact source scale
   doesn't matter. Fine-tune orientation in `../Garage3D.tsx` (the `rotation-y` on each robot).
 - Only ship CC0 / permissively-licensed or self-generated assets in a shipping app.

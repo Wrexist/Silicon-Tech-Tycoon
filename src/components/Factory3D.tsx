@@ -11,7 +11,8 @@ import { factoryFrame } from "../garage3d/factoryFraming.ts";
 // machine matching the build's real stage glows and works hardest. A floor with no wired line
 // renders calm and idle — the invitation to build.
 // Same stack + discipline as the 3D office: r3f/drei primitives, lazy chunk, DPR cap,
-// context-loss downgrade. Zero image assets.
+// context-loss downgrade. Every machine is code-built (no model or image files yet; see the F5 note
+// in docs/WORLDS_3D_HANDOFF.md).
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
@@ -20,8 +21,11 @@ import { RoundedBoxGeometry, mergeBufferGeometries } from "three-stdlib";
 import { groundFadeTexture } from "../garage3d/glow.ts";
 import { FACTORY_PALETTE } from "../garage3d/factoryPalette.ts";
 import { StudioEnvironment } from "../garage3d/lighting.tsx";
+import { useQuality } from "../garage3d/quality.ts";
+import { eraVisual } from "../garage3d/eraVisual.ts";
 import { RobotCharacter } from "../garage3d/robotCharacter.tsx";
 import { factoryCrewSpots } from "../garage3d/factoryCrew.ts";
+import { yardLayout } from "../garage3d/factoryYard.ts";
 import {
   FLOOR, MACHINE_DEFS, beltPath, connectedChain, connectedMachines, routeTiles, canPlaceMachine, formMarks, machineCells, machineCenter, machineLevel, worldOf,
   type BeltDir, type FactoryFloor, type MachineKind,
@@ -137,10 +141,7 @@ export interface Factory3DProps {
 /* Working-machine glow evolves with the company's era, so the line visibly advances as you
  * progress: blue while you're a garage upstart, cooling to cyan, then violet, then gold once
  * you're an industry titan. Threaded through a context so every machine tracks the same era. */
-const ERA_ACCENTS = ["#3b82f6", "#3b82f6", "#22d3ee", "#a78bfa", "#f5b53d"];
-function eraAccent(era: number): string {
-  return ERA_ACCENTS[Math.min(ERA_ACCENTS.length - 1, Math.max(0, Math.floor(era) - 1))];
-}
+const eraAccent = (era: number): string => eraVisual(era).accent;   // one table for both worlds
 const AccentContext = createContext<string>(C.accent);
 const useAccent = () => useContext(AccentContext);
 
@@ -1203,6 +1204,62 @@ function FactoryShell({ wallColor, floorColor, floorW }: { wallColor: string; fl
   );
 }
 
+/* ------------------------------ the yard (F7) ------------------------------ */
+
+/** The yard, drawn from `yardLayout`: instanced, static, untappable (raycast off), seven draws. */
+function FactoryYard({ floorW }: { floorW: number }) {
+  const y = useMemo(() => yardLayout(floorW), [floorW]);
+  const refs = {
+    posts: useRef<THREE.InstancedMesh>(null), rails: useRef<THREE.InstancedMesh>(null),
+    poles: useRef<THREE.InstancedMesh>(null), heads: useRef<THREE.InstancedMesh>(null),
+    lines: useRef<THREE.InstancedMesh>(null), trunks: useRef<THREE.InstancedMesh>(null), crowns: useRef<THREE.InstancedMesh>(null),
+  };
+  useLayoutEffect(() => {
+    const d = new THREE.Object3D();
+    const put = (mesh: THREE.InstancedMesh | null, i: number, x: number, yy: number, z: number, sx = 1, sy = 1, sz = 1, yaw = 0) => {
+      if (!mesh) return;
+      d.position.set(x, yy, z); d.rotation.set(0, yaw, 0); d.scale.set(sx, sy, sz); d.updateMatrix(); mesh.setMatrixAt(i, d.matrix);
+    };
+    y.posts.forEach(([x, z], i) => put(refs.posts.current, i, x, 0.5, z));
+    // two rails per span (knee + top), one instance each
+    y.rails.forEach((r, i) => { put(refs.rails.current, i * 2, r.x, 0.42, r.z, 1, 1, r.len, r.yaw); put(refs.rails.current, i * 2 + 1, r.x, 0.9, r.z, 1, 1, r.len, r.yaw); });
+    y.lamps.forEach(([x, z], i) => { put(refs.poles.current, i, x, 1.6, z); put(refs.heads.current, i, x + 0.28, 3.18, z); });
+    y.parking.forEach(([x, z], i) => put(refs.lines.current, i, x, 0.006, z));
+    y.trees.forEach((t, i) => { put(refs.trunks.current, i, t.x, 0.55 * t.s, t.z, t.s, t.s, t.s); put(refs.crowns.current, i, t.x, 1.75 * t.s, t.z, t.s, t.s * 1.15, t.s); });
+    for (const r of Object.values(refs)) if (r.current) { r.current.instanceMatrix.needsUpdate = true; r.current.computeBoundingSphere(); }
+  }, [y]);
+  const off = () => null;
+  return (
+    <group name="factory-yard">
+      <instancedMesh ref={refs.posts} args={[undefined, undefined, y.posts.length]} raycast={off} castShadow>
+        <boxGeometry args={[0.08, 1.0, 0.08]} />{structureMat()}
+      </instancedMesh>
+      <instancedMesh ref={refs.rails} args={[undefined, undefined, y.rails.length * 2]} raycast={off}>
+        <boxGeometry args={[0.04, 0.04, 1]} />{metalMat()}
+      </instancedMesh>
+      <instancedMesh ref={refs.poles} args={[undefined, undefined, y.lamps.length]} raycast={off} castShadow>
+        <cylinderGeometry args={[0.05, 0.07, 3.2, 10]} />{structureMat()}
+      </instancedMesh>
+      <instancedMesh ref={refs.heads} args={[undefined, undefined, y.lamps.length]} raycast={off}>
+        <boxGeometry args={[0.62, 0.08, 0.22]} />
+        <meshStandardMaterial color={C.lampHead} emissive={C.lampHead} emissiveIntensity={0.9} roughness={0.4} />
+      </instancedMesh>
+      <instancedMesh ref={refs.lines} args={[undefined, undefined, y.parking.length]} raycast={off}>
+        <boxGeometry args={[0.07, 0.004, 2.0]} />
+        <meshStandardMaterial color={C.yardPaint} roughness={0.8} />
+      </instancedMesh>
+      <instancedMesh ref={refs.trunks} args={[undefined, undefined, y.trees.length]} raycast={off} castShadow>
+        <cylinderGeometry args={[0.08, 0.11, 1.1, 8]} />
+        <meshStandardMaterial color={C.trunk} roughness={0.9} />
+      </instancedMesh>
+      <instancedMesh ref={refs.crowns} args={[undefined, undefined, y.trees.length]} raycast={off} castShadow>
+        <sphereGeometry args={[0.72, 14, 10]} />
+        <meshStandardMaterial color={C.foliage} roughness={0.85} />
+      </instancedMesh>
+    </group>
+  );
+}
+
 /* ------------------------------ dock & extras ------------------------------ */
 
 /** The loading pallet at the line's end — a wooden pallet the packed crates stack onto (growing
@@ -1641,6 +1698,7 @@ function CarriedRig({ kind, position }: { kind: MachineKind; position: [number, 
 }
 
 function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
+  const quality = useQuality();
   // Baked contact shadows re-render when the layout changes; key memoised (the scene renders every tick).
   const shadowKey = useMemo(() => JSON.stringify([p.floor, p.props, p.floorW]), [p.floor, p.props, p.floorW]);
   const { size, gl } = useThree();
@@ -1970,7 +2028,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       <ambientLight intensity={p.dark ? 0.3 : 0.44} />
       <hemisphereLight args={["#dce9ff", "#434a52", 0.5]} position={[0, 8, 0]} />
       <primitive object={shadowTarget} />
-      <directionalLight position={[7 + (floorW - FLOOR.w) / 2, 12, 5]} target={shadowTarget} intensity={1.0} castShadow shadow-mapSize={[1024, 1024]}
+      <directionalLight position={[7 + (floorW - FLOOR.w) / 2, 12, 5]} target={shadowTarget} intensity={1.0} castShadow={quality.shadows} shadow-mapSize={[1024, 1024]}
         shadow-camera-left={-floorW / 2 - 3} shadow-camera-right={floorW / 2 + 3}
         shadow-camera-top={floorW / 2 + 3} shadow-camera-bottom={-floorW / 2 - 3} shadow-camera-far={60} />
       {/* overhead high-bay pools spaced down the floor (follow the building's east shift) */}
@@ -1989,6 +2047,8 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       </mesh>
       {/* the building: concrete floor + painted walls (player-customisable), grows east with expansions */}
       <FactoryShell wallColor={p.wallColor ?? "#8a9099"} floorColor={p.floorColor ?? C.concrete} floorW={floorW} />
+      {/* the yard around it: fenced loading yard, lamps, a tree row behind the back wall (F7) */}
+      <FactoryYard floorW={floorW} />
       {/* deterministic wear/oil stains + painted walkways so the concrete isn't a flat sheet */}
       <FloorDecals floorW={floorW} cx={cx} />
       {/* expansion joints double as the build grid, subtle on the concrete */}
@@ -2182,7 +2242,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {dock && <CompletionPop count={p.readyCount} pallet={dock.pallet} truck={dock.truck} yaw={dock.yaw} />}
       <Agvs tier={p.robotTier} overtime={p.overtime} active={p.active && p.lineOk} />
 
-      {!p.preview && <ContactShadows key={shadowKey} position={[(floorW - FLOOR.w) / 2, 0.11, 0]} opacity={0.5} scale={Math.max(26, floorW + 2)} blur={2.2} far={4} frames={1} />}
+      {!p.preview && <ContactShadows key={shadowKey} position={[(floorW - FLOOR.w) / 2, 0.11, 0]} opacity={0.5} scale={Math.max(26, floorW + 2)} blur={2.2} far={4} frames={1} resolution={512 * quality.contactShadowScale} />}
     </group>
     </AccentContext.Provider>
   );
@@ -2202,16 +2262,17 @@ export default function Factory3D(p: Factory3DProps) {
   // floor/props are replaced (never mutated) on edit, so their identity IS the revision key.
   const revision = useMemo(() => JSON.stringify([p.floor, p.props, p.floorW]), [p.floor, p.props, p.floorW]);
   const motion = useMemo(() => ({ reduced, stopped: !!p.motionPaused, revision }), [reduced, p.motionPaused, revision]);
+  const quality = useQuality();
   return (
     <MotionContext.Provider value={motion}><Canvas
       role="img"
       aria-label="Factory floor, 3D view"
       frameloop={p.paused ? "never" : p.motionPaused || reduced ? "demand" : "always"}
-      dpr={p.preview ? [1, 1.4] : [1, 1.75]}
+      dpr={p.preview ? [1, Math.min(1.4, quality.dpr[1])] : quality.dpr}
       // The HQ card is ~490×300 — a quarter of the fullscreen pixels — but the shadow pass costs the
       // same either way, and at that size a contact shadow under a roller is invisible. Dropping the
       // whole pass is the single biggest saving on the view the player leaves open the longest.
-      shadows={!p.preview}
+      shadows={!p.preview && quality.shadows}
       // The office's exposure (ACES is R3F's default in both), and below the office's studio IBL, so
       // the two worlds' materials respond to light the same way.
       gl={{ alpha: true, antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}

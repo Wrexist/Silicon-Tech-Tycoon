@@ -770,6 +770,8 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
                 still={reducedMotion}
                 officeChatter={settings.officeChatter}
                 simPaused={simPaused}
+                seed={state.seed}
+                era={state.era}
                 onContextLost={onGlLost}
                 builder={builder}
                 roomStyle={state.roomStyle}
