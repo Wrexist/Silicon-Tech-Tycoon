@@ -6,8 +6,9 @@ import { CircuitMotif } from "../design/CircuitMotif.tsx";
 import { AnimatedInt } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import type { ComponentKind } from "../engine/types.ts";
-import { researchProgress, researchWeeksLeft, weeklyRpGen } from "../state/gameState.ts";
+import { researchCommittedWeeks, researchStepPerWeek, researchWeeksLeft, weeklyRpGen } from "../state/gameState.ts";
 import { useGame } from "../state/useGame.tsx";
+import { progressPct, useSmoothWeeks } from "../state/useSmoothWeeks.ts";
 import "./labCore.css";
 
 // The R&D hero — the lab's live heartbeat in one card: the active project on a glowing instrument
@@ -31,10 +32,15 @@ export function LabCore({ goal, availableCount }: { goal: LabGoal | null; availa
   const queue = state.researchQueue ?? [];
   const slots = BALANCE.research.timer.maxQueue;
 
-  // Committed progress only (no speculative sub-week smoothing), counted exactly as the sim completes
-  // research: weeks in the lab plus any crunch weeks a Team Focus rush has banked.
-  const frac = researchProgress(state);
-  const pct = Math.round(frac * 100);
+  // Counted exactly as the sim completes research (weeks in the lab plus any crunch weeks a Team Focus
+  // rush has banked), then smoothed between weekly ticks at the rate the next tick really adds — so the
+  // ring and the % climb continuously instead of stepping 0 → 50 → 100, and stop just short of each
+  // tick so they never claim progress the lab hasn't made. The weeks-left chip stays committed.
+  // An idle lab passes total 0, so no smoothing timer runs for it.
+  const total = active ? Math.max(1, active.totalWeeks) : 0;
+  const smooth = useSmoothWeeks(researchCommittedWeeks(state), total, researchStepPerWeek(state), active ? `${active.kind}:${active.ref}:${active.startWeek}` : "");
+  const frac = active ? Math.min(1, smooth / total) : 0;
+  const pct = progressPct(smooth, total); // reads 100 only once the lab has really finished
   const left = researchWeeksLeft(state);
   const headAngle = frac * 2 * Math.PI - Math.PI / 2;
   const head: [number, number] = [60 + R * Math.cos(headAngle), 60 + R * Math.sin(headAngle)];

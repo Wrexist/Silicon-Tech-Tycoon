@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { newGame, advanceOneWeek, setTeamFocus, researchProgress, researchWeeksLeft, startBuild, type GameState } from "./gameState.ts";
+import { newGame, advanceOneWeek, setTeamFocus, researchProgress, researchWeeksLeft, researchCommittedWeeks, researchStepPerWeek, cancelResearch, startBuild, type GameState } from "./gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { dollars, toDollars } from "../engine/money.ts";
 import type { Staff, Product } from "../engine/types.ts";
@@ -129,5 +129,53 @@ describe("team focus / crunch (feature #4)", () => {
     const t = advanceOneWeek(base); // teamFocus unset
     expect(t.researchSurgeWeeks).toBeUndefined();
     expect(t.teamFocus ?? null).toBeNull();
+  });
+
+  // The Research ring smooths between ticks at researchStepPerWeek. If that ever disagrees with what a
+  // real tick adds, the ring would run ahead of the lab (or jump back). Pin it to the engine, tick by
+  // tick, at the normal pace, under crunch, and for a solo founder who can't crunch.
+  it("the ring's predicted per-week rate is exactly what each real tick adds", () => {
+    const cases: [string, GameState][] = [
+      ["normal pace", withResearch(withTeam(newGame(3), 4), 8)],
+      ["crunching", setTeamFocus(withResearch(withTeam(newGame(3), 4), 8), "research")],
+      ["solo founder asks to crunch", setTeamFocus(withResearch(newGame(3), 8), "research")],
+      ["focus on build, not research", setTeamFocus(withResearch(withTeam(newGame(3), 4), 8), "build")],
+    ];
+    for (const [name, start] of cases) {
+      let s = start;
+      for (let i = 0; i < 40 && s.activeResearch; i++) {
+        const next = advanceOneWeek(s);
+        if (!next.activeResearch || next.activeResearch.startWeek !== s.activeResearch.startWeek) break; // completed
+        const added = researchCommittedWeeks(next) - researchCommittedWeeks(s);
+        expect(added, `${name}, week ${s.week}`).toBeCloseTo(researchStepPerWeek(s), 9);
+        s = next;
+      }
+    }
+    expect(researchStepPerWeek(newGame(3))).toBe(0); // idle lab: nothing to smooth
+  });
+
+  it("the committed weeks are researchProgress's numerator", () => {
+    let s = setTeamFocus(withResearch(withTeam(newGame(4), 4), 6), "research");
+    for (let i = 0; i < 3; i++) {
+      s = advanceOneWeek(s);
+      if (!s.activeResearch) break;
+      expect(researchCommittedWeeks(s) / s.activeResearch.totalWeeks).toBeCloseTo(researchProgress(s), 9);
+    }
+  });
+
+  // Banked crunch weeks belong to the project that earned them. Cancelling used to keep the
+  // accumulator, so the NEXT research started with free progress-weeks it never crunched.
+  it("cancelling a crunched research does not hand its crunch weeks to the next one", () => {
+    let s = setTeamFocus(withResearch(withTeam(newGame(5), 4), 8), "research");
+    for (let i = 0; i < 3; i++) s = advanceOneWeek(s);
+    expect(s.researchSurgeWeeks ?? 0).toBeGreaterThan(0);
+    const queued = { ...s, researchQueue: [{ kind: "tier" as const, ref: "display", tierLevel: 2, name: "Sharper display", blurb: "", rpCost: 10, totalWeeks: 6 }] };
+    const after = cancelResearch(queued);
+    expect(after.activeResearch?.name).toBe("Sharper display");
+    expect(after.researchSurgeWeeks).toBe(0);
+    expect(researchCommittedWeeks(after)).toBe(0);
+    // and a never-crunched save never gains the field (byte-identical for the pinned sim)
+    const plain = cancelResearch(withResearch(withTeam(newGame(5), 4), 8));
+    expect("researchSurgeWeeks" in plain).toBe(false);
   });
 });
