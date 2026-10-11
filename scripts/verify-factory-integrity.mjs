@@ -56,7 +56,9 @@ await p.waitForFunction(n=>JSON.parse(localStorage.getItem('silicon.save.v1')).f
 await p.getByRole('button',{name:'Cancel placement',exact:true}).click();
 await p.getByRole('button',{name:'Style',exact:true}).click();
 await p.locator('.fmode__buy').filter({hasText:'$50K'}).click();
-// Expansion is an irreversible \$50K+ purchase: the first tap arms "Confirm", the second buys.
+// Expansion is an irreversible \$50K+ purchase: the first tap arms "Confirm", the second buys. A
+// confirm within 400ms of the arm is treated as the same double-tap and ignored, so read it first.
+await p.waitForTimeout(500);
 await p.locator('.fmode__buy').filter({hasText:'Confirm'}).click();
 await p.keyboard.press('Escape');
 await p.getByRole('button',{name:'Build',exact:true}).click();

@@ -79,7 +79,9 @@ check('Production completes, survives reload every week, launches once and recor
   writeFileSync(`${out}/active-save.json`, JSON.stringify(s));
   const second = startBuild(s, { ...product, id: 'release-audit-second', name: 'Second Audit Phone' }, 100);
   assert(second.ok);
-  writeFileSync(`${out}/multi-save.json`, JSON.stringify(roundtrip(second.state)));
+  // Runs long enough to rush: BOOST on a run's last week saves nothing, so it is refused there.
+  const multi = { ...second.state, building: second.state.building.map((b) => ({ ...b, totalWeeks: Math.max(4, b.totalWeeks) })) };
+  writeFileSync(`${out}/multi-save.json`, JSON.stringify(roundtrip(multi)));
   const job = s.building.find(b => b.product.name === product.name)!;
   assert(job); const id = job.product.id;
   for (let i = 0; i < 30 && !s.ready.some(p => p.id === id); i++) s = roundtrip(advanceOneWeek(s));
