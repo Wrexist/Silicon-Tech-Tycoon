@@ -1,24 +1,25 @@
-// Renders compose.html to Apple's exact creative-asset canvases, then flattens to opaque RGB
-// (App Store Connect rejects alpha). Usage: node appstore/creative-assets/render.mjs
-// Needs Playwright (global `playwright` or the repo's playwright-core) and ImageMagick.
-import { chromium } from 'playwright';
-import { execFileSync } from 'node:child_process';
+// Renders compose.html to Apple's exact creative-asset canvases, flattened to opaque RGB PNG
+// (App Store Connect rejects alpha). The 3D plates come from scripts/trailer/stills.mjs.
+//   node scripts/trailer/stills.mjs && node appstore/creative-assets/render.mjs
+import { chromium } from 'playwright-core';
+import sharp from 'sharp';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
-const ASSETS = { header: [3840, 1646], search: [3840, 2560] };
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM || undefined });
+const root = path.resolve(process.env.TRAILER_OUT || 'C:/tmp/cine');
+const ASSETS = { header: [3840, 1646], search: [3840, 2560], universal: [5244, 2950] };
+const browser = await chromium.launch({ executablePath: process.env.SHOTS_CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe', args: ['--allow-file-access-from-files'] });
 for (const [name, [w, h]] of Object.entries(ASSETS)) {
-  const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: 1 });
-  await page.goto(pathToFileURL(path.join(dir, 'compose.html')).href + '?asset=' + name);
-  await page.waitForLoadState('networkidle');
-  await page.evaluate(() => document.fonts.ready);
-  const tmp = path.join(dir, `.${name}.png`);
-  await page.locator('#c').screenshot({ path: tmp });
+  const page = await browser.newPage({ viewport: { width: w / 2, height: h / 2 }, deviceScaleFactor: 2 });
+  await page.goto(`${pathToFileURL(path.join(dir, 'compose.html')).href}?asset=${name}&root=${encodeURIComponent(pathToFileURL(root).href)}`);
+  await page.evaluate(async () => { await document.fonts.ready; await Promise.all([...document.images].map(i => i.decode())); });
+  const png = await page.locator('#c').screenshot();
   const out = path.join(dir, `${name}-${w}x${h}.png`);
-  execFileSync('convert', [tmp, '-background', '#0f1115', '-alpha', 'remove', '-alpha', 'off', '-type', 'TrueColor', '-strip', out]);
-  execFileSync('rm', [tmp]);
+  const meta = await sharp(png).metadata();
+  if (meta.width !== w || meta.height !== h) throw Error(`${name}: rendered ${meta.width}x${meta.height}, expected ${w}x${h}`);
+  await sharp(png).flatten({ background: '#0b1018' }).removeAlpha().png({ compressionLevel: 9 }).toFile(out);
   console.log('wrote', out);
+  await page.close();
 }
 await browser.close();

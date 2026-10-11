@@ -1,0 +1,110 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<!-- The App Store preview's edit: renders one film frame per call to window.renderFrame(n), from the
+     raw clips capture.mjs recorded. Pure layout + easing; every pixel of footage is the real game. -->
+<style>
+  :root { --bg: #070b12; }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 886px; height: 1920px; background: var(--bg); overflow: hidden; }
+  body { font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; color: #f5f8fc; }
+  .seg { position: absolute; inset: 0; overflow: hidden; will-change: opacity, transform; }
+  .full { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .scrim-top { position: absolute; inset: 0 0 auto 0; height: 760px;
+    background: linear-gradient(180deg, rgba(5,8,14,.92) 0%, rgba(5,8,14,.62) 42%, rgba(5,8,14,0) 100%); }
+  .vignette { position: absolute; inset: 0; background: radial-gradient(120% 80% at 50% 55%, rgba(0,0,0,0) 55%, rgba(0,0,0,.5) 100%); }
+  .backdrop { position: absolute; inset: -80px; width: calc(100% + 160px); height: calc(100% + 160px); object-fit: cover;
+    filter: blur(38px) brightness(.42) saturate(1.25); }
+  .glow { position: absolute; inset: 0; }
+  .card { position: absolute; left: 50%; top: 470px; width: 664px; height: 1439px; border-radius: 52px; overflow: hidden;
+    border: 1.5px solid rgba(255,255,255,.16);
+    box-shadow: 0 50px 120px -30px rgba(0,0,0,.85), 0 0 0 1px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.12); }
+  .card img { width: 100%; height: 100%; display: block; }
+  .card::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    background: linear-gradient(160deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 28%); }
+  .title { position: absolute; left: 72px; right: 60px; top: 132px; }
+  .eyebrow { font-size: 25px; font-weight: 650; letter-spacing: 7px; color: #9fb0c6; margin-bottom: 26px; }
+  .line { display: block; font-size: 96px; line-height: 1.02; font-weight: 800; letter-spacing: -3.5px; }
+  .finale { position: absolute; left: 0; right: 0; top: 0; bottom: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .finale .shade { position: absolute; inset: 0; background: radial-gradient(90% 55% at 50% 48%, rgba(5,8,14,.86) 0%, rgba(5,8,14,.55) 60%, rgba(5,8,14,.25) 100%); }
+  .icon { position: relative; width: 236px; height: 236px; border-radius: 54px; overflow: hidden;
+    box-shadow: 0 0 0 1.5px rgba(255,255,255,.18), 0 30px 90px -10px rgba(59,130,246,.55); }
+  .icon img { width: 100%; height: 100%; }
+  .name { position: relative; margin-top: 56px; font-size: 128px; font-weight: 800; letter-spacing: -4px; line-height: 1; }
+  .kicker { position: relative; margin-top: 22px; font-size: 30px; font-weight: 650; letter-spacing: 12px; color: #9fb0c6; }
+  .tag { position: relative; margin-top: 64px; font-size: 46px; font-weight: 600; letter-spacing: -.5px; color: #dfe8f4; }
+  .tag b { color: #8cb5ff; font-weight: 700; }
+</style></head>
+<body><div id="film"></div>
+<script>
+const FPS = 30, X = 16; // crossfade length in frames
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const easeOut = t => 1 - Math.pow(1 - t, 3);
+const ramp = (n, a, b) => clamp((n - a) / (b - a));
+
+// The edit. `clip` frames come from capture.mjs; a UI clip floats as a card over a blurred 3D backdrop.
+const SEGMENTS = [
+  { clip: 'office',   len: 165, kind: 'full', eyebrow: 'SILICON · TECH TYCOON', lines: ['Build your', 'dream studio.'], accent: '#83e6db' },
+  { clip: 'design',   len: 120, kind: 'card', back: 'office', lines: ['Design your', 'next big hit.'], accent: '#8cb5ff' },
+  { clip: 'factory',  len: 195, kind: 'full', lines: ['Build the line.', 'Watch it move.'], accent: '#ffc77c' },
+  { clip: 'research', len: 120, kind: 'card', back: 'factory', lines: ['One idea.', 'A new era.'], accent: '#c4a8ff' },
+  { clip: 'market',   len: 110, kind: 'card', back: 'office', lines: ['Small startup.', 'Serious rival.'], accent: '#9ee3b9' },
+  { clip: 'finale',   len: 150, kind: 'finale' },
+];
+let at = 0;
+for (const s of SEGMENTS) { s.start = at; at += s.len - X; }
+window.TOTAL = SEGMENTS.at(-1).start + SEGMENTS.at(-1).len;
+const ROOT = new URLSearchParams(location.search).get('root');
+const src = (clip, i, len) => `${ROOT}/clips/${clip}/${String(clamp(Math.round(i), 0, len - 1)).padStart(4, '0')}.png`;
+const LEN = { office: 165, factory: 195, finale: 150, design: 120, research: 120, market: 110 };
+
+function titleHTML(s, n) {
+  // lines rise + sharpen in, staggered; the whole block lifts away before the cut
+  const local = n - s.start, out = ramp(local, s.len - X - 10, s.len - 4);
+  const part = (k, delay) => { const t = easeOut(ramp(local, 10 + delay, 30 + delay));
+    return `opacity:${t * (1 - out)};transform:translateY(${(1 - t) * 34 - out * 24}px);filter:blur(${(1 - t) * 10 + out * 6}px)`; };
+  return `<div class="title">${s.eyebrow ? `<div class="eyebrow" style="${part(0, 0)}">${s.eyebrow}</div>` : ''}
+    <span class="line" style="${part(1, 4)}">${s.lines[0]}</span>
+    <span class="line" style="${part(2, 10)};color:${s.accent}">${s.lines[1]}</span></div>`;
+}
+
+function segmentHTML(s, n) {
+  const local = n - s.start, p = local / (s.len - 1);
+  if (s.kind === 'full') {
+    // a slow push on top of the camera move adds depth without fighting it
+    const z = 1.0 + .035 * ease(p);
+    return `<img class="full" style="transform:scale(${z})" src="${src(s.clip, local, LEN[s.clip])}">
+      <div class="vignette"></div><div class="scrim-top"></div>${titleHTML(s, n)}`;
+  }
+  if (s.kind === 'card') {
+    const enter = easeOut(ramp(local, 0, 26)), lift = 40 * (1 - enter), z = .965 + .035 * ease(p);
+    const tilt = 7 * (1 - enter) - 2.5 * ease(p);
+    const back = src(s.back, (LEN[s.back] - 1) * (.15 + .5 * p), LEN[s.back]);
+    return `<img class="backdrop" src="${back}">
+      <div class="glow" style="background:radial-gradient(70% 45% at 50% 62%, ${s.accent}33 0%, transparent 70%)"></div>
+      <div class="scrim-top"></div>
+      <div class="card" style="transform:translateX(-50%) perspective(2200px) rotateX(${tilt}deg) translateY(${lift}px) scale(${z})">
+        <img src="${src(s.clip, local, LEN[s.clip])}"></div>${titleHTML(s, n)}`;
+  }
+  // finale: the office pulls back, then the brand settles in over it
+  const show = k => { const t = easeOut(ramp(local, 18 + k, 40 + k)); return `opacity:${t};transform:translateY(${(1 - t) * 30}px) scale(${.96 + .04 * t})`; };
+  return `<img class="full" src="${src(s.clip, local, LEN[s.clip])}"><div class="vignette"></div>
+    <div class="finale"><div class="shade" style="opacity:${easeOut(ramp(local, 6, 36))}"></div>
+      <div class="icon" style="${show(0)}"><img src="${ROOT}/icon.png"></div>
+      <div class="name" style="${show(6)}">Silicon</div>
+      <div class="kicker" style="${show(10)}">TECH TYCOON</div>
+      <div class="tag" style="${show(18)}">Build your <b>tech empire.</b></div></div>`;
+}
+
+window.renderFrame = async n => {
+  const film = document.getElementById('film');
+  const live = SEGMENTS.filter(s => n >= s.start && n < s.start + s.len);
+  film.innerHTML = live.map(s => {
+    const local = n - s.start;
+    const fadeIn = s.start === 0 ? 1 : ease(ramp(local, 0, X));
+    const scaleIn = 1 + .05 * (1 - easeOut(ramp(local, 0, X + 6))); // arrive with a soft zoom-through
+    return `<div class="seg" style="opacity:${fadeIn};transform:scale(${scaleIn})">${segmentHTML(s, n)}</div>`;
+  }).join('');
+  await Promise.all([...film.querySelectorAll('img')].map(i => i.decode().catch(() => {})));
+};
+</script></body></html>

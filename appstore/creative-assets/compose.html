@@ -1,123 +1,65 @@
 <!doctype html>
 <!--
   App Store creative assets (iOS 27 "Header and Search Results") for Silicon: Tech Tycoon.
-  Rendered by render.mjs at Apple's exact canvases:
-    ?asset=header  -> 3840 x 1646 (21:9 product page header)
-    ?asset=search  -> 3840 x 2560 (3:2 search results asset)
-  Artwork is the real game UI (appstore/screenshots/raw). Focal content sits in the centre so
-  Apple's device/orientation crops only trim the outer phones. Brand: dark #0f1115 -> #161a22,
-  accent #3b82f6, positive #10b981. No prices, URLs, awards, platform logos or real brands.
+  Rendered by render.mjs at Apple's exact canvases (CSS size = half, device scale 2):
+    ?asset=header     -> 3840 x 1646 (21:9 product page header, no text)
+    ?asset=search     -> 3840 x 2560 (3:2 search results, headline)
+    ?asset=universal  -> 5244 x 2950 (16:9, fills both placements, no text)
+  The art is two real in-game renders (scripts/trailer/stills.mjs: directed camera, real scene):
+  the Office team on the left melting into the Factory line on the right, joined by a seam of light.
+  The focal pair sits on the centre line, so Apple's per-device crops only trim the outer edges; the
+  bottom stays calm for the App Store's own overlay. No prices, URLs, awards or real brands.
 -->
 <html><head><meta charset="utf-8">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800;900&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#0f1115; --bg2:#161a22; --accent:#3b82f6; --pos:#10b981; --ink:#f5f7fa; --muted:#9aa3b2; }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  html,body { background:var(--bg); }
-  .canvas { position:relative; overflow:hidden; font-family:Inter, system-ui, sans-serif;
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #070b12; }
+  #c { position: relative; overflow: hidden; background: #0b1018; font-family: "Segoe UI Variable Display", "Segoe UI", system-ui, sans-serif; color: #f5f8fc; }
+  .plate { position: absolute; top: 0; height: 100%; width: 100%; object-fit: cover; }
+  .office { left: 0; transform: translate(var(--office-x), var(--plate-y, 0)) scale(1.04); transform-origin: 30% 50%; filter: saturate(1.1) contrast(1.05); }
+  .factory { left: 0; transform: translate(var(--factory-x), var(--plate-y, 0)) scale(1.04); transform-origin: 70% 50%; filter: saturate(1.08) contrast(1.06) brightness(.98);
+    -webkit-mask-image: linear-gradient(100deg, transparent 38%, #000 60%); mask-image: linear-gradient(100deg, transparent 38%, #000 60%); }
+  /* the seam: a soft beam of brand light where the two worlds meet */
+  .beam { position: absolute; inset: 0; mix-blend-mode: screen;
     background:
-      radial-gradient(ellipse 34% 52% at 50% 46%, color-mix(in srgb, var(--accent) 38%, transparent), transparent 70%),
-      radial-gradient(ellipse 30% 40% at 18% 70%, color-mix(in srgb, var(--pos) 14%, transparent), transparent 70%),
-      radial-gradient(ellipse 30% 40% at 82% 70%, color-mix(in srgb, #8b5cf6 16%, transparent), transparent 70%),
-      linear-gradient(180deg, var(--bg) 0%, var(--bg2) 100%); }
-  /* faint circuit grid, fading out toward the edges */
-  .grid { position:absolute; inset:0;
-    background-image:
-      linear-gradient(color-mix(in srgb, var(--ink) 5%, transparent) 2px, transparent 2px),
-      linear-gradient(90deg, color-mix(in srgb, var(--ink) 5%, transparent) 2px, transparent 2px);
-    background-size:120px 120px; background-position:center;
-    -webkit-mask-image: radial-gradient(ellipse 55% 60% at 50% 50%, #000 20%, transparent 75%); }
-  .traces { position:absolute; inset:0; }
-  .floor { position:absolute; left:0; right:0; bottom:0; height:30%;
-    background:linear-gradient(180deg, transparent, color-mix(in srgb, var(--bg) 85%, transparent)); }
-
-  .phone { position:absolute; left:50%; transform-origin:50% 100%;
-    border-radius:calc(var(--h) * .072); padding:calc(var(--h) * .0105);
-    width:calc(var(--h) * .4614 + var(--h) * .021); height:calc(var(--h) + var(--h) * .021);
-    background:linear-gradient(145deg, #3a404c 0%, #11141a 30%, #0a0c10 70%, #2c313b 100%);
-    box-shadow:
-      inset 0 0 0 3px color-mix(in srgb, var(--ink) 14%, transparent),
-      0 0 0 2px #050608,
-      0 60px 120px -30px rgba(0,0,0,.75),
-      0 0 160px -40px color-mix(in srgb, var(--accent) 45%, transparent); }
-  /* screen = a status-bar strip (game header colour) above the capture, so the island never covers UI */
-  .screen { width:100%; height:100%; overflow:hidden; border-radius:calc(var(--h) * .062);
-    background:#191c23; padding-top:calc(var(--h) * .058); }
-  .phone img { display:block; width:100%; height:100%; object-fit:cover; object-position:top; }
-  .phone::before { content:""; position:absolute; top:calc(var(--h) * .024); left:50%; transform:translateX(-50%);
-    width:calc(var(--h) * .118); height:calc(var(--h) * .034); border-radius:999px; background:#000; z-index:2; }
-  .phone::after { content:""; position:absolute; inset:calc(var(--h) * .0105); border-radius:calc(var(--h) * .062);
-    background:linear-gradient(115deg, rgba(255,255,255,.10) 0%, rgba(255,255,255,0) 32%); pointer-events:none; }
-  .dim .screen { filter:brightness(.72) saturate(.9); }
-
-  .headline { position:absolute; left:0; right:0; text-align:center; color:var(--ink);
-    font-weight:900; letter-spacing:-.035em; line-height:1; }
-  .headline em { font-style:normal;
-    background:linear-gradient(90deg, #60a5fa, var(--accent) 55%, #22d3ee); -webkit-background-clip:text; color:transparent; }
-  .sub { position:absolute; left:0; right:0; text-align:center; color:var(--muted); font-weight:600; letter-spacing:-.01em; }
-  .sub b { color:var(--ink); font-weight:700; }
-  .dot { display:inline-block; width:.32em; height:.32em; border-radius:50%; background:var(--accent);
-    margin:0 .6em; vertical-align:middle; opacity:.8; }
+      radial-gradient(14% 70% at 50% 46%, rgba(96,165,250,.38) 0%, rgba(59,130,246,.12) 45%, transparent 100%),
+      radial-gradient(4% 60% at 50% 44%, rgba(191,219,254,.35) 0%, transparent 100%); }
+  .warm { position: absolute; inset: 0; mix-blend-mode: soft-light; background: radial-gradient(40% 60% at 22% 45%, rgba(255,190,120,.35), transparent 70%); }
+  .cool { position: absolute; inset: 0; mix-blend-mode: soft-light; background: radial-gradient(40% 60% at 80% 50%, rgba(120,170,255,.35), transparent 70%); }
+  .vignette { position: absolute; inset: 0; background: radial-gradient(85% 95% at 50% 45%, transparent 55%, rgba(3,6,12,.72) 100%); }
+  .floor { position: absolute; left: 0; right: 0; bottom: 0; height: 34%; background: linear-gradient(180deg, transparent, rgba(5,8,14,.78)); }
+  .top { position: absolute; left: 0; right: 0; top: 0; height: 40%; background: linear-gradient(180deg, rgba(5,8,14,.55), transparent); }
+  .grain { position: absolute; inset: 0; opacity: .06; mix-blend-mode: overlay; }
+  .copy { position: absolute; left: 6%; top: 7.5%; }
+  /* search: both worlds drop below a calm band that carries the headline */
+  .search .top { height: 62%; background: linear-gradient(180deg, #080c14 0%, #080c14 34%, rgba(8,12,20,.82) 46%, transparent 100%); }
+  .search .beam { top: 22%; }
+  .eyebrow { font-size: 30px; font-weight: 650; letter-spacing: 9px; color: #a9b8cc; margin-bottom: 26px; }
+  .h { font-size: 118px; line-height: 1; font-weight: 800; letter-spacing: -4.5px; text-shadow: 0 6px 40px rgba(0,0,0,.6); }
+  .h b { color: #8cb5ff; font-weight: 800; }
+  .sub { margin-top: 30px; font-size: 40px; font-weight: 550; color: #d6e0ee; letter-spacing: -.3px; text-shadow: 0 4px 24px rgba(0,0,0,.7); }
 </style></head>
-<body>
-<div class="canvas" id="c">
-  <div class="grid"></div>
-  <svg class="traces" id="traces" xmlns="http://www.w3.org/2000/svg"></svg>
+<body><div id="c">
+  <img class="plate office" id="office">
+  <img class="plate factory" id="factory">
+  <div class="warm"></div><div class="cool"></div><div class="beam"></div>
+  <div class="top"></div><div class="floor"></div><div class="vignette"></div>
+  <svg class="grain" width="100%" height="100%"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="2" stitchTiles="stitch"/></filter><rect width="100%" height="100%" filter="url(#n)"/></svg>
+  <div class="copy" id="copy" hidden>
+    <div class="eyebrow">SILICON · TECH TYCOON</div>
+    <div class="h">Build your<br><b>tech empire.</b></div>
+    <div class="sub">Run the studio. Build the factory. Beat every rival.</div>
+  </div>
 </div>
 <script>
-const asset = new URLSearchParams(location.search).get('asset') || 'header';
-const SIZES = { header:[3840,1646], search:[3840,2560] };
-const [W,H] = SIZES[asset];
-const c = document.getElementById('c');
-c.style.width = W+'px'; c.style.height = H+'px';
-const RAW = '../screenshots/raw/';
-
-// Decorative circuit traces radiating from the centre glow (deterministic, no RNG).
-const svg = document.getElementById('traces');
-svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('width', W); svg.setAttribute('height', H);
-const cy = asset === 'header' ? H*0.5 : H*0.62;
-let paths = '';
-for (let i = 0; i < 8; i++) {
-  const side = i % 2 ? 1 : -1, row = Math.floor(i/2);
-  const y0 = cy - H*0.27 + row * H*0.18, x0 = W/2 + side*W*0.17, x1 = W/2 + side*W*0.29, y1 = y0 + (row%2? 1:-1)*90, x2 = W/2 + side*W*0.47;
-  paths += `<path d="M${x0} ${y0} H${x1 - side*60} L${x1} ${y1} H${x2}" fill="none" stroke="#3b82f6" stroke-opacity=".22" stroke-width="4"/>`;
-  paths += `<circle cx="${x2}" cy="${y1}" r="11" fill="#3b82f6" fill-opacity=".45"/>`;
-  paths += `<circle cx="${x0}" cy="${y0}" r="7" fill="#60a5fa" fill-opacity=".5"/>`;
-}
-svg.innerHTML = paths;
-
-function phone(img, h, dx, top, rot, extra='') {
-  const p = document.createElement('div');
-  p.className = 'phone ' + extra;
-  p.style.setProperty('--h', h+'px');
-  const w = h*.4614 + h*.021;
-  p.style.top = top+'px';
-  p.style.marginLeft = (dx - w/2)+'px';
-  p.style.transform = `rotate(${rot}deg)`;
-  p.innerHTML = `<div class="screen"><img src="${RAW+img}"></div>`;
-  c.appendChild(p);
-}
-function text(cls, html, top, size) {
-  const t = document.createElement('div'); t.className = cls; t.innerHTML = html;
-  t.style.top = top+'px'; t.style.fontSize = size+'px'; c.appendChild(t);
-}
-
-if (asset === 'header') {
-  // One idea: the whole company in your hand. HQ hero centre, the pillars fanned out.
-  phone('04-research.png', 1080, -1500, 330, -14, 'dim');
-  phone('05-company.png',  1080,  1500, 330,  14, 'dim');
-  phone('02-design.png',   1260,  -800, 210,  -7);
-  phone('03-market.png',   1260,   800, 210,   7);
-  phone('01-hq.png',       1420,     0, 100,   0);
-} else {
-  text('headline', 'Build a <em>tech empire</em>', 190, 240);
-  text('sub', '<b>Design</b> devices<span class="dot"></span><b>Build</b> the factory<span class="dot"></span><b>Beat</b> every rival', 500, 92);
-  phone('04-research.png', 1500, -1480, 1040, -12, 'dim');
-  phone('05-company.png',  1500,  1480, 1040,  12, 'dim');
-  phone('02-design.png',   1680,  -780,  880,  -6);
-  phone('03-market.png',   1680,   780,  880,   6);
-  phone('01-hq.png',       1860,     0,  760,   0);
-}
-const f = document.createElement('div'); f.className = 'floor'; c.appendChild(f);
-</script>
-</body></html>
+  const q = new URLSearchParams(location.search), asset = q.get('asset'), root = q.get('root');
+  const SIZE = { header: [1920, 823], search: [1920, 1280], universal: [2622, 1475] }[asset];
+  const c = document.getElementById('c');
+  c.style.width = SIZE[0] + 'px'; c.style.height = SIZE[1] + 'px';
+  // the wider the canvas, the further apart the two worlds sit
+  const spread = { header: ['-17%', '19%'], search: ['-12%', '14%'], universal: ['-14%', '16%'] }[asset];
+  c.style.setProperty('--office-x', spread[0]); c.style.setProperty('--factory-x', spread[1]);
+  document.getElementById('office').src = `${root}/plates/${asset}-office.png`;
+  document.getElementById('factory').src = `${root}/plates/${asset}-factory.png`;
+  if (asset === 'search') { document.getElementById('copy').hidden = false; c.classList.add('search'); c.style.setProperty('--plate-y', '24%'); }
+</script></body></html>

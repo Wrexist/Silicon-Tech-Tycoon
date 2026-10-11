@@ -97,7 +97,7 @@ if (process.env.UPLOAD_STORE_MEDIA === '1') {
         if (!replace) throw Error('No replaceable screenshot slot');
         await asc(`/v1/${assets}/${replace.id}`, 'DELETE'); removed.add(replace.id);
       }
-      const attributes = { fileName: basename(file), fileSize: bytes.length, ...(assets === 'appPreviews' ? { mimeType: 'video/mp4', previewFrameTimeCode: '00:00:05:00' } : {}) };
+      const attributes = { fileName: basename(file), fileSize: bytes.length, ...(assets === 'appPreviews' ? { mimeType: 'video/mp4', previewFrameTimeCode: '00:00:03:00' } : {}) };
       const reservation = (await asc(`/v1/${assets}`, 'POST', { type: assets, attributes, relationships: { [relationship]: { data: { type: sets, id: set.id } } } })).data;
       // Persist safe reservation IDs immediately so an interrupted upload is diagnosable.
       save(`reservation-${reservation.id}`, reservation);
