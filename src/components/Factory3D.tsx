@@ -19,6 +19,8 @@ import * as THREE from "three";
 import { groundFadeTexture } from "../garage3d/glow.ts";
 import { FACTORY_PALETTE } from "../garage3d/factoryPalette.ts";
 import { StudioEnvironment } from "../garage3d/lighting.tsx";
+import { RobotCharacter } from "../garage3d/robotCharacter.tsx";
+import { factoryCrewSpots } from "../garage3d/factoryCrew.ts";
 import {
   FLOOR, MACHINE_DEFS, beltPath, connectedChain, connectedMachines, routeTiles, canPlaceMachine, formMarks, machineCells, machineCenter, machineLevel, worldOf,
   type BeltDir, type FactoryFloor, type MachineKind,
@@ -57,6 +59,9 @@ function useMotionFrame(callback: Parameters<typeof useFrame>[0]) {
 
 
 /* palette — intrinsic object colours, the garage3d precedent */
+// Factory cells are 1 unit (office cells 0.86) and machines stand ~1.5–2.2 tall: at this scale an
+// operator reaches about the machines' working height instead of towering over them.
+const CREW_SCALE = 0.65;
 // The factory's materials come from the office's families (one studio) — see factoryPalette.ts.
 const C = FACTORY_PALETTE;
 
@@ -1607,6 +1612,10 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
   const mounts = useMemo(() => { const route = routeTiles(p.floor); return machineMounts(p.floor, route.length ? route : p.floor.belts); }, [p.floor]);
   const routeCells = useMemo(() => new Set(routeTiles(p.floor).map(b => `${b.c},${b.r}`)), [p.floor]);
   const connectedIds = useMemo(() => new Set(connectedMachines(p.floor).map(m => m.id)), [p.floor]);
+  // The crew (F6): the office's robots operating each connected station. Fullscreen only — the HQ card
+  // is the view left open longest, and at its size an operator is a few pixels.
+  const crew = useMemo(() => (p.preview ? [] : factoryCrewSpots(p.floor, mounts, connectedIds)), [p.preview, p.floor, mounts, connectedIds]);
+  const { reduced: crewStill } = useContext(MotionContext);
   const floorW = p.floorW ?? FLOOR.w;      // buildable width in cells (grows east with expansions)
   const shadowTarget = useMemo(() => {
     const target = new THREE.Object3D();
@@ -2084,6 +2093,11 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
             <MachineAt m={m} mount={mounts.get(m.id)} active={p.active && connectedIds.has(m.id) && (p.workingKinds?.includes(m.kind) ?? p.activeKind === m.kind)} activeKind={p.activeKind} pl={pl} itemsT={itemsT} />
           </group>
         ))}
+      {crew.filter((c) => !(carry?.type === "machine" && carry.id === c.id)).map((c) => (
+        <group key={`crew-${c.id}`} position={[c.x, 0, c.z]} rotation-y={c.yaw} scale={CREW_SCALE}>
+          <RobotCharacter colorIdx={c.colorIdx} seed={c.seed} still={crewStill} />
+        </group>
+      ))}
       {p.props
         ?.filter((pr) => !(carry?.type === "prop" && carry.id === pr.id))
         .map((pr) => (

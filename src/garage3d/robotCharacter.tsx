@@ -16,12 +16,13 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
+import { mergeBufferGeometries } from 'three-stdlib';
 import { reactionIntensity } from '../design/hqReaction.ts';
 import { ROBOT_COLORS, robotModelFor } from './robotModels.ts';
 import { cosmeticHash01, officeSeed, officeWeek, workTargetFor } from './officeLive.ts';
-import { sharedCapsule, sharedCylinder, sharedSphere, sharedStandard, sharedTorus } from './sharedGpu.ts';
+import { sharedCapsule, sharedCylinder, sharedSphere, sharedStandard } from './sharedGpu.ts';
 import {
   awayPlanFor,
   MAX_AWAY,
@@ -41,6 +42,27 @@ import {
 
 import { findOfficePath, type Point, type Obstacle } from './officeNavigation.ts';
 
+// Mirrored, non-moving pairs (both eyes, pupils, shine dots, ear caps, shoulders) are ONE geometry
+// each: up to 16 robots share the screen, so every mesh is paid 16 times, and a pair as one draw call
+// keeps the portrait's detail below the old robot's draw-call count. Cached for the page's lifetime
+// like sharedGpu.ts, and likewise passed as a prop so R3F never disposes it.
+const pairCache = new Map<string, THREE.BufferGeometry>();
+function mirroredPair(key: string, make: () => THREE.BufferGeometry, place: (g: THREE.BufferGeometry, side: number) => void): THREE.BufferGeometry {
+  let g = pairCache.get(key);
+  if (!g) {
+    const parts = [-1, 1].map((side) => { const part = make(); place(part, side); return part; });
+    g = mergeBufferGeometries(parts) ?? parts[1];
+    parts.forEach((part) => { if (part !== g) part.dispose(); });
+    pairCache.set(key, g);
+  }
+  return g;
+}
+const EYES = () => mirroredPair('eyes', () => new THREE.SphereGeometry(0.095, 16, 14), (g, side) => { g.scale(0.85, 1.18, 0.35); g.translate(side * 0.14, 0, 0.395); });
+const PUPILS = () => mirroredPair('pupils', () => new THREE.SphereGeometry(0.055, 12, 12), (g, side) => { g.scale(0.9, 1.15, 0.4); g.translate(side * 0.135, -0.004, 0.424); });
+const SHINES = () => mirroredPair('shines', () => new THREE.SphereGeometry(0.014, 8, 8), (g, side) => { g.translate(side * 0.135 + 0.02, 0.032, 0.445); });
+const EAR_CAPS = () => mirroredPair('ears', () => new THREE.CylinderGeometry(0.105, 0.105, 0.07, 20), (g, side) => { g.rotateZ(Math.PI / 2); g.translate(side * 0.415, 0.02, 0); });
+const SHOULDERS = () => mirroredPair('shoulders', () => new THREE.SphereGeometry(0.085, 12, 12), (g, side) => { g.translate(side * 0.285, 0.72, 0); });
+
 /** Lighten/darken a hex colour for two-tone shading (belly highlight, visor, crown). */
 export function shade(hex: string, amt: number): string {
   const c = new THREE.Color(hex);
@@ -53,10 +75,12 @@ export function shade(hex: string, amt: number): string {
 // (Chair seat top ≈ 0.58; the robot's torso underside sits ≈0.18 above its pivot → ≈0.4 lift).
 export const SIT_LIFT = robotSeatLift(0.575);
 
-// Premium mascot robot: soft two-tone shell, dark eye-visor with generous glowing eyes that blink,
-// antenna with a lit mood tip, little arms + hands, rounded feet, metallic neck ring. `walking`
-// toggles a stride swing; `sitting` folds it onto a chair; otherwise a gentle idle with a slow
-// breath. `personKey` publishes the character's live activity for the office chatter.
+// The team's mascot, built to match the robot portraits (public/art/redesign/robot-*.webp): a big
+// glossy head in the employee's colour, a front-wrapping navy glass visor with big white oval eyes
+// (dark pupils + a shine dot) that blink, white ear caps, an antenna whose ball shows the mood, and
+// a small body with a white chest band, white shoulders, hands and feet. `walking` toggles a stride
+// swing; `sitting` folds it onto a chair; otherwise a gentle idle with a slow breath. The torso's
+// underside sits exactly where it always has, so every seat anchor (seatAnchors.ts) still holds.
 export function RobotCharacter({
   colorIdx,
   seed,
@@ -82,16 +106,17 @@ export function RobotCharacter({
 }) {
   const waterRef = useRef<THREE.Group>(null);
   const color = ROBOT_COLORS[colorIdx % ROBOT_COLORS.length];
-  const belly = useMemo(() => shade(color, 0.34), [color]);
-  const crown = useMemo(() => shade(color, 0.12), [color]);
-  const dark = useMemo(() => shade(color, -0.5), [color]);
+  // The portrait's fixed trims: satin white panels, navy glass, ink pupils. Only the shell takes the
+  // employee colour, so the team reads as one product line in five colours.
+  const white = '#f2f3f5';
+  const visor = '#1f2b4d';
+  const pupil = '#0d1220';
   const metal = '#c7cdd6';
   const root = useRef<THREE.Group>(null);
   const headRef = useRef<THREE.Group>(null);
   const antRef = useRef<THREE.Group>(null);
   const eyeRef = useRef<THREE.Group>(null);
   const gazeRef = useRef<THREE.Group>(null);
-  const smileRef = useRef<THREE.Mesh>(null);
   const armLRef = useRef<THREE.Group>(null);
   const armRRef = useRef<THREE.Group>(null);
   const legLRef = useRef<THREE.Group>(null);
@@ -102,6 +127,11 @@ export function RobotCharacter({
   const work = useRef(0);
   const workWeek = useRef(-1);
   const workTo = useRef(0);
+  // Reduce Motion: the still pose is written by the next frame — on an on-demand canvas (the paused
+  // factory) that frame may not come for a while, so the robot would hold its last animated pose and
+  // snap later. Ask for one frame the moment `still` flips, so it settles at once.
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => { invalidate(); }, [still, invalidate]);
 
   useFrame((st, dt) => {
     const t = (still ? 0 : st.clock.elapsedTime) + seed;
@@ -155,7 +185,7 @@ export function RobotCharacter({
       const cycle = 3.2 + (seed % 1) * 1.4;
       const phase = (((t + seed * 0.63) % cycle) + cycle) % cycle;
       const close = still ? 0 : phase < 0.13 ? Math.sin((phase / 0.13) * Math.PI) : 0;
-      eyeRef.current.scale.y = 1 - close * 0.86;
+      eyeRef.current.scale.y = (1 - close * 0.86) * (1 - slump * 0.35); // a flop droops the eyes
       eyeRef.current.scale.x = 1 + close * 0.14;
     }
     // Small shared eye movements give the face a readable focus without changing navigation.
@@ -163,7 +193,6 @@ export function RobotCharacter({
       gazeRef.current.position.x = still ? 0 : Math.sin(t * 0.45 + seed * 1.7) * 0.012 * (1 - w);
       gazeRef.current.position.y = sitting && !relaxing ? -0.009 * w : 0;
     }
-    if (smileRef.current) smileRef.current.scale.y = 0.55 * (1 - slump * 0.85) + cheer * 0.15;
     if (antRef.current) {
       antRef.current.rotation.z = Math.sin(t * 2.2) * (0.18 + cheer * 0.6) * (1 - slump);
       antRef.current.rotation.x = slump * 0.9; // antenna droops forward
@@ -202,31 +231,23 @@ export function RobotCharacter({
 
   return (
     <group ref={root} name="office-robot-body" scale={ROBOT_SCALE}>
-      {/* legs + rounded feet — geometries/materials come from the shared GPU cache (sharedGpu.ts) */}
-      <group ref={legLRef} position={[-0.13, 0.3, 0]}>
-        <mesh
-          position={[0, -0.13, 0]}
-          geometry={sharedCapsule(0.08, 0.16, 6, 10)}
-          material={sharedStandard({ color: dark, roughness: 0.5 })}
-        />
-        <mesh
-          position={[0, -0.26, 0.05]}
-          geometry={sharedSphere(0.115, 14, 12)}
-          material={sharedStandard({ color: dark, roughness: 0.45 })}
-        />
-      </group>
-      <group ref={legRRef} position={[0.13, 0.3, 0]}>
-        <mesh
-          position={[0, -0.13, 0]}
-          geometry={sharedCapsule(0.08, 0.16, 6, 10)}
-          material={sharedStandard({ color: dark, roughness: 0.5 })}
-        />
-        <mesh
-          position={[0, -0.26, 0.05]}
-          geometry={sharedSphere(0.115, 14, 12)}
-          material={sharedStandard({ color: dark, roughness: 0.45 })}
-        />
-      </group>
+      {/* legs in the shell colour with white rounded feet — geometries/materials come from the shared
+          GPU cache (sharedGpu.ts) */}
+      {[-1, 1].map((side) => (
+        <group key={side} ref={side < 0 ? legLRef : legRRef} position={[side * 0.12, 0.3, 0]}>
+          <mesh
+            position={[0, -0.1, 0]}
+            geometry={sharedCapsule(0.075, 0.12, 6, 10)}
+            material={sharedStandard({ color, roughness: 0.3 })}
+          />
+          <mesh
+            position={[0, -0.24, 0.04]}
+            scale={[1, 0.7, 1.25]}
+            geometry={sharedSphere(0.1, 14, 12)}
+            material={sharedStandard({ color: white, roughness: 0.34 })}
+          />
+        </group>
+      ))}
 
       {watering && (
         <group ref={waterRef} position={[0.22, 0.65, 0.42]} rotation-x={0.35}>
@@ -250,98 +271,73 @@ export function RobotCharacter({
           ))}
         </group>
       )}
-      {/* body — a rounder shell with a lighter belly panel (soft two-tone) */}
+      {/* body — a compact satin shell (its underside stays at 0.14, the seat-anchor contract) with the
+          portrait's white chest band and white shoulder joints */}
       <mesh
-        position={[0, 0.6, 0]}
-        geometry={sharedCapsule(0.3, 0.32, 10, 20)}
-        material={sharedStandard({ color, roughness: 0.34, metalness: 0.05 })}
+        position={[0, 0.54, 0]}
+        geometry={sharedCapsule(0.27, 0.26, 10, 20)}
+        material={sharedStandard({ color, roughness: 0.3, metalness: 0.02 })}
       />
       <mesh
-        position={[0, 0.54, 0.21]}
-        scale={[0.72, 0.82, 0.42]}
-        geometry={sharedSphere(0.28, 18, 18)}
-        material={sharedStandard({ color: belly, roughness: 0.42 })}
+        position={[0, 0.66, 0]}
+        geometry={sharedCylinder(0.278, 0.278, 0.075, 24)}
+        material={sharedStandard({ color: white, roughness: 0.34 })}
       />
-      {/* metallic neck ring */}
-      <mesh
-        position={[0, 0.9, 0]}
-        geometry={sharedCylinder(0.17, 0.19, 0.07, 18)}
-        material={sharedStandard({ color: metal, metalness: 0.7, roughness: 0.3 })}
-      />
+      <mesh geometry={SHOULDERS()} material={sharedStandard({ color: white, roughness: 0.34 })} />
 
-      {/* arms with rounded hands */}
-      <group ref={armLRef} position={[-0.34, 0.72, 0]}>
-        <mesh
-          position={[0, -0.16, 0]}
-          geometry={sharedCapsule(0.09, 0.24, 6, 12)}
-          material={sharedStandard({ color, roughness: 0.34 })}
-        />
-        <mesh
-          position={[0, -0.32, 0]}
-          geometry={sharedSphere(0.105, 14, 12)}
-          material={sharedStandard({ color: belly, roughness: 0.42 })}
-        />
-      </group>
-      <group ref={armRRef} position={[0.34, 0.72, 0]}>
-        <mesh
-          position={[0, -0.16, 0]}
-          geometry={sharedCapsule(0.09, 0.24, 6, 12)}
-          material={sharedStandard({ color, roughness: 0.34 })}
-        />
-        <mesh
-          position={[0, -0.32, 0]}
-          geometry={sharedSphere(0.105, 14, 12)}
-          material={sharedStandard({ color: belly, roughness: 0.42 })}
-        />
-      </group>
-
-      {/* head — a bigger, rounder shell with a lighter crown */}
-      <group ref={headRef} position={[0, 1.22, 0]} scale={[1.06, 1.02, 1.04]}>
-        <mesh
-          geometry={sharedSphere(0.36, 26, 26)}
-          material={sharedStandard({ color: crown, roughness: 0.48, metalness: 0.05 })}
-        />
-        {/* dark wrap-around visor */}
-        <mesh
-          position={[0, 0.03, 0.05]}
-          scale={[1.03, 0.6, 1.03]}
-          geometry={sharedSphere(0.35, 24, 24, 0, Math.PI * 2, Math.PI * 0.18, Math.PI * 0.4)}
-          material={sharedStandard({ color: dark, roughness: 0.25, metalness: 0.2 })}
-        />
-        {/* Soft eye whites and dark pupils read as a face instead of two status lights. */}
-        <group ref={eyeRef}>
-          {[-1, 1].map((side) => (
-            <mesh key={side} position={[side * 0.125, 0.045, 0.405]} scale={[0.92, 1.2, 0.48]}
-              geometry={sharedSphere(0.077, 14, 14)}
-              material={sharedStandard({ color: metal, emissive: metal, emissiveIntensity: 0.35, roughness: 0.5 })} />
-          ))}
-          <group ref={gazeRef}>
-            {[-1, 1].map((side) => (
-              <mesh key={side} position={[side * 0.125, 0.04, 0.445]} scale={[0.8, 1.2, 0.4]}
-                geometry={sharedSphere(0.039, 12, 12)}
-                material={sharedStandard({ color: dark, roughness: 0.4 })} />
-            ))}
-          </group>
-        </group>
-        {/* A modest smile, flattened on a slump; no extra lights or post processing. */}
-        <mesh ref={smileRef} position={[0, -0.055, 0.35]} rotation-z={Math.PI} scale={[1, 0.55, 1]}
-          geometry={sharedTorus(0.075, 0.013, 6, 16, Math.PI)}
-          material={sharedStandard({ color: dark, roughness: 0.5 })} />
-        {/* antenna with a lit tip */}
-        <group ref={antRef} position={[0, 0.32, 0]}>
+      {/* arms in the shell colour with white rounded hands */}
+      {[-1, 1].map((side) => (
+        <group key={side} ref={side < 0 ? armLRef : armRRef} position={[side * 0.33, 0.72, 0]}>
           <mesh
-            position={[0, 0.1, 0]}
-            geometry={sharedCylinder(0.018, 0.018, 0.22, 8)}
-            material={sharedStandard({ color: metal, metalness: 0.6, roughness: 0.3 })}
+            position={[0, -0.14, 0]}
+            geometry={sharedCapsule(0.07, 0.2, 6, 12)}
+            material={sharedStandard({ color, roughness: 0.3 })}
           />
           <mesh
-            position={[0, 0.24, 0]}
+            position={[0, -0.3, 0]}
+            geometry={sharedSphere(0.085, 14, 12)}
+            material={sharedStandard({ color: white, roughness: 0.34 })}
+          />
+        </group>
+      ))}
+
+      {/* head — the portrait's big glossy dome */}
+      <group ref={headRef} position={[0, 1.2, 0]}>
+        <mesh
+          geometry={sharedSphere(0.42, 28, 24)}
+          material={sharedStandard({ color, roughness: 0.26, metalness: 0.02 })}
+        />
+        {/* navy glass visor: a band across the FRONT of the dome (≈200° wide, ear cap to ear cap),
+            glossy enough to pick up the studio reflections */}
+        <mesh
+          geometry={sharedSphere(0.426, 28, 12, -0.05 * Math.PI, 1.1 * Math.PI, 0.355 * Math.PI, 0.27 * Math.PI)}
+          material={sharedStandard({ color: visor, roughness: 0.12, metalness: 0.25 })}
+        />
+        {/* big white oval eyes with dark pupils and a shine dot — the blink squashes this group */}
+        <group ref={eyeRef} position={[0, 0.02, 0]}>
+          <mesh geometry={EYES()} material={sharedStandard({ color: white, emissive: white, emissiveIntensity: 0.25, roughness: 0.3 })} />
+          <group ref={gazeRef}>
+            <mesh geometry={PUPILS()} material={sharedStandard({ color: pupil, roughness: 0.25 })} />
+            <mesh geometry={SHINES()} material={sharedStandard({ color: white, emissive: white, emissiveIntensity: 1, toneMapped: false })} />
+          </group>
+        </group>
+        {/* white ear caps where the visor ends */}
+        <mesh geometry={EAR_CAPS()} material={sharedStandard({ color: white, roughness: 0.32 })} />
+        {/* antenna in the shell colour; its ball carries the mood signal */}
+        <group ref={antRef} position={[0, 0.4, 0]}>
+          <mesh
+            position={[0, 0.12, 0]}
+            geometry={sharedCylinder(0.016, 0.016, 0.24, 8)}
+            material={sharedStandard({ color, roughness: 0.3 })}
+          />
+          <mesh
+            position={[0, 0.27, 0]}
             geometry={sharedSphere(0.055, 12, 12)}
             material={sharedStandard({
-              color: moodColor ?? '#ff5a5a',
-              emissive: moodColor ?? '#ff5a5a',
-              emissiveIntensity: 1.4,
-              toneMapped: false,
+              color: moodColor ?? color,
+              emissive: moodColor ?? color,
+              emissiveIntensity: moodColor ? 1.1 : 0.15,
+              toneMapped: moodColor ? false : undefined,
             })}
           />
         </group>

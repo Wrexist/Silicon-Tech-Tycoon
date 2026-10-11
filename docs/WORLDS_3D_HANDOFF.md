@@ -158,6 +158,15 @@ Each gap: what is wrong, where, and the fix. Verified against the captures above
   office's studio IBL (`StudioEnvironment`, shared) and exposure 1.05; its colours now come from
   the office's CATALOG families (`factoryPalette.ts` + `factoryPalette.test.ts`). Correction to
   F4: R3F already defaults both canvases to ACES — the real gaps were exposure, IBL and palette.
+- **Step 3 (the robot): in review** (branch `claude/worlds-3d-step3-robot`, stacked on step 2). Built
+  in CODE, not a GLB: the portrait robot is all rounded primitives, so `RobotCharacter` now matches
+  the portraits directly (big glossy dome, front-wrapping navy glass visor, big white oval eyes with
+  pupils + shine, white ear caps, colour antenna whose ball is the mood light, compact body with a
+  white collar band, white shoulders / hands / feet) and every animation hook and seat anchor is
+  unchanged (the torso underside still sits at 0.14). Mirrored static pairs are merged geometry, so a
+  robot costs ~20 draw calls — below the old robot. The `robot_shared.glb` seam is untouched for a
+  future rigged model. F6: `factoryCrew.ts` stands one operator at each connected processing station
+  in fullscreen (`CREW_SCALE` 0.65), inside the machine's own footprint, facing the line.
 
 ## 5. How to check yourself
 
