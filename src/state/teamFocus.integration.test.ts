@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { newGame, advanceOneWeek, setTeamFocus, researchWeeksLeft, startBuild, type GameState } from "./gameState.ts";
+import { newGame, advanceOneWeek, setTeamFocus, researchProgress, researchWeeksLeft, startBuild, type GameState } from "./gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { dollars, toDollars } from "../engine/money.ts";
 import type { Staff, Product } from "../engine/types.ts";
@@ -53,6 +53,27 @@ describe("team focus / crunch (feature #4)", () => {
     const normalWeeks = runToDone(base);
     const crunchWeeks = runToDone(setTeamFocus(base, "research"));
     expect(crunchWeeks).toBeLessThan(normalWeeks);
+  });
+
+  it("the lab's progress readout counts crunch weeks exactly as the tick completes research", () => {
+    let s = setTeamFocus(withResearch(withTeam(newGame(2), 4), 8), "research");
+    for (let i = 0; i < 40 && s.activeResearch; i++) {
+      const next = advanceOneWeek(s);
+      if (!next.activeResearch) {
+        // The tick that completes it is the one that carries progress to the full total.
+        const a = s.activeResearch;
+        const willBe = (next.week - a.startWeek + (s.researchSurgeWeeks ?? 0)) / a.totalWeeks;
+        expect(researchProgress(s)).toBeLessThan(1);
+        expect(willBe).toBeGreaterThan(researchProgress(s));
+      } else {
+        // While it runs, the ring and the countdown agree with each other and with the crunch surge.
+        expect((next.researchSurgeWeeks ?? 0)).toBeGreaterThan(0);
+        expect(researchProgress(next)).toBeCloseTo(Math.min(1, (next.week - next.activeResearch.startWeek + (next.researchSurgeWeeks ?? 0)) / next.activeResearch.totalWeeks), 9);
+        expect(researchWeeksLeft(next)).toBe(Math.max(0, Math.ceil(next.activeResearch.totalWeeks * (1 - researchProgress(next)) - 1e-9)));
+      }
+      s = next;
+    }
+    expect(s.activeResearch).toBeNull();
   });
 
   it("crunching build ships the product sooner than the normal pace", () => {
