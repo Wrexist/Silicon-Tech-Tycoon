@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { newGame, advanceOneWeek, setTeamFocus, researchProgress, researchWeeksLeft, researchCommittedWeeks, researchStepPerWeek, cancelResearch, startBuild, type GameState } from "./gameState.ts";
+import { newGame, advanceOneWeek, setTeamFocus, researchProgress, researchWeeksLeft, researchCommittedWeeks, researchStepPerWeek, buildStepPerWeek, cancelResearch, startBuild, type GameState } from "./gameState.ts";
 import { BALANCE } from "../engine/balance.ts";
 import { dollars, toDollars } from "../engine/money.ts";
 import type { Staff, Product } from "../engine/types.ts";
@@ -177,5 +177,36 @@ describe("team focus / crunch (feature #4)", () => {
     // and a never-crunched save never gains the field (byte-identical for the pinned sim)
     const plain = cancelResearch(withResearch(withTeam(newGame(5), 4), 8));
     expect("researchSurgeWeeks" in plain).toBe(false);
+  });
+
+  // The build ring smooths at buildStepPerWeek. Pin it to what each real tick adds to each job —
+  // including which single job a build crunch rushes.
+  it("each build ring's predicted per-week rate is exactly what each real tick adds to that job", () => {
+    const twoBuilds = (st: GameState): GameState => {
+      const a = { ...goodPhone(), id: "a", name: "Alpha" }, b = { ...goodPhone(), id: "b", name: "Beta" };
+      return { ...st, cash: dollars(5_000_000), building: [
+        { product: a, totalWeeks: 9, weeksElapsed: 1 },
+        { product: b, totalWeeks: 6, weeksElapsed: 1 },
+      ] };
+    };
+    const cases: [string, GameState][] = [
+      ["normal pace", twoBuilds(withTeam(newGame(6), 4))],
+      ["build crunch", setTeamFocus(twoBuilds(withTeam(newGame(6), 4)), "build")],
+      ["solo founder asks to crunch", setTeamFocus(twoBuilds(newGame(6)), "build")],
+      ["focus on research", setTeamFocus(twoBuilds(withTeam(newGame(6), 4)), "research")],
+    ];
+    for (const [name, start] of cases) {
+      let s = start;
+      for (let i = 0; i < 12 && s.building.length; i++) {
+        const next = advanceOneWeek(s);
+        for (const job of s.building) {
+          const after = next.building.find((j) => j.product.id === job.product.id);
+          if (!after) continue; // finished this tick
+          expect(after.weeksElapsed - job.weeksElapsed, `${name}, ${job.product.name}, week ${s.week}`).toBeCloseTo(buildStepPerWeek(s, job.product.id), 9);
+        }
+        s = next;
+      }
+    }
+    expect(buildStepPerWeek(newGame(6), "nope")).toBe(0);
   });
 });

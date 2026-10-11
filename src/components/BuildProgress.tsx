@@ -13,6 +13,8 @@ import { factoryFor, DEFAULT_FACTORY_ID } from "../engine/factories.ts";
 import { DEFAULT_SUPPLIER_ID } from "../engine/suppliers.ts";
 import { lineFor, stageForLine, stageIndexForLine } from "../engine/assemblyLine.ts";
 import { progressPct, useSmoothWeeks } from "../state/useSmoothWeeks.ts";
+import { buildStepPerWeek } from "../state/gameState.ts";
+import { useGameSelector } from "../state/useGame.tsx";
 import type { BuildJob } from "../engine/types.ts";
 import "./buildProgress.css";
 
@@ -61,7 +63,10 @@ const RING_R = 33; // radius in the 80×80 viewBox
 const RING_C = 2 * Math.PI * RING_R;
 
 export function BuildProgress({ job }: { job: BuildJob }) {
-  const smoothWeeks = useSmoothWeeks(job.weeksElapsed, job.totalWeeks, 1, job.product.id);
+  // The next tick's real step for THIS job (a build crunch rushes the one nearest completion), read as
+  // a number so the ring re-renders only when that rate changes, not every tick.
+  const step = useGameSelector((s) => buildStepPerWeek(s, job.product.id));
+  const smoothWeeks = useSmoothWeeks(job.weeksElapsed, job.totalWeeks, step || 1, job.product.id);
   const frac = Math.max(0, Math.min(1, smoothWeeks / Math.max(1e-6, job.totalWeeks)));
   const pct = progressPct(smoothWeeks, job.totalWeeks); // 100 only once the run has really finished
   const weeksLeft = Math.max(0, Math.ceil(job.totalWeeks - job.weeksElapsed));

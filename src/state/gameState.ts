@@ -5083,6 +5083,23 @@ export function researchStepPerWeek(s: GameState): number {
   return 1 + (crunching ? tf.researchSurgePerTick : 0);
 }
 
+/** Progress-weeks the NEXT tick will add to the build of `productId`: 1, plus the crunch surge when
+ *  the team is focused on builds and this is the job the tick will rush (the one nearest completion,
+ *  ties to the first queued). Mirrors the tick's own build-crunch rule exactly, so the smoothed build
+ *  ring moves at the rate the sim really will. 0 when no such build is running. Pure. */
+export function buildStepPerWeek(s: GameState, productId: string): number {
+  const idx = s.building.findIndex((j) => j.product.id === productId);
+  if (idx < 0) return 0;
+  const tf = BALANCE.teamFocus;
+  if ((s.teamFocus ?? null) !== "build" || s.staff.length < tf.minTeam) return 1;
+  let surgeIdx = -1, best = Infinity;
+  s.building.forEach((job, i) => {
+    const remaining = job.totalWeeks - job.weeksElapsed;
+    if (remaining < best) { best = remaining; surgeIdx = i; }
+  });
+  return 1 + (idx === surgeIdx ? tf.buildSurgePerTick : 0);
+}
+
 /** Whole weeks remaining on the active research (0 when idle or finishing this week). Counts crunch
  *  progress (feature #4) so the countdown reflects a focused lab. */
 export function researchWeeksLeft(s: GameState): number {
