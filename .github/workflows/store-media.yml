@@ -3,13 +3,16 @@ on:
   workflow_dispatch:
     inputs:
       screenshot_run_id:
-        description: Reuse reviewed screenshots from this media artifact run; render the trailer only
+        description: Reuse reviewed screenshots from this media artifact run
+        required: false
+        type: string
+      trailer_release:
+        description: Draft release tag holding the reviewed trailer (scripts/trailer, rendered on a GPU)
         required: false
         type: string
   pull_request:
     paths:
       - scripts/store-media-1.4.mjs
-      - scripts/trailer/**
       - scripts/stage-showcase.mjs
       - .github/workflows/store-media.yml
 permissions:
@@ -21,7 +24,11 @@ concurrency:
 jobs:
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 40
+    # Reading a DRAFT release needs write scope on contents; it is used for nothing else.
+    permissions:
+      contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -54,25 +61,19 @@ jobs:
             appstore/release-1.4.0/iphone/
             appstore/release-1.4.0/ipad/
             appstore/release-1.4.0/capture-report.json
-      # The preview is the cinematic edit in scripts/trailer: directed camera moves through the real
-      # Office and Factory plus live UI clips, every frame stepped on a fake clock (no drops).
-      - name: Start the dev server for the directed capture
-        run: |
-          nohup npx vite --port 5191 --strictPort --host 127.0.0.1 > /tmp/vite.log 2>&1 &
-          for i in $(seq 1 60); do curl -sf http://127.0.0.1:5191 >/dev/null && exit 0; sleep 2; done
-          cat /tmp/vite.log; exit 1
-      - name: Capture trailer clips
+      # The preview is the cinematic edit in scripts/trailer, rendered on a GPU machine (software
+      # WebGL here takes ~19s a frame). It arrives as a DRAFT release asset, visible only to
+      # collaborators, named by trailer_release; the store media artifact then carries it.
+      - name: Fetch the reviewed trailer
+        if: ${{ inputs.trailer_release != '' }}
         env:
-          TRAILER_OUT: /tmp/cine
-        run: node scripts/trailer/capture.mjs
-      - name: Edit and encode the App Store preview
-        env:
-          TRAILER_OUT: /tmp/cine
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.trailer_release }}
         run: |
-          node scripts/trailer/compose.mjs
           mkdir -p appstore/release-1.4.0/preview
-          cp /tmp/cine/Silicon-1.4.0-iPhone.mp4 /tmp/cine/poster.png appstore/release-1.4.0/preview/
+          gh release download "$TAG" -R "$GITHUB_REPOSITORY" -p 'Silicon-1.4.0-iPhone.mp4' -D appstore/release-1.4.0/preview --clobber
       - name: Verify preview encoding
+        if: ${{ inputs.trailer_release != '' }}
         run: ffprobe -v error -show_streams -show_format -of json appstore/release-1.4.0/preview/Silicon-1.4.0-iPhone.mp4 > appstore/release-1.4.0/preview/ffprobe.json
       - uses: actions/upload-artifact@v4
         if: always()
