@@ -91,7 +91,7 @@ async function fill(sets, assets, attribute, value, files) {
     const bytes = readFileSync(file), checksum = sums[i];
     const done = old.find(a => a.attributes.sourceFileChecksum === checksum && a.attributes.assetDeliveryState?.state === 'COMPLETE');
     if (done) { order.push(done.id); continue; }
-    const attributes = { fileName: basename(file), fileSize: bytes.length, ...(assets === 'appPreviews' ? { mimeType: 'video/mp4', previewFrameTimeCode: '00:00:05:00' } : {}) };
+    const attributes = { fileName: basename(file), fileSize: bytes.length, ...(assets === 'appPreviews' ? { mimeType: 'video/mp4', previewFrameTimeCode: '00:00:03:00' } : {}) };
     const reservation = (await asc(`/v1/${assets}`, 'POST', { type: assets, attributes, relationships: { [relationship]: { data: { type: sets, id: set.id } } } })).data;
     save(`reservation-${reservation.id}`, reservation);
     for (const op of reservation.attributes.uploadOperations) {
