@@ -16,7 +16,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import * as THREE from 'three';
 import { mergeBufferGeometries } from 'three-stdlib';
 import { reactionIntensity } from '../design/hqReaction.ts';
@@ -127,6 +127,11 @@ export function RobotCharacter({
   const work = useRef(0);
   const workWeek = useRef(-1);
   const workTo = useRef(0);
+  // Reduce Motion: the still pose is written by the next frame — on an on-demand canvas (the paused
+  // factory) that frame may not come for a while, so the robot would hold its last animated pose and
+  // snap later. Ask for one frame the moment `still` flips, so it settles at once.
+  const invalidate = useThree((s) => s.invalidate);
+  useEffect(() => { invalidate(); }, [still, invalidate]);
 
   useFrame((st, dt) => {
     const t = (still ? 0 : st.clock.elapsedTime) + seed;
