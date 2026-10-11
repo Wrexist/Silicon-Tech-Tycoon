@@ -1,5 +1,6 @@
 ﻿// React store: composes gameState reducers, owns the sim tick, persists. The ONLY
 // bridge between the pure engine/state layer and the UI. Views never touch the engine directly.
+import { armSimClock, markSimTick, stopSimClock } from "./simClock.ts";
 import {
   createContext,
   useCallback,
@@ -869,7 +870,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (paused || suspended || hidden || bankrupt || tabBlocked || !onboarded) return;
     const ms = (BALANCE.secondsPerTick / (fast || skipping ? BALANCE.fastMultiplier : 1)) * 1000;
+    armSimClock(ms); // the progress rings read where we are inside the week (presentation only)
     const id = setInterval(() => {
+      markSimTick();
       try {
       store.set((s) => {
         const next = withScenarioRunStars(withChallengeScore(advanceOneWeek(s)));
@@ -938,7 +941,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         setTickError(e instanceof Error ? e : new Error(String(e)));
       }
     }, ms);
-    return () => clearInterval(id);
+    return () => { clearInterval(id); stopSimClock(); };
   }, [store, paused, suspended, hidden, fast, skipping, bankrupt, tabBlocked, onboarded]);
 
   // One write path for every persistence trigger below: skip while another tab owns the save. The

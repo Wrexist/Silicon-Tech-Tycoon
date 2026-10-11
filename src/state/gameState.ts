@@ -5064,6 +5064,42 @@ export function researchProgress(s: GameState): number {
   return Math.min(1, Math.max(0, (s.week - a.startWeek) + (s.researchSurgeWeeks ?? 0)) / Math.max(1, a.totalWeeks));
 }
 
+/** Progress-weeks the active research has banked (weeks in the lab + crunch surge) — the numerator of
+ *  `researchProgress`, exposed so the UI can smooth it between ticks. 0 when the lab is idle. */
+export function researchCommittedWeeks(s: GameState): number {
+  const a = s.activeResearch;
+  if (!a) return 0;
+  return Math.max(0, (s.week - a.startWeek) + (s.researchSurgeWeeks ?? 0));
+}
+
+/** Progress-weeks the NEXT tick will add to the active research: 1, plus the crunch surge when the
+ *  team is focused on research. Mirrors the tick's own `crunchingResearch` gate exactly (focus set,
+ *  a real roster, a project in the lab; live play never runs the offline path), so the smoothed ring
+ *  moves at the rate the sim really will. Pure, presentation-only. */
+export function researchStepPerWeek(s: GameState): number {
+  if (!s.activeResearch) return 0;
+  const tf = BALANCE.teamFocus;
+  const crunching = (s.teamFocus ?? null) === "research" && s.staff.length >= tf.minTeam;
+  return 1 + (crunching ? tf.researchSurgePerTick : 0);
+}
+
+/** Progress-weeks the NEXT tick will add to the build of `productId`: 1, plus the crunch surge when
+ *  the team is focused on builds and this is the job the tick will rush (the one nearest completion,
+ *  ties to the first queued). Mirrors the tick's own build-crunch rule exactly, so the smoothed build
+ *  ring moves at the rate the sim really will. 0 when no such build is running. Pure. */
+export function buildStepPerWeek(s: GameState, productId: string): number {
+  const idx = s.building.findIndex((j) => j.product.id === productId);
+  if (idx < 0) return 0;
+  const tf = BALANCE.teamFocus;
+  if ((s.teamFocus ?? null) !== "build" || s.staff.length < tf.minTeam) return 1;
+  let surgeIdx = -1, best = Infinity;
+  s.building.forEach((job, i) => {
+    const remaining = job.totalWeeks - job.weeksElapsed;
+    if (remaining < best) { best = remaining; surgeIdx = i; }
+  });
+  return 1 + (idx === surgeIdx ? tf.buildSurgePerTick : 0);
+}
+
 /** Whole weeks remaining on the active research (0 when idle or finishing this week). Counts crunch
  *  progress (feature #4) so the countdown reflects a focused lab. */
 export function researchWeeksLeft(s: GameState): number {
@@ -5078,12 +5114,21 @@ export function setTeamFocus(state: GameState, focus: "research" | "build" | nul
   return { ...state, teamFocus: focus };
 }
 
+/** A new research starts its own crunch clock. Banked crunch weeks belong to the project that earned
+ *  them: completing one already zeroes the accumulator in the tick, and cancelling (or starting fresh
+ *  after an old save's cancel) must too, or the next project inherits weeks it never crunched. Only
+ *  touches a field that's already present, so a never-crunched save stays byte-identical. */
+function freshResearchSurge(state: GameState): Pick<GameState, "researchSurgeWeeks"> | Record<string, never> {
+  return state.researchSurgeWeeks != null && state.researchSurgeWeeks !== 0 ? { researchSurgeWeeks: 0 } : {};
+}
+
 /** Place a paid research spec: start it if the lab is idle, else append it to the queue. Returns the
  *  original state (no-op) if the queue is full. Shared by the tier + project entry points. */
 function placeResearch(state: GameState, spec: QueuedResearch): GameState {
   if (!state.activeResearch) {
     return {
       ...state,
+      ...freshResearchSurge(state),
       researchPoints: state.researchPoints - spec.rpCost,
       activeResearch: { ...spec, startWeek: state.week },
       feed: trimFeed([...state.feed, feedItem(state.week, `The lab started developing ${spec.name}.`, "accent")]),
@@ -5138,7 +5183,7 @@ export function cancelResearch(state: GameState): GameState {
   const nextActive = nextUp ? { ...nextUp, startWeek: state.week } : null;
   const feed = trimFeed([...state.feed, feedItem(state.week,
     `Shelved research: ${a.name}. RP refunded.${nextActive ? ` Now developing ${nextActive.name}.` : ""}`, "neutral")]);
-  return { ...state, researchPoints: state.researchPoints + a.rpCost, activeResearch: nextActive, researchQueue: rest, feed };
+  return { ...state, ...freshResearchSurge(state), researchPoints: state.researchPoints + a.rpCost, activeResearch: nextActive, researchQueue: rest, feed };
 }
 
 /** Remove a QUEUED research (refund the RP). No-op if `ref` isn't in the queue. */

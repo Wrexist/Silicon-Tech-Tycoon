@@ -1282,7 +1282,14 @@ export function FactoryCard({ onNavigate, active = true }: { onNavigate?: (t: Ta
   );
   return (
     <div className="fcard">
-      <button className="fcard__tap" onClick={() => { haptic.light(); setCardFreed(!use3d); setOpen(true); }} aria-label="Open factory mode" aria-describedby={use3d && bayCost != null ? bayChipId : undefined}>
+      <button className="fcard__tap" onClick={(e) => {
+        haptic.light();
+        // Hold only when the card really has a live canvas to give back. A card showing its 2D map
+        // (the 3D scene threw, or its chunk hadn't loaded yet) never sends a release, and would leave
+        // the fullscreen stage blank until the fallback timer.
+        setCardFreed(!(use3d && e.currentTarget.querySelector(".fcard__scene canvas")));
+        setOpen(true);
+      }} aria-label="Open factory mode" aria-describedby={use3d && bayCost != null ? bayChipId : undefined}>
         {/* F8: while the fullscreen view is open the card is covered, so it gives its WebGL context
             back (the 2D minimap stands in) — the app never holds three live contexts (hidden office
             + card + fullscreen). Closing re-mounts it; the Factory3D chunk is already loaded. */}
