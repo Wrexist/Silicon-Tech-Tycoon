@@ -103,24 +103,6 @@ body::before { display: none; }
 .app :is(.lab__tabs,.rd__subnav,.mkt__subnav,.co__subnav)::-webkit-scrollbar { display: none; }
 .app .lab__tab-badge { top: 2px; right: 2px; }
 .app .rd { gap: var(--sp-12); }
-.rd__balance { display: flex; align-items: center; gap: var(--sp-12); }
-.rd__balance > div { flex: 1; display: flex; flex-direction: column; gap: var(--sp-4); font-size: var(--fs-caption); color: var(--ink-2); }
-.rd__balance strong { font-size: var(--fs-headline); color: var(--ink); }
-.rd__generation { color: var(--positive-text); font-size: var(--fs-caption); font-weight: 650; }
-.rd__balance .game-art { width: 46px; height: 46px; }
-.research-work__project { display: flex; align-items: center; gap: var(--sp-12); margin-top: var(--sp-12); }
-.research-work__project > div { flex: 1; min-width: 0; }
-.research-work strong { font-size: var(--fs-caption); }
-.research-work p { margin: var(--sp-4) 0; color: var(--ink-2); font-size: var(--fs-micro); line-height: 1.45; }
-.research-work small { display: block; font-size: var(--fs-micro); color: var(--ink-2); }
-.research-work__cancel { color: var(--ink-2); font-size: var(--fs-micro); margin: var(--sp-8) 0; }
-.research-work__cancel summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
-.research-work__queue { border-top: 1px solid var(--hairline); padding-top: var(--sp-12); }
-.research-work__queue ul { list-style: none; padding: 0; margin: var(--sp-8) 0 0; }
-.research-work__queue li { display: flex; align-items: center; gap: var(--sp-8); padding: var(--sp-8) 0; border-top: 1px solid var(--hairline); }
-.research-work__queue li > div { flex: 1; min-width: 0; }
-.research-work__queue .ds-btn { font-size: var(--fs-micro); padding-left: var(--sp-6); padding-right: var(--sp-6); }
-.research-work__number { font-size: var(--fs-caption); color: var(--ink-3); }
 .app .rd__project { padding: var(--sp-12); }
 .app .mkt { gap: var(--sp-12); }
 .mkt__valuation-value { font-size: 1.875rem; letter-spacing: -.035em; }
@@ -164,9 +146,6 @@ body::before { display: none; }
 .app .lab__hero .lab__hero-info .lab__hero-line:nth-last-child(1) { display: none; }
 .app .rd__head { align-items: start; }
 .app .rd__era { font-size: var(--fs-micro); }
-.app .research-work { padding: var(--sp-12); }
-.app .research-work__project { margin-top: var(--sp-8); }
-.app .research-work__project .game-art { width: 48px; height: 48px; }
 
 body.hq-deco-open .app__dock { display: none; }
 .app .lab__hero .mg-disclosure { padding: 0; border: 0; background: transparent; }
@@ -176,7 +155,6 @@ body.hq-deco-open .app__dock { display: none; }
 .app .lab { --fn-design: var(--primary); --fn-design-soft: var(--accent-soft); }
 .app .rd__era-badge { background: var(--surface); color: var(--ink-2); font-size: var(--fs-micro); }
 
-.app .rd__active { padding: 0; }
 .app :is(.rd,.mkt,.co,.lab__pipeline) .ds-section__title { font-size: var(--fs-body); }
 
 /* Follow-up: persistent design tools, inspectable data and compact management controls. */

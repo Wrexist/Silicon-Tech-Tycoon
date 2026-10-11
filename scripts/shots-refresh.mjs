@@ -160,7 +160,7 @@ const FRAMES = [
   { raw: "research", head: 'Research on your <span class="ac">terms</span>', hue: 190,
     sub: "Breakthroughs develop over time on a live ring — queue your next projects and let it run.",
     mut: calm,
-    shoot: async (p) => { await tab(p, "Research"); await p.evaluate(() => document.querySelector(".rd__active")?.scrollIntoView({ block: "center" })).catch(() => {}); await p.waitForTimeout(500); } },
+    shoot: async (p) => { await tab(p, "Research"); await p.evaluate(() => document.querySelector(".labcore")?.scrollIntoView({ block: "center" })).catch(() => {}); await p.waitForTimeout(500); } },
   { raw: "global", head: 'Take it <span class="ac">global</span>', hue: 168,
     sub: "License new regions, each with its own taste — then hold your standing through regional events.",
     mut: calm,

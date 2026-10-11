@@ -5,9 +5,7 @@ import { Button, Card, SectionHeader } from "../design/primitives.tsx";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { ComponentIcon } from "../design/icons.tsx";
-import { GameArt } from "../design/management.tsx";
 import type { Tab } from "../components/BottomNav.tsx";
-import { AnimatedInt } from "../design/AnimatedNumber.tsx";
 import { BALANCE } from "../engine/balance.ts";
 import { CATEGORY_LIST, COMPONENT_LINES, maxTier, tierDef } from "../engine/catalogs.ts";
 import { eraContext, eraName, maxEra } from "../engine/eras.ts";
@@ -17,7 +15,7 @@ import { MOONSHOTS, moonshotCooldownLeft, moonshotRefund, type Moonshot } from "
 import { STAT_INFO } from "../engine/glossary.ts";
 import { FINISH_ORDER, STAT_KEYS, type ComponentKind, type Stats } from "../engine/types.ts";
 import { KEYNOTE_FANS, KEYNOTE_REP, KEYNOTE_RP_COST, moonshotAttemptable, rdRpCostFor, researchedTier, weeklyRpGen, weeklyRpSources, lensUnlockCost, finishUnlockCost, eurekaInsight, researchQueueFull, researchWeeksFor, tierResearchStatus, projectResearchStatus, type ResearchSlotStatus } from "../state/gameState.ts";
-import { ResearchProgress } from "../components/ResearchProgress.tsx";
+import { LabCore } from "../components/LabCore.tsx";
 import { useGame } from "../state/useGame.tsx";
 import "./research.css";
 
@@ -292,16 +290,11 @@ export function Research({ onNavigate }: { onNavigate?: (t: Tab) => void } = {})
         <p className="rd__subtitle">Spend research points to unlock new tech and abilities.</p>
         <span className="rd__era-badge"><FlaskConical size={13} aria-hidden /> {eraName(state.era)}</span>
       </div>
-      <Card className="rd__balance">
-        <GameArt asset="research-projects" />
-        <div><span>Research points</span><strong className="tnum"><AnimatedInt value={rp} /> RP</strong></div>
-        <span className="rd__generation">+{perWeek.toFixed(1)}/wk</span>
-      </Card>
-      {state.activeResearch ? <Card className="rd__active"><ResearchProgress research={state.activeResearch} /></Card> : <p className="mg-empty-inline">Your lab is ready. Choose a project or component below.</p>}
+      {/* The lab's heartbeat: active project ring, RP bank, next goal and the queue in one hero. */}
+      <LabCore goal={nextGoal} availableCount={availableProjects.length} />
       {perWeek === 0 && <div className="mg-advice">Assign staff to R&amp;D to earn research points. {onNavigate && <Button size="sm" variant="secondary" onClick={() => onNavigate("company")}>Manage team</Button>}</div>}
       <details className="mg-disclosure"><summary>{availableProjects.length} projects available{queueFull ? " - queue full" : ""}</summary>
         <p>{availableProjects.length ? "Choose an available project below, or explore component technology." : state.activeResearch ? "Research is in progress. Explore component technology or future era unlocks below." : "No new projects are available in this era. Check prerequisites and component technology below."}</p>
-        {nextGoal && <p>Saving for {nextGoal.name}: {rp} / {nextGoal.rpCost} RP.</p>}
         <KeynoteButton rp={rp} onHost={() => { hostKeynote(); haptic.success(); }} />
         {state.era >= BALANCE.research.eureka.minEra && perWeek > 0 && <p>Lab insight: {Math.round(eurekaInsight(state) * 100)}%</p>}
       </details>

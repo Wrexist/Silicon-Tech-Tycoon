@@ -5046,6 +5046,14 @@ export function projectResearchStatus(s: GameState, id: ProjectId): ResearchSlot
   return researchQueueList(s).some((q) => q.kind === "project" && q.ref === id) ? "queued" : null;
 }
 
+/** 0..1 progress of the active research, counted exactly as the tick completes it: weeks in the lab
+ *  plus any crunch weeks a Team Focus rush has banked (feature #4). 0 when idle. Pure, UI-only. */
+export function researchProgress(s: GameState): number {
+  const a = s.activeResearch;
+  if (!a) return 0;
+  return Math.min(1, Math.max(0, (s.week - a.startWeek) + (s.researchSurgeWeeks ?? 0)) / Math.max(1, a.totalWeeks));
+}
+
 /** Whole weeks remaining on the active research (0 when idle or finishing this week). Counts crunch
  *  progress (feature #4) so the countdown reflects a focused lab. */
 export function researchWeeksLeft(s: GameState): number {

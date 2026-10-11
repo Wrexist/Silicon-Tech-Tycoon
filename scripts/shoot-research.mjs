@@ -59,7 +59,7 @@ async function shoot(theme, tag) {
   await p.click('button[aria-label="Pause"]', { timeout: 4000 }).catch(() => {});
   await p.evaluate(() => { const b = [...document.querySelectorAll(".bnav__item")].find((el) => el.querySelector(".bnav__label")?.textContent?.trim() === "Research"); b?.click(); });
   await p.waitForTimeout(1000);
-  await p.evaluate(() => document.querySelector(".rd__active")?.scrollIntoView({ block: "center" }));
+  await p.evaluate(() => document.querySelector(".labcore")?.scrollIntoView({ block: "center" }));
   await p.waitForTimeout(700);
   await p.screenshot({ path: resolve(outDir, `${tag}.png`) });
   console.log("shot", tag);

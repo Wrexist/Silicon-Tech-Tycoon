@@ -1,0 +1,237 @@
+
+/* ─── Lab Core — the R&D hero (components/LabCore.tsx) ──────────────────────────────────────────
+   One card for the lab's heartbeat: the active project on a glowing instrument ring, the RP bank,
+   the next goal and the queue. Same layered language as the Design Lab hero (accent glow + dot
+   texture + the parametric circuit motif), in the screen's engineering accent, plus data pulses
+   running along the circuit traces while the lab works. Every animation is decorative and is
+   stilled by the global prefers-reduced-motion catch-all (index.css). */
+.labcore {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-16);
+  padding: var(--sp-16);
+  border-radius: var(--r-card);
+  border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--glass-stroke));
+  background:
+    radial-gradient(85% 70% at 12% 8%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 70%),
+    radial-gradient(70% 60% at 100% 100%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 75%),
+    var(--glass-card);
+  box-shadow: var(--glass-highlight), var(--shadow-card), 0 18px 44px -28px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+/* dot texture, strongest behind the ring */
+.labcore::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image: radial-gradient(circle at center, color-mix(in srgb, var(--accent) 18%, transparent) 1px, transparent 1.4px);
+  background-size: 14px 14px;
+  -webkit-mask-image: radial-gradient(70% 60% at 20% 22%, #000 10%, transparent 75%);
+  mask-image: radial-gradient(70% 60% at 20% 22%, #000 10%, transparent 75%);
+  pointer-events: none;
+}
+.labcore__circuit {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+  opacity: 0.5;
+  pointer-events: none;
+  /* the circuit lives behind the ring and fades out before the text and panels */
+  -webkit-mask-image: radial-gradient(70% 48% at 16% 18%, #000 25%, transparent 85%);
+  mask-image: radial-gradient(70% 48% at 16% 18%, #000 25%, transparent 85%);
+}
+.labcore__circuit .circuitm__traces path {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 26%, transparent);
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.labcore__circuit .circuitm__nodes circle {
+  fill: color-mix(in srgb, var(--accent) 55%, transparent);
+}
+/* the pulse layer: short bright dashes riding the same traces — only while research runs */
+.labcore__circuit--pulse { opacity: 0; }
+.labcore--live .labcore__circuit--pulse { opacity: 0.85; }
+.labcore__circuit--pulse .circuitm__traces path {
+  stroke: var(--accent);
+  stroke-width: 1.8;
+  stroke-dasharray: 10 150;
+  animation: labcore-pulse 3.6s linear infinite;
+}
+.labcore__circuit--pulse .circuitm__traces path:nth-child(2n) { animation-duration: 4.8s; animation-delay: -1.7s; }
+.labcore__circuit--pulse .circuitm__traces path:nth-child(3n) { animation-duration: 5.6s; animation-delay: -3.1s; }
+.labcore__circuit--pulse .circuitm__nodes { display: none; }
+@keyframes labcore-pulse { to { stroke-dashoffset: -160; } }
+
+.labcore__main { display: flex; align-items: center; gap: var(--sp-16); min-width: 0; }
+
+/* the instrument ring */
+.labcore__ring { position: relative; flex: 0 0 auto; width: 120px; height: 120px; }
+.labcore__ring > svg { display: block; width: 100%; height: 100%; overflow: visible; }
+.labcore__ticks line { stroke: color-mix(in srgb, var(--ink-3) 35%, transparent); stroke-width: 1.2; stroke-linecap: round; }
+.labcore__ticks .labcore__tick--lit { stroke: var(--accent); }
+.labcore__track { fill: none; stroke: color-mix(in srgb, var(--accent) 14%, var(--bg-elevated)); stroke-width: 9; }
+.labcore__arc {
+  fill: none; stroke-width: 9; stroke-linecap: round;
+  transition: stroke-dasharray var(--spring-gentle);
+  animation: labcore-draw 1100ms cubic-bezier(0.22, 1, 0.36, 1) both; /* sweeps in when the tab opens */
+}
+@keyframes labcore-draw { from { stroke-dashoffset: var(--arc); } }
+.labcore__arc--glow { stroke-width: 12; opacity: 0.55; }
+.labcore__stop-a { stop-color: color-mix(in srgb, var(--accent) 70%, var(--sheen)); }
+.labcore__stop-b { stop-color: var(--accent); }
+.labcore__head {
+  fill: var(--sheen);
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: labcore-head 1.8s ease-in-out infinite;
+}
+@keyframes labcore-head { 50% { transform: scale(1.35); } }
+.labcore__orbit {
+  fill: none;
+  stroke: color-mix(in srgb, var(--accent) 55%, transparent);
+  stroke-width: 2;
+  stroke-dasharray: 3 9;
+  transform-origin: 60px 60px;
+  animation: labcore-spin 18s linear infinite;
+}
+.labcore__scan { transform-origin: 60px 60px; animation: labcore-spin 6s linear infinite; }
+.labcore__scan circle { fill: var(--accent); }
+.labcore--idle .labcore__scan { animation-duration: 12s; opacity: 0.6; }
+@keyframes labcore-spin { to { transform: rotate(360deg); } }
+
+.labcore__ring-core {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  color: var(--accent);
+}
+.labcore__pct { font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em; color: var(--ink); line-height: 1; }
+.labcore__pct small { font-size: var(--fs-caption); font-weight: 700; color: var(--ink-2); margin-left: 1px; }
+
+.labcore__info { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.labcore__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  font-size: var(--fs-nano);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+/* a live dot beside "In the lab" */
+.labcore--live .labcore__eyebrow::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
+  animation: labcore-live 2s ease-out infinite;
+}
+@keyframes labcore-live { 70%, 100% { box-shadow: 0 0 0 6px transparent; } }
+.labcore__name { font-size: var(--fs-headline); font-weight: 800; letter-spacing: -0.01em; color: var(--ink); line-height: 1.2; }
+.labcore__blurb { margin: 0; font-size: var(--fs-caption); color: var(--ink-2); line-height: 1.4; }
+.labcore__chips { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin-top: var(--sp-4); }
+.labcore__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-8);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-micro);
+  font-weight: 700;
+  color: var(--ink-2);
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  border: 1px solid var(--hairline);
+}
+
+/* the bank: RP on the left, the goal meter on the right */
+.labcore__bank {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--sp-16);
+  align-items: end;
+  padding: var(--sp-12);
+  border-radius: var(--r-button);
+  background: var(--glass-well);
+  border: 1px solid var(--glass-well-edge);
+}
+.labcore__label { font-size: var(--fs-nano); font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+.labcore__rp { display: flex; flex-direction: column; gap: var(--sp-2); }
+.labcore__rp-val { font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em; color: var(--ink); line-height: 1.1; }
+.labcore__rp-val small { font-size: var(--fs-caption); font-weight: 700; color: var(--ink-2); }
+.labcore__rate { display: inline-flex; align-items: center; gap: var(--sp-4); font-size: var(--fs-caption); font-weight: 700; color: var(--positive-text); }
+.labcore__rate--off { color: var(--ink-3); }
+.labcore__goal { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+.labcore__ready { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2); text-align: right; }
+.labcore__ready-val { font-size: var(--fs-title); font-weight: 800; letter-spacing: -0.02em; color: var(--accent); line-height: 1.1; }
+.labcore__goal-name { font-size: var(--fs-caption); font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.labcore__goal-track { display: block; height: 6px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--accent) 12%, var(--bg-elevated)); overflow: hidden; }
+.labcore__goal-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 65%, var(--sheen)), var(--accent));
+  transition: width var(--spring-gentle);
+}
+.labcore__goal-meta { font-size: var(--fs-micro); font-weight: 600; color: var(--ink-3); }
+
+/* the queue as pipeline slots */
+.labcore__queue { display: flex; flex-direction: column; gap: var(--sp-8); }
+.labcore__queue-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-12); }
+.labcore__slots { display: inline-flex; gap: var(--sp-4); }
+.labcore__slots i {
+  width: 22px;
+  height: 8px;
+  border-radius: var(--r-pill);
+  border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, var(--hairline));
+}
+.labcore__slots .labcore__slot--on { border: 0; background: var(--accent); box-shadow: 0 0 8px color-mix(in srgb, var(--accent) 50%, transparent); }
+.labcore__queue-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-6); }
+.labcore__queue-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-6) var(--sp-4) var(--sp-6) var(--sp-8);
+  border-radius: var(--r-button);
+  background: var(--glass-well);
+  border: 1px solid var(--glass-well-edge);
+}
+.labcore__queue-n {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 20px; height: 20px; border-radius: 50%;
+  font-size: var(--fs-micro); font-weight: 800;
+  color: var(--accent-ink); background: var(--accent);
+}
+.labcore__queue-name { font-size: var(--fs-caption); font-weight: 700; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.labcore__queue-meta { font-size: var(--fs-micro); color: var(--ink-3); white-space: nowrap; }
+.labcore__queue-x {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 50%;
+  color: var(--ink-3); background: none; border: 0; cursor: pointer;
+}
+.labcore__queue-x:hover { color: var(--negative); background: color-mix(in srgb, var(--negative) 10%, transparent); }
+.labcore__queue-empty { margin: 0; font-size: var(--fs-caption); color: var(--ink-3); }
+
+.labcore__cancel > summary { font-size: var(--fs-micro); font-weight: 600; color: var(--ink-3); cursor: pointer; min-height: 32px; display: flex; align-items: center; }
+.labcore__cancel > p { margin: var(--sp-4) 0 var(--sp-8); font-size: var(--fs-caption); color: var(--ink-2); }
+
+@media (max-width: 359px) {
+  .labcore__ring { width: 100px; height: 100px; }
+  .labcore__main { gap: var(--sp-12); }
+}
