@@ -92,13 +92,20 @@ try {
     // Reopen and check the ORDER: R3F releases a context ~500 ms after unmount, so the fullscreen
     // canvas must only appear once the card's context-lost event has fired (never three at once).
     await p.evaluate(() => {
-      const t = window.__f8 = { lost: 0, full: 0 };
-      document.querySelector('.fcard__scene canvas').addEventListener('webglcontextlost', () => { t.lost = performance.now(); }, { once: true });
-      new MutationObserver((_, obs) => { if (document.querySelector('.fmode canvas')) { t.full = performance.now(); obs.disconnect(); } }).observe(document.body, { childList: true, subtree: true });
+      const t = window.__f8 = { lost: 0, removed: 0, full: 0 };
+      const card = document.querySelector('.fcard__scene canvas');
+      card.addEventListener('webglcontextlost', () => { t.lost = performance.now(); }, { once: true });
+      new MutationObserver((_, obs) => {
+        if (!t.removed && !card.isConnected) t.removed = performance.now();
+        if (document.querySelector('.fmode canvas')) { t.full = performance.now(); obs.disconnect(); }
+      }).observe(document.body, { childList: true, subtree: true });
     });
     await open();
     const order = await p.evaluate(() => window.__f8);
-    assert(order.lost > 0 && order.full >= order.lost, `Fullscreen canvas mounted before the card released its context: ${JSON.stringify(order)}`);
+    // Either the card's release event came first, or (a runner where R3F's teardown never fires it)
+    // the fullscreen waited out FactoryCard's fallback. Mounting in the same commit fails both.
+    const waited = order.lost > 0 ? order.full >= order.lost : order.removed > 0 && order.full - order.removed >= 2000;
+    assert(waited, `Fullscreen canvas mounted before the card released its context: ${JSON.stringify(order)}`);
   });
   await check('Repeated pinch, orbit and camera reset do not edit or spend', async () => {
     const before = await read(), cdp = await ctx.newCDPSession(p);
