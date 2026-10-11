@@ -43,7 +43,7 @@ import { workstationModuleFor, type WorkstationProp } from "./workstationModule.
 import { officeWeek, officeSeed } from "./officeLive.ts";
 import { arrangeOffice, derivedYawFor } from "./officeArrangement.ts";
 import { OfficeDressing } from "./officeDressing.tsx";
-import { skylinePlacement, SKYLINE_COLOR } from "./skyline.ts";
+import { skylinePlacement, SKYLINE_COLOR, SKYLINE_DAY } from "./skyline.ts";
 
 /** Wraps an upgrade's physical office object(s); when its card is tapped (hqHighlight) it does a
  *  decaying attention hop so the player can SEE what that upgrade added. Additive y-offset only. */
@@ -81,6 +81,11 @@ const MOOD_HEX: Record<MoodBand, string> = {
   tired: "#f59e0b",
   burnedout: "#ef4444",
 };
+
+// ONE ROOM: the office is the garage shell in both themes. The theme only picks the time of day —
+// the palette (roomPalette), the light rig (Lighting) and the skyline tint — never the building, its
+// fixtures or where the team's break spots and the room's own dressing go.
+const GARAGE_SHELL = true;
 
 // ROBOT_COLORS lives in robotModels.ts (single source — also drives the shared-model tint).
 
@@ -916,15 +921,15 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
   const podStaff = overflow.slice(0, podCount);
   const roaming = overflow.slice(podCount, cfg.staffCap);
   const arrangement = useMemo(() => arrangeOffice({facilityTier, headcount: staff.length,
-    occupied: builder?.layout ?? [], dark, amenities: amenityTier, designSuite: cfg.showEasel,
+    occupied: builder?.layout ?? [], dark: GARAGE_SHELL, amenities: amenityTier, designSuite: cfg.showEasel,
     testLab: cfg.showTestChamber, monitors: cfg.monitors, seed: officeSeed(), week: officeWeek()}),
-    [facilityTier, staff.length, builder?.layout, dark, amenityTier, cfg.showEasel, cfg.showTestChamber, cfg.monitors]);
+    [facilityTier, staff.length, builder?.layout, amenityTier, cfg.showEasel, cfg.showTestChamber, cfg.monitors]);
   const activityLayout = useMemo(() => [...(builder?.layout ?? []), ...arrangement.dressing], [builder?.layout, arrangement]);
   // Break destinations available this week: the coffee station, the planning board and any placed
   // arcade. Built from upgrades + the player's layout, so a break only targets a prop that exists.
   const destinations = useMemo<Destination[]>(
-    () => officeDestinations({ amenityTier, showWhiteboard: cfg.showWhiteboard, dark, layout: activityLayout, ownedLayout: builder?.layout, facilityTier, roomScale: cfg.roomScale }),
-    [amenityTier, cfg.showWhiteboard, dark, activityLayout, facilityTier, cfg.roomScale],
+    () => officeDestinations({ amenityTier, showWhiteboard: cfg.showWhiteboard, dark: GARAGE_SHELL, layout: activityLayout, ownedLayout: builder?.layout, facilityTier, roomScale: cfg.roomScale }),
+    [amenityTier, cfg.showWhiteboard, activityLayout, facilityTier, cfg.roomScale],
   );
   // Walkers steer and clamp in world units, so the keep-outs scale with the room shell.
   const roamObstacles = useMemo(() => [
@@ -933,8 +938,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
     ...podWorlds.slice(podStaff.length).map(w => ({x:w.x,z:w.z-0.86,r:0.30})),
     ...podWorlds.map(w => ({x:w.x,z:w.z,hx:0.65,hz:0.35})),
     {x:-3.0*cfg.roomScale,z:2.9*cfg.roomScale,hx:0.45*cfg.roomScale,hz:0.45*cfg.roomScale}, // printer
-    ...(dark ? [{x:3.1*cfg.roomScale,z:-3.4*cfg.roomScale,hx:0.5*cfg.roomScale,hz:0.8*cfg.roomScale}]
-      : [{x:3.1*cfg.roomScale,z:3.0*cfg.roomScale,r:0.17*cfg.roomScale}]),
+    {x:3.1*cfg.roomScale,z:-3.4*cfg.roomScale,hx:0.5*cfg.roomScale,hz:0.8*cfg.roomScale}, // garage corner
     ...(cfg.showEasel ? [{x:3.5*cfg.roomScale,z:0.9*cfg.roomScale,r:0.55*cfg.roomScale}] : []),
     ...(cfg.showTestChamber ? [{x:3.6*cfg.roomScale,z:-1.5*cfg.roomScale,hx:0.45*cfg.roomScale,hz:0.35*cfg.roomScale}] : []),
     {x:-3.5*cfg.roomScale,z:1.6*cfg.roomScale,hx:0.475*cfg.roomScale,hz:0.325*cfg.roomScale}, // rendered vault
@@ -942,7 +946,7 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
     ...(amenityTier >= 2 ? [{x:-3.3*cfg.roomScale,z:3.1*cfg.roomScale,r:0.30}] : []),
     ...(amenityTier >= 3 ? [{x:3.4*cfg.roomScale,z:1.4*cfg.roomScale,r:0.27}] : []),
     ...(amenityTier >= 4 ? [{x:3.5*cfg.roomScale,z:0,r:0.25}] : []),
-  ], [activityLayout, facilityTier, podCount, staff.length, cfg.roomScale, amenityTier, dark, cfg.showEasel, cfg.showTestChamber]);
+  ], [activityLayout, facilityTier, podCount, staff.length, cfg.roomScale, amenityTier, cfg.showEasel, cfg.showTestChamber]);
   const roamBound = ROAM_BOUND * cfg.roomScale;
   // Desk-owning employees as walkable agents: their seat world position + facing, colour and robot
   // seed. The walkers schedule from these SAME records, so the animation and the schedule agree.
@@ -998,22 +1002,21 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       <group scale={sc}>
         <Room p={p} dark={dark} finish={finish} wall={wall} cull={cull} showWhiteboard={cfg.showWhiteboard} name={companyName} tier={facilityTier} />
       </group>
-      {/* distant skyline behind the windows — garage (dark) only; the light diorama floats in
-          a clean white void, so no exterior scenery. */}
-      {dark && (
+      {/* distant skyline behind the windows — night blue after dark, a hazy daytime grey by day */}
+      {(
         <group>
           {/* outside wall B (−x), seen past the left wall when the dollhouse culls it */}
           {skyline.wallB.map((b) => (
             <mesh key={b.key} position={b.position}>
               <boxGeometry args={b.size} />
-              <meshStandardMaterial color={SKYLINE_COLOR} roughness={0.9} />
+              <meshStandardMaterial color={dark ? SKYLINE_COLOR : SKYLINE_DAY} roughness={0.9} />
             </mesh>
           ))}
           {/* outside wall A (−z), seen past the back wall when the dollhouse culls it */}
           {skyline.wallA.map((b) => (
             <mesh key={b.key} position={b.position}>
               <boxGeometry args={b.size} />
-              <meshStandardMaterial color={SKYLINE_COLOR} roughness={0.9} />
+              <meshStandardMaterial color={dark ? SKYLINE_COLOR : SKYLINE_DAY} roughness={0.9} />
             </mesh>
           ))}
         </group>
@@ -1066,16 +1069,16 @@ function Scene({ staff, facilityTier, hasProduction, upgrades, companyName, dark
       {!inBuild && <DesktopPod p={p} worlds={podWorlds} staff={podStaff} monitors={monitors} hasProduction={hasProduction} onTapStaff={onTapStaff} startColorIdx={seats.length} still={still} />}
       {/* wall-anchored fixtures scale with the room so they stay in the corners as the floor grows */}
       <group scale={sc}>
-        <Props p={p} hasProduction={hasProduction} dark={dark} />
+        <Props p={p} hasProduction={hasProduction} />
         <Dust />
-        {dark && <BallBin p={p} pos={[3.1, 1.31, -3.0]} />}
+        <BallBin p={p} pos={[3.1, 1.31, -3.0]} />
       </group>
 
       {/* player-arranged furniture + the drag-to-move builder. Occupied desks are rendered as
           live workstations above, so their plain models are suppressed outside Decorate mode. */}
       {builder && <BuildLayer p={p} b={builder} hideIids={inBuild ? undefined : occupiedIids} facilityTier={facilityTier} />}
       {/* The room's own dressing — arranged around the player's furniture, never written to it. */}
-      <OfficeDressing arrangement={arrangement} p={p} cfg={cfg} dark={dark} headcount={staff.length} layout={builder?.layout} />
+      <OfficeDressing arrangement={arrangement} p={p} cfg={cfg} dark={GARAGE_SHELL} headcount={staff.length} layout={builder?.layout} />
 
       {/* ---- Upgrades made physical: each company upgrade adds real furniture. Wall-anchored, so
              they scale with the room to stay against the walls as the facility grows. ---- */}

@@ -5,7 +5,7 @@
 }
 .hq__scene {
   position: relative;
-  background: radial-gradient(120% 90% at 50% 30%, var(--accent-soft), var(--surface) 70%);
+  background: var(--world-backdrop);
   padding: var(--sp-16) 0 var(--sp-8);
   overflow: hidden;
 }

@@ -137,7 +137,7 @@ function Floor({ p, finish, dark, tier = 1 }: { p: RoomPalette; finish: FloorFin
 
 // Exposed-brick accent wall (wall B, −x) built from instanced bricks in a running bond.
 // `backZ` lets the brick run extend as the factory bay deepens.
-function BrickWall({ p, backZ = -4.1 }: { p: RoomPalette; backZ?: number }) {
+function BrickWall({ color, backZ = -4.1 }: { color: string; backZ?: number }) {
   const ref = useRef<THREE.InstancedMesh>(null);
   const bw = 0.62, bh = 0.2, gap = 0.025;
   const rows = 25;
@@ -148,7 +148,7 @@ function BrickWall({ p, backZ = -4.1 }: { p: RoomPalette; backZ?: number }) {
     if (!mesh) return;
     const d = new THREE.Object3D();
     const col = new THREE.Color();
-    const base = new THREE.Color(p.brick);
+    const base = new THREE.Color(color);
     let i = 0;
     for (let r = 0; r < rows; r++) {
       const y = 0.1 + r * (bh + gap);
@@ -171,11 +171,13 @@ function BrickWall({ p, backZ = -4.1 }: { p: RoomPalette; backZ?: number }) {
     mesh.count = i;
     mesh.instanceMatrix.needsUpdate = true;
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
-  }, [p.brick, backZ, cols]);
+  }, [color, backZ, cols]);
   return (
     <instancedMesh key={cols} ref={ref} args={[undefined, undefined, max]}>
       <boxGeometry args={[0.06, bh, bw]} />
-      <meshStandardMaterial color={p.brick} roughness={0.95} />
+      {/* white: the per-brick instance colour IS the brick colour. Tinting the material too
+          multiplied it in twice, which crushed every brick wall to near-black. */}
+      <meshStandardMaterial color="#ffffff" roughness={0.95} />
     </instancedMesh>
   );
 }
@@ -316,67 +318,13 @@ function Whiteboard({ p, pos = [-3.92, 2.6, 3.0], rotY = Math.PI / 2 }: { p: Roo
   );
 }
 
-/** The open "floating diorama" room (light theme): a rounded slab in the white void with two low
- *  L-shaped back walls, no ceiling and no front/right walls. Reads as a deliberate surface via a
- *  defined floor field + a lower wall band rather than one continuous white plane. */
-function DioramaRoom({ p, cull, showWhiteboard, name }: { p: RoomPalette; cull: WallCull; showWhiteboard: boolean; name: string }) {
-  const slab = sharedStandard({ color: p.floor, roughness: 0.92, metalness: 0 });
-  const wall = sharedStandard({ color: p.wallA, roughness: 0.96, metalness: 0 });
-  const side = sharedStandard({ color: p.wallB, roughness: 0.96, metalness: 0 });
-  const skirting = sharedStandard({ color: p.baseboard, roughness: 0.95, metalness: 0 });
-  const inlay = sharedStandard({ color: p.floorField, roughness: 0.95, metalness: 0 });
-  return (
-    <group>
-      {/* floating rounded floor slab (the diorama plate) */}
-      <RoundedBox args={[9.4, 0.5, 9.4]} radius={0.22} smoothness={4} position={[0, -0.25, 0]} material={slab} />
-      {/* top inlay: a defined floor field, so the slab reads as a laid surface with an edge line */}
-      <mesh rotation-x={-Math.PI / 2} position={[0, 0.002, 0]} material={inlay}>
-        <planeGeometry args={[9.0, 9.0]} />
-      </mesh>
-      {/* low back wall (−z) cluster — hides when the camera swings behind it. Both back walls were
-          centred + 8.8 long, so each ran 0.4 past their shared corner and the two overshoots crossed
-          into a "+" poking up above the join. Trim the −x end to stop AT the side wall (x = −4.0) so
-          they meet as a clean right-angle corner instead. (The open +x/+z ends stay put.) */}
-      <group visible={!cull.a}>
-        <mesh position={[0.2, 1.25, -4.0]} material={wall}>
-          <boxGeometry args={[8.4, 2.7, 0.16]} />
-        </mesh>
-        <mesh position={[0.2, 0.07, -3.95]} material={skirting}>
-          <boxGeometry args={[8.4, 0.14, 0.06]} />
-        </mesh>
-        <Wainscot p={p} axis="-z" len={8.3} offset={0.2} face={-3.92} />
-        {/* the brand wall — the diorama's one focal point */}
-        <BrandWall name={name} p={p} mode="lowWall" />
-        {/* whiteboard on the low back wall (−z), facing the room — gated (an earned upgrade) */}
-        {showWhiteboard && <Whiteboard p={p} pos={[-1.2, 1.55, -3.88]} rotY={0} />}
-      </group>
-      {/* low side wall (−x) cluster — its −z end likewise stops at the back wall (z = −4.0). */}
-      <group visible={!cull.b}>
-        <mesh position={[-4.0, 1.25, 0.2]} material={side}>
-          <boxGeometry args={[0.16, 2.7, 8.4]} />
-        </mesh>
-        <mesh position={[-3.95, 0.07, 0.2]} material={skirting}>
-          <boxGeometry args={[0.06, 0.14, 8.4]} />
-        </mesh>
-        <Wainscot p={p} axis="-x" len={8.3} offset={0.2} face={-3.92} />
-        {/* Shallow window frames stay against the wall, clear of saved furniture footprints. */}
-        {[-1.7, 1.0].map((z) => <group key={z} position={[-3.89, 1.8, z]}>
-          <mesh material={skirting}><boxGeometry args={[0.045, 1.25, 2.15]} /></mesh>
-          <mesh position={[0.025, 0, 0]} material={sharedStandard({ color: p.poolCool, roughness: 0.55, metalness: 0 })}><boxGeometry args={[0.012, 1.1, 1.98]} /></mesh>
-          <mesh position={[0.045, 0, 0]} material={skirting}><boxGeometry args={[0.03, 1.12, 0.055]} /></mesh>
-        </group>)}
-      </group>
-    </group>
-  );
-}
-
 /** Once the garage becomes a studio, the back wall becomes a glazed office frontage.
  * All geometry stays on the existing wall: no owned floor cells or walking routes change. */
 function StudioWindows({ p, z }: { p: RoomPalette; z: number }) {
   return <group position={[0, 2.15, z]}>
     <mesh><boxGeometry args={[6.4, 2.5, 0.1]} /><meshStandardMaterial color={p.metalDark} roughness={0.4} metalness={0.35} /></mesh>
     {[-2.08, 0, 2.08].map((x) => <group key={x} position={[x, 0, 0.07]}>
-      <mesh><planeGeometry args={[1.98, 2.28]} /><meshStandardMaterial color={p.screenOff} emissive={p.screen} emissiveIntensity={0.12} roughness={0.3} metalness={0.12} /></mesh>
+      <mesh><planeGeometry args={[1.98, 2.28]} /><meshStandardMaterial color={p.skyGlass} emissive={p.skyGlow} emissiveIntensity={0.12} roughness={0.3} metalness={0.12} /></mesh>
       {[-0.65, -0.18, 0.38, 0.72].map((bx, i) => <mesh key={bx} position={[bx, -0.76 + i * 0.07, 0.012]}>
         <planeGeometry args={[0.28, 0.75 + i * 0.14]} /><meshBasicMaterial color={i % 2 ? p.wallB : p.trim} />
       </mesh>)}
@@ -391,8 +339,8 @@ function Room({ p, dark, finish, wall, cull, showWhiteboard = true, name = "Sili
   const isBrick = wall.kind === "brick";
   const wallColor = dark ? wall.dark : wall.light;
 
-  if (!dark) return <DioramaRoom p={{ ...p, floor: finish.light, floorField: finish.light, wallA: wall.light, wallB: wall.light }} cull={cull} showWhiteboard={showWhiteboard} name={name} />;
-
+  // ONE ROOM in both themes: the garage. The theme only picks its palette — day (light) or night
+  // (dark) — and the light rig; the building, its walls and fixtures are the same.
   return (
     <group>
       <Floor p={p} finish={finish} dark={dark} tier={tier} />
@@ -425,7 +373,7 @@ function Room({ p, dark, finish, wall, cull, showWhiteboard = true, name = "Sili
           <boxGeometry args={[0.3, 5.2, 8.4]} />
           <meshStandardMaterial color={isBrick ? p.brickEdge : wallColor} roughness={wall.kind === "concrete" ? 0.95 : 0.8} metalness={wall.kind === "panel" ? 0.05 : 0} />
         </mesh>
-        {isBrick && <BrickWall p={p} backZ={-4.1} />}
+        {isBrick && <BrickWall color={wallColor} backZ={-4.1} />}
         {!isBrick && <Wainscot p={p} axis="-x" len={8.4} face={-4.05} />}
         {wall.kind === "panel" && [-3.0, -1.5, 0, 1.5, 3.0].map((z, i) => (
           <mesh key={i} position={[-4.04, 2.6, z]}><boxGeometry args={[0.02, 5.0, 0.04]} /><meshStandardMaterial color={dark ? "#2a1f15" : "#8a6843"} roughness={0.7} /></mesh>
@@ -648,53 +596,29 @@ export function BallBin({ p, pos }: { p: RoomPalette; pos: [number, number, numb
   );
 }
 
-/** The room's own fixed dressing, mirrored by `officeArrangement`'s fixture reservations: the dark
- *  garage's corner (box stack flat to the walls, tool chest in front), the front greenery the LIGHT
- *  diorama frames its open corner with, the printer and the bench pendant. */
-export function Props({ p, hasProduction, back = 0, dark = true }: { p: RoomPalette; hasProduction: boolean; back?: number; dark?: boolean }) {
+/** The room's own fixed dressing, mirrored by `officeArrangement`'s fixture reservations: the
+ *  garage's corner (box stack flat to the walls, tool chest in front), the printer and the bench
+ *  pendant. The same in both themes — one room. */
+export function Props({ p, hasProduction, back = 0 }: { p: RoomPalette; hasProduction: boolean; back?: number }) {
   return (
     <group>
-      {/* Garage corner — dark/garage mode only; the clean diorama stays tidy. One deliberate group
-          at the back-right junction: the box stack flat against the walls, the tool chest (with the
-          ball-bin toy on it) in front of it, and the storage run continuing along the wall from
-          there. It used to sit at the back-LEFT, where it stood between the camera and the first
-          desk bank and hid a seated employee. */}
-      {dark && (
-        <>
-          <RoundedBox args={[0.9, 0.9, 0.9]} radius={0.04} smoothness={2} position={[3.1, 0.45, -3.75 - back]}>
-            <meshStandardMaterial color={p.box} roughness={0.85} />
-          </RoundedBox>
-          <RoundedBox args={[0.7, 0.7, 0.7]} radius={0.04} smoothness={2} position={[3.1, 1.25, -3.75 - back]}>
-            <meshStandardMaterial color={p.box} roughness={0.85} />
-          </RoundedBox>
-          <RoundedBox args={[1.0, 1.3, 0.9]} radius={0.05} smoothness={3} position={[3.1, 0.65, -3.0 - back]}>
-            <meshStandardMaterial color={p.chest} roughness={0.5} metalness={0.1} />
-          </RoundedBox>
-        </>
-      )}
-      {/* Front greenery — the light diorama only, where it frames the floating slab's open corner.
-          In the closed garage a plant alone on the floor apron read as an orphan; there the room's
-          green comes from the break corner and the team's own dressing. `sc` stretches x/z with the
-          facility but not y, so a full-size Plant here inflates at Campus scale — scaling the group
-          down keeps the pot and canopy in human proportion. */}
-      {!dark && (
-        <group position={[3.1, 0, 3.0]} scale={0.5}>
-          <mesh position={[0, 0.25, 0]}>
-            <cylinderGeometry args={[0.28, 0.34, 0.5, 12]} />
-            <meshStandardMaterial color={p.pot} roughness={0.8} />
-          </mesh>
-          <mesh position={[0, 0.75, 0]}>
-            <sphereGeometry args={[0.5, 14, 14]} />
-            <meshStandardMaterial color={p.plant} roughness={0.85} />
-          </mesh>
-        </group>
-      )}
+      {/* Garage corner — one deliberate group at the back-right junction: the box stack flat against
+          the walls, the tool chest (with the ball-bin toy on it) in front of it, and the storage run
+          continuing along the wall from there. It used to sit at the back-LEFT, where it stood between
+          the camera and the first desk bank and hid a seated employee. */}
+      <RoundedBox args={[0.9, 0.9, 0.9]} radius={0.04} smoothness={2} position={[3.1, 0.45, -3.75 - back]}>
+        <meshStandardMaterial color={p.box} roughness={0.85} />
+      </RoundedBox>
+      <RoundedBox args={[0.7, 0.7, 0.7]} radius={0.04} smoothness={2} position={[3.1, 1.25, -3.75 - back]}>
+        <meshStandardMaterial color={p.box} roughness={0.85} />
+      </RoundedBox>
+      <RoundedBox args={[1.0, 1.3, 0.9]} radius={0.05} smoothness={3} position={[3.1, 0.65, -3.0 - back]}>
+        <meshStandardMaterial color={p.chest} roughness={0.5} metalness={0.1} />
+      </RoundedBox>
       <Printer p={p} active={hasProduction} />
-      {/* pendant lamp hangs from the ceiling — only in the enclosed garage (dark), not the open
-          diorama. It used to hang at the room's centre, which put its shade directly over whichever
-          employee sat nearest the middle (it read as a hat). Now it lights the tool wall instead:
-          pegboard above, bench and printer below. */}
-      {dark && <PendantLamp p={p} pos={[-3.55, 5, 2.6]} />}
+      {/* pendant lamp over the tool wall (pegboard above, bench and printer below). It used to hang
+          at the room's centre, where its shade sat over the nearest seated employee like a hat. */}
+      <PendantLamp p={p} pos={[-3.55, 5, 2.6]} />
     </group>
   );
 }

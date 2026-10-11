@@ -111,6 +111,70 @@ Each gap: what is wrong, where, and the fix. Verified against the captures above
 | **6. Polish** | O5 era visuals, O6 quality setting, F7 exterior, O7, O8. | Each era visibly different; Low preset measurably cheaper. |
 | **7. Device + store** | F8, a 15–20 min dense-factory session on a real iPhone, then refresh the App Store frames (`npm run shots:store`). | Owner signs off the compare page; store frames updated. |
 
+### Progress
+
+- **Step 1 (framing + theme): in review** (branch `claude/worlds-3d-step1-framing`, stacked on this
+  handoff). One framing rule for both worlds, `src/garage3d/cameraFit.ts`: slide the pivot across
+  the floor until the box of what must be seen is centred, then fit the distance.
+  - F1: `factoryFrame` centres the box (it filled ~65% of a phone stage, off-centre; now ~93% on
+    the tight axis); the ghost bay's end of the box stops at its low walls; the idle order card is
+    one line. **Bug found on the way:** fullscreen `CameraReset` ran its one-shot reset before
+    OrbitControls registered (`makeDefault` sets it in an effect), so the pivot stayed on the
+    controls' `target={[cx, 0.8, 0]}` prop — un-rotated for portrait — and the view aimed
+    off-centre. It now waits for the controls; the prop is gone.
+  - F9: with the pivot fixed, wheel zoom in the headless capture moves the camera (close-up frame).
+  - F2: the Expand price is a DOM chip in the card's bottom-right corner, beside the ghost bay; the
+    in-scene `<Html>` pill is gone.
+  - F3: `--world-backdrop` (tokens) is the one backdrop for the office card, factory card and
+    fullscreen stage in both themes; the factory grounds fade out into it (`groundFadeTexture`).
+  - O1: `officeFrame` fits the cozy view per card aspect, tier and theme (same 3/4 look). Phones
+    keep roughly the old scale (the room is a wide diamond, so its side tips may crop ≤ 15%) but it
+    is centred; iPad-width cards get a ~16% larger room. The light diorama gets a soft ground shadow.
+  - Not done here: decorate-mode framing (unchanged), the `shots:worlds` iPad pass is
+    `SHOTS_VIEWPORT=820x1180 npm run shots:worlds -- <label>`.
+- **Factory audit (same branch, 2026-10-11).** Three code reviews (3D scene, Factory UI, factory
+  engine) plus a scripted playthrough on the real build (paint, undo, tap, place, erase,
+  hold-to-move, ghost-bay tap, Escape, week tick) in both themes. Fixed: Undo refunding 100% weeks
+  later (history now ends when a week passes); BOOST charging an unshown premium and saving nothing
+  on a run's last week (`rushCost`, price on the button, refused at ≤ 1 week); double-taps on Place,
+  Expand-confirm and side-order cancel; a belt drag past the grid edge collapsing to one tile; the
+  invisible tap pad baking a dark film over the whole floor (ContactShadows); erase/upgrade taps on
+  a machine's tall parts; the bay's tap box stealing taps on the last column; traveling items
+  bunched on a line wired after mount; a pickup stuck in hand; the ghost/placed mount mismatch;
+  diagonal "works here" hints; the arm wrist twitching with frame time; the card chip on a client
+  order; tutorial focus; the camera hint after the tutorial; the 2D fallback ghost size; a no-op
+  move adding an Undo entry. Camera: re-fits on layout changes only until the player moves it.
+  Owner decisions + low-priority leftovers are in `TASK.md` → Backlog (2026-10-11).
+- **Factory rules (owner-approved, 2026-10-11).** Every complete Intake→Packer route counts
+  (`completeRoutes`), not only the longest; a stray belt into a line's head can't switch it off; the
+  speed-bonus coverage counts processing machines only (a bare wired line keeps 25%, as documented).
+- **Step 2 (one look): in review** (branch `claude/worlds-3d-step2-one-look`, stacked on step 1).
+  Owner decision: **one room**. The office is the garage shell in both themes; the theme picks the
+  time of day only (`roomPalette` day/night, the light rig, the skyline tint) — `GARAGE_SHELL` in
+  `Garage3D.tsx`. The light diorama (`DioramaRoom`) and its light-only fixtures are gone; the day
+  rig adds a window-light patch; studio windows show daylight. Bug fixed on the way: `BrickWall`
+  multiplied the brick colour in twice (material × instance colour), crushing every brick wall to
+  near-black, and ignored the chosen wall style (Whitewash Brick rendered red). Factory: the
+  office's studio IBL (`StudioEnvironment`, shared) and exposure 1.05; its colours now come from
+  the office's CATALOG families (`factoryPalette.ts` + `factoryPalette.test.ts`). Correction to
+  F4: R3F already defaults both canvases to ACES — the real gaps were exposure, IBL and palette.
+- **Step 3 (the robot): in review** (branch `claude/worlds-3d-step3-robot`, stacked on step 2). Built
+  in CODE, not a GLB: the portrait robot is all rounded primitives, so `RobotCharacter` now matches
+  the portraits directly (big glossy dome, front-wrapping navy glass visor, big white oval eyes with
+  pupils + shine, white ear caps, colour antenna whose ball is the mood light, compact body with a
+  white collar band, white shoulders / hands / feet) and every animation hook and seat anchor is
+  unchanged (the torso underside still sits at 0.14). Mirrored static pairs are merged geometry, so a
+  robot costs ~20 draw calls — below the old robot. The `robot_shared.glb` seam is untouched for a
+  future rigged model. F6: `factoryCrew.ts` stands one operator at each connected processing station
+  in fullscreen (`CREW_SCALE` 0.65), inside the machine's own footprint, facing the line.
+- **Step 4 (office furniture): in review** (branch `claude/worlds-3d-step4-furniture`, stacked on
+  step 3). No Meshy: Blender 5.2 is on the owner's PC, so `scripts/models/build_furniture.py` BUILDS
+  all 23 pieces procedurally (bevelled + hardened normals, the material names the app re-finishes,
+  real sizes; desk tops 0.74 m, chair seat 0.575 m, sofa cushion at half height, shelf tops at the
+  stocked fractions) and `check_glb.py` passes 23/23. `npm run furniture:build` rebuilds them (Blender
+  on PATH); the Kenney fetch script and its legacy hashes are gone. The sofa's fitted seat moved from
+  0.371 to 0.41 m (`furnitureFinish.test.ts` pins it).
+
 ## 5. How to check yourself
 
 ```bash

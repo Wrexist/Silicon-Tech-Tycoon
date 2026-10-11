@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 import { roomScaleFor } from "./officeConfig.ts";
+import { officeFrame } from "./officeFraming.ts";
 
 // Build mode lifts the camera to a higher, more overhead angle so the whole floor grid is
 // readable; otherwise it's the cozy parallax view. WASD lets the player drive the view:
@@ -14,14 +15,13 @@ const CAM_ZOOM_MAX = 13;
 // ramps in. Kept generous so it never fights an active viewer — it's a screensaver for an office
 // left alone, and collapses back to zero the instant the controls are touched (so `settled` fires).
 const IDLE_DRIFT_DELAY = 6;
-// Item 4 (wave 0): the resting framing sits this fraction of the old distance from the room, so the
-// office reads ~18% larger in the viewport and the empty margin around it shrinks. Only the numbers
-// change — parallax, idle drift, the settle path and the Reduce-Motion `still` suppression are
-// untouched. Decorate mode keeps its own pulled-back framing (it has to show the whole grid above
-// the shop panel).
-const REST_FRAME = 0.85;
-/** The rig's resting pose, exported so the Canvas can start there instead of at a stale position. */
-export const CAM_REST_POSITION: [number, number, number] = [15.5 * REST_FRAME, 13.0 * REST_FRAME, 17.5 * REST_FRAME];
+// The resting framing is FITTED to the card (officeFraming.ts): same 3/4 look, but the pivot and the
+// distance follow the card's aspect, the facility tier and the theme, so a phone card and an iPad
+// card are both filled and the room is centred. Parallax, idle drift, the settle path and the
+// Reduce-Motion `still` suppression are untouched. Decorate mode keeps its own pulled-back framing
+// (it has to show the whole grid above the shop panel).
+/** A starting pose for the Canvas; the rig snaps to the fitted pose on its first frame. */
+export const CAM_REST_POSITION = officeFrame(1, 1).position.toArray() as [number, number, number];
 // Shared camera dolly offset (in the same units as baseR): written by both the W/S keys and the
 // pinch-to-zoom handler, read by CameraRig every frame. A plain module singleton (no React state) so
 // the render loop stays allocation-free and the DOM touch handler can drive it without re-renders.
@@ -32,7 +32,15 @@ function setCamZoom(v: number): void { camZoomOffset = Math.max(CAM_ZOOM_MIN, Ma
 
 export function CameraRig({ build = false, facilityTier = 1, still = false }: { build?: boolean; facilityTier?: number; still?: boolean }) {
   const { camera, pointer, gl } = useThree();
+  const width = useThree((s) => s.size.width), height = useThree((s) => s.size.height);
   const target = useMemo(() => new THREE.Vector3(0, 1.5, 0), []);
+  // The fitted resting pose, as an orbit: pivot + horizontal radius/azimuth + eye height.
+  const rest = useMemo(() => {
+    const f = officeFrame(width / Math.max(1, height), facilityTier);
+    const dx = f.position.x - f.target.x, dz = f.position.z - f.target.z;
+    return { target: f.target, r: Math.hypot(dx, dz), ang: Math.atan2(dx, dz), y: f.position.y };
+  }, [width, height, facilityTier]);
+  const placed = useRef(false); // first frame snaps to the pose instead of gliding in from the Canvas default
   const keys = useRef<Set<string>>(new Set());
   const orbit = useRef({ yaw: 0, lift: 0 }); // player camera offsets (zoom lives in the shared singleton)
   const lastPointer = useRef({ x: 0, y: 0 }); // for the settle check
@@ -129,24 +137,26 @@ export function CameraRig({ build = false, facilityTier = 1, still = false }: { 
       driftLift = Math.sin(e * 0.09) * 0.14 * driftK;
     }
 
-    const k = Math.min(1, dt * 2.5);
+    const k = placed.current ? Math.min(1, dt * 2.5) : 1;
+    placed.current = true;
     // Decorate view was framed close (baseR ≈ 10.6) for precise placement, but that cropped the
     // room's edges off-screen (and the shop panel hides the front row), so furniture near the walls
     // was unreachable. Pull back + raise the angle so the WHOLE grid sits in the visible area above
-    // the panel; W/S (or a pinch, if added) still let you dolly in for fine placement.
-    const px = build ? 9.5 : 15.5 * REST_FRAME;
-    const py = build ? 13.6 : 13.0 * REST_FRAME;
-    const pz = build ? 12.5 : 17.5 * REST_FRAME;
-    const ty = build ? 0.5 : 0.25;
+    // the panel; W/S (or a pinch, if added) still let you dolly in for fine placement. Its radius
+    // scales with the facility so a bigger office (Studio/Campus) is framed whole, not cropped.
+    const tx = build ? 0 : rest.target.x;
+    const ty = build ? 0.5 : rest.target.y;
+    const tz = build ? 0 : rest.target.z;
+    const baseR = build ? Math.hypot(9.5, 12.5) * roomScaleFor(facilityTier) : rest.r;
+    const baseAng = build ? Math.atan2(9.5, 12.5) : rest.ang;
+    const py = build ? 13.6 : rest.y;
 
-    // Convert the base offset to an orbit (radius + azimuth) so A/D rotates around the room
-    // and W/S dollies in/out, while pointer parallax + smoothing are preserved. The radius scales
-    // with the facility so a bigger office (Studio/Campus) is framed whole, not cropped.
-    const baseR = Math.hypot(px, pz) * roomScaleFor(facilityTier);
+    // The base offset as an orbit (radius + azimuth) around the pivot, so A/D rotates around the
+    // room and W/S dollies in/out, while pointer parallax + smoothing are preserved.
     const r = Math.max(4, baseR + getCamZoom());
-    const ang = Math.atan2(px, pz) + o.yaw + driftYaw;
-    const desiredX = Math.sin(ang) * r + pointer.x * (build ? 0.5 : 1.3);
-    const desiredZ = Math.cos(ang) * r;
+    const ang = baseAng + o.yaw + driftYaw;
+    const desiredX = tx + Math.sin(ang) * r + pointer.x * (build ? 0.5 : 1.3);
+    const desiredZ = tz + Math.cos(ang) * r;
     const desiredY = Math.max(1.2, py + o.lift + driftLift - pointer.y * (build ? 0.3 : 0.9));
 
     // Settle: if no movement key is held, the pointer hasn't moved, and we're already within
@@ -156,13 +166,15 @@ export function CameraRig({ build = false, facilityTier = 1, still = false }: { 
     const dx = desiredX - camera.position.x;
     const dy = desiredY - camera.position.y;
     const dz = desiredZ - camera.position.z;
-    const settled = dx * dx + dy * dy + dz * dz < 1e-6 && Math.abs(ty - target.y) < 1e-3;
+    const settled = dx * dx + dy * dy + dz * dz < 1e-6 && Math.abs(tx - target.x) + Math.abs(ty - target.y) + Math.abs(tz - target.z) < 1e-3;
     if (!keyHeld && pointerStill && settled) return;
 
     camera.position.x += dx * k;
     camera.position.y += dy * k;
     camera.position.z += dz * k;
+    target.x += (tx - target.x) * k;
     target.y += (ty - target.y) * k;
+    target.z += (tz - target.z) * k;
     camera.lookAt(target);
   });
   return null;

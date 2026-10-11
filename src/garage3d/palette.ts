@@ -38,6 +38,8 @@ export interface RoomPalette {
   poolWarm: string; // warm floor light pool
   poolCool: string; // cool floor light pool
   floorField: string; // floor field border (material separation on the slab)
+  skyGlass: string; // the studio frontage's glazing — night sky after dark, daylight by day
+  skyGlow: string; // its faint self-light
 }
 
 // ---- Item 2: palette discipline -----------------------------------------------------------------
@@ -105,6 +107,10 @@ export const SATURATED_ALLOWED: Record<string, string> = {
   "#ffb877": "warm light — floor pool (dark theme)",
   "#7fb4ff": "cool light — floor pool (dark theme)",
   "#8ec4ff": "cool light — floor pool (light theme)",
+  "#d6eaff": "daylight — studio window sky glass (light theme)",
+  "#b5d8ff": "daylight — studio window sky glow (light theme)",
+  "#2f9e6e": "product — the circuit board travelling the factory line",
+  "#3b82f6": "livery — the company blue on the factory truck cab",
 };
 
 /** Item 2's rule applied to a live colour: keep the hue and lightness, pull the saturation most of
@@ -155,42 +161,49 @@ export function roomPalette(dark: boolean): RoomPalette {
         poolWarm: "#ffb877",
         poolCool: "#7fb4ff",
         floorField: "#1b1f26",
+        skyGlass: "#2a313c",
+        skyGlow: "#5b9dff",
       }
     : {
-        floor: "#f6f7f9",
-        wallA: "#ebebee",
-        wallB: "#e5e6ea",
-        trim: "#d5d6da",
+        // ONE ROOM, two lightings: the light theme is the same garage BY DAY — warm plaster, natural
+        // brick with pale mortar, light steel, the same wood and the same lit sign, so switching
+        // theme changes the time of day, not the building. (It used to be a separate white diorama.)
+        floor: "#cfcbc4",
+        wallA: "#d9d4cb",
+        wallB: "#cdc7bd",
+        trim: "#bdb6ab",
         desk: "#bb9067",
         deskDark: "#7a5c42",
-        metal: "#c4c9d0",
-        metalDark: "#9095a0",
-        chest: "#b0b5bc",
+        metal: "#b8bec6",
+        metalDark: "#7f8794",
+        chest: "#9aa1ab",
         plant: "#52b070",
-        pot: "#c0c5cc",
+        pot: "#b3aa9d",
         screen: "#4a9af5",
         screenOff: "#3a4150",
         lamp: "#ffd98a",
-        box: "#c8cdd4",
-        shadow: "#8090a8",
-        floorLine: "#e0e2e8",
-        floorPaint: "#cdd3de",
-        brick: "#e0e1e4",
-        brickEdge: "#d5d6da",
-        door: "#ebebee",
-        doorRail: "#c8cdd4",
-        baseboard: "#dcdde2",
+        box: "#c2b39a",
+        shadow: "#5f6b7d",
+        floorLine: "#b7b1a8",
+        floorPaint: "#a49f95",
+        brick: "#8f6252",
+        brickEdge: "#cdc3b6",
+        door: "#c8ccd2",
+        doorRail: "#8a9099",
+        baseboard: "#b9b2a7",
         board: "#f8f9fb",
-        slat: "#43301f",
+        slat: "#5f4630",
         slatEdge: "#2b1e13",
         signInk: "#ffc46b",
         signGlow: "#ffb054",
-        wainscot: "#e4e6ea",
-        rail: "#d3d7dd",
-        rug: "#d8ccb9",
-        rugTrim: "#c1b39d",
+        wainscot: "#c6bfb4",
+        rail: "#aaa397",
+        rug: "#cbbda7",
+        rugTrim: "#b3a38b",
         poolWarm: "#ffb877",
         poolCool: "#8ec4ff",
-        floorField: "#dfe2e8",
+        floorField: "#c8c3bb",
+        skyGlass: "#d6eaff",
+        skyGlow: "#b5d8ff",
       };
 }

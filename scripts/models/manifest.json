@@ -2170,31 +2170,6 @@
       ]
     }
   },
-  "legacy_sha256": {
-    "public/furniture/desk.glb": "0164fe828f028b321730fb8c74502e353583f751be74da1682d42fff7d3c5a42",
-    "public/furniture/deskL.glb": "a6a77ba0083d5ecd34ad50f738867b03ed7b7f469429bb1acc78f423bcc3f034",
-    "public/furniture/chair.glb": "46406619186034cbe92b19b79a5f1a8e3f442a17a70a7524ef2c0ad0f35095c6",
-    "public/furniture/armchair.glb": "f0766a7d5698974b711adac18a2108f0e74e3a036fa4e4e0ccf91195b0ee5abf",
-    "public/furniture/loungeChair.glb": "ddfe6bc4b3451bca61666d7b614552d6ed2a03d82fc76244b72ae3155874dc6c",
-    "public/furniture/sofa.glb": "1886b811c0d3ad0d8525a4fd43adf4112c497c8e0ed906f06877ca3517f4c7dd",
-    "public/furniture/sofaL.glb": "bbdd91791e621ac71321eaf38a2432c53279792ef946707f23b216123bd52655",
-    "public/furniture/stool.glb": "a86167a9f92401a61fec7e509ad089ecc552d0f299743add3aeb919acb24e341",
-    "public/furniture/coffeeTable.glb": "e38bea760fbd514efbb75528d09b4752c91af44677bbb97e6d4386c263525179",
-    "public/furniture/meetingTable.glb": "ff1a94498d023957f4bc3ff6f55a7a82977d336dbf01a573b3364f03afe5ff61",
-    "public/furniture/sideTable.glb": "8227810584f7d37582e4e9ec821c56f1dc54b99c88a8dc74242ea3b7402bc472",
-    "public/furniture/bookshelf.glb": "750702218d68c062b15dfef6ab06a4014d1cfa8bd05f02e57c53b7e13bec157c",
-    "public/furniture/cabinet.glb": "55b9903e9646dc407ed5237a1c41c1f0a14f9edc22e3392bdb9a4804d846af6a",
-    "public/furniture/shelfUnit.glb": "6d4d625faf977a2dbf155f1313cd32c6310e463114a1cd4c08cb9f80a5fb1d75",
-    "public/furniture/crates.glb": "4af079dca52960912764574950f0549ff2ae1224b3db1528718629473a2d5d81",
-    "public/furniture/plantTall.glb": "5b760eda2766f75fda36b2c5df652a1662f82981ef64cd8fa7fe7bcd386b3a15",
-    "public/furniture/plantPot.glb": "2b9c022feb47be857b2c4fdc29f36522766ba9b70c578c31d7c05d71b4377d15",
-    "public/furniture/rug.glb": "a989d2d59c04e3071e0c90388b113a9a8f339ce1814ef984c51cb6dcd7c8e0eb",
-    "public/furniture/rugRound.glb": "2ef5cc634bb1060a1a5774cfcaf6e11c235791c99d6b59da5fdbc09edfb95a68",
-    "public/furniture/tvStand.glb": "811719593d676ff76f7b5904d52c845ce0396af2bc9a6a2636c4818ead320b99",
-    "public/furniture/floorLamp.glb": "6466993748d8e184de9ec5b6b0af613867c50c0ce320d1898b1db9e4c27c2561",
-    "public/furniture/arcLamp.glb": "50fe1b5b588edf15bfa9cc880f71a02a4fda6036350b24733d0ef4de5cc5e908",
-    "public/furniture/lantern.glb": "75bb644caaa3da003b4fcad7a931722dd61cd2858aab70cf660021d5061fa1b2"
-  },
   "ignored_files": {
     "src/garage3d/models/base.glb": "Inactive CC0 RobotExpressive kept as a reference rig; robotModels.ts only loads robot_*.glb."
   },

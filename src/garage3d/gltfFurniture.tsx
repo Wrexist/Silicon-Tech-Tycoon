@@ -10,7 +10,7 @@ import { useMemo, type ReactNode } from "react";
 import { useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import type { ModelAsset } from "./furnitureModels.ts";
-import { surfaceAnchorY } from "./furnitureModels.ts";
+import { modelFetchPath, surfaceAnchorY } from "./furnitureModels.ts";
 import { desaturatedColor } from "./palette.ts";
 import { catalogFinish } from "./furnitureFinish.ts";
 import { publishSeatSurface } from "./seatAnchors.ts";
@@ -50,7 +50,7 @@ function applyFamilies(root: THREE.Object3D, asset: ModelAsset): void {
 function resolveUrl(url: string): string {
   if (/^(https?:)?\/\//.test(url) || url.startsWith("data:")) return url;
   const base = (import.meta.env.BASE_URL || "/").replace(/\/?$/, "/");
-  return base + url.replace(/^\//, "");
+  return base + modelFetchPath(url.replace(/^\//, ""));
 }
 
 // Fraction of the footprint the model's larger horizontal extent should occupy.

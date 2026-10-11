@@ -92,8 +92,9 @@ try {
         const { factoryFrame } = await import('/src/garage3d/factoryFraming.ts');
         const s = window.__auditStore.getState();
         const { floorWidth, FLOOR, EXPAND_STEP, MAX_EXPANSION } = await import('/src/engine/factoryFloor.ts');
-        const cx = (floorWidth(expansion) - FLOOR.w) / 2 + (expansion < MAX_EXPANSION ? EXPAND_STEP / 2 : 0);
-        const frame = factoryFrame(s.size.width / s.size.height, cx, 1.08, innerHeight > innerWidth);
+        const bay = expansion < MAX_EXPANSION ? EXPAND_STEP : 0;
+        const cx = (floorWidth(expansion) - FLOOR.w) / 2 + bay / 2;
+        const frame = factoryFrame(s.size.width / s.size.height, cx, 1.08, innerHeight > innerWidth, bay);
         return { position: frame.position.toArray(), target: frame.target.toArray() };
       }, before.factoryExpansion);
       await p.waitForFunction(pose => {
@@ -234,8 +235,16 @@ try {
     await p.getByRole('checkbox', {name:/Highlight route/}).check();
     await shot('machine-focus'); await p.getByRole('button', {name:'Clear selection',exact:true}).click(); await p.waitForTimeout(400);
     assert(await p.getByLabel('Inspect machine', {exact:true}).inputValue() === '', 'Selection not cleared');
-    const frames = await p.evaluate(() => window.__auditStore.getState().gl.info.render.frame); await p.waitForTimeout(400);
-    assert(await p.evaluate(() => window.__auditStore.getState().gl.info.render.frame) === frames, 'Paused renderer keeps drawing');
+    // A paused canvas is on the "demand" frameloop: once the reset's last frames are presented it must go
+    // quiet. A slow software renderer can still be presenting them 400ms later, so wait (≤ 8s) for one
+    // quiet 400ms window, then require a second one. Continuous drawing never settles and still fails.
+    const frame = () => p.evaluate(() => window.__auditStore.getState().gl.info.render.frame);
+    let quiet = false;
+    for (const deadline = Date.now() + 8000; !quiet && Date.now() < deadline;) {
+      const a = await frame(); await p.waitForTimeout(400); quiet = (await frame()) === a;
+    }
+    const frames = await frame(); await p.waitForTimeout(400);
+    assert(quiet && await frame() === frames, 'Paused renderer keeps drawing');
     await p.getByText('Inspect machines and route', {exact:true}).click();
   });
   await check('Rename, update and undo deletion preserve cash and owned floor', async () => {

@@ -227,6 +227,12 @@ Run the AUDIT PROMPT (see plan §12) after P3 (engine+state) and after P5 (all s
 
 - [x] 2026-09-24: Factory portrait framing, always-visible order/progress/ETA and a library of 12 named product drafts implemented. Factory available from day one; owned lines money-gated. See docs/redesign/FACTORY_CONTINUATION.md.
 _(append out-of-scope improvements here as one-liners; do not act mid-session)_
+- [x] 2026-10-11 (owner: "only complete routes count"): every complete Intake→Packer route now counts (`completeRoutes` / `routeTiles`); a longer second route no longer un-connects the first. A stray belt feeding INTO a line's head no longer switches it off. The longest route stays the "main line" for the travelling items + layout score.
+- [ ] 2026-10-11 (factory audit, low): `lineComplete` still accepts a tail tile aimed sideways beside the Packer (items visibly run past it). Kept lenient on purpose so hand-painted lines don't break; fix visually by ending the item path INTO the Packer, or make the belt tool aim the last tile at an adjacent Packer.
+- [x] 2026-10-11 (owner: "the more balanced one"): `lineSpeedMult` coverage now counts processing machines only, so a bare wired line keeps the documented 25% (was 55%) and each recipe machine bought adds more.
+- [ ] 2026-10-11 (factory audit, low): erasing the GIFTED starter Intake + Packer (`st-` ids) refunds $7,500 never paid. Needs a gift flag that survives saved-layout applies (they copy ids). `demolitionRefund` + `layoutApplyCost`.
+- [ ] 2026-10-11 (factory audit, low): every layout edit remounts drei `ContactShadows` (`key={shadowKey}`), which never disposes its two 512² render targets — GPU memory churn over a long build session. Keep one instance and re-bake instead.
+- [ ] 2026-10-11 (same class as the factory undo fix): the office Decorate undo also refunds 100% if the sim ticks weeks while Decorate stays open; clear its history on week change too (`src/screens/HQ.tsx` builder `history`).
 - [DONE 2026-08-24] **CSS token bug — `--spring-bounce` was undefined.** Ten call sites (eureka,
   community ask, staff moment, rivalry declared, regional event, review prompt, earnings call,
   contract offer glyphs + two fallback'd sites) animated with `var(--spring-bounce)`; the undefined
