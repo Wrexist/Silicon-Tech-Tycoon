@@ -43,13 +43,6 @@
   color: var(--accent-ink);
   box-shadow: var(--shadow-subtle);
 }
-/* Active-research hero card — a faint accent wash + edge so the in-progress ring reads as "live". */
-.rd__active {
-  background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 7%, var(--surface)), var(--surface));
-  border-color: color-mix(in srgb, var(--accent) 34%, var(--hairline));
-}
-/* Immersive section backdrop matching the share card: an engineering-accent glow, a dot texture,
-   and the parametric circuit motif, so the RP bank reads as live research intel. */
 /* Research income breakdown — where the weekly RP comes from */
 .rd__income-list { list-style: none; display: flex; flex-direction: column; gap: var(--sp-8); margin: var(--sp-4) 0 var(--sp-12); }
 .rd__income-row { display: flex; align-items: center; gap: var(--sp-12); }
