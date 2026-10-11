@@ -636,6 +636,14 @@ function OfficeScene({ use3d, reducedMotion, hasProduction, active, onNavigate, 
     );
   };
 
+  // Undo is for placement mistakes, not a rental: once a week passes the furniture has worked (and
+  // its bonus has paid), so the history goes and Sell refunds the usual share — the same rule the
+  // factory's build Undo follows.
+  useEffect(() => {
+    history.current = [];
+    setHistLen(0);
+  }, [state.week]);
+
   const undo = () => {
     const prev = history.current.at(-1);
     if (!prev) return;

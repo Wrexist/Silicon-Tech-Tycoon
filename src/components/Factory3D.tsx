@@ -15,7 +15,8 @@ import { factoryFrame } from "../garage3d/factoryFraming.ts";
 // in docs/WORLDS_3D_HANDOFF.md).
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
+import { OrbitControls, RoundedBox } from "@react-three/drei";
+import { BakedContactShadows } from "../garage3d/bakedShadows.tsx";
 import * as THREE from "three";
 import { RoundedBoxGeometry, mergeBufferGeometries } from "three-stdlib";
 import { groundFadeTexture } from "../garage3d/glow.ts";
@@ -2245,7 +2246,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {dock && <CompletionPop count={p.readyCount} pallet={dock.pallet} truck={dock.truck} yaw={dock.yaw} />}
       <Agvs tier={p.robotTier} overtime={p.overtime} active={p.active && p.lineOk} />
 
-      {!p.preview && <ContactShadows key={shadowKey} position={[(floorW - FLOOR.w) / 2, 0.11, 0]} opacity={0.5} scale={Math.max(26, floorW + 2)} blur={2.2} far={4} frames={1} resolution={512 * quality.contactShadowScale} />}
+      {!p.preview && <BakedContactShadows bake={shadowKey} position={[(floorW - FLOOR.w) / 2, 0.11, 0]} opacity={0.5} scale={Math.max(26, floorW + 2)} blur={2.2} far={4} resolution={512 * quality.contactShadowScale} />}
     </group>
     </AccentContext.Provider>
   );
