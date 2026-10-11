@@ -31,4 +31,11 @@ Use **Preview** to check iPhone and iPad, then submit them with the next version
 
 Plates go to `$TRAILER_OUT` (default `C:/tmp/cine`). Edit `compose.html` for layout, and `POSES` in `stills.mjs` for camera angles.
 
-The App Store preview video uses the same harness: `scripts/trailer/capture.mjs` then `scripts/trailer/compose.mjs`.
+## App Store preview (trailer)
+Same harness, rendered on a machine with a GPU. CI's software WebGL takes ~19 s a frame.
+1. Run `node scripts/trailer/capture.mjs`, then `node scripts/trailer/compose.mjs`. This needs ffmpeg; set `SHOTS_FFMPEG` if it isn't on PATH.
+2. Hand it to CI as a **draft** release, which only collaborators can see:
+   `gh release create store-trailer-1.4.0 <OUT>/Silicon-1.4.0-iPhone.mp4 --draft`.
+3. Run **Store media** with `screenshot_run_id` (the approved screenshots) and `trailer_release=store-trailer-1.4.0`.
+4. Run **iOS TestFlight** with `inspect_only`, that run as `media_run_id`, and `media_ab_test` (or plain, to replace the draft's media).
+5. Delete the draft release.
