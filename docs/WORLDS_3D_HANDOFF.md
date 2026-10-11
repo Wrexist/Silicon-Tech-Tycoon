@@ -174,6 +174,21 @@ Each gap: what is wrong, where, and the fix. Verified against the captures above
   stocked fractions) and `check_glb.py` passes 23/23. `npm run furniture:build` rebuilds them (Blender
   on PATH); the Kenney fetch script and its legacy hashes are gone. The sofa's fitted seat moved from
   0.371 to 0.41 m (`furnitureFinish.test.ts` pins it).
+- **Step 5 (factory machines): in review** (branch `claude/worlds-3d-step5-factory-machines`, stacked
+  on step 4). The machines are restyled IN CODE to the robots' product language: satin white housings
+  (`housing` = CATALOG chalk) with rounded edges, graphite structure (plinths, columns, booms, joints),
+  a smoked dark-glass band, aluminium on every moving part, and the andon strip as the one status
+  colour. The hopper is round and open, the arm is white links on graphite joints, the test tunnel is
+  smoked glass under a scanner bridge, mounted machines get a service console whose display faces
+  the operator. Truck: smoked windows + a livery stripe; AGVs: white with a graphite bumper. Motion
+  code is untouched; every animated part keeps its name and the browser gate now asserts them
+  (`Animated machine parts keep their node names`). Budget: each machine 2.6k–5k triangles (doc range
+  1.5k–6k); static same-material parts are merged (hazard edges, twin pistons, console
+  plinth+column+boom) so the floor costs 378 draw calls idle vs 367 before (+3%).
+  **F5's GLB seam is deferred, on purpose**: it only pays off once real machine models exist, and
+  the risky part (re-plumbing the motion onto loaded nodes) would have been built against nothing.
+  When models arrive, the node names above are the contract; the code-built machines become the
+  `ModelBoundary` fallbacks unchanged. Props keep their own code-built look for now (Step 6).
 
 ## 5. How to check yourself
 
