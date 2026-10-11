@@ -74,14 +74,30 @@ function FloorPools({ p, dark, roomScale }: { p: RoomPalette; dark: boolean; roo
   );
 }
 
-export function Lighting({ p, dark, roomScale = 1 }: { p: RoomPalette; dark: boolean; roomScale?: number }) {
+/** Daylight through the wall-B window (light theme = the garage by day): one stretched additive
+ *  patch on the floor below it, so the day room has a sunlit side the way the night room has its
+ *  lamp pools. A single quad — the same budget rule as the pools. */
+function WindowLight({ roomScale }: { roomScale: number }) {
+  const tex = useMemo(() => glowTexture(), []);
+  const disc = useMemo(() => new THREE.CircleGeometry(1, 24), []);
+  const mat = sharedBasic({ color: "#fff1d6", map: tex, transparent: true, opacity: 0.42, depthWrite: false, toneMapped: false, blending: THREE.AdditiveBlending });
+  return (
+    <group scale={roomScale}>
+      <mesh rotation-x={-Math.PI / 2} position={[-2.75, 0.026, -1.1]} scale={[1.5, 2.3, 1]} renderOrder={2} geometry={disc} material={mat} />
+    </group>
+  );
+}
+
+/** Procedural studio IBL (no HDR assets) shared by BOTH worlds — the office and the factory reflect
+ *  the same soft-box rig, so their metals and plastics read as one studio. */
+export function StudioEnvironment() {
   // Procedural studio IBL (no HDR assets): a few soft area-light rects baked into an environment map
   // so every metalness surface (vault, coffee machine, robot neck rings, printer) reflects a real
   // soft-box rig instead of a flat colour. Memoized with a stable element identity + frames={1} so the
   // PMREM bakes ONCE and never re-bakes on a Scene re-render (the house battery/GPU rule). Kept
   // theme-independent — the ambient/directional lights already carry the dark-vs-light mood — so a
   // theme flip never dirties it. Each Lightformer defaults to looking at the origin, so I only place them.
-  const studioEnv = useMemo(() => (
+  return useMemo(() => (
     <Environment resolution={64} frames={1}>
       <Lightformer form="rect" intensity={1.4} color="#ffffff" position={[0, 6, 1]} scale={[9, 4, 1]} />
       <Lightformer form="rect" intensity={0.75} color="#cfe0ff" position={[-6, 3, -2]} scale={[3, 5, 1]} />
@@ -91,16 +107,20 @@ export function Lighting({ p, dark, roomScale = 1 }: { p: RoomPalette; dark: boo
       <Lightformer form="rect" intensity={0.5} color="#ffd9a8" position={[2.5, 4.5, -4]} scale={[3, 1.6, 1]} />
     </Environment>
   ), []);
+}
+
+export function Lighting({ p, dark, roomScale = 1 }: { p: RoomPalette; dark: boolean; roomScale?: number }) {
+
   return (
     <>
-      {studioEnv}
+      <StudioEnvironment />
       {/* Deliberately dim: this is the fill that keeps shadow-side faces readable, not the room's
           light. It used to sit at 0.55–0.62 and flattened every surface in the scene. */}
       <ambientLight intensity={dark ? 0.3 : 0.44} color={dark ? "#cbd2e4" : "#ffffff"} />
-      {/* soft sky/ground fill — gives the clean diorama an ambient-occlusion-like gradient */}
-      {!dark && <hemisphereLight args={["#ffffff", "#dfe4ec", 0.66]} />}
-      {/* key light — the warm interior sun: casts soft shadows in the open diorama and shapes the
-          dark room's floor/walls. Shadow cost is unchanged (light mode only). */}
+      {/* soft sky/ground fill by day — cool sky above, the warm floor bouncing back below */}
+      {!dark && <hemisphereLight args={["#eef4ff", "#d6cdbf", 0.62]} />}
+      {/* key light — the warm sun by day (casts the soft shadows) and the warm interior key at
+          night. Shadow cost is unchanged (light mode only). */}
       <directionalLight
         position={[8, 13, 7]}
         intensity={dark ? 1.25 : 1.15}
@@ -134,7 +154,7 @@ export function Lighting({ p, dark, roomScale = 1 }: { p: RoomPalette; dark: boo
         {/* the lounge / coffee nook reads warm and separate from the work floor */}
         <pointLight position={[-3.2, 2.0, 0.5]} intensity={dark ? 9 : 2.4} distance={3.6} decay={2} color={p.lamp} />
       </group>
-      {dark && <FloorPools p={p} dark={dark} roomScale={roomScale} />}
+      {dark ? <FloorPools p={p} dark={dark} roomScale={roomScale} /> : <WindowLight roomScale={roomScale} />}
     </>
   );
 }

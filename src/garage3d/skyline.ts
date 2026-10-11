@@ -40,6 +40,8 @@ export const ROOM_HALF_BASE = 4.2;
 
 /** Silhouette tone for the distant blocks — a desaturated night blue, outside the furniture palette. */
 export const SKYLINE_COLOR = "#2a3550";
+/** The same skyline by day: a hazy, sun-washed grey-blue (light theme = the garage in daylight). */
+export const SKYLINE_DAY = "#aeb8c6";
 
 /** Half the box's depth toward the room, per row (wall B is thin in x, wall A thin in z). */
 export const SKYLINE_HALF_DEPTH = 0.35;

@@ -17,6 +17,8 @@ import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { ContactShadows, OrbitControls, RoundedBox } from "@react-three/drei";
 import * as THREE from "three";
 import { groundFadeTexture } from "../garage3d/glow.ts";
+import { FACTORY_PALETTE } from "../garage3d/factoryPalette.ts";
+import { StudioEnvironment } from "../garage3d/lighting.tsx";
 import {
   FLOOR, MACHINE_DEFS, beltPath, connectedChain, connectedMachines, routeTiles, canPlaceMachine, formMarks, machineCells, machineCenter, machineLevel, worldOf,
   type BeltDir, type FactoryFloor, type MachineKind,
@@ -55,38 +57,8 @@ function useMotionFrame(callback: Parameters<typeof useFrame>[0]) {
 
 
 /* palette — intrinsic object colours, the garage3d precedent */
-const C = {
-  grass: "#28343b",
-  pad: "#2a2f37",
-  concrete: "#7c828c",      // poured-concrete factory floor
-  concreteJoint: "#5c626b", // expansion joints / build grid
-  wallTrim: "#3c424b",      // wall skirting / base course
-  wallTop: "#aeb4bd",       // capping rail on the walls
-  beltBed: "#454c57",
-  beltFrame: "#3d4552",   // metal side frame of the conveyor
-  beltRubber: "#20242b",  // dark rubber belt surface
-  rollerHi: "#7b8592",    // polished metal roller
-  rail: "#5a626e",
-  roller: "#31363e",
-  machine: "#3f4754",
-  machineHi: "#4a5362",
-  dark: "#23272e",
-  accent: "#3b82f6",
-  amber: "#f59e0b",
-  hazard: "#e0a83c",
-  crate: "#b98a3a",
-  slab: "#9aa3ad",
-  board: "#2f9e6e",
-  device: "#1c2027",
-  screen: "#66a9ff",
-  glass: "#7fb2ff",
-  truck: "#d7dade",
-  cab: "#3b82f6",
-  agv: "#5ea0f8",
-  road: "#2e333b",
-  dropOk: "#2fbf71",  // hold-to-move: legal drop cells / valid footprint
-  dropBad: "#e5484d", // hold-to-move: footprint over an illegal spot
-};
+// The factory's materials come from the office's families (one studio) — see factoryPalette.ts.
+const C = FACTORY_PALETTE;
 
 export interface Factory3DProps {
   dark?: boolean;
@@ -1945,8 +1917,10 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
       {/* Low fill + a cool overhead hemisphere reads as a big shed lit from the roof; the working
           light comes from spaced high-bay pools, with one warm lamp over the dock/office corner. The
           era-tinted HotLight accents on the working machine still punch through this lower base. */}
-      <ambientLight intensity={p.dark ? 0.52 : 0.62} />
-      <hemisphereLight args={["#dce9ff", "#434a52", 0.72]} position={[0, 8, 0]} />
+      {/* The shared studio IBL (Factory3D root) now carries part of the fill, so the flat ambient sits
+          at the office's level and the sky/ground hemisphere is lighter-handed than before. */}
+      <ambientLight intensity={p.dark ? 0.3 : 0.44} />
+      <hemisphereLight args={["#dce9ff", "#434a52", 0.5]} position={[0, 8, 0]} />
       <primitive object={shadowTarget} />
       <directionalLight position={[7 + (floorW - FLOOR.w) / 2, 12, 5]} target={shadowTarget} intensity={1.0} castShadow shadow-mapSize={[1024, 1024]}
         shadow-camera-left={-floorW / 2 - 3} shadow-camera-right={floorW / 2 + 3}
@@ -1963,7 +1937,7 @@ function Scene(p: Factory3DProps & { onCarryActive?: (b: boolean) => void }) {
           + dock, solid well past the frame, gone before any orbit reaches its edge) */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[cx - 1.8, -0.02, 0]} receiveShadow>
         <planeGeometry args={[floorW + 48, floorW + 48]} />
-        <meshStandardMaterial color={p.dark ? C.grass : "#e2e7df"} roughness={1} alphaMap={groundFadeTexture()} transparent depthWrite={false} />
+        <meshStandardMaterial color={p.dark ? C.groundNight : C.groundDay} roughness={1} alphaMap={groundFadeTexture()} transparent depthWrite={false} />
       </mesh>
       {/* the building: concrete floor + painted walls (player-customisable), grows east with expansions */}
       <FactoryShell wallColor={p.wallColor ?? "#8a9099"} floorColor={p.floorColor ?? C.concrete} floorW={floorW} />
@@ -2185,7 +2159,9 @@ export default function Factory3D(p: Factory3DProps) {
       // same either way, and at that size a contact shadow under a roller is invisible. Dropping the
       // whole pass is the single biggest saving on the view the player leaves open the longest.
       shadows={!p.preview}
-      gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+      // The office's exposure (ACES is R3F's default in both), and below the office's studio IBL, so
+      // the two worlds' materials respond to light the same way.
+      gl={{ alpha: true, antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.05 }}
       camera={{ position: [10, 12.5, 11], fov: 28 }}
       onCreated={({ gl, camera, size }) => {
         // The same pose CameraReset writes on the first frame (it used to be a looser 1.22 for the card,
@@ -2199,6 +2175,7 @@ export default function Factory3D(p: Factory3DProps) {
       }}
     >
       <VisibilityPause paused={p.paused} idle={p.motionPaused || reduced} />
+      <StudioEnvironment />
       <Scene {...p} onCarryActive={(b) => { setCarrying(b); p.onCarryChange?.(b); }} />
       <CameraReset signal={p.resetView ?? 0} cx={cx} bay={bay} preview={p.preview} focus={p.floor.machines.some(m => m.id === p.focusMachine) ? machineCenter(p.floor.machines.find(m => m.id === p.focusMachine)!) : undefined} />
       {/* touch/drag to orbit, pinch to zoom — pan disabled, kept above the floor. While the belt tool

@@ -21,7 +21,7 @@ const IDLE_DRIFT_DELAY = 6;
 // Reduce-Motion `still` suppression are untouched. Decorate mode keeps its own pulled-back framing
 // (it has to show the whole grid above the shop panel).
 /** A starting pose for the Canvas; the rig snaps to the fitted pose on its first frame. */
-export const CAM_REST_POSITION = officeFrame(1, 1, false).position.toArray() as [number, number, number];
+export const CAM_REST_POSITION = officeFrame(1, 1).position.toArray() as [number, number, number];
 // Shared camera dolly offset (in the same units as baseR): written by both the W/S keys and the
 // pinch-to-zoom handler, read by CameraRig every frame. A plain module singleton (no React state) so
 // the render loop stays allocation-free and the DOM touch handler can drive it without re-renders.
@@ -30,16 +30,16 @@ let camZoomOffset = 0;
 function getCamZoom(): number { return camZoomOffset; }
 function setCamZoom(v: number): void { camZoomOffset = Math.max(CAM_ZOOM_MIN, Math.min(CAM_ZOOM_MAX, v)); }
 
-export function CameraRig({ build = false, facilityTier = 1, still = false, dark = false }: { build?: boolean; facilityTier?: number; still?: boolean; dark?: boolean }) {
+export function CameraRig({ build = false, facilityTier = 1, still = false }: { build?: boolean; facilityTier?: number; still?: boolean }) {
   const { camera, pointer, gl } = useThree();
   const width = useThree((s) => s.size.width), height = useThree((s) => s.size.height);
   const target = useMemo(() => new THREE.Vector3(0, 1.5, 0), []);
   // The fitted resting pose, as an orbit: pivot + horizontal radius/azimuth + eye height.
   const rest = useMemo(() => {
-    const f = officeFrame(width / Math.max(1, height), facilityTier, dark);
+    const f = officeFrame(width / Math.max(1, height), facilityTier);
     const dx = f.position.x - f.target.x, dz = f.position.z - f.target.z;
     return { target: f.target, r: Math.hypot(dx, dz), ang: Math.atan2(dx, dz), y: f.position.y };
-  }, [width, height, facilityTier, dark]);
+  }, [width, height, facilityTier]);
   const placed = useRef(false); // first frame snaps to the pose instead of gliding in from the Canvas default
   const keys = useRef<Set<string>>(new Set());
   const orbit = useRef({ yaw: 0, lift: 0 }); // player camera offsets (zoom lives in the shared singleton)

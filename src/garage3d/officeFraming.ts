@@ -5,7 +5,8 @@ import { GRID, gridN } from '../engine/furniture.ts';
 // The office card's resting camera, fitted to the card instead of one hand-tuned pose for every
 // screen. The LOOK stays the long-standing 3/4 view from the open front-right corner (azimuth
 // ~41.5°, ~29° above the floor); only where the pivot sits and how far back the camera stands are
-// fitted, per card aspect, facility tier and theme (the two themes build different rooms).
+// fitted, per card aspect and facility tier. One room in both themes (the garage), so the theme
+// never changes the fit.
 
 /** Unit vector from the pivot towards the camera — the cozy view's fixed direction. */
 export const OFFICE_VIEW = new THREE.Vector3(15.5, 13, 17.5).normalize();
@@ -22,13 +23,13 @@ const MARGIN = 1.06;
 
 /** What the cozy view must show: the placeable grid, furniture height at its side tips, the top of
  *  the back corner where the two standing walls meet (−x, −z), and the floor plate's front tip. */
-export function officeCorners(facilityTier: number, dark: boolean): THREE.Vector3[] {
+export function officeCorners(facilityTier: number): THREE.Vector3[] {
   const k = gridN(facilityTier) / GRID.n; // the shell's x/z scale (heights don't scale)
   const half = (gridN(facilityTier) * GRID.cell) / 2;
-  const wall = (dark ? 4.2 : 4.0) * k;
-  // Dark: the garage walls run to 5.2 m — keep the lit brand sign, let the bare upper wall crop.
-  const wallTop = dark ? 3.5 : 2.7;
-  const tip = (dark ? 4.3 : 4.7) * k;
+  const wall = 4.2 * k;
+  // The garage walls run to 5.2 m — keep the lit brand sign, let the bare upper wall crop.
+  const wallTop = 3.5;
+  const tip = 4.3 * k;
   return [
     new THREE.Vector3(-half, 0, half), new THREE.Vector3(half, 0, -half), new THREE.Vector3(half, 0, half),
     new THREE.Vector3(-half, 1.6, half), new THREE.Vector3(half, 1.6, -half),
@@ -37,8 +38,8 @@ export function officeCorners(facilityTier: number, dark: boolean): THREE.Vector
   ];
 }
 
-export function officeFrame(aspect: number, facilityTier: number, dark: boolean) {
-  const corners = officeCorners(facilityTier, dark);
+export function officeFrame(aspect: number, facilityTier: number) {
+  const corners = officeCorners(facilityTier);
   const { target, position } = fitCentred(corners, OFFICE_VIEW, OFFICE_FOV, aspect, { margin: MARGIN, crop: SIDE_CROP, pivotY: PIVOT_Y });
   return { target, position, corners };
 }

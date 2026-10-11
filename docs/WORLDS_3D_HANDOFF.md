@@ -148,6 +148,16 @@ Each gap: what is wrong, where, and the fix. Verified against the captures above
 - **Factory rules (owner-approved, 2026-10-11).** Every complete Intake→Packer route counts
   (`completeRoutes`), not only the longest; a stray belt into a line's head can't switch it off; the
   speed-bonus coverage counts processing machines only (a bare wired line keeps 25%, as documented).
+- **Step 2 (one look): in review** (branch `claude/worlds-3d-step2-one-look`, stacked on step 1).
+  Owner decision: **one room**. The office is the garage shell in both themes; the theme picks the
+  time of day only (`roomPalette` day/night, the light rig, the skyline tint) — `GARAGE_SHELL` in
+  `Garage3D.tsx`. The light diorama (`DioramaRoom`) and its light-only fixtures are gone; the day
+  rig adds a window-light patch; studio windows show daylight. Bug fixed on the way: `BrickWall`
+  multiplied the brick colour in twice (material × instance colour), crushing every brick wall to
+  near-black, and ignored the chosen wall style (Whitewash Brick rendered red). Factory: the
+  office's studio IBL (`StudioEnvironment`, shared) and exposure 1.05; its colours now come from
+  the office's CATALOG families (`factoryPalette.ts` + `factoryPalette.test.ts`). Correction to
+  F4: R3F already defaults both canvases to ACES — the real gaps were exposure, IBL and palette.
 
 ## 5. How to check yourself
 
