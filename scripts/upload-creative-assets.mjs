@@ -31,6 +31,12 @@ console.log('Existing draft placements:', before.data.map(p => `${p.attributes.p
 for (const [file, placementType, referenceName] of ART) {
   const bytes = readFileSync(file);
   const old = before.data.filter(p => p.attributes.placementType === placementType);
+  // A new version inherits the previous version's placements: if this art is already the one placed
+  // here, there is nothing to do (re-uploading would also collide on the library reference name).
+  const images = Object.fromEntries((before.included ?? []).map(i => [i.id, i.attributes ?? {}]));
+  if (old.some(p => { const img = images[p.relationships?.image?.data?.id]; return img && img.referenceName === referenceName && img.fileName === basename(file); })) {
+    console.log('Already placed', placementType, basename(file)); continue;
+  }
   const image = (await asc('/v1/appAssetLibraryImages', 'POST', {
     type: 'appAssetLibraryImages',
     attributes: { category: 'CREATIVE_ASSETS', fileName: basename(file), fileSize: bytes.length, referenceName },
