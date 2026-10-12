@@ -7,7 +7,7 @@ const root = resolve('.');
 const source = readFileSync('scripts/prepare-app-store.mjs', 'utf8').replace("import { asc, sanitized } from './app-store-client.mjs';", 'const { asc, sanitized } = globalThis.__ascFixture;');
 mkdirSync('artifacts/store-preparation-tests', { recursive: true });
 let sequence = 0;
-async function exercise({ prepare = false, state = 'PREPARE_FOR_SUBMISSION', buildVersion = '1.4.0', processing = 'VALID' } = {}) {
+async function exercise({ prepare = false, state = 'PREPARE_FOR_SUBMISSION', buildVersion = '1.4.0', processing = 'VALID', exists = true } = {}) {
   const calls = [];
   const dir = mkdtempSync(join(root, 'artifacts/store-preparation-tests/case-'));
   mkdirSync(join(dir, 'appstore/localizations/en-US'), { recursive: true });
@@ -19,8 +19,9 @@ async function exercise({ prepare = false, state = 'PREPARE_FOR_SUBMISSION', bui
     sanitized: value => value,
     async asc(path, method = 'GET', data) {
       calls.push({ path, method, data });
+      if (method === 'POST' && path === '/v1/appStoreVersions') { exists = true; return { data: version }; }
       if (method !== 'GET') return { data };
-      if (path.startsWith('/v1/apps/6778942533/appStoreVersions')) return { data: [version] };
+      if (path.startsWith('/v1/apps/6778942533/appStoreVersions')) return { data: exists ? [version] : [] };
       if (path.includes('/appStoreVersionLocalizations?')) return { data: [locale] };
       if (path.includes('/appScreenshotSets?') || path.includes('/appPreviewSets?')) return { data: [] };
       if (path.startsWith('/v1/builds?')) return { data: [{ id: 'build-77', attributes: { processingState: processing }, relationships: { preReleaseVersion: { data: { id: 'train' } } } }], included: [{ id: 'train', attributes: { version: buildVersion } }] };
@@ -64,4 +65,12 @@ await test('valid draft preparation changes only notes and build, never submits'
   ]);
   assert.equal(changes[0].data.attributes.whatsNew, 'New release notes');
   assert.deepEqual(changes[2].data, { type: 'builds', id: 'build-77' });
+});
+await test('a missing version is created only when a write was requested', async () => {
+  const inspect = await exercise({ exists: false });
+  assert.match(inspect.error.message, /editable/); assert.ok(inspect.calls.every(c => c.method === 'GET'));
+  const { calls, error } = await exercise({ prepare: true, exists: false }); assert.ifError(error);
+  const changes = calls.filter(c => c.method !== 'GET');
+  assert.deepEqual(changes[0], { path: '/v1/appStoreVersions', method: 'POST', data: { type: 'appStoreVersions', attributes: { platform: 'IOS', versionString: '1.4.0' }, relationships: { app: { data: { type: 'apps', id: '6778942533' } } } } });
+  assert.ok(!changes.some(c => /submission|Submission/.test(c.path)));
 });

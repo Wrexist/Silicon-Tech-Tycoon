@@ -1,16 +1,23 @@
-// Update only the existing editable 1.4.0 draft. Never submit or release a version.
+// Update only the editable draft of STORE_VERSION (default 1.4.0), creating it first when a write was
+// requested and it doesn't exist yet. Never submit or release a version.
 import { readFileSync, mkdirSync, writeFileSync, readdirSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { createHash } from 'node:crypto';
 import { asc, sanitized } from './app-store-client.mjs';
 
-const appId = '6778942533', versionString = '1.4.0';
+const appId = '6778942533', versionString = process.env.STORE_VERSION || '1.4.0';
+const writing = process.env.PREPARE_STORE === '1' || process.env.UPLOAD_STORE_MEDIA === '1';
 const out = 'artifacts/app-store-preparation';
 mkdirSync(out, { recursive: true });
 const save = (name, data) => writeFileSync(join(out, name + '.json'), JSON.stringify(sanitized(data), null, 2));
 const versions = await asc(`/v1/apps/${appId}/appStoreVersions?limit=50&include=build`);
-const version = versions.data.find(v => v.attributes.versionString === versionString && v.attributes.platform === 'IOS');
-if (!version || version.attributes.appStoreState !== 'PREPARE_FOR_SUBMISSION') throw Error('Expected editable iOS 1.4.0 draft');
+let version = versions.data.find(v => v.attributes.versionString === versionString && v.attributes.platform === 'IOS');
+if (!version && writing) {
+  // A new version inherits the live page's localizations and media; this run then replaces them.
+  version = (await asc('/v1/appStoreVersions', 'POST', { type: 'appStoreVersions', attributes: { platform: 'IOS', versionString }, relationships: { app: { data: { type: 'apps', id: appId } } } })).data;
+  console.log('Created draft', versionString);
+}
+if (!version || version.attributes.appStoreState !== 'PREPARE_FOR_SUBMISSION') throw Error(`Expected editable iOS ${versionString} draft`);
 const locales = await asc(`/v1/appStoreVersions/${version.id}/appStoreVersionLocalizations?limit=200`);
 const locale = locales.data.find(l => l.attributes.locale === 'en-US');
 if (!locale) throw Error('Expected existing en-US localization');
@@ -42,8 +49,15 @@ if (process.env.PREPARE_STORE === '1') {
   // GitHub Pages project paths are case-sensitive; the previous lowercase URL returned 404.
   const marketingUrl = 'https://wrexist.github.io/Silicon-Tech-Tycoon/';
   await asc(`/v1/appStoreVersionLocalizations/${locale.id}`, 'PATCH', { type: 'appStoreVersionLocalizations', id: locale.id, attributes: { whatsNew, marketingUrl } });
+  // Every other store language gets its own translated notes (an update can't be submitted without).
+  const notesFor = code => { try { return readFileSync(`appstore/localizations/${code}/release_notes.txt`, 'utf8').trim(); } catch { return ''; } };
+  for (const other of locales.data.filter(l => l.id !== locale.id)) {
+    const text = notesFor(other.attributes.locale);
+    if (!text || text.length > 4000) { console.log('No release notes for', other.attributes.locale); continue; }
+    await asc(`/v1/appStoreVersionLocalizations/${other.id}`, 'PATCH', { type: 'appStoreVersionLocalizations', id: other.id, attributes: { whatsNew: text } });
+  }
   const review = (await asc(`/v1/appStoreVersions/${version.id}/appStoreReviewDetail`)).data;
-  const notes = readFileSync('appstore/review-notes-1.4.0.txt', 'utf8').trim();
+  const notes = readFileSync(`appstore/review-notes-${versionString}.txt`, 'utf8').trim();
   if (!notes || notes.length > 4000) throw Error('Invalid review notes');
   await asc(`/v1/appStoreReviewDetails/${review.id}`, 'PATCH', { type: 'appStoreReviewDetails', id: review.id, attributes: { notes } });
   await asc(`/v1/appStoreVersions/${version.id}/relationships/build`, 'PATCH', { type: 'builds', id: build.id });
