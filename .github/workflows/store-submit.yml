@@ -1,0 +1,43 @@
+name: Store submit
+# Submits ONE App Store version for review (scripts/submit-for-review.mjs). Manual dispatch only; the
+# confirm field must repeat the version. Every other store workflow is draft-only.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to submit for review (e.g. 1.4.1)"
+        required: true
+        type: string
+      confirm:
+        description: "Type the version again to confirm"
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: store-submit
+  cancel-in-progress: false
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+      - name: Submit for review
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          SUBMIT_VERSION: ${{ inputs.version }}
+          CONFIRM: ${{ inputs.confirm }}
+        run: node scripts/submit-for-review.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: store-submit
+          path: artifacts/store-submit/
