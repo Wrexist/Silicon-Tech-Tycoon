@@ -9,7 +9,7 @@ import { BALANCE } from "../engine/balance.ts";
 import { insightFromPlan, planProduction, productStats } from "./gameState.ts";
 import { buildLaunchReveal, emitLaunchReveal } from "../design/launchReveal.ts";
 import { launchOutcome, currentHitStreak } from "../design/launchFeedback.ts";
-import { maybePromptFirstLaunchReview } from "./review.ts";
+import { maybePromptFirstLaunchReview, maybePromptReview } from "./review.ts";
 import { haptic } from "../design/haptics.ts";
 import { sfx } from "../design/sound.ts";
 import { showToast } from "../design/toast.tsx";
@@ -75,8 +75,10 @@ export function useLaunchProduct() {
           insight: insightFromPlan(plan),
           launchedBefore,
         }));
-        // First product ever shipped — a real high point. Ask for an App Store review (once).
+        // First product ever shipped, or a later hit — real high points. Ask for an App Store
+        // review (each moment once; review.ts spaces and caps the asks).
         if (launchedBefore.length === 0) maybePromptFirstLaunchReview();
+        else if (isHit) maybePromptReview("first-hit");
       }
       // Category Mastery (feature #3) level-up moment — a toast + confetti, NO new interrupt stream.
       // Only for fresh runs (masteryEnabled) where the bonuses actually apply. Derived purely from the

@@ -1,6 +1,7 @@
 import { continueWithPreservedRecovery } from "./state/persistence.ts";
 import { useSaveHealth } from "./state/saveHealth.ts";
 import { hasFactoryAccess } from "./state/factorySummary.ts";
+import { maybePromptReview } from "./state/review.ts";
 import { Suspense, lazy, memo, useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { AlertTriangle, ArrowRight, BadgeDollarSign, Bell, BellRing, Check, CircuitBoard, CircleX, Compass, Copy, Cpu, Crown, Factory, Flame, FlaskConical, Home, Layers, Minus, Plus, RotateCcw, Sparkles, TrendingUp, Trophy, Users } from "lucide-react";
 import { GameProvider, useGame, useGameActions, useHoldSim } from "./state/useGame.tsx";
@@ -459,7 +460,7 @@ function AppShell() {
         </ErrorBoundary>
       </Sheet>
       {(state.era > seenEraModal || (state.pendingMandateOffer != null && state.pendingMandateOffer.eraTo === state.era)) && !state.wentPublic && !state.bankrupt && (
-        <EraModal era={state.era} onDismiss={() => setSeenEraModal(state.era)} />
+        <EraModal era={state.era} onDismiss={() => { setSeenEraModal(state.era); maybePromptReview("new-era"); }} />
       )}
       {state.wentPublic && !ipoSeen && <IpoOverlay onDismiss={() => setIpoSeen(true)} />}
       {state.bankrupt && <BankruptOverlay />}

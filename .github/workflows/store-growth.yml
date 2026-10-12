@@ -1,0 +1,53 @@
+name: Store growth
+# Drafts App Store reach for 1.4.0 (in-app event, featuring nomination, custom product pages) via
+# scripts/store-growth.mjs. Nothing is submitted: the owner reviews and submits in App Store Connect.
+on:
+  workflow_dispatch:
+    inputs:
+      steps:
+        description: "Comma list: event, nomination, cpp, promo"
+        required: false
+        default: "event,nomination,cpp,promo"
+        type: string
+      media_run_id:
+        description: "Reviewed Store media run (screenshots + trailer) for the Factory product page"
+        required: false
+        type: string
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: store-growth
+  cancel-in-progress: false
+jobs:
+  growth:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.x"
+      - name: Download reviewed media
+        if: ${{ inputs.media_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: silicon-store-media-1.4.0
+          path: reviewed-media
+          run-id: ${{ inputs.media_run_id }}
+          github-token: ${{ github.token }}
+      - name: Draft event, nomination and product pages
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          GROWTH: ${{ inputs.steps }}
+          STORE_MEDIA_DIR: ${{ inputs.media_run_id != '' && 'reviewed-media' || '' }}
+        run: node scripts/store-growth.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: store-growth
+          path: artifacts/store-growth/

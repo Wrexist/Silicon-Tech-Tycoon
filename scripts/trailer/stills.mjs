@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { launch, boot, installCamera, fullBleed, orbit, OUT } from './lib.mjs';
 
 const PROBE = process.env.PROBE === '1';
-export const ASSETS = { header: [1920, 823], search: [1920, 1280], universal: [2622, 1475] };
+export const ASSETS = { header: [1920, 823], search: [1920, 1280], universal: [2622, 1475], 'event-card': [1920, 1080], 'event-details': [1080, 1920] };
 const WORLDS = {
   office: { prep: s => { s.building = []; }, canvas: '.hq__scene canvas', open: async page => {
     await page.locator('.bnav__item:visible, .railnav__item:visible').filter({ hasText: 'Office' }).click();
@@ -34,7 +34,8 @@ const CANDIDATES = {
 const browser = await launch();
 await mkdir(join(OUT, 'plates'), { recursive: true });
 try {
-  for (const [asset, [w, h]] of Object.entries(PROBE ? { header: ASSETS.header } : ASSETS)) for (const [id, world] of Object.entries(WORLDS)) {
+  const only = process.env.STILLS_ONLY?.split(',');
+  for (const [asset, [w, h]] of Object.entries(PROBE ? { header: ASSETS.header } : ASSETS).filter(([a]) => !only || only.includes(a))) for (const [id, world] of Object.entries(WORLDS)) {
     const { ctx, page } = await boot(browser, { width: w, height: h, dpr: PROBE ? 1 : 2, prep: world.prep });
     await world.open(page);
     await page.clock.runFor(1500);
