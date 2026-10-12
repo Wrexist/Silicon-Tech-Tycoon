@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { maybePromptFirstLaunchReview, requestAppStoreReview, onReviewPrompt } from "./review.ts";
+import { maybePromptFirstLaunchReview, maybePromptReview, markReviewRated, requestAppStoreReview, onReviewPrompt, MIN_GAP_MS } from "./review.ts";
 
 // node env has no DOM — stub localStorage so the once-flag persists within a test.
 class MemStorage {
@@ -72,5 +72,59 @@ describe("first-launch App Store review prompt", () => {
 
   it("requestAppStoreReview is a safe no-op on web (resolves, never throws)", async () => {
     await expect(requestAppStoreReview()).resolves.toBeUndefined();
+  });
+});
+
+describe("later review moments (first hit, new era)", () => {
+  const STATE = "silicon.review.v2";
+  const DAY = 24 * 60 * 60 * 1000;
+
+  it("asks at each moment once, spaced at least MIN_GAP_MS apart", () => {
+    vi.useFakeTimers();
+    const seen: string[] = [];
+    const off = onReviewPrompt((m) => { seen.push(m); });
+    const t0 = 1_000_000_000_000;
+    maybePromptReview("first-launch", t0);
+    maybePromptReview("first-hit", t0 + DAY); // too soon after the first ask
+    maybePromptReview("first-hit", t0 + MIN_GAP_MS); // now allowed
+    maybePromptReview("first-hit", t0 + 10 * MIN_GAP_MS); // already asked
+    maybePromptReview("new-era", t0 + 2 * MIN_GAP_MS);
+    vi.runAllTimers();
+    expect(seen).toEqual(["first-launch", "first-hit", "new-era"]);
+    off();
+    vi.useRealTimers();
+  });
+
+  it("never asks again once the player tapped Rate", () => {
+    vi.useFakeTimers();
+    let fired = 0;
+    const off = onReviewPrompt(() => { fired += 1; });
+    maybePromptReview("first-launch", 1);
+    markReviewRated();
+    maybePromptReview("first-hit", 1 + 5 * MIN_GAP_MS);
+    maybePromptReview("new-era", 1 + 9 * MIN_GAP_MS);
+    vi.runAllTimers();
+    expect(fired).toBe(1);
+    expect(JSON.parse(localStorage.getItem(STATE)!).rated).toBe(true);
+    off();
+    vi.useRealTimers();
+  });
+
+  it("an install that saw the original v1 prompt still gets the later moments, but not the first again", () => {
+    vi.useFakeTimers();
+    localStorage.setItem(FLAG, "1");
+    const seen: string[] = [];
+    const off = onReviewPrompt((m) => { seen.push(m); });
+    maybePromptFirstLaunchReview();
+    maybePromptReview("new-era");
+    vi.runAllTimers();
+    expect(seen).toEqual(["new-era"]);
+    off();
+    vi.useRealTimers();
+  });
+
+  it("survives a corrupt stored state", () => {
+    localStorage.setItem(STATE, "{not json");
+    expect(() => maybePromptReview("first-hit", 5)).not.toThrow();
   });
 });

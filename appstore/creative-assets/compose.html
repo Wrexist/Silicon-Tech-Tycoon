@@ -37,6 +37,9 @@
   /* search: both worlds drop below a calm band that carries the headline */
   .search .top { height: 62%; background: linear-gradient(180deg, #080c14 0%, #080c14 34%, rgba(8,12,20,.82) 46%, transparent 100%); }
   .search .beam { top: 22%; }
+  /* event details (portrait): the office on top, the factory below, the seam runs across */
+  .tall .factory { -webkit-mask-image: linear-gradient(180deg, transparent 40%, #000 60%); mask-image: linear-gradient(180deg, transparent 40%, #000 60%); }
+  .tall .beam { background: radial-gradient(80% 12% at 50% 50%, rgba(96,165,250,.36) 0%, rgba(59,130,246,.1) 50%, transparent 100%); }
   .eyebrow { font-size: 30px; font-weight: 650; letter-spacing: 9px; color: #a9b8cc; margin-bottom: 26px; }
   .h { font-size: 118px; line-height: 1; font-weight: 800; letter-spacing: -4.5px; text-shadow: 0 6px 40px rgba(0,0,0,.6); }
   .h b { color: #8cb5ff; font-weight: 800; }
@@ -56,12 +59,17 @@
 </div>
 <script>
   const q = new URLSearchParams(location.search), asset = q.get('asset'), root = q.get('root');
-  const SIZE = { header: [1920, 823], search: [1920, 1280], universal: [2622, 1475] }[asset];
+  const SIZE = { header: [1920, 823], search: [1920, 1280], universal: [2622, 1475], 'event-card': [1920, 1080], 'event-details': [1080, 1920] }[asset];
   const c = document.getElementById('c');
   c.style.width = SIZE[0] + 'px'; c.style.height = SIZE[1] + 'px';
   // the wider the canvas, the further apart the two worlds sit
-  const spread = { header: ['-17%', '19%'], search: ['-12%', '14%'], universal: ['-14%', '16%'] }[asset];
+  const spread = { header: ['-17%', '19%'], search: ['-12%', '14%'], universal: ['-14%', '16%'], 'event-card': ['-14%', '16%'], 'event-details': ['0%', '0%'] }[asset];
   c.style.setProperty('--office-x', spread[0]); c.style.setProperty('--factory-x', spread[1]);
+  if (asset === 'event-details') {
+    c.classList.add('tall');
+    document.getElementById('office').style.transform = 'translateY(-20%) scale(1.04)';
+    document.getElementById('factory').style.transform = 'translateY(16%) scale(1.04)';
+  }
   document.getElementById('office').src = `${root}/plates/${asset}-office.png`;
   document.getElementById('factory').src = `${root}/plates/${asset}-factory.png`;
   if (asset === 'search') { document.getElementById('copy').hidden = false; c.classList.add('search'); c.style.setProperty('--plate-y', '24%'); }

@@ -9,7 +9,9 @@ import { OUT, CHROME } from '../../scripts/trailer/lib.mjs';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(OUT);
-const ASSETS = { header: [3840, 1646], search: [3840, 2560], universal: [5244, 2950] };
+const ALL = { header: [3840, 1646], search: [3840, 2560], universal: [5244, 2950], 'event-card': [3840, 2160], 'event-details': [2160, 3840] };
+const only = process.env.ART_ONLY?.split(',');
+const ASSETS = Object.fromEntries(Object.entries(ALL).filter(([a]) => !only || only.includes(a)));
 const browser = await chromium.launch({ executablePath: CHROME, args: ['--allow-file-access-from-files'] });
 for (const [name, [w, h]] of Object.entries(ASSETS)) {
   const page = await browser.newPage({ viewport: { width: w / 2, height: h / 2 }, deviceScaleFactor: 2 });
