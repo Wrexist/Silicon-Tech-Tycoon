@@ -5,9 +5,13 @@ on:
   workflow_dispatch:
     inputs:
       steps:
-        description: "Comma list: event, nomination, cpp, promo"
+        description: "Comma list: event, nomination, cpp, promo, promo-fill (needs promo_version)"
         required: false
         default: "event,nomination,cpp,promo"
+        type: string
+      promo_version:
+        description: "Version whose empty promotional text promo-fill copies from the live one"
+        required: false
         type: string
       media_run_id:
         description: "Reviewed Store media run (screenshots + trailer); required by the cpp step"
@@ -44,6 +48,7 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
           GROWTH: ${{ inputs.steps }}
+          PROMO_VERSION: ${{ inputs.promo_version }}
           STORE_MEDIA_DIR: ${{ inputs.media_run_id != '' && 'reviewed-media' || '' }}
         run: node scripts/store-growth.mjs
       - uses: actions/upload-artifact@v4
