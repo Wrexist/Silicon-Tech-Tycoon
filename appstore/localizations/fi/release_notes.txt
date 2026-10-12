@@ -1,1 +1,1 @@
-Versio 1.4.0 uudistaa toimiston ja parantaa tehtaan ohjausta, tallennettuja suunnitelmia, tutkimuksen edistymisen näyttöä ja pelitallennusten palautusta.
+Versio 1.4 uudistaa toimiston ja parantaa tehtaan ohjausta, tallennettuja suunnitelmia, tutkimuksen edistymisen näyttöä ja pelitallennusten palautusta.

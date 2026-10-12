@@ -1,1 +1,1 @@
-Wersja 1.4.0 odświeża biuro i usprawnia sterowanie fabryką, zapisane projekty, wyświetlanie postępów badań oraz odzyskiwanie zapisów gry.
+Wersja 1.4 odświeża biuro i usprawnia sterowanie fabryką, zapisane projekty, wyświetlanie postępów badań oraz odzyskiwanie zapisów gry.

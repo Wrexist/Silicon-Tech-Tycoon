@@ -6,7 +6,7 @@ import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, basename } from 'node:path';
 import { asc, sanitized } from './app-store-client.mjs';
 
-const appId = '6778942533', versionString = '1.4.0', locale = 'en-US';
+const appId = '6778942533', versionString = process.env.STORE_VERSION || '1.4.0', locale = 'en-US';
 const ART = [
   ['appstore/creative-assets/header-3840x1646.png', 'PRODUCT_PAGE_HEADER_ASSET', 'Silicon 1.4.0 header'],
   ['appstore/creative-assets/search-3840x2560.png', 'APP_STORE_SEARCH_RESULTS_ASSET', 'Silicon 1.4.0 search'],
@@ -18,7 +18,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 
 const versions = await asc(`/v1/apps/${appId}/appStoreVersions?limit=50`);
 const version = versions.data.find(v => v.attributes.versionString === versionString && v.attributes.platform === 'IOS');
-if (!version || version.attributes.appStoreState !== 'PREPARE_FOR_SUBMISSION') throw Error('Expected editable iOS 1.4.0 draft');
+if (!version || version.attributes.appStoreState !== 'PREPARE_FOR_SUBMISSION') throw Error(`Expected editable iOS ${versionString} draft`);
 const loc = (await asc(`/v1/appStoreVersions/${version.id}/appStoreVersionLocalizations?limit=200`)).data.find(l => l.attributes.locale === locale);
 if (!loc) throw Error('Expected an en-US localization');
 const library = (await asc(`/v1/apps/${appId}/assetLibrary`)).data;

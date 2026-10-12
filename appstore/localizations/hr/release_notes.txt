@@ -1,1 +1,1 @@
-Verzija 1.4.0 donosi preuređen ured i poboljšava upravljanje tvornicom, spremljene dizajne, prikaz napretka istraživanja i oporavak spremljenih igara.
+Verzija 1.4 donosi preuređen ured i poboljšava upravljanje tvornicom, spremljene dizajne, prikaz napretka istraživanja i oporavak spremljenih igara.

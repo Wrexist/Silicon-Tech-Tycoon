@@ -1,1 +1,1 @@
-Verzia 1.4.0 prináša prepracovanú kanceláriu a vylepšuje ovládanie továrne, uložené návrhy, zobrazenie priebehu výskumu a obnovu uložených hier.
+Verzia 1.4 prináša prepracovanú kanceláriu a vylepšuje ovládanie továrne, uložené návrhy, zobrazenie priebehu výskumu a obnovu uložených hier.

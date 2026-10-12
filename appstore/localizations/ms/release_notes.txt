@@ -1,1 +1,1 @@
-Versi 1.4.0 memperbaharui pejabat dan menambah baik kawalan kilang, reka bentuk tersimpan, paparan kemajuan penyelidikan serta pemulihan data permainan tersimpan.
+Versi 1.4 memperbaharui pejabat dan menambah baik kawalan kilang, reka bentuk tersimpan, paparan kemajuan penyelidikan serta pemulihan data permainan tersimpan.

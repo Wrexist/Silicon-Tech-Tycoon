@@ -1,1 +1,1 @@
-Phiên bản 1.4.0 làm mới văn phòng và cải thiện điều khiển nhà máy, thiết kế đã lưu, hiển thị tiến độ nghiên cứu và khôi phục dữ liệu trò chơi đã lưu.
+Phiên bản 1.4 làm mới văn phòng và cải thiện điều khiển nhà máy, thiết kế đã lưu, hiển thị tiến độ nghiên cứu và khôi phục dữ liệu trò chơi đã lưu.

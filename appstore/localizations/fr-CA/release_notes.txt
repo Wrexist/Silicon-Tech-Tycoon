@@ -1,1 +1,1 @@
-La version 1.4.0 renouvelle le bureau et améliore les commandes de l’usine, les conceptions sauvegardées, l’affichage de la progression des recherches et la récupération des sauvegardes.
+La version 1.4 renouvelle le bureau et améliore les commandes de l’usine, les conceptions sauvegardées, l’affichage de la progression des recherches et la récupération des sauvegardes.

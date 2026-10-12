@@ -1,1 +1,1 @@
-1.4.0 sürümü ofisi yeniliyor; fabrika kontrollerini, kaydedilmiş tasarımları, araştırma ilerlemesinin gösterimini ve kayıtlı oyunların kurtarılmasını iyileştiriyor.
+1.4 sürümü ofisi yeniliyor; fabrika kontrollerini, kaydedilmiş tasarımları, araştırma ilerlemesinin gösterimini ve kayıtlı oyunların kurtarılmasını iyileştiriyor.
