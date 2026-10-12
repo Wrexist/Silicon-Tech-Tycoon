@@ -10,7 +10,7 @@ on:
         default: "event,nomination,cpp,promo"
         type: string
       media_run_id:
-        description: "Reviewed Store media run (screenshots + trailer) for the Factory product page"
+        description: "Reviewed Store media run (screenshots + trailer); required by the cpp step"
         required: false
         type: string
 permissions:

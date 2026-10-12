@@ -22,6 +22,9 @@ const fit = (text, max, label) => { if (text.length > max) throw Error(`${label}
 const EVENT_START = process.env.EVENT_START || '2026-10-19T16:00:00Z';
 const EVENT_END = process.env.EVENT_END || '2026-11-16T16:00:00Z';
 
+// Fail before touching anything if a requested step can't finish (the Factory page needs media).
+if (steps.includes('cpp') && !process.env.STORE_MEDIA_DIR) throw Error('The cpp step needs reviewed media: pass media_run_id (STORE_MEDIA_DIR)');
+
 const report = {};
 const versions = (await asc(`/v1/apps/${appId}/appStoreVersions?limit=50`)).data;
 const version = versions.find(v => v.attributes.versionString === versionString && v.attributes.platform === 'IOS');
@@ -93,7 +96,9 @@ if (steps.includes('event') || steps.includes('nomination')) {
 // ---------- featuring nomination ----------
 if (steps.includes('nomination')) {
   const name = 'Silicon 1.4: 3D Office and Factory';
-  const existing = (await asc(`/v1/nominations?filter[relatedApps]=${appId}&limit=50`).catch(() => ({ data: [] }))).data;
+  // filter[state] is required by the endpoint; a draft is the only kind this script may reuse.
+  const existing = (await asc(`/v1/nominations?filter[state]=DRAFT&filter[relatedApps]=${appId}&limit=50`)).data;
+  const sent = (await asc(`/v1/nominations?filter[state]=SUBMITTED&filter[relatedApps]=${appId}&limit=50`)).data;
   const description = fit([
     'Silicon is a tech-tycoon sim where you design devices down to the chip, grow a company and outplay rivals.',
     'Version 1.4 is our biggest update: a fully 3D office where a team of expressive robot staff works, takes breaks and grows with you, and a 3D factory where players place machines, route conveyor belts and watch their own production line build every launch.',
@@ -103,9 +108,9 @@ if (steps.includes('nomination')) {
   const notes = 'Built for iPhone and iPad (phone and tablet layouts). Honours Reduce Motion, offers adjustable text size and a 3D quality setting for older devices. The game is fully offline and deterministic; saves never leave the device.';
   const attributes = { name, type: 'APP_ENHANCEMENTS', description, notes, submitted: false, publishStartDate: EVENT_START, deviceFamilies: ['IPHONE', 'IPAD'], locales: [locale], hasInAppEvents: !!eventId, launchInSelectMarketsFirst: false, preOrderEnabled: false };
   const relationships = { relatedApps: { data: [{ type: 'apps', id: appId }] }, ...(eventId ? { inAppEvents: { data: [{ type: 'appEvents', id: eventId }] } } : {}) };
+  if (sent.some(n => n.attributes.name === name)) throw Error(`Nomination "${name}" is already submitted`);
   const same = existing.find(n => n.attributes.name === name);
   let nomination;
-  if (same && same.attributes.state && same.attributes.state !== 'DRAFT') throw Error(`Nomination "${name}" is already ${same.attributes.state}`);
   if (same) {
     const { submitted, ...rest } = attributes;
     nomination = (await asc(`/v1/nominations/${same.id}`, 'PATCH', { type: 'nominations', id: same.id, attributes: rest, relationships })).data;
@@ -129,24 +134,29 @@ async function fillSets(locId, root) {
     const set = current.find(s => s.attributes[attribute] === value) ?? (await asc(`/v1/${sets}`, 'POST', { type: sets, attributes: { [attribute]: value }, relationships: owner })).data;
     const sums = files.map(f => createHash('md5').update(readFileSync(f)).digest('hex'));
     // The template seeds this page with copies of the default media; they live only on this page.
-    for (const a of (await asc(`/v1/${sets}/${set.id}/${assets}?limit=50`)).data) if (!sums.includes(a.attributes.sourceFileChecksum)) await asc(`/v1/${assets}/${a.id}`, 'DELETE');
+    for (const a of (await asc(`/v1/${sets}/${set.id}/${assets}?limit=50`)).data) {
+      if (!sums.includes(a.attributes.sourceFileChecksum) || a.attributes.assetDeliveryState?.state !== 'COMPLETE') await asc(`/v1/${assets}/${a.id}`, 'DELETE');
+    }
     const have = (await asc(`/v1/${sets}/${set.id}/${assets}?limit=50`)).data;
     const ids = [];
     for (const [i, file] of files.entries()) {
-      const done = have.find(a => a.attributes.sourceFileChecksum === sums[i]);
+      // only a fully delivered asset is reusable; anything else was cleared above and is re-uploaded
+      const done = have.find(a => a.attributes.sourceFileChecksum === sums[i] && a.attributes.assetDeliveryState?.state === 'COMPLETE');
       if (done) { ids.push(done.id); continue; }
       const bytes = readFileSync(file);
       const attrs = { fileName: basename(file), fileSize: bytes.length, ...(assets === 'appPreviews' ? { mimeType: 'video/mp4', previewFrameTimeCode: '00:00:03:00' } : {}) };
       const r = (await asc(`/v1/${assets}`, 'POST', { type: assets, attributes: attrs, relationships: { [relationship]: { data: { type: sets, id: set.id } } } })).data;
       await uploadParts(r.attributes.uploadOperations, bytes);
       await asc(`/v1/${assets}/${r.id}`, 'PATCH', { type: assets, id: r.id, attributes: { uploaded: true, sourceFileChecksum: sums[i] } });
-      for (let k = 0; k < 100; k++) {
+      let ready = false;
+      for (let k = 0; k < 100 && !ready; k++) {
         const a = (await asc(`/v1/${assets}/${r.id}`)).data.attributes;
         const states = [a.assetDeliveryState, ...(assets === 'appPreviews' ? [a.videoDeliveryState] : [])];
         if (states.some(s => s?.state === 'FAILED')) throw Error(`${basename(file)} failed`);
-        if (states.every(s => s?.state === 'COMPLETE')) break;
-        await wait(6000);
+        ready = states.every(s => s?.state === 'COMPLETE');
+        if (!ready) await wait(6000);
       }
+      if (!ready) throw Error(`${basename(file)} is still processing; rerun to retry it`);
       ids.push(r.id);
     }
     await asc(`/v1/${sets}/${set.id}/relationships/${assets}`, 'PATCH', ids.map(id => ({ type: assets, id })));
@@ -159,7 +169,8 @@ async function fillSets(locId, root) {
 }
 
 if (steps.includes('cpp')) {
-  const keywords = (await asc(`/v1/apps/${appId}/searchKeywords?limit=200`).catch(e => ({ data: [], error: String(e) })));
+  // appKeywords carry no attributes: the resource id is the keyword itself (scoped by locale).
+  const keywords = await asc(`/v1/apps/${appId}/searchKeywords?filter[platform]=IOS&filter[locale]=${locale}&limit=200`);
   save('app-keywords', keywords);
   const pages = (await asc(`/v1/apps/${appId}/appCustomProductPages?limit=50`)).data;
   const PAGES = [
@@ -187,12 +198,12 @@ if (steps.includes('cpp')) {
     const locs = (await asc(`/v1/appCustomProductPageVersions/${editable.id}/appCustomProductPageLocalizations?limit=50`)).data;
     const loc = locs.find(l => l.attributes.locale === locale) ?? locs[0];
     await asc(`/v1/appCustomProductPageLocalizations/${loc.id}`, 'PATCH', { type: 'appCustomProductPageLocalizations', id: loc.id, attributes: { promotionalText: p.promo } });
-    const ids = keywords.data.filter(k => p.words.includes((k.attributes?.keyword ?? k.attributes?.name ?? k.id).toLowerCase())).map(k => ({ type: 'appKeywords', id: k.id }));
-    let linked = 0;
-    if (ids.length) {
-      try { await asc(`/v1/appCustomProductPageLocalizations/${loc.id}/relationships/searchKeywords`, 'POST', ids); linked = ids.length; }
-      catch (e) { console.log('Keywords not linked:', String(e)); }
-    }
+    const word = k => { try { return decodeURIComponent(k.id).trim().toLowerCase(); } catch { return k.id.toLowerCase(); } };
+    const ids = keywords.data.filter(k => p.words.includes(word(k))).map(k => ({ type: 'appKeywords', id: k.id }));
+    // Never claim keywords silently: an unmatched list is reported so the owner can pick in ASC.
+    if (!ids.length) throw Error(`${p.name}: none of ${p.words.join(', ')} matched the app's keyword ids (${keywords.data.slice(0, 20).map(k => k.id).join(', ')})`);
+    await asc(`/v1/appCustomProductPageLocalizations/${loc.id}/relationships/searchKeywords`, 'POST', ids);
+    const linked = ids.length;
     if (p.media) {
       if (!process.env.STORE_MEDIA_DIR) throw Error('Factory page needs STORE_MEDIA_DIR');
       await fillSets(loc.id, process.env.STORE_MEDIA_DIR);
