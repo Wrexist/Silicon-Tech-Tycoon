@@ -1,1 +1,1 @@
-La versione 1.4.0 rinnova l’ufficio e migliora i comandi della fabbrica, i progetti salvati, la visualizzazione dei progressi della ricerca e il recupero dei salvataggi.
+La versione 1.4 rinnova l’ufficio e migliora i comandi della fabbrica, i progetti salvati, la visualizzazione dei progressi della ricerca e il recupero dei salvataggi.

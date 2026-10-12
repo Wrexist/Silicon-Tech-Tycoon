@@ -1,1 +1,1 @@
-A versão 1.4.0 renova o escritório e melhora os controlos da fábrica, os projetos guardados, a apresentação do progresso da investigação e a recuperação de jogos guardados.
+A versão 1.4 renova o escritório e melhora os controlos da fábrica, os projetos guardados, a apresentação do progresso da investigação e a recuperação de jogos guardados.

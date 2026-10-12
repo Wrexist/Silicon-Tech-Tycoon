@@ -1,1 +1,1 @@
-Az 1.4.0-s verzió megújítja az irodát, és javítja a gyár vezérlését, a mentett terveket, a kutatási előrehaladás megjelenítését és a játékmentések helyreállítását.
+Az 1.4-s verzió megújítja az irodát, és javítja a gyár vezérlését, a mentett terveket, a kutatási előrehaladás megjelenítését és a játékmentések helyreállítását.

@@ -1,1 +1,1 @@
-Version 1.4.0 ger kontoret en ny design och förbättrar fabrikens kontroller, sparade designer, visningen av forskningsframsteg och återställningen av sparade spel.
+Version 1.4 ger kontoret en ny design och förbättrar fabrikens kontroller, sparade designer, visningen av forskningsframsteg och återställningen av sparade spel.

@@ -136,6 +136,7 @@ jobs:
           STORE_BUILD_NUMBER: ${{ inputs.build_number }}
           UPLOAD_STORE_MEDIA: ${{ inputs.media_run_id != '' && !inputs.encode_media && !inputs.media_ab_test && '1' || '0' }}
           STORE_MEDIA_DIR: reviewed-media
+          STORE_VERSION: ${{ inputs.marketing_version }}
         run: node scripts/prepare-app-store.mjs
       - name: Place Header and Search Results art on the draft
         if: ${{ inputs.creative_assets }}
@@ -143,6 +144,7 @@ jobs:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          STORE_VERSION: ${{ inputs.marketing_version }}
         run: node scripts/upload-creative-assets.mjs
       - name: Create the A/B test treatment from reviewed media
         if: ${{ inputs.media_ab_test && inputs.media_run_id != '' && !inputs.encode_media }}

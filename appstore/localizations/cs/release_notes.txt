@@ -1,1 +1,1 @@
-Verze 1.4.0 přináší přepracovanou kancelář a vylepšuje ovládání továrny, uložené návrhy, zobrazení průběhu výzkumu a obnovu uložených her.
+Verze 1.4 přináší přepracovanou kancelář a vylepšuje ovládání továrny, uložené návrhy, zobrazení průběhu výzkumu a obnovu uložených her.

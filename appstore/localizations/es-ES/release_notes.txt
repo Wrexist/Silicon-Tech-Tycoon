@@ -1,1 +1,1 @@
-La versión 1.4.0 renueva la oficina y mejora los controles de la fábrica, los diseños guardados, la visualización del progreso de investigación y la recuperación de partidas.
+La versión 1.4 renueva la oficina y mejora los controles de la fábrica, los diseños guardados, la visualización del progreso de investigación y la recuperación de partidas.

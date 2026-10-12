@@ -1,1 +1,1 @@
-Version 1.4.0 bringt ein neu gestaltetes Büro und verbessert die Fabriksteuerung, gespeicherte Entwürfe, die Anzeige des Forschungsfortschritts und die Wiederherstellung von Spielständen.
+Version 1.4 bringt ein neu gestaltetes Büro und verbessert die Fabriksteuerung, gespeicherte Entwürfe, die Anzeige des Forschungsfortschritts und die Wiederherstellung von Spielständen.

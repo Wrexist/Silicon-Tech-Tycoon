@@ -1,1 +1,1 @@
-Versiunea 1.4.0 modernizează biroul și îmbunătățește comenzile fabricii, proiectele salvate, afișarea progresului cercetării și recuperarea jocurilor salvate.
+Versiunea 1.4 modernizează biroul și îmbunătățește comenzile fabricii, proiectele salvate, afișarea progresului cercetării și recuperarea jocurilor salvate.

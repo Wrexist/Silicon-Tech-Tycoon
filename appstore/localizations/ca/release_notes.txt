@@ -1,1 +1,1 @@
-La versió 1.4.0 renova l’oficina i millora els controls de la fàbrica, els dissenys desats, la visualització del progrés de la recerca i la recuperació de partides.
+La versió 1.4 renova l’oficina i millora els controls de la fàbrica, els dissenys desats, la visualització del progrés de la recerca i la recuperació de partides.

@@ -1,1 +1,1 @@
-Versi 1.4.0 memperbarui kantor dan menyempurnakan kontrol pabrik, desain tersimpan, tampilan kemajuan riset, serta pemulihan data permainan tersimpan.
+Versi 1.4 memperbarui kantor dan menyempurnakan kontrol pabrik, desain tersimpan, tampilan kemajuan riset, serta pemulihan data permainan tersimpan.

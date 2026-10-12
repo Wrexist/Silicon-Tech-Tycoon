@@ -1,1 +1,1 @@
-A versão 1.4.0 renova o escritório e melhora os controles da fábrica, os projetos salvos, a exibição do progresso das pesquisas e a recuperação de partidas salvas.
+A versão 1.4 renova o escritório e melhora os controles da fábrica, os projetos salvos, a exibição do progresso das pesquisas e a recuperação de partidas salvas.
