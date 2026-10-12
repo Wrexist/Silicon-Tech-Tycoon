@@ -12,7 +12,7 @@ import { createHash } from 'node:crypto';
 import { asc, sanitized } from './app-store-client.mjs';
 
 const appId = '6778942533', versionString = '1.4.0', locale = 'en-US';
-const steps = (process.env.GROWTH || 'event,nomination,cpp,promo').split(',');
+const steps = (process.env.GROWTH || 'event,nomination,cpp,promo').split(',').map(x => x.trim());
 const out = 'artifacts/store-growth';
 mkdirSync(out, { recursive: true });
 const save = (name, data) => writeFileSync(join(out, name + '.json'), JSON.stringify(sanitized(data), null, 2));
@@ -216,7 +216,22 @@ if (steps.includes('cpp')) {
   }
 }
 
-// ---------- promotional text (read only) ----------
+// ---------- promotional text ----------
+// Read-only, except `promo-fill`: a version created through the API starts with NO promotional text,
+// so going live would blank the line above the description. promo-fill copies the live text onto
+// PROMO_VERSION's en-US page when (and only when) it is empty. Editing it never needs review.
+if (steps.includes('promo-fill')) {
+  const target = versions.find(v => v.attributes.versionString === process.env.PROMO_VERSION && v.attributes.platform === 'IOS');
+  const live = versions.find(v => ['READY_FOR_SALE', 'READY_FOR_DISTRIBUTION'].includes(v.attributes.appStoreState));
+  if (!target || !live) throw Error('promo-fill needs PROMO_VERSION and a live version');
+  const en = async v => (await asc(`/v1/appStoreVersions/${v.id}/appStoreVersionLocalizations?limit=200`)).data.find(l => l.attributes.locale === locale);
+  const [from, to] = [await en(live), await en(target)];
+  if (!to.attributes.promotionalText && from?.attributes.promotionalText) {
+    await asc(`/v1/appStoreVersionLocalizations/${to.id}`, 'PATCH', { type: 'appStoreVersionLocalizations', id: to.id, attributes: { promotionalText: from.attributes.promotionalText } });
+    console.log('Promotional text copied to', process.env.PROMO_VERSION);
+  }
+  report.promoFilled = (await en(target)).attributes.promotionalText;
+}
 if (steps.includes('promo')) {
   const live = versions.find(v => ['READY_FOR_SALE', 'READY_FOR_DISTRIBUTION'].includes(v.attributes.appStoreState));
   const read = async v => v ? (await asc(`/v1/appStoreVersions/${v.id}/appStoreVersionLocalizations?limit=200`)).data.find(l => l.attributes.locale === locale)?.attributes.promotionalText : null;
