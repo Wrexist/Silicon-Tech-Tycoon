@@ -105,9 +105,13 @@ if (steps.includes('nomination')) {
     'Research and production now progress smoothly in real time, and a new 3D quality setting keeps older iPhones running cool.',
     'Free to download with an optional subscription that sells content and modes, never an in-run advantage. No ads, no tracking, no accounts.',
   ].join(' '), 1000, 'nomination description');
-  const notes = 'Built for iPhone and iPad (phone and tablet layouts). Honours Reduce Motion, offers adjustable text size and a 3D quality setting for older devices. The game is fully offline and deterministic; saves never leave the device.';
+  const notes = 'Built for iPhone and iPad (phone and tablet layouts). Honours Reduce Motion, offers adjustable text size and a 3D quality setting for older devices. The game is fully offline and deterministic; saves never leave the device. Launching alongside the in-app event "The Factory Opens" (Major Update).';
   const attributes = { name, type: 'APP_ENHANCEMENTS', description, notes, submitted: false, publishStartDate: EVENT_START, deviceFamilies: ['IPHONE', 'IPAD'], locales: [locale], hasInAppEvents: !!eventId, launchInSelectMarketsFirst: false, preOrderEnabled: false };
-  const relationships = { relatedApps: { data: [{ type: 'apps', id: appId }] }, ...(eventId ? { inAppEvents: { data: [{ type: 'appEvents', id: eventId }] } } : {}) };
+  // Apple only accepts a link to an event that has been submitted; a draft event is named in the
+  // notes instead, and the owner links it in App Store Connect once the event is submitted.
+  const eventState = eventId ? (await asc(`/v1/appEvents/${eventId}`)).data.attributes.eventState : null;
+  const linkable = eventState && !['DRAFT', 'READY_FOR_REVIEW'].includes(eventState);
+  const relationships = { relatedApps: { data: [{ type: 'apps', id: appId }] }, ...(linkable ? { inAppEvents: { data: [{ type: 'appEvents', id: eventId }] } } : {}) };
   if (sent.some(n => n.attributes.name === name)) throw Error(`Nomination "${name}" is already submitted`);
   const same = existing.find(n => n.attributes.name === name);
   let nomination;
